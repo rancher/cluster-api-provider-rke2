@@ -57,6 +57,6 @@ func (r *Rke2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // SetupWithManager sets up the controller with the Manager.
 func (r *Rke2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&bootstrapv1.Rke2Config{}).
+		For(&bootstrapv1.RKE2Config{}).
 		Complete(r)
 }

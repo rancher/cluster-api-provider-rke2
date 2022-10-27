@@ -96,11 +96,11 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2Config")
 		os.Exit(1)
 	}
-	if err = (&bootstrapv1.Rke2Config{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&bootstrapv1.RKE2Config{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2Config")
 		os.Exit(1)
 	}
-	if err = (&bootstrapv1.Rke2ConfigTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&bootstrapv1.RKE2ConfigTemplate{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ConfigTemplate")
 		os.Exit(1)
 	}

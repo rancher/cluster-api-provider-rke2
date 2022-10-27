@@ -26,7 +26,7 @@ import (
 // log is for logging in this package.
 var rke2controlplanetemplatelog = logf.Log.WithName("rke2controlplanetemplate-resource")
 
-func (r *Rke2ControlPlaneTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (r *RKE2ControlPlaneTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -36,10 +36,10 @@ func (r *Rke2ControlPlaneTemplate) SetupWebhookWithManager(mgr ctrl.Manager) err
 
 //+kubebuilder:webhook:path=/mutate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplanetemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1alpha1,name=mrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &Rke2ControlPlaneTemplate{}
+var _ webhook.Defaulter = &RKE2ControlPlaneTemplate{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Rke2ControlPlaneTemplate) Default() {
+func (r *RKE2ControlPlaneTemplate) Default() {
 	rke2controlplanetemplatelog.Info("default", "name", r.Name)
 
 	// TODO(user): fill in your defaulting logic.
@@ -48,10 +48,10 @@ func (r *Rke2ControlPlaneTemplate) Default() {
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplanetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1alpha1,name=vrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Rke2ControlPlaneTemplate{}
+var _ webhook.Validator = &RKE2ControlPlaneTemplate{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2ControlPlaneTemplate) ValidateCreate() error {
+func (r *RKE2ControlPlaneTemplate) ValidateCreate() error {
 	rke2controlplanetemplatelog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
@@ -59,7 +59,7 @@ func (r *Rke2ControlPlaneTemplate) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) error {
+func (r *RKE2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) error {
 	rke2controlplanetemplatelog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
@@ -67,7 +67,7 @@ func (r *Rke2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2ControlPlaneTemplate) ValidateDelete() error {
+func (r *RKE2ControlPlaneTemplate) ValidateDelete() error {
 	rke2controlplanetemplatelog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

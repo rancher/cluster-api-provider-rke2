@@ -23,17 +23,17 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// Rke2ControlPlaneSpec defines the desired state of Rke2ControlPlane
-type Rke2ControlPlaneSpec struct {
+// RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane
+type RKE2ControlPlaneSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Rke2ControlPlane. Edit rke2controlplane_types.go to remove/update
+	// Foo is an example field of RKE2ControlPlane. Edit rke2controlplane_types.go to remove/update
 	Foo string `json:"foo,omitempty"`
 }
 
-// Rke2ControlPlaneStatus defines the observed state of Rke2ControlPlane
-type Rke2ControlPlaneStatus struct {
+// RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane
+type RKE2ControlPlaneStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -41,24 +41,24 @@ type Rke2ControlPlaneStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Rke2ControlPlane is the Schema for the rke2controlplanes API
-type Rke2ControlPlane struct {
+// RKE2ControlPlane is the Schema for the rke2controlplanes API
+type RKE2ControlPlane struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   Rke2ControlPlaneSpec   `json:"spec,omitempty"`
-	Status Rke2ControlPlaneStatus `json:"status,omitempty"`
+	Spec   RKE2ControlPlaneSpec   `json:"spec,omitempty"`
+	Status RKE2ControlPlaneStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// Rke2ControlPlaneList contains a list of Rke2ControlPlane
-type Rke2ControlPlaneList struct {
+// RKE2ControlPlaneList contains a list of RKE2ControlPlane
+type RKE2ControlPlaneList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Rke2ControlPlane `json:"items"`
+	Items           []RKE2ControlPlane `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Rke2ControlPlane{}, &Rke2ControlPlaneList{})
+	SchemeBuilder.Register(&RKE2ControlPlane{}, &RKE2ControlPlaneList{})
 }

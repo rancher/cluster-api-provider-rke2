@@ -26,7 +26,7 @@ import (
 // log is for logging in this package.
 var rke2configlog = logf.Log.WithName("rke2config-resource")
 
-func (r *Rke2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (r *RKE2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -36,10 +36,10 @@ func (r *Rke2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2config,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1alpha1,name=mrke2config.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &Rke2Config{}
+var _ webhook.Defaulter = &RKE2Config{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Rke2Config) Default() {
+func (r *RKE2Config) Default() {
 	rke2configlog.Info("default", "name", r.Name)
 
 	// TODO(user): fill in your defaulting logic.
@@ -48,10 +48,10 @@ func (r *Rke2Config) Default() {
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2config,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1alpha1,name=vrke2config.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Rke2Config{}
+var _ webhook.Validator = &RKE2Config{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2Config) ValidateCreate() error {
+func (r *RKE2Config) ValidateCreate() error {
 	rke2configlog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
@@ -59,7 +59,7 @@ func (r *Rke2Config) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2Config) ValidateUpdate(old runtime.Object) error {
+func (r *RKE2Config) ValidateUpdate(old runtime.Object) error {
 	rke2configlog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
@@ -67,7 +67,7 @@ func (r *Rke2Config) ValidateUpdate(old runtime.Object) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2Config) ValidateDelete() error {
+func (r *RKE2Config) ValidateDelete() error {
 	rke2configlog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.

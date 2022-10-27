@@ -9,8 +9,8 @@ metadata:
 spec:
   group: bootstrap.cluster.x-k8s.io
   names:
-    kind: Rke2ConfigTemplate
-    listKind: Rke2ConfigTemplateList
+    kind: RKE2ConfigTemplate
+    listKind: RKE2ConfigTemplateList
     plural: rke2configtemplates
     singular: rke2configtemplate
   scope: Namespaced
@@ -18,7 +18,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Rke2ConfigTemplate is the Schema for the rke2configtemplates
+        description: RKE2ConfigTemplate is the Schema for the RKE2configtemplates
           API
         properties:
           apiVersion:
@@ -34,15 +34,15 @@ spec:
           metadata:
             type: object
           spec:
-            description: Rke2ConfigTemplateSpec defines the desired state of Rke2ConfigTemplate
+            description: RKE2ConfigTemplateSpec defines the desired state of RKE2ConfigTemplate
             properties:
               foo:
-                description: Foo is an example field of Rke2ConfigTemplate. Edit rke2configtemplate_types.go
+                description: Foo is an example field of RKE2ConfigTemplate. Edit RKE2configtemplate_types.go
                   to remove/update
                 type: string
             type: object
           status:
-            description: Rke2ConfigTemplateStatus defines the observed state of Rke2ConfigTemplate
+            description: RKE2ConfigTemplateStatus defines the observed state of RKE2ConfigTemplate
             type: object
         type: object
     served: true
