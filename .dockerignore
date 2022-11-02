@@ -1,0 +1,40 @@
+.git
+.github
+.vscode
+bin/
+test/
+**/*.yaml
+hack/
+docs/
+scripts/
+**/*.md
+tilt-provider.json
+**/config/**/*.yaml
+**/config/**/*.yaml-e
+_artifacts
+Makefile
+**/Makefile
+
+.dockerignore
+# We want to ignore any frequently modified files to avoid cache-busting the COPY ./ ./
+# Binaries for programs and plugins
+**/*.exe
+**/*.dll
+**/*.so
+**/*.dylib
+cmd/clusterctl/clusterctl/**
+**/bin/**
+**/out/**
+
+# Test binary, build with `go test -c`
+**/*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+**/*.out
+
+# Common editor / temporary files
+**/*~
+**/*.tmp
+**/.DS_Store
+**/*.swp
+

@@ -1,0 +1,34 @@
+[
+    {
+      "name": "rke2-control-plane",
+      "config": {
+        "context": "controlplane",
+        "image": "ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:dev",
+        "live_reload_deps": [
+          "main.go",
+          "go.mod",
+          "go.sum",
+          "api",
+          "internal",
+          "pkg"
+        ],
+        "label": "CAPRKE2"
+      }
+    },
+    {
+        "name": "rke2-bootstrap",
+        "config": {
+          "context": "bootstrap",
+          "image": "ghcr.io/rancher-sandbox/cluster-api-provider-rke2-bootstrap:dev",
+          "live_reload_deps": [
+            "main.go",
+            "go.mod",
+            "go.sum",
+            "api",
+            "internal",
+            "pkg"
+          ],
+          "label": "CAPBPR"
+        }
+      }
+]
