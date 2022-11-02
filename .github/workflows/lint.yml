@@ -1,4 +1,4 @@
-name: golangci-lint
+name: lint
 
 on:
   pull_request:
@@ -11,19 +11,11 @@ jobs:
   golangci:
     name: lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        working-directory:
-          - ""
-          - test
-          - hack/tools
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
           go-version: 1.19
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.2.0
-        with:
-          version: v1.49.0
-          working-directory: ${{matrix.working-directory}}
+      - name: Lint
+        run: make lint
+
