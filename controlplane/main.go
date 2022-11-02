@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	controlplanev1alpha1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/internal/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -44,7 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(controlplanev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(controlplanev1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -96,11 +96,11 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2ControlPlane")
 		os.Exit(1)
 	}
-	if err = (&controlplanev1alpha1.Rke2ControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&controlplanev1.Rke2ControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ControlPlane")
 		os.Exit(1)
 	}
-	if err = (&controlplanev1alpha1.Rke2ControlPlaneTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&controlplanev1.Rke2ControlPlaneTemplate{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ControlPlaneTemplate")
 		os.Exit(1)
 	}

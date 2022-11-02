@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	controlplanev1alpha1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 )
 
 // Rke2ControlPlaneReconciler reconciles a Rke2ControlPlane object
@@ -59,6 +59,6 @@ func (r *Rke2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // SetupWithManager sets up the controller with the Manager.
 func (r *Rke2ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&controlplanev1alpha1.Rke2ControlPlane{}).
+		For(&controlplanev1.Rke2ControlPlane{}).
 		Complete(r)
 }
