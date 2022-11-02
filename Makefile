@@ -93,6 +93,7 @@ GO_APIDIFF_PKG := github.com/joelanford/go-apidiff
 HADOLINT_VER := v2.10.0
 HADOLINT_FAILURE_THRESHOLD = warning
 
+GOLANGCI_LINT_VER := v1.49.0
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN))
 
@@ -159,7 +160,7 @@ generate-manifests-rke2-bootstrap: $(CONTROLLER_GEN) ## Generate manifests e.g. 
 
 .PHONY: generate-manifests-rke2-control-plane
 generate-manifests-rke2-control-plane: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc. for RKE2 control plane provider
-	$(MAKE) clean-generated-yaml SRC_DIRS="./controlplane/rke2/config/crd/bases"
+	$(MAKE) clean-generated-yaml SRC_DIRS="./controlplane/config/crd/bases"
 	$(CONTROLLER_GEN) \
 		paths=./controlplane/api/... \
 		paths=./controlplane/internal/controllers/... \
@@ -202,8 +203,8 @@ generate-modules: ## Run go mod tidy to ensure modules are up to date
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT) ## Lint the codebase
-	cd $(CAPBPR_DIR); $(GOLANGCI_LINT) run -v $(GOLANGCI_LINT_EXTRA_ARGS)
-	cd $(CAPRKE2_DIR); $(GOLANGCI_LINT) run -v $(GOLANGCI_LINT_EXTRA_ARGS)
+	cd $(CAPBPR_DIR); $(GOLANGCI_LINT) run -v --timeout 3m $(GOLANGCI_LINT_EXTRA_ARGS)
+	cd $(CAPRKE2_DIR); $(GOLANGCI_LINT) run -v --timeout 3m $(GOLANGCI_LINT_EXTRA_ARGS)
 	./scripts/ci-lint-dockerfiles.sh $(HADOLINT_VER) $(HADOLINT_FAILURE_THRESHOLD)
 
 .PHONY: lint-dockerfiles
@@ -531,10 +532,10 @@ $(KUSTOMIZE): # Build kustomize from tools folder.
 $(SETUP_ENVTEST): # Build setup-envtest from tools folder.
 	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) $(SETUP_ENVTEST_PKG) $(SETUP_ENVTEST_BIN) $(SETUP_ENVTEST_VER)
 
-$(GOLANGCI_LINT): .github/workflows/golangci-lint.yml # Download golangci-lint using hack script into tools folder.
+$(GOLANGCI_LINT): # Download and install golangci-lint
 	hack/ensure-golangci-lint.sh \
 		-b $(TOOLS_BIN_DIR) \
-		$(shell cat .github/workflows/golangci-lint.yml | grep [[:space:]]version | sed 's/.*version: //')
+		$(GOLANGCI_LINT_VER)
 
 $(GH): # Download GitHub cli into the tools bin folder
 	hack/ensure-gh.sh \
