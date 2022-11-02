@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	bootstrapv1alpha1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -44,7 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(bootstrapv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(bootstrapv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -96,11 +96,11 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2Config")
 		os.Exit(1)
 	}
-	if err = (&bootstrapv1alpha1.Rke2Config{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&bootstrapv1.Rke2Config{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2Config")
 		os.Exit(1)
 	}
-	if err = (&bootstrapv1alpha1.Rke2ConfigTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&bootstrapv1.Rke2ConfigTemplate{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ConfigTemplate")
 		os.Exit(1)
 	}
