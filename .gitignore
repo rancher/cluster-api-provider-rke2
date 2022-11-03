@@ -46,3 +46,5 @@ _artifacts
 # release artifacts
 out
 _releasenotes
+
+.tiltbuild
