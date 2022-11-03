@@ -17,6 +17,5 @@ jobs:
         run: make verify
       - name: Build
         run: make managers
-      # When make test is fixed we can re-enabled this
-      #- name: Test
-      #  run: make test
+      - name: Test
+        run: make test
