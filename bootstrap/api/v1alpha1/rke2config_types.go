@@ -43,10 +43,6 @@ type RKE2ConfigSpec struct {
 	//+optional
 	AgentConfig RKE2AgentConfig `json:"agentConfig,omitempty"`
 
-	// ServerConfig specifies configuration for the agent nodes.
-	//+optional
-	ServerConfig RKE2ServerConfig `json:"serverConfig,omitempty"`
-
 	// PrivateRegistriesConfig defines the containerd configuration for private registries and local registry mirrors.
 	//+optional
 	PrivateRegistriesConfig Registry `json:"privateRegistriesConfig,omitempty"`
@@ -56,115 +52,8 @@ type RKE2ConfigSpec struct {
 	Version string `json:"version,omitempty"`
 }
 
-type RKE2ServerConfig struct {
-	// RKE2CommonNodeConfig is an inline struct that references common attribtes between agent and server nodes
-	RKE2CommonNodeConfig `json:",inline"`
-
-	// BindAddress describes the rke2 bind address (default: 0.0.0.0).
-	//+optional
-	BindAddress string `json:"bindAddress,omitempty"`
-
-	// AdvertiseAddress IP address that apiserver uses to advertise to members of the cluster (default: node-external-ip/node-ip).
-	//+optional
-	AdvertiseAddress string `json:"advertiseAddress,omitempty"`
-
-	// TLSSan Add additional hostname or IP as a Subject Alternative Name in the TLS cert.
-	//+optional
-	TLSSan []string `json:"tlsSan,omitempty"`
-
-	// ServiceNodePortRange is the port range to reserve for services with NodePort visibility (default: "30000-32767").
-	//+optional
-	ServiceNodePortRange string `json:"service-node-port-range,omitempty"`
-
-	// ClusterDNS is the cluster IP for CoreDNS service. Should be in your service-cidr range (default: 10.43.0.10).
-	//+optional
-	ClusterDNS string `json:"clusterDNS,omitempty"`
-
-	// ClusterDomain is the cluster domain name (default: "cluster.local").
-	//+optional
-	ClusterDomain string `json:"clusterDomain,omitempty"`
-
-	// ExposeEtcdMetrics defines the policy for ETCD Metrics exposure.
-	// if value is true, ETCD metrics will be exposed
-	// if value is false, ETCD metrics will NOT be exposed
-	// +optional
-	ExposeEtcdMetrics bool `json:"exposeEtcdMetrics,omitempty"`
-
-	// EtcdBackupConfig defines how RKE2 will snapshot ETCD: target storage, schedule, etc.
-	//+optional
-	EtcdBackupConfig EtcdBackupConfig `json:"etcdBackupConfig,omitempty"`
-
-	// DisableComponents lists Kubernetes components and RKE2 plugin components that will be disabled.
-	//+optional
-	DisableComponents DisableComponents `json:"disableComponents,omitempty"`
-
-	// LoadBalancerPort Local port for supervisor client load-balancer. If the supervisor and apiserver are not colocated an additional port 1 less than this port will also be used for the apiserver client load-balancer (default: 6444).
-	//+optional
-	LoadBalancerPort int `json:"lbServerPort,omitempty"`
-
-	// CNI describes the CNI Plugins to deploy, one of none, calico, canal, cilium; optionally with multus as the first value to enable the multus meta-plugin (default: canal).
-	// +kubebuilder:validation:Enum=none;calico;canal;cilium
-	//+optional
-	CNI CNI `json:"cni,omitempty"`
-
-	// PauseImage Override image to use for pause.
-	//+optional
-	PauseImage string `json:"pauseImage,omitempty"`
-
-	// RuntimeImage Override image to use for runtime binaries (containerd, kubectl, crictl, etc).
-	//+optional
-	RuntimeImage string `json:"runtimeImage,omitempty"`
-
-	//	CloudProviderName  Cloud provider name.
-	//+optional
-	CloudProviderName string `json:"cloudProviderName,omitempty"`
-
-	//	CloudProviderConfigMap  is a reference to a ConfigMap containing Cloud provider configuration.
-	//+optional
-	CloudProviderConfigMap corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
-
-	// NOTE: this was only profile, changed it to cisProfile.
-
-	// AuditPolicySecret Path to the file that defines the audit policy configuration.
-	//+optional
-	AuditPolicySecret corev1.ObjectReference `json:"auditPolicySecret,omitempty"`
-
-	// ControlPlaneResourceRequests Control Plane resource requests.
-	//+optional
-	ControlPlaneResourceRequests string `json:"controlPlaneResourceRequests,omitempty"`
-
-	// ControlPlaneResourceLimits Control Plane resource limits.
-	//+optional
-	ControlPlaneResourceLimits string `json:"controlPlaneResourceLimits,omitempty"`
-
-	// Etcd defines optional custom configuration of ETCD.
-	//+optional
-	Etcd ComponentConfig `json:"etcd,omitempty"`
-
-	// KubeAPIServer defines optional custom configuration of the Kube API Server.
-	//+optional
-	KubeAPIServer ComponentConfig `json:"kubeAPIServer,omitempty"`
-
-	// KubeControllerManager defines optional custom configuration of the Kube Controller Manager.
-	//+optional
-	KubeControllerManager ComponentConfig `json:"kubeControllerManager,omitempty"`
-
-	// KubeScheduler defines optional custom configuration of the Kube Scheduler.
-	//+optional
-	KubeScheduler ComponentConfig `json:"kubeScheduler,omitempty"`
-
-	// CloudControllerManager defines optional custom configuration of the Cloud Controller Manager.
-	//+optional
-	CloudControllerManager ComponentConfig `json:"cloudControllerManager,omitempty"`
-}
-
-type RKE2AgentConfig struct {
-	// RKE2CommonNodeConfig is an inline struct that references common attribtes between agent and server nodes
-	RKE2CommonNodeConfig `json:",inline"`
-}
-
 // RKE2CommonNodeConfig describes some attributes that are common to agent and server nodes
-type RKE2CommonNodeConfig struct {
+type RKE2AgentConfig struct {
 	// DataDir Folder to hold state.
 	//+optional
 	DataDir string `json:"dataDir,omitempty"`
@@ -180,6 +69,10 @@ type RKE2CommonNodeConfig struct {
 	// NodeNamePrefix Prefix to the Node Name that CAPI will generate.
 	//+optional
 	NodeNamePrefix string `json:"nodeName,omitempty"`
+
+	// NTP specifies NTP configuration
+	// +optional
+	NTP *NTP `json:"ntp,omitempty"`
 
 	// ImageCredentialProviderConfigMap is a reference to the ConfigMap that contains credential provider plugin config
 	// The configMap should contain a YAML file content + a Path to the Binaries for Credential Provider.
@@ -239,15 +132,15 @@ type RKE2CommonNodeConfig struct {
 	KubeProxy ComponentConfig `json:"kubeProxy,omitempty"`
 }
 
-// DisableComponents describes components of RKE2 (Kubernetes components and plugin components) that should be disabled
-type DisableComponents struct {
-	// KubernetesComponents is a list of Kubernetes components to disable.
-	// +kubebuilder:validation:Enum=scheduler;kubeProxy;cloudController
-	KubernetesComponents []DisabledKubernetesComponent `json:"kubernetesComponents,omitempty"`
+// NTP defines input for generated ntp in cloud-init.
+type NTP struct {
+	// Servers specifies which NTP servers to use
+	// +optional
+	Servers []string `json:"servers,omitempty"`
 
-	// PluginComponents is a list of PluginComponents to disable.
-	// +kubebuilder:validation:Enum=rke2-coredns;rke2-ingress-nginx;rke2-metrics-server
-	PluginComponents []DisabledPluginComponent `json:"pluginComponents,omitempty"`
+	// Enabled specifies whether NTP should be enabled
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // RKE2ConfigStatus defines the observed state of RKE2Config.
@@ -305,38 +198,12 @@ type RKE2ConfigList struct {
 	Items           []RKE2Config `json:"items"`
 }
 
-// DisabledItem selects a plugin Components to be disabled.
-type DisabledPluginComponent string
-
-const (
-	// CoreDNS references the RKE2 Plugin "rke2-coredns"
-	CoreDNS DisabledPluginComponent = "rke2-coredns"
-	// IngressNginx references the RKE2 Plugin "rke2-ingress-nginx"
-	IngressNginx DisabledPluginComponent = "rke2-ingress-nginx"
-	// MetricsServer references the RKE2 Plugin "rke2-metrics-server"
-	MetricsServer DisabledPluginComponent = "rke2-metrics-server"
-)
-
 // CISProfile defines the CIS Benchmark profile to be activated in RKE2.
 type CISProfile string
 
 const (
 	// CIS1_23 references RKE2's CIS Profile "cis-1.23"
 	CIS1_23 CISProfile = "cis-1.23"
-)
-
-// CNI defines the Cni options for deploying RKE2.
-type CNI string
-
-const (
-	// Cilium references the RKE2 CNI Plugin "cilium"
-	Cilium CNI = "cilium"
-	// Calico references the RKE2 CNI Plugin "calico"
-	Calico CNI = "calico"
-	// Canal references the RKE2 CNI Plugin "canal"
-	Canal CNI = "canal"
-	// None means that no CNI Plugin will be installed with RKE2, letting the operator install his own CNI afterwards.
-	None CNI = "none"
 )
 
 // Encoding specifies the cloud-init file encoding.
@@ -349,20 +216,6 @@ const (
 	Gzip Encoding = "gzip"
 	// GzipBase64 implies the contents of the file are first base64 encoded and then gzip encoded.
 	GzipBase64 Encoding = "gzip+base64"
-)
-
-// DisabledKubernetesComponent is an enum field that can take one of the following values: scheduler, kubeProxy or cloudController.
-type DisabledKubernetesComponent string
-
-const (
-	// Scheduler references the Kube Scheduler Kubernetes components of the control plane/server nodes
-	Scheduler DisabledKubernetesComponent = "scheduler"
-
-	// KubeProxy references the Kube Proxy Kubernetes components on the agents
-	KubeProxy DisabledKubernetesComponent = "kubeProxy"
-
-	// CloudController references the Cloud Controller Manager Kubernetes Components on the control plane / server nodes
-	CloudController DisabledKubernetesComponent = "cloudController"
 )
 
 // File defines the input for generating write_files in cloud-init.
@@ -410,32 +263,6 @@ type SecretFileSource struct {
 
 	// Key is the key in the secret's data map for this value.
 	Key string `json:"key"`
-}
-
-type EtcdBackupConfig struct {
-	// EnableAutomaticSnapshots defines the policy for ETCD snapshots. true means automatic snapshots will be scheduled, false means automatic snapshots will not be scheduled.
-	//+optional
-	EnableAutomaticSnapshots bool `json:"enableAutomaticSnapshots,omitempty"`
-
-	// SnapshotName Set the base name of etcd snapshots. Default: etcd-snapshot-<unix-timestamp> (default: "etcd-snapshot").
-	//+optional
-	SnapshotName string `json:"snapshotName,omitempty"`
-
-	// ScheduleCron Snapshot interval time in cron spec. eg. every 5 hours '* */5 * * *' (default: "0 */12 * * *").
-	//+optional
-	ScheduleCron string `json:"scheduleCron,omitempty"`
-
-	// Retention Number of snapshots to retain Default: 5 (default: 5).
-	//+optional
-	Retention string `json:"retention,omitempty"`
-
-	// Directory Directory to save db snapshots. (Default location: ${data-dir}/db/snapshots).
-	//+optional
-	Directory string `json:"directory,omitempty"`
-
-	// S3 Enable backup to an S3-compatible Object Store.
-	//+optional
-	S3 EtcdS3 `json:"s3,omitempty"`
 }
 
 // Registry is registry settings including mirrors, TLS, and credentials.
@@ -490,34 +317,6 @@ type TLSConfig struct {
 	EnforceSSLVerify bool `json:"enforceSslVerify,omitempty"`
 }
 
-type EtcdS3 struct {
-	// Endpoint S3 endpoint url (default: "s3.amazonaws.com").
-	Endpoint string `json:"endpoint"`
-
-	// EndpointCA references the Secret that contains a custom CA that should be trusted to connect to S3 endpoint.
-	//+optional
-	EndpointCA corev1.ObjectReference `json:"endpointCA,omitempty"`
-
-	// EnforceSSLVerify may be set to false to skip verifying the registry's certificate, default is true.
-	//+optional
-	EnforceSSLVerify bool `json:"enforceSslVerify,omitempty"`
-
-	// S3CredentialSecret is a reference to a Secret containing the Access Key and Secret Key necessary to access the target S3 Bucket.
-	S3CredentialSecret corev1.ObjectReference `json:"S3CredentialSecret"`
-
-	// Bucket S3 bucket name.
-	//+optional
-	Bucket string `json:"bucket,omitempty"`
-
-	// Region S3 region / bucket location (optional) (default: "us-east-1").
-	//+optional
-	Region string `json:"region,omitempty"`
-
-	// Folder S3 folder.
-	//+optional
-	Folder string `json:"folder,omitempty"`
-}
-
 type ComponentConfig struct {
 	// ExtraEnv is a map of environment variables to pass on to a Kubernetes Component command.
 	//+optional
@@ -527,11 +326,11 @@ type ComponentConfig struct {
 	//+optional
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 
-	//ExtraMounts is a map of volume mounts to be added for the Kubernetes component StaticPod
+	// ExtraMounts is a map of volume mounts to be added for the Kubernetes component StaticPod
 	//+optional
 	ExtraMounts map[string]string `json:"extraMounts,omitempty"`
 
-	//OverrideImage is a string that references a container image to override the default one for the Kubernetes Component
+	// OverrideImage is a string that references a container image to override the default one for the Kubernetes Component
 	//+optional
 	OverrideImage string `json:"overrideImage,omitempty"`
 }

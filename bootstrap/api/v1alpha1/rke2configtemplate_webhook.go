@@ -32,8 +32,6 @@ func (r *RKE2ConfigTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2configtemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1alpha1,name=mrke2configtemplate.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &RKE2ConfigTemplate{}
@@ -42,10 +40,8 @@ var _ webhook.Defaulter = &RKE2ConfigTemplate{}
 func (r *RKE2ConfigTemplate) Default() {
 	RKE2configtemplatelog.Info("default", "name", r.Name)
 
-	// TODO(user): fill in your defaulting logic.
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2configtemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1alpha1,name=vrke2configtemplate.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RKE2ConfigTemplate{}
@@ -54,7 +50,6 @@ var _ webhook.Validator = &RKE2ConfigTemplate{}
 func (r *RKE2ConfigTemplate) ValidateCreate() error {
 	RKE2configtemplatelog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
 	return nil
 }
 
@@ -62,7 +57,6 @@ func (r *RKE2ConfigTemplate) ValidateCreate() error {
 func (r *RKE2ConfigTemplate) ValidateUpdate(old runtime.Object) error {
 	RKE2configtemplatelog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
 	return nil
 }
 
@@ -70,6 +64,5 @@ func (r *RKE2ConfigTemplate) ValidateUpdate(old runtime.Object) error {
 func (r *RKE2ConfigTemplate) ValidateDelete() error {
 	RKE2configtemplatelog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
