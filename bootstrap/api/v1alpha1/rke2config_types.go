@@ -22,9 +22,6 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // RKE2ConfigSpec defines the desired state of RKE2Config.
 type RKE2ConfigSpec struct {
 	// Files specifies extra files to be passed to user_data upon creation.
