@@ -9,8 +9,8 @@ metadata:
 spec:
   group: controlplane.cluster.x-k8s.io
   names:
-    kind: Rke2ControlPlaneTemplate
-    listKind: Rke2ControlPlaneTemplateList
+    kind: RKE2ControlPlaneTemplate
+    listKind: RKE2ControlPlaneTemplateList
     plural: rke2controlplanetemplates
     singular: rke2controlplanetemplate
   scope: Namespaced
@@ -18,7 +18,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Rke2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates
+        description: RKE2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates
           API
         properties:
           apiVersion:
@@ -34,17 +34,17 @@ spec:
           metadata:
             type: object
           spec:
-            description: Rke2ControlPlaneTemplateSpec defines the desired state of
-              Rke2ControlPlaneTemplate
+            description: RKE2ControlPlaneTemplateSpec defines the desired state of
+              RKE2ControlPlaneTemplate
             properties:
               foo:
-                description: Foo is an example field of Rke2ControlPlaneTemplate.
+                description: Foo is an example field of RKE2ControlPlaneTemplate.
                   Edit rke2controlplanetemplate_types.go to remove/update
                 type: string
             type: object
           status:
-            description: Rke2ControlPlaneTemplateStatus defines the observed state
-              of Rke2ControlPlaneTemplate
+            description: RKE2ControlPlaneTemplateStatus defines the observed state
+              of RKE2ControlPlaneTemplate
             type: object
         type: object
     served: true

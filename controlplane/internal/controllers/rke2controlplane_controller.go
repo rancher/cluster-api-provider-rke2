@@ -27,8 +27,8 @@ import (
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 )
 
-// Rke2ControlPlaneReconciler reconciles a Rke2ControlPlane object
-type Rke2ControlPlaneReconciler struct {
+// RKE2ControlPlaneReconciler reconciles a RKE2ControlPlane object
+type RKE2ControlPlaneReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -42,13 +42,13 @@ type Rke2ControlPlaneReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the Rke2ControlPlane object against the actual cluster state, and then
+// the RKE2ControlPlane object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *Rke2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here
@@ -57,8 +57,8 @@ func (r *Rke2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Rke2ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RKE2ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&controlplanev1.Rke2ControlPlane{}).
+		For(&controlplanev1.RKE2ControlPlane{}).
 		Complete(r)
 }

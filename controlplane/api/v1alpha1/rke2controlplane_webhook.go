@@ -26,50 +26,42 @@ import (
 // log is for logging in this package.
 var rke2controlplanelog = logf.Log.WithName("rke2controlplane-resource")
 
-func (r *Rke2ControlPlane) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (r *RKE2ControlPlane) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplane,mutating=true,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes,verbs=create;update,versions=v1alpha1,name=mrke2controlplane.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &Rke2ControlPlane{}
+var _ webhook.Defaulter = &RKE2ControlPlane{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Rke2ControlPlane) Default() {
+func (r *RKE2ControlPlane) Default() {
 	rke2controlplanelog.Info("default", "name", r.Name)
 
-	// TODO(user): fill in your defaulting logic.
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplane,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes,verbs=create;update,versions=v1alpha1,name=vrke2controlplane.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &Rke2ControlPlane{}
+var _ webhook.Validator = &RKE2ControlPlane{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2ControlPlane) ValidateCreate() error {
+func (r *RKE2ControlPlane) ValidateCreate() error {
 	rke2controlplanelog.Info("validate create", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object creation.
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2ControlPlane) ValidateUpdate(old runtime.Object) error {
+func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) error {
 	rke2controlplanelog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Rke2ControlPlane) ValidateDelete() error {
+func (r *RKE2ControlPlane) ValidateDelete() error {
 	rke2controlplanelog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

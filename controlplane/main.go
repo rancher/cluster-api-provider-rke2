@@ -89,19 +89,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.Rke2ControlPlaneReconciler{
+	if err = (&controllers.RKE2ControlPlaneReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Rke2ControlPlane")
+		setupLog.Error(err, "unable to create controller", "controller", "RKE2ControlPlane")
 		os.Exit(1)
 	}
-	if err = (&controlplanev1.Rke2ControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ControlPlane")
+	if err = (&controlplanev1.RKE2ControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ControlPlane")
 		os.Exit(1)
 	}
-	if err = (&controlplanev1.Rke2ControlPlaneTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ControlPlaneTemplate")
+	if err = (&controlplanev1.RKE2ControlPlaneTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ControlPlaneTemplate")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

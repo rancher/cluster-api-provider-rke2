@@ -1,0 +1,264 @@
+@startuml
+namespace v1beta1 {
+    class AuthConfig << (S,Aquamarine) >> {
+        + Username string
+        + Password string
+        + Auth string
+        + IdentityToken string
+
+    }
+    class ComponentConfig << (S,Aquamarine) >> {
+        + ExtraEnv <font color=blue>map</font>[string]string
+        + ExtraArgs <font color=blue>map</font>[string]string
+        + ExtraMounts <font color=blue>map</font>[string]string
+        + OverrideImage string
+
+    }
+    class EtcdBackupConfig << (S,Aquamarine) >> {
+        + EtcdDisableSnapshots bool
+        + EtcdSnapshotName string
+        + EtcdSnapshotScheduleCron string
+        + EtcdSnapshotRetention string
+        + EtcdSnapshotDir string
+        + EtcdS3 EtcdS3
+
+    }
+    class EtcdS3 << (S,Aquamarine) >> {
+        + Endpoint string
+        + EndpointCa string
+        + SkipSslVerify string
+        + AccessKey string
+        + SecretKey string
+        + Bucket string
+        + Region string
+        + Folder string
+
+    }
+    class File << (S,Aquamarine) >> {
+        + Path string
+        + Owner string
+        + Permissions string
+        + Encoding Encoding
+        + Content string
+        + ContentFrom *FileSource
+
+        + DeepCopyInto(out *File) 
+        + DeepCopy() *File
+
+    }
+    class FileSource << (S,Aquamarine) >> {
+        + Secret SecretFileSource
+
+        + DeepCopyInto(out *FileSource) 
+        + DeepCopy() *FileSource
+
+    }
+    class Mirror << (S,Aquamarine) >> {
+        + Endpoints []string
+        + Rewrites <font color=blue>map</font>[string]string
+
+    }
+    class RKE2AgentConfig << (S,Aquamarine) >> {
+        + NodeLabels []string
+        + NodeTaints []string
+        + PrivateRegistry string
+        + KubeletArgs []string
+        + KubeProxyArgs []string
+        + NodeName string
+
+        + DeepCopyInto(out *RKE2AgentConfig) 
+        + DeepCopy() *RKE2AgentConfig
+
+    }
+    class RKE2Config << (S,Aquamarine) >> {
+        + Spec RKE2ConfigSpec
+        + Status RKE2ConfigStatus
+
+        + GetConditions() v1beta1.Conditions
+        + SetConditions(conditions v1beta1.Conditions) 
+        + DeepCopyInto(out *RKE2Config) 
+        + DeepCopy() *RKE2Config
+        + DeepCopyObject() runtime.Object
+
+    }
+    class RKE2ConfigList << (S,Aquamarine) >> {
+        + Items []RKE2Config
+
+        + DeepCopyInto(out *RKE2ConfigList) 
+        + DeepCopy() *RKE2ConfigList
+        + DeepCopyObject() runtime.Object
+
+    }
+    class RKE2ConfigSpec << (S,Aquamarine) >> {
+        + Files []File
+        + PreRKE2Commands []string
+        + DeployRKE2Commands []string
+        + PostRKE2Commands []string
+        + AgentConfig RKE2AgentConfig
+        + ServerConfig RKE2ServerConfig
+        + PrivateRegistriesConfig Registry
+        + Version string
+
+        + DeepCopyInto(out *RKE2ConfigSpec) 
+        + DeepCopy() *RKE2ConfigSpec
+
+    }
+    class RKE2ConfigStatus << (S,Aquamarine) >> {
+        + Ready bool
+        + BootstrapData []byte
+        + DataSecretName *string
+        + FailureReason string
+        + FailureMessage string
+        + ObservedGeneration int64
+        + Conditions v1beta1.Conditions
+
+        + DeepCopyInto(out *RKE2ConfigStatus) 
+        + DeepCopy() *RKE2ConfigStatus
+
+    }
+    class RKE2ConfigTemplate << (S,Aquamarine) >> {
+        + Spec RKE2ConfigTemplateSpec
+
+        + DeepCopyInto(out *RKE2ConfigTemplate) 
+        + DeepCopy() *RKE2ConfigTemplate
+        + DeepCopyObject() runtime.Object
+
+    }
+    class RKE2ConfigTemplateList << (S,Aquamarine) >> {
+        + Items []RKE2ConfigTemplate
+
+        + DeepCopyInto(out *RKE2ConfigTemplateList) 
+        + DeepCopy() *RKE2ConfigTemplateList
+        + DeepCopyObject() runtime.Object
+
+    }
+    class RKE2ConfigTemplateResource << (S,Aquamarine) >> {
+        + Spec RKE2ConfigSpec
+
+        + DeepCopyInto(out *RKE2ConfigTemplateResource) 
+        + DeepCopy() *RKE2ConfigTemplateResource
+
+    }
+    class RKE2ConfigTemplateSpec << (S,Aquamarine) >> {
+        + Template RKE2ConfigTemplateResource
+
+        + DeepCopyInto(out *RKE2ConfigTemplateSpec) 
+        + DeepCopy() *RKE2ConfigTemplateSpec
+
+    }
+    class RKE2ServerConfig << (S,Aquamarine) >> {
+        + BindAddress string
+        + AdvertiseAddress string
+        + TLSSan []string
+        + DataDir string
+        + ServiceNodePortRange string
+        + ClusterDNS string
+        + ClusterDomain string
+        + WriteKubeconfig string
+        + WriteKubeconfigMode string
+        + EtcdExposeMetrics string
+        + EtcdBackupConfig EtcdBackupConfig
+        + Disable []DisabledItem
+        + DisableScheduler string
+        + DisableCloudController string
+        + DisableKubeProxy string
+        + NodeName string
+        + NodeLabel string
+        + NodeTaint string
+        + ImageCredentialProviderBinDir string
+        + ImageCredentialProviderConfig string
+        + ContainerRuntimeEndpoint string
+        + Snapshotter string
+        + PrivateRegistry string
+        + NodeIp string
+        + NodeExternalIp string
+        + ResolvConf string
+        + ProtectKernelDefaults string
+        + SystemDefaultRegistry string
+        + Selinux string
+        + LbServerPort string
+        + Cni Cni
+        + PauseImage string
+        + RuntimeImage string
+        + KubeletPath string
+        + CloudProviderName string
+        + CloudProviderConfig string
+        + CisProfile CisProfile
+        + AuditPolicyFile string
+        + ControlPlaneResourceRequests string
+        + ControlPlaneResourceLimits string
+        + Etcd ComponentConfig
+        + KubeApiServer ComponentConfig
+        + KubeControllerManager ComponentConfig
+        + KubeScheduler ComponentConfig
+        + KubeProxy ComponentConfig
+        + CloudControllerManager ComponentConfig
+        + Kubelet ComponentConfig
+
+        + DeepCopyInto(out *RKE2ServerConfig) 
+        + DeepCopy() *RKE2ServerConfig
+
+    }
+    class Registry << (S,Aquamarine) >> {
+        + Mirrors <font color=blue>map</font>[string]Mirror
+        + Configs <font color=blue>map</font>[string]RegistryConfig
+
+    }
+    class RegistryConfig << (S,Aquamarine) >> {
+        + Auth *AuthConfig
+        + TLS *TLSConfig
+
+    }
+    class SecretFileSource << (S,Aquamarine) >> {
+        + Name string
+        + Key string
+
+        + DeepCopyInto(out *SecretFileSource) 
+        + DeepCopy() *SecretFileSource
+
+    }
+    class TLSConfig << (S,Aquamarine) >> {
+        + CAFile string
+        + CertFile string
+        + KeyFile string
+        + InsecureSkipVerify bool
+
+    }
+    class v1beta1.CisProfile << (T, #FF7700) >>  {
+    }
+    class v1beta1.Cni << (T, #FF7700) >>  {
+    }
+    class v1beta1.DisabledItem << (T, #FF7700) >>  {
+    }
+    class v1beta1.Encoding << (T, #FF7700) >>  {
+    }
+}
+
+"v1beta1.RKE2ConfigList" *-- "v1beta1.RKE2Config"
+"v1beta1.RKE2Config" *-- "v1beta1.RKE2ConfigStatus" 
+"v1beta1.RKE2Config" *-- "v1beta1.RKE2ConfigSpec"
+"v1beta1.RKE2ConfigSpec" *-- "v1beta1.RKE2ServerConfig"
+"v1beta1.RKE2ConfigSpec" *-- "v1beta1.File"
+"v1beta1.RKE2ConfigSpec" *-- "v1beta1.RKE2AgentConfig"
+"v1beta1.RKE2ServerConfig" *-- "v1beta1.EtcdBackupConfig"
+"v1beta1.EtcdBackupConfig" *-- "v1beta1.EtcdS3"
+"v1beta1.RKE2ServerConfig" *-- "v1beta1.CisProfile"
+"v1beta1.RKE2ServerConfig" *-- "v1beta1.Cni"
+"v1beta1.RKE2ServerConfig" *-- "v1beta1.DisabledItem"
+"v1beta1.RKE2ConfigSpec" *-- "v1beta1.Registry"
+"v1beta1.RKE2ServerConfig" *-- "v1beta1.ComponentConfig"
+"v1beta1.Registry" *-- "v1beta1.Mirror"
+"v1beta1.Registry" *-- "v1beta1.RegistryConfig"
+"v1beta1.RegistryConfig" *-- "v1beta1.AuthConfig"
+"v1beta1.RegistryConfig" *-- "v1beta1.TLSConfig"
+"v1beta1.File" *-- "v1beta1.FileSource"
+"v1beta1.File" *-- "v1beta1.Encoding"
+"v1beta1.FileSource" *-- "v1beta1.SecretFileSource"
+
+"v1beta1.RKE2ConfigTemplateList" *-- "v1beta1.RKE2ConfigTemplate"
+"v1beta1.RKE2ConfigTemplate" *-- "v1beta1.RKE2ConfigTemplateSpec"
+"v1beta1.RKE2ConfigTemplateSpec" *-- "v1beta1.RKE2ConfigTemplateResource"
+"v1beta1.RKE2ConfigTemplateResource" *-- "v1beta1.RKE2ConfigSpec"
+
+
+@enduml
