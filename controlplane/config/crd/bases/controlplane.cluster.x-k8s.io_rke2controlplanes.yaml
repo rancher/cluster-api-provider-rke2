@@ -704,7 +704,7 @@ spec:
                     description: RuntimeImage Override image to use for runtime binaries
                       (containerd, kubectl, crictl, etc).
                     type: string
-                  service-node-port-range:
+                  serviceNodePortRange:
                     description: 'ServiceNodePortRange is the port range to reserve
                       for services with NodePort visibility (default: "30000-32767").'
                     type: string

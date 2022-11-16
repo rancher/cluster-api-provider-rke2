@@ -53,7 +53,7 @@ type RKE2ServerConfig struct {
 
 	// ServiceNodePortRange is the port range to reserve for services with NodePort visibility (default: "30000-32767").
 	//+optional
-	ServiceNodePortRange string `json:"service-node-port-range,omitempty"`
+	ServiceNodePortRange string `json:"serviceNodePortRange,omitempty"`
 
 	// ClusterDNS is the cluster IP for CoreDNS service. Should be in your service-cidr range (default: 10.43.0.10).
 	//+optional
