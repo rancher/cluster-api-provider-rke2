@@ -309,33 +309,6 @@ spec:
                     description: 'BindAddress describes the rke2 bind address (default:
                       0.0.0.0).'
                     type: string
-                  cloudControllerManager:
-                    description: CloudControllerManager defines optional custom configuration
-                      of the Cloud Controller Manager.
-                    properties:
-                      extraArgs:
-                        additionalProperties:
-                          type: string
-                        description: ExtraArgs is a map of command line arguments
-                          to pass to a Kubernetes Component command.
-                        type: object
-                      extraEnv:
-                        additionalProperties:
-                          type: string
-                        description: ExtraEnv is a map of environment variables to
-                          pass on to a Kubernetes Component command.
-                        type: object
-                      extraMounts:
-                        additionalProperties:
-                          type: string
-                        description: ExtraMounts is a map of volume mounts to be added
-                          for the Kubernetes component StaticPod
-                        type: object
-                      overrideImage:
-                        description: OverrideImage is a string that references a container
-                          image to override the default one for the Kubernetes Component
-                        type: string
-                    type: object
                   cloudProviderConfigMap:
                     description: CloudProviderConfigMap  is a reference to a ConfigMap
                       containing Cloud provider configuration.
@@ -433,8 +406,7 @@ spec:
                           ETCD: target storage, schedule, etc.'
                         properties:
                           directory:
-                            description: 'Directory Directory to save db snapshots.
-                              (Default location: ${data-dir}/db/snapshots).'
+                            description: Directory Directory to save db snapshots.
                             type: string
                           enableAutomaticSnapshots:
                             description: EnableAutomaticSnapshots defines the policy
@@ -609,87 +581,6 @@ spec:
                           Metrics exposure. if value is true, ETCD metrics will be
                           exposed if value is false, ETCD metrics will NOT be exposed
                         type: boolean
-                    type: object
-                  kubeAPIServer:
-                    description: KubeAPIServer defines optional custom configuration
-                      of the Kube API Server.
-                    properties:
-                      extraArgs:
-                        additionalProperties:
-                          type: string
-                        description: ExtraArgs is a map of command line arguments
-                          to pass to a Kubernetes Component command.
-                        type: object
-                      extraEnv:
-                        additionalProperties:
-                          type: string
-                        description: ExtraEnv is a map of environment variables to
-                          pass on to a Kubernetes Component command.
-                        type: object
-                      extraMounts:
-                        additionalProperties:
-                          type: string
-                        description: ExtraMounts is a map of volume mounts to be added
-                          for the Kubernetes component StaticPod
-                        type: object
-                      overrideImage:
-                        description: OverrideImage is a string that references a container
-                          image to override the default one for the Kubernetes Component
-                        type: string
-                    type: object
-                  kubeControllerManager:
-                    description: KubeControllerManager defines optional custom configuration
-                      of the Kube Controller Manager.
-                    properties:
-                      extraArgs:
-                        additionalProperties:
-                          type: string
-                        description: ExtraArgs is a map of command line arguments
-                          to pass to a Kubernetes Component command.
-                        type: object
-                      extraEnv:
-                        additionalProperties:
-                          type: string
-                        description: ExtraEnv is a map of environment variables to
-                          pass on to a Kubernetes Component command.
-                        type: object
-                      extraMounts:
-                        additionalProperties:
-                          type: string
-                        description: ExtraMounts is a map of volume mounts to be added
-                          for the Kubernetes component StaticPod
-                        type: object
-                      overrideImage:
-                        description: OverrideImage is a string that references a container
-                          image to override the default one for the Kubernetes Component
-                        type: string
-                    type: object
-                  kubeScheduler:
-                    description: KubeScheduler defines optional custom configuration
-                      of the Kube Scheduler.
-                    properties:
-                      extraArgs:
-                        additionalProperties:
-                          type: string
-                        description: ExtraArgs is a map of command line arguments
-                          to pass to a Kubernetes Component command.
-                        type: object
-                      extraEnv:
-                        additionalProperties:
-                          type: string
-                        description: ExtraEnv is a map of environment variables to
-                          pass on to a Kubernetes Component command.
-                        type: object
-                      extraMounts:
-                        additionalProperties:
-                          type: string
-                        description: ExtraMounts is a map of volume mounts to be added
-                          for the Kubernetes component StaticPod
-                        type: object
-                      overrideImage:
-                        description: OverrideImage is a string that references a container
-                          image to override the default one for the Kubernetes Component
-                        type: string
                     type: object
                   loadBalancerPort:
                     description: 'LoadBalancerPort Local port for supervisor client

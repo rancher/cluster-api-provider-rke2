@@ -104,19 +104,19 @@ type RKE2ServerConfig struct {
 
 	// KubeAPIServer defines optional custom configuration of the Kube API Server.
 	//+optional
-	KubeAPIServer bootstrapv1.ComponentConfig `json:"kubeAPIServer,omitempty"`
+	// KubeAPIServer bootstrapv1.ComponentConfig `json:"kubeAPIServer,omitempty"`
 
 	// KubeControllerManager defines optional custom configuration of the Kube Controller Manager.
 	//+optional
-	KubeControllerManager bootstrapv1.ComponentConfig `json:"kubeControllerManager,omitempty"`
+	// KubeControllerManager bootstrapv1.ComponentConfig `json:"kubeControllerManager,omitempty"`
 
 	// KubeScheduler defines optional custom configuration of the Kube Scheduler.
 	//+optional
-	KubeScheduler bootstrapv1.ComponentConfig `json:"kubeScheduler,omitempty"`
+	// KubeScheduler bootstrapv1.ComponentConfig `json:"kubeScheduler,omitempty"`
 
 	// CloudControllerManager defines optional custom configuration of the Cloud Controller Manager.
 	//+optional
-	CloudControllerManager bootstrapv1.ComponentConfig `json:"cloudControllerManager,omitempty"`
+	// CloudControllerManager bootstrapv1.ComponentConfig `json:"cloudControllerManager,omitempty"`
 }
 
 // RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane
@@ -200,7 +200,7 @@ type EtcdBackupConfig struct {
 	//+optional
 	Retention string `json:"retention,omitempty"`
 
-	// Directory Directory to save db snapshots. (Default location: ${data-dir}/db/snapshots).
+	// Directory Directory to save db snapshots.
 	//+optional
 	Directory string `json:"directory,omitempty"`
 
