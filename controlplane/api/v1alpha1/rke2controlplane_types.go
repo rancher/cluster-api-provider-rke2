@@ -92,8 +92,6 @@ type RKE2ServerConfig struct {
 	//+optional
 	CloudProviderConfigMap corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
 
-	// NOTE: this was only profile, changed it to cisProfile.
-
 	// AuditPolicySecret Path to the file that defines the audit policy configuration.
 	//+optional
 	AuditPolicySecret corev1.ObjectReference `json:"auditPolicySecret,omitempty"`
