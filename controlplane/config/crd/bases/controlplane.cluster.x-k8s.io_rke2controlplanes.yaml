@@ -94,6 +94,44 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              infrastructureRef:
+                description: InfrastructureRef is a required reference to a custom
+                  resource offered by an infrastructure provider.
+                properties:
+                  apiVersion:
+                    description: API version of the referent.
+                    type: string
+                  fieldPath:
+                    description: 'If referring to a piece of an object instead of
+                      an entire object, this string should contain a valid JSON/Go
+                      field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within
+                      a pod, this would take on a value like: "spec.containers{name}"
+                      (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]"
+                      (container with index 2 in this pod). This syntax is chosen
+                      only to have some well-defined way of referencing a part of
+                      an object. TODO: this design is not final and this field is
+                      subject to change in the future.'
+                    type: string
+                  kind:
+                    description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    type: string
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                    type: string
+                  namespace:
+                    description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                    type: string
+                  resourceVersion:
+                    description: 'Specific resourceVersion to which this reference
+                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                    type: string
+                  uid:
+                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               kubeProxy:
                 description: KubeProxyArgs Customized flag for kube-proxy process.
                 properties:
@@ -190,6 +228,13 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              nodeDrainTimeout:
+                description: 'NodeDrainTimeout is the total amount of time that the
+                  controller will spend on draining a controlplane node The default
+                  value is 0, meaning that the node can be drained without any time
+                  limitations. NOTE: NodeDrainTimeout is different from `kubectl drain
+                  --timeout`'
+                type: string
               nodeLabels:
                 description: NodeLabels  Registering and starting kubelet with set
                   of labels.
@@ -222,6 +267,10 @@ spec:
                   If true, error if kernel tunables are different than kubelet defaults.
                   if false, kernel tunable can be different from kubelet defaults
                 type: boolean
+              replicas:
+                description: Replicas is the number of replicas for the Control Plane
+                format: int32
+                type: integer
               resolvConf:
                 description: ResolvConf is a reference to a ConfigMap containing resolv.conf
                   content for the node.
@@ -309,6 +358,33 @@ spec:
                     description: 'BindAddress describes the rke2 bind address (default:
                       0.0.0.0).'
                     type: string
+                  cloudControllerManager:
+                    description: CloudControllerManager defines optional custom configuration
+                      of the Cloud Controller Manager.
+                    properties:
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: ExtraArgs is a map of command line arguments
+                          to pass to a Kubernetes Component command.
+                        type: object
+                      extraEnv:
+                        additionalProperties:
+                          type: string
+                        description: ExtraEnv is a map of environment variables to
+                          pass on to a Kubernetes Component command.
+                        type: object
+                      extraMounts:
+                        additionalProperties:
+                          type: string
+                        description: ExtraMounts is a map of volume mounts to be added
+                          for the Kubernetes component StaticPod
+                        type: object
+                      overrideImage:
+                        description: OverrideImage is a string that references a container
+                          image to override the default one for the Kubernetes Component
+                        type: string
+                    type: object
                   cloudProviderConfigMap:
                     description: CloudProviderConfigMap  is a reference to a ConfigMap
                       containing Cloud provider configuration.
@@ -582,6 +658,87 @@ spec:
                           exposed if value is false, ETCD metrics will NOT be exposed
                         type: boolean
                     type: object
+                  kubeAPIServer:
+                    description: KubeAPIServer defines optional custom configuration
+                      of the Kube API Server.
+                    properties:
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: ExtraArgs is a map of command line arguments
+                          to pass to a Kubernetes Component command.
+                        type: object
+                      extraEnv:
+                        additionalProperties:
+                          type: string
+                        description: ExtraEnv is a map of environment variables to
+                          pass on to a Kubernetes Component command.
+                        type: object
+                      extraMounts:
+                        additionalProperties:
+                          type: string
+                        description: ExtraMounts is a map of volume mounts to be added
+                          for the Kubernetes component StaticPod
+                        type: object
+                      overrideImage:
+                        description: OverrideImage is a string that references a container
+                          image to override the default one for the Kubernetes Component
+                        type: string
+                    type: object
+                  kubeControllerManager:
+                    description: KubeControllerManager defines optional custom configuration
+                      of the Kube Controller Manager.
+                    properties:
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: ExtraArgs is a map of command line arguments
+                          to pass to a Kubernetes Component command.
+                        type: object
+                      extraEnv:
+                        additionalProperties:
+                          type: string
+                        description: ExtraEnv is a map of environment variables to
+                          pass on to a Kubernetes Component command.
+                        type: object
+                      extraMounts:
+                        additionalProperties:
+                          type: string
+                        description: ExtraMounts is a map of volume mounts to be added
+                          for the Kubernetes component StaticPod
+                        type: object
+                      overrideImage:
+                        description: OverrideImage is a string that references a container
+                          image to override the default one for the Kubernetes Component
+                        type: string
+                    type: object
+                  kubeScheduler:
+                    description: KubeScheduler defines optional custom configuration
+                      of the Kube Scheduler.
+                    properties:
+                      extraArgs:
+                        additionalProperties:
+                          type: string
+                        description: ExtraArgs is a map of command line arguments
+                          to pass to a Kubernetes Component command.
+                        type: object
+                      extraEnv:
+                        additionalProperties:
+                          type: string
+                        description: ExtraEnv is a map of environment variables to
+                          pass on to a Kubernetes Component command.
+                        type: object
+                      extraMounts:
+                        additionalProperties:
+                          type: string
+                        description: ExtraMounts is a map of volume mounts to be added
+                          for the Kubernetes component StaticPod
+                        type: object
+                      overrideImage:
+                        description: OverrideImage is a string that references a container
+                          image to override the default one for the Kubernetes Component
+                        type: string
+                    type: object
                   loadBalancerPort:
                     description: 'LoadBalancerPort Local port for supervisor client
                       load-balancer. If the supervisor and apiserver are not colocated
@@ -610,6 +767,11 @@ spec:
                 description: SystemDefaultRegistry Private registry to be used for
                   all system images.
                 type: string
+              version:
+                description: Version specifies the rke2 version.
+                type: string
+            required:
+            - infrastructureRef
             type: object
           status:
             description: RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane
@@ -669,6 +831,10 @@ spec:
               failureReason:
                 description: FailureReason will be set on non-retryable errors.
                 type: string
+              initialized:
+                description: Initialized indicates the target cluster has completed
+                  initialization
+                type: boolean
               observedGeneration:
                 description: ObservedGeneration is the latest generation observed
                   by the controller.
