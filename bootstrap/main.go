@@ -67,7 +67,6 @@ func init() {
 	klog.InitFlags(nil)
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(bootstrapv1.AddToScheme(scheme))
 	utilruntime.Must(controlplanev1.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
