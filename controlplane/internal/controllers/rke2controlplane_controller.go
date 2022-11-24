@@ -417,8 +417,6 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		return ctrl.Result{}, nil
 	}
 
-	// TODO: handle reconciliation of etcd members and RKE2 config in case they get out of sync with cluster
-
 	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, util.ObjectKey(cluster))
 	if err != nil {
 		logger.Error(err, "failed to get remote client for workload cluster", "cluster key", util.ObjectKey(cluster))
