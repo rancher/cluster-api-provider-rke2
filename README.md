@@ -1,6 +1,6 @@
 # Cluster API Provider RKE2
 
-![GitHub](https://img.shields.io/github/license/rancher-sandbox/cluster-api-provider-rke)
+![GitHub](https://img.shields.io/github/license/rancher-sandbox/cluster-api-provider-rke2)
 
 ------
 
