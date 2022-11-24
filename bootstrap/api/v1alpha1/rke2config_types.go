@@ -43,10 +43,6 @@ type RKE2ConfigSpec struct {
 	// PrivateRegistriesConfig defines the containerd configuration for private registries and local registry mirrors.
 	//+optional
 	PrivateRegistriesConfig Registry `json:"privateRegistriesConfig,omitempty"`
-
-	// Version specifies the rke2 version.
-	//+optional
-	Version string `json:"version,omitempty"`
 }
 
 // RKE2CommonNodeConfig describes some attributes that are common to agent and server nodes
@@ -127,6 +123,10 @@ type RKE2AgentConfig struct {
 	// KubeProxyArgs Customized flag for kube-proxy process.
 	//+optional
 	KubeProxy ComponentConfig `json:"kubeProxy,omitempty"`
+
+	// Version specifies the rke2 version.
+	//+optional
+	Version string `json:"version,omitempty"`
 }
 
 // NTP defines input for generated ntp in cloud-init.

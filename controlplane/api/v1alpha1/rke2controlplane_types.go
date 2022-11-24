@@ -23,8 +23,19 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
+const (
+	RKE2ControlPlaneFinalizer = "rke2.controleplane.cluster.x-k8s.io"
+
+	// RKE2ServerConfigurationAnnotation is a machine annotation that stores the json-marshalled string of KCP ClusterConfiguration.
+	// This annotation is used to detect any changes in ClusterConfiguration and trigger machine rollout in KCP.
+	RKE2ServerConfigurationAnnotation = "controlplane.cluster.x-k8s.io/rke2-server-configuration"
+)
+
 // RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane
 type RKE2ControlPlaneSpec struct {
+	// Replicas is the number of replicas for the Control Plane
+	Replicas *int32 `json:"replicas,omitempty"`
+
 	// bootstrapv1.RKE2AgentConfig references fields from the Agent Configuration in the Bootstrap Provider because an RKE2 Server node also has an agent
 	bootstrapv1.RKE2AgentConfig `json:",inline"`
 
@@ -36,6 +47,16 @@ type RKE2ControlPlaneSpec struct {
 	// Each data entry in the ConfigMap will be will be copied to a folder on the control plane nodes that RKE2 scans and uses to deploy manifests.
 	//+optional
 	ManifestsConfigMapReference corev1.ObjectReference `json:"manifestsConfigMapReference,omitempty"`
+
+	// InfrastructureRef is a required reference to a custom resource
+	// offered by an infrastructure provider.
+	InfrastructureRef corev1.ObjectReference `json:"infrastructureRef"`
+
+	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// +optional
+	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
 }
 
 type RKE2ServerConfig struct {
@@ -53,7 +74,7 @@ type RKE2ServerConfig struct {
 
 	// ServiceNodePortRange is the port range to reserve for services with NodePort visibility (default: "30000-32767").
 	//+optional
-	ServiceNodePortRange string `json:"service-node-port-range,omitempty"`
+	ServiceNodePortRange string `json:"serviceNodePortRange,omitempty"`
 
 	// ClusterDNS is the cluster IP for CoreDNS service. Should be in your service-cidr range (default: 10.43.0.10).
 	//+optional
@@ -92,8 +113,6 @@ type RKE2ServerConfig struct {
 	//+optional
 	CloudProviderConfigMap corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
 
-	// NOTE: this was only profile, changed it to cisProfile.
-
 	// AuditPolicySecret Path to the file that defines the audit policy configuration.
 	//+optional
 	AuditPolicySecret corev1.ObjectReference `json:"auditPolicySecret,omitempty"`
@@ -123,6 +142,9 @@ type RKE2ServerConfig struct {
 type RKE2ControlPlaneStatus struct {
 	// Ready indicates the BootstrapData field is ready to be consumed.
 	Ready bool `json:"ready,omitempty"`
+
+	// Initialized indicates the target cluster has completed initialization
+	Initialized bool `json:"initialized,omitempty"`
 
 	// DataSecretName is the name of the secret that stores the bootstrap data script.
 	// +optional
@@ -200,7 +222,7 @@ type EtcdBackupConfig struct {
 	//+optional
 	Retention string `json:"retention,omitempty"`
 
-	// Directory Directory to save db snapshots. (Default location: ${data-dir}/db/snapshots).
+	// Directory Directory to save db snapshots.
 	//+optional
 	Directory string `json:"directory,omitempty"`
 
@@ -290,4 +312,12 @@ const (
 
 func init() {
 	SchemeBuilder.Register(&RKE2ControlPlane{}, &RKE2ControlPlaneList{})
+}
+
+func (c *RKE2ControlPlane) GetConditions() clusterv1.Conditions {
+	return c.Status.Conditions
+}
+
+func (c *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
+	c.Status.Conditions = conditions
 }
