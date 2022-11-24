@@ -257,7 +257,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(ctx context.Context, cluste
 		return result, err
 	}
 
-	logger.Info("Checking on Reconciler 1")
 	controlPlaneMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, util.ObjectKey(cluster), machinefilters.ControlPlaneMachines(cluster.Name))
 	if err != nil {
 		logger.Error(err, "failed to retrieve control plane machines for cluster")
@@ -418,7 +417,7 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		return ctrl.Result{}, nil
 	}
 
-	// TODO: handle reconciliation of etcd members and kubeadm config in case they get out of sync with cluster
+	// TODO: handle reconciliation of etcd members and RKE2 config in case they get out of sync with cluster
 
 	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, util.ObjectKey(cluster))
 	if err != nil {

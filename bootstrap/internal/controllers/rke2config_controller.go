@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 
-	//clog "sigs.k8s.io/cluster-api/util/log"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -135,7 +134,7 @@ func (r *Rke2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	// Attempt to Patch the KubeadmConfig object and status after each reconciliation if no error occurs.
+	// Attempt to Patch the RKE2Config object and status after each reconciliation if no error occurs.
 	defer func() {
 		// always update the readyCondition; the summary is represented using the "1 of x completed" notation.
 		conditions.SetSummary(config,

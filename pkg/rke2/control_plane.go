@@ -180,7 +180,7 @@ func (c *ControlPlane) JoinControlPlaneConfig() *bootstrapv1.RKE2AgentConfig {
 	return bootstrapSpec
 }
 
-// GenerateRKE2Config generates a new kubeadm config for creating new control plane nodes.
+// GenerateRKE2Config generates a new RKE2 config for creating new control plane nodes.
 func (c *ControlPlane) GenerateRKE2Config(spec *bootstrapv1.RKE2ConfigSpec) *bootstrapv1.RKE2Config {
 	// Create an owner reference without a controller reference because the owning controller is the machine controller
 	owner := metav1.OwnerReference{
@@ -284,7 +284,7 @@ func getInfraResources(ctx context.Context, cl client.Client, machines Filterabl
 	return result, nil
 }
 
-// getRKE2Configs fetches the kubeadm config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
+// getRKE2Configs fetches the RKE2 config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
 func getRKE2Configs(ctx context.Context, cl client.Client, machines FilterableMachineCollection) (map[string]*bootstrapv1.RKE2Config, error) {
 	result := map[string]*bootstrapv1.RKE2Config{}
 	for _, m := range machines {
@@ -302,11 +302,6 @@ func getRKE2Configs(ctx context.Context, cl client.Client, machines FilterableMa
 		result[m.Name] = machineConfig
 	}
 	return result, nil
-}
-
-// IsEtcdManaged returns true if the control plane relies on a managed etcd.
-func (c *ControlPlane) IsEtcdManaged() bool {
-	return false
 }
 
 // UnhealthyMachines returns the list of control plane machines marked as unhealthy by MHC.

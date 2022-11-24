@@ -177,8 +177,6 @@ func (r *RKE2ControlPlaneReconciler) preflightChecks(ctx context.Context, contro
 
 	// Check machine health conditions; if there are conditions with False or Unknown, then wait.
 	allMachineHealthConditions := []clusterv1.ConditionType{controlplanev1.MachineAgentHealthyCondition}
-	//if controlPlane.IsEtcdManaged() {
-	//}
 	machineErrors := []error{}
 
 loopmachines:
