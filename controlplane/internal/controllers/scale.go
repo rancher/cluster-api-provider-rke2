@@ -60,8 +60,7 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(ctx context.Context,
 	}
 
 	bootstrapSpec := controlPlane.InitialControlPlaneConfig()
-	fd := controlPlane.NextFailureDomainForScaleUp()
-	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
+	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec); err != nil {
 		logger.Error(err, "Failed to create initial control plane Machine")
 		r.recorder.Eventf(rcp, corev1.EventTypeWarning, "FailedInitialization", "Failed to create initial control plane Machine for cluster %s/%s control plane: %v", cluster.Namespace, cluster.Name, err)
 		return ctrl.Result{}, err
@@ -81,8 +80,7 @@ func (r *RKE2ControlPlaneReconciler) scaleUpControlPlane(ctx context.Context, cl
 
 	// Create the bootstrap configuration
 	bootstrapSpec := controlPlane.JoinControlPlaneConfig()
-	fd := controlPlane.NextFailureDomainForScaleUp()
-	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
+	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec); err != nil {
 		logger.Error(err, "Failed to create additional control plane Machine")
 		r.recorder.Eventf(rcp, corev1.EventTypeWarning, "FailedScaleUp", "Failed to create additional control plane Machine for cluster %s/%s control plane: %v", cluster.Namespace, cluster.Name, err)
 		return ctrl.Result{}, err
@@ -233,10 +231,11 @@ func selectMachineForScaleDown(controlPlane *rke2.ControlPlane, outdatedMachines
 	case outdatedMachines.Len() > 0:
 		machines = outdatedMachines
 	}
-	return controlPlane.MachineInFailureDomainWithMostMachines(machines)
+	// Without support for FailureDomains, returning oldest machine
+	return machines.Oldest(), nil
 }
 
-func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(ctx context.Context, cluster *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, bootstrapSpec *bootstrapv1.RKE2AgentConfig, failureDomain *string) error {
+func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(ctx context.Context, cluster *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, bootstrapSpec *bootstrapv1.RKE2AgentConfig) error {
 	var errs []error
 
 	// Since the cloned resource should eventually have a controller ref for the Machine, we create an
@@ -270,7 +269,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(ctx context.
 
 	// Only proceed to generating the Machine if we haven't encountered an error
 	if len(errs) == 0 {
-		if err := r.generateMachine(ctx, rcp, cluster, infraRef, bootstrapRef, failureDomain); err != nil {
+		if err := r.generateMachine(ctx, rcp, cluster, infraRef, bootstrapRef); err != nil {
 			errs = append(errs, errors.Wrap(err, "failed to create Machine"))
 		}
 	}
@@ -355,7 +354,7 @@ func (r *RKE2ControlPlaneReconciler) rke2ToKubeVersion(rk2Version string) (kubeV
 	return kubeVersion, nil
 }
 
-func (r *RKE2ControlPlaneReconciler) generateMachine(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, infraRef, bootstrapRef *corev1.ObjectReference, failureDomain *string) error {
+func (r *RKE2ControlPlaneReconciler) generateMachine(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, infraRef, bootstrapRef *corev1.ObjectReference) error {
 	newVersion, err := r.rke2ToKubeVersion(rcp.Spec.Version)
 	logger := log.FromContext(ctx)
 	logger.Info("Version checking...", "rke2-version", rcp.Spec.Version, "machine-version: ", newVersion)
@@ -378,15 +377,14 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(ctx context.Context, rcp *c
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
-			FailureDomain:    failureDomain,
 			NodeDrainTimeout: rcp.Spec.NodeDrainTimeout,
 		},
 	}
 
 	logger.Info("generating machine:", "machine-spec-version", machine.Spec.Version)
 
-	// Machine's bootstrap config may be missing ClusterConfiguration if it is not the first machine in the control plane.
-	// We store ClusterConfiguration as annotation here to detect any changes in RCP ClusterConfiguration and rollout the machine if any.
+	// Machine's bootstrap config may be missing RKE2Config if it is not the first machine in the control plane.
+	// We store RKE2Config as annotation here to detect any changes in RCP RKE2Config and rollout the machine if any.
 	serverConfig, err := json.Marshal(rcp.Spec.ServerConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal cluster configuration")

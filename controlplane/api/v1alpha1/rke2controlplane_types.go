@@ -26,8 +26,8 @@ import (
 const (
 	RKE2ControlPlaneFinalizer = "rke2.controleplane.cluster.x-k8s.io"
 
-	// RKE2ServerConfigurationAnnotation is a machine annotation that stores the json-marshalled string of KCP ClusterConfiguration.
-	// This annotation is used to detect any changes in ClusterConfiguration and trigger machine rollout in KCP.
+	// RKE2ServerConfigurationAnnotation is a machine annotation that stores the json-marshalled string of RKE2Config
+	// This annotation is used to detect any changes in RKE2Config and trigger machine rollout.
 	RKE2ServerConfigurationAnnotation = "controlplane.cluster.x-k8s.io/rke2-server-configuration"
 )
 

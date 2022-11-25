@@ -185,7 +185,6 @@ func (r *Rke2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Every other case it's a join scenario
-	// Nb. in this case ClusterConfiguration and InitConfiguration should not be defined by users, but in case of misconfigurations, CABPK simply ignore them
 
 	// Unlock any locks that might have been set during init process
 	r.RKE2InitLock.Unlock(ctx, cluster)
