@@ -56,9 +56,10 @@ spec:
                 type: boolean
               imageCredentialProviderConfigMap:
                 description: ImageCredentialProviderConfigMap is a reference to the
-                  ConfigMap that contains credential provider plugin config The configMap
-                  should contain a YAML file content + a Path to the Binaries for
-                  Credential Provider.
+                  ConfigMap that contains credential provider plugin config The config
+                  map should contain a key "credential-config.yaml" with YAML file
+                  content and a key "credential-provider-binaries" with the a path
+                  to the binaries for the credential provider.
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -136,11 +137,11 @@ spec:
                 description: KubeProxyArgs Customized flag for kube-proxy process.
                 properties:
                   extraArgs:
-                    additionalProperties:
-                      type: string
                     description: ExtraArgs is a map of command line arguments to pass
                       to a Kubernetes Component command.
-                    type: object
+                    items:
+                      type: string
+                    type: array
                   extraEnv:
                     additionalProperties:
                       type: string
@@ -162,11 +163,11 @@ spec:
                 description: KubeletArgs Customized flag for kubelet process.
                 properties:
                   extraArgs:
-                    additionalProperties:
-                      type: string
                     description: ExtraArgs is a map of command line arguments to pass
                       to a Kubernetes Component command.
-                    type: object
+                    items:
+                      type: string
+                    type: array
                   extraEnv:
                     additionalProperties:
                       type: string
@@ -187,6 +188,12 @@ spec:
               kubeletPath:
                 description: KubeletPath Override kubelet binary path.
                 type: string
+              loadBalancerPort:
+                description: 'LoadBalancerPort local port for supervisor client load-balancer.
+                  If the supervisor and apiserver are not colocated an additional
+                  port 1 less than this port will also be used for the apiserver client
+                  load-balancer (default: 6444).'
+                type: integer
               manifestsConfigMapReference:
                 description: ManifestsConfigMapReference references a ConfigMap which
                   contains Kubernetes manifests to be deployed automatically on the
@@ -309,6 +316,10 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              runtimeImage:
+                description: RuntimeImage override image to use for runtime binaries
+                  (containerd, kubectl, crictl, etc).
+                type: string
               serverConfig:
                 description: ServerConfig specifies configuration for the agent nodes.
                 properties:
@@ -317,7 +328,7 @@ spec:
                       to advertise to members of the cluster (default: node-external-ip/node-ip).'
                     type: string
                   auditPolicySecret:
-                    description: AuditPolicySecret Path to the file that defines the
+                    description: AuditPolicySecret path to the file that defines the
                       audit policy configuration.
                     properties:
                       apiVersion:
@@ -363,11 +374,11 @@ spec:
                       of the Cloud Controller Manager.
                     properties:
                       extraArgs:
-                        additionalProperties:
-                          type: string
                         description: ExtraArgs is a map of command line arguments
                           to pass to a Kubernetes Component command.
-                        type: object
+                        items:
+                          type: string
+                        type: array
                       extraEnv:
                         additionalProperties:
                           type: string
@@ -386,8 +397,9 @@ spec:
                         type: string
                     type: object
                   cloudProviderConfigMap:
-                    description: CloudProviderConfigMap  is a reference to a ConfigMap
-                      containing Cloud provider configuration.
+                    description: CloudProviderConfigMap is a reference to a ConfigMap
+                      containing Cloud provider configuration. The config map must
+                      contain a key named cloud-config.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -424,7 +436,7 @@ spec:
                     type: object
                     x-kubernetes-map-type: atomic
                   cloudProviderName:
-                    description: CloudProviderName  Cloud provider name.
+                    description: CloudProviderName cloud provider name.
                     type: string
                   clusterDNS:
                     description: 'ClusterDNS is the cluster IP for CoreDNS service.
@@ -498,63 +510,17 @@ spec:
                             description: S3 Enable backup to an S3-compatible Object
                               Store.
                             properties:
-                              S3CredentialSecret:
-                                description: S3CredentialSecret is a reference to
-                                  a Secret containing the Access Key and Secret Key
-                                  necessary to access the target S3 Bucket.
-                                properties:
-                                  apiVersion:
-                                    description: API version of the referent.
-                                    type: string
-                                  fieldPath:
-                                    description: 'If referring to a piece of an object
-                                      instead of an entire object, this string should
-                                      contain a valid JSON/Go field access statement,
-                                      such as desiredState.manifest.containers[2].
-                                      For example, if the object reference is to a
-                                      container within a pod, this would take on a
-                                      value like: "spec.containers{name}" (where "name"
-                                      refers to the name of the container that triggered
-                                      the event) or if no container name is specified
-                                      "spec.containers[2]" (container with index 2
-                                      in this pod). This syntax is chosen only to
-                                      have some well-defined way of referencing a
-                                      part of an object. TODO: this design is not
-                                      final and this field is subject to change in
-                                      the future.'
-                                    type: string
-                                  kind:
-                                    description: 'Kind of the referent. More info:
-                                      https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                                    type: string
-                                  name:
-                                    description: 'Name of the referent. More info:
-                                      https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                                    type: string
-                                  namespace:
-                                    description: 'Namespace of the referent. More
-                                      info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                                    type: string
-                                  resourceVersion:
-                                    description: 'Specific resourceVersion to which
-                                      this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                                    type: string
-                                  uid:
-                                    description: 'UID of the referent. More info:
-                                      https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                                    type: string
-                                type: object
-                                x-kubernetes-map-type: atomic
                               bucket:
                                 description: Bucket S3 bucket name.
                                 type: string
                               endpoint:
                                 description: 'Endpoint S3 endpoint url (default: "s3.amazonaws.com").'
                                 type: string
-                              endpointCA:
+                              endpointCAsecret:
                                 description: EndpointCA references the Secret that
                                   contains a custom CA that should be trusted to connect
-                                  to S3 endpoint.
+                                  to S3 endpoint. The secret must contain a key named
+                                  "ca.pem" that contains the CA certificate.
                                 properties:
                                   apiVersion:
                                     description: API version of the referent.
@@ -610,9 +576,58 @@ spec:
                                 description: 'Region S3 region / bucket location (optional)
                                   (default: "us-east-1").'
                                 type: string
+                              s3CredentialSecret:
+                                description: 'S3CredentialSecret is a reference to
+                                  a Secret containing the Access Key and Secret Key
+                                  necessary to access the target S3 Bucket. The Secret
+                                  must contain the following keys: "aws_access_key_id"
+                                  and "aws_secret_access_key".'
+                                properties:
+                                  apiVersion:
+                                    description: API version of the referent.
+                                    type: string
+                                  fieldPath:
+                                    description: 'If referring to a piece of an object
+                                      instead of an entire object, this string should
+                                      contain a valid JSON/Go field access statement,
+                                      such as desiredState.manifest.containers[2].
+                                      For example, if the object reference is to a
+                                      container within a pod, this would take on a
+                                      value like: "spec.containers{name}" (where "name"
+                                      refers to the name of the container that triggered
+                                      the event) or if no container name is specified
+                                      "spec.containers[2]" (container with index 2
+                                      in this pod). This syntax is chosen only to
+                                      have some well-defined way of referencing a
+                                      part of an object. TODO: this design is not
+                                      final and this field is subject to change in
+                                      the future.'
+                                    type: string
+                                  kind:
+                                    description: 'Kind of the referent. More info:
+                                      https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                                    type: string
+                                  name:
+                                    description: 'Name of the referent. More info:
+                                      https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                                    type: string
+                                  namespace:
+                                    description: 'Namespace of the referent. More
+                                      info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                                    type: string
+                                  resourceVersion:
+                                    description: 'Specific resourceVersion to which
+                                      this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                                    type: string
+                                  uid:
+                                    description: 'UID of the referent. More info:
+                                      https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
                             required:
-                            - S3CredentialSecret
                             - endpoint
+                            - s3CredentialSecret
                             type: object
                           scheduleCron:
                             description: 'ScheduleCron Snapshot interval time in cron
@@ -629,11 +644,11 @@ spec:
                           ETCD.
                         properties:
                           extraArgs:
-                            additionalProperties:
-                              type: string
                             description: ExtraArgs is a map of command line arguments
                               to pass to a Kubernetes Component command.
-                            type: object
+                            items:
+                              type: string
+                            type: array
                           extraEnv:
                             additionalProperties:
                               type: string
@@ -652,7 +667,7 @@ spec:
                               Kubernetes Component
                             type: string
                         type: object
-                      exposeEtcdMetrics:
+                      exposeMetrics:
                         description: ExposeEtcdMetrics defines the policy for ETCD
                           Metrics exposure. if value is true, ETCD metrics will be
                           exposed if value is false, ETCD metrics will NOT be exposed
@@ -663,11 +678,11 @@ spec:
                       of the Kube API Server.
                     properties:
                       extraArgs:
-                        additionalProperties:
-                          type: string
                         description: ExtraArgs is a map of command line arguments
                           to pass to a Kubernetes Component command.
-                        type: object
+                        items:
+                          type: string
+                        type: array
                       extraEnv:
                         additionalProperties:
                           type: string
@@ -690,11 +705,11 @@ spec:
                       of the Kube Controller Manager.
                     properties:
                       extraArgs:
-                        additionalProperties:
-                          type: string
                         description: ExtraArgs is a map of command line arguments
                           to pass to a Kubernetes Component command.
-                        type: object
+                        items:
+                          type: string
+                        type: array
                       extraEnv:
                         additionalProperties:
                           type: string
@@ -717,11 +732,11 @@ spec:
                       of the Kube Scheduler.
                     properties:
                       extraArgs:
-                        additionalProperties:
-                          type: string
                         description: ExtraArgs is a map of command line arguments
                           to pass to a Kubernetes Component command.
-                        type: object
+                        items:
+                          type: string
+                        type: array
                       extraEnv:
                         additionalProperties:
                           type: string
@@ -739,18 +754,8 @@ spec:
                           image to override the default one for the Kubernetes Component
                         type: string
                     type: object
-                  loadBalancerPort:
-                    description: 'LoadBalancerPort Local port for supervisor client
-                      load-balancer. If the supervisor and apiserver are not colocated
-                      an additional port 1 less than this port will also be used for
-                      the apiserver client load-balancer (default: 6444).'
-                    type: integer
                   pauseImage:
                     description: PauseImage Override image to use for pause.
-                    type: string
-                  runtimeImage:
-                    description: RuntimeImage Override image to use for runtime binaries
-                      (containerd, kubectl, crictl, etc).
                     type: string
                   serviceNodePortRange:
                     description: 'ServiceNodePortRange is the port range to reserve
@@ -763,6 +768,10 @@ spec:
                       type: string
                     type: array
                 type: object
+              snapshotter:
+                description: 'Snapshotter override default containerd snapshotter
+                  (default: "overlayfs").'
+                type: string
               systemDefaultRegistry:
                 description: SystemDefaultRegistry Private registry to be used for
                   all system images.
