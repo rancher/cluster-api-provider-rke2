@@ -25,13 +25,11 @@ const (
 {{template "files" .WriteFiles}}
 runcmd:
 {{- template "commands" .PreRKE2Commands }}
-  - export INSTALL_RKE2_VERSION=%[1]s
-{{- template "commands" .DeployRKE2Commands }}
-{{else}}
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s sh -s - server'
   - 'systemctl enable rke2-server.service'
   - 'systemctl start rke2-server.service'
-{{end}}
+  - 'mkdir /run/cluster-api' 
+  - '{{ .SentinelFileCommand }}'
 {{- template "commands" .PostRKE2Commands }}
 `
 )
@@ -46,7 +44,7 @@ type ControlPlaneInput struct {
 func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	input.Header = cloudConfigHeader
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
-
+	input.SentinelFileCommand = sentinelFileCommand
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
 	userData, err := generate("InitControlplane", controlPlaneCloudJoinWithVersion, input)
 	if err != nil {

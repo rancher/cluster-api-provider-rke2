@@ -157,6 +157,18 @@ type RKE2ControlPlaneStatus struct {
 	// Conditions defines current service state of the RKE2Config.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+
+	// Replicas is the number of replicas current attached to this ControlPlane Resource
+	Replicas int32 `json:"replicas,omitempty"`
+
+	// ReadyReplicas is the number of replicas current attached to this ControlPlane Resource and that have Ready Status
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	// UpdatedReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+
+	// UnavailableReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config
+	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
 }
 
 //+kubebuilder:object:root=true

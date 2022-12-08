@@ -10,7 +10,8 @@
           "go.sum",
           "api",
           "internal",
-          "pkg"
+          "pkg",
+          "../pkg"
         ],
         "label": "CAPRKE2",
         "kustomize_config": true

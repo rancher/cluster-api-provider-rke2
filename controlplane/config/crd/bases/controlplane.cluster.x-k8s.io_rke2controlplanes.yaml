@@ -853,6 +853,28 @@ spec:
                 description: Ready indicates the BootstrapData field is ready to be
                   consumed.
                 type: boolean
+              readyReplicas:
+                description: ReadyReplicas is the number of replicas current attached
+                  to this ControlPlane Resource and that have Ready Status
+                format: int32
+                type: integer
+              replicas:
+                description: Replicas is the number of replicas current attached to
+                  this ControlPlane Resource
+                format: int32
+                type: integer
+              unavailableReplicas:
+                description: UnavailableReplicas is the number of replicas current
+                  attached to this ControlPlane Resource and that are up-to-date with
+                  Control Plane config
+                format: int32
+                type: integer
+              updatedReplicas:
+                description: UpdatedReplicas is the number of replicas current attached
+                  to this ControlPlane Resource and that are up-to-date with Control
+                  Plane config
+                format: int32
+                type: integer
             type: object
         type: object
     served: true

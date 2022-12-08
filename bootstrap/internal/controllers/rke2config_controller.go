@@ -134,7 +134,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	scope.Cluster = cluster
-
+	scope.Config = config
 	scope.Logger = logger
 	ctx = ctrl.LoggerInto(ctx, logger)
 
@@ -239,19 +239,19 @@ func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // handleClusterNotInitialized handles the first control plane node
 func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, scope *Scope) (res ctrl.Result, reterr error) {
+
 	// initialize the DataSecretAvailableCondition if missing.
 	// this is required in order to avoid the condition's LastTransitionTime to flicker in case of errors surfacing
 	// using the DataSecretGeneratedFailedReason
-	if conditions.GetReason(scope.Config, bootstrapv1.DataSecretAvailableCondition) != bootstrapv1.DataSecretGenerationFailedReason {
-		conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
-	}
-
+	// if conditions.GetReason(scope.Config, bootstrapv1.DataSecretAvailableCondition) != bootstrapv1.DataSecretGenerationFailedReason {
+	// 	conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
+	// }
 	if !scope.HasControlPlaneOwner {
 		scope.Logger.Info("Requeuing because this machine is not a Control Plane machine")
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 	}
 
-	if r.RKE2InitLock.Lock(ctx, scope.Cluster, scope.Machine) {
+	if !r.RKE2InitLock.Lock(ctx, scope.Cluster, scope.Machine) {
 		scope.Logger.Info("A control plane is already being initialized, requeuing until control plane is ready")
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 	}
@@ -266,8 +266,10 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 	token, err := r.generateAndStoreToken(ctx, scope)
 	if err != nil {
+		scope.Logger.Error(err, "unable to generate and store an RKE2 server token")
 		return ctrl.Result{}, err
 	}
+	scope.Logger.Info("RKE2 server token generated and stored in Secret!")
 
 	configStruct, files, err := rke2.GenerateInitControlPlaneConfig(
 		rke2.RKE2ServerConfigOpts{
@@ -286,8 +288,10 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 	b, err := kubeyaml.Marshal(configStruct)
 	if err != nil {
+
 		return ctrl.Result{}, err
 	}
+	scope.Logger.Info("Server config marshalled successfully")
 
 	initConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
@@ -344,6 +348,8 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 	if err != nil {
 		return "", err
 	}
+
+	scope.Logger = scope.Logger.WithValues("cluster-name", scope.Cluster.Name)
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

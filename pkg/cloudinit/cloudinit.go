@@ -50,18 +50,20 @@ write_files:{{ range . }}
 {{- end -}}
 {{- end -}}
 `
+	sentinelFileCommand = `echo success > /run/cluster-api/bootstrap-success.complete`
 )
 
 // BaseUserData is shared across all the various types of files written to disk.
 type BaseUserData struct {
-	Header             string
-	PreRKE2Commands    []string
-	DeployRKE2Commands []string
-	PostRKE2Commands   []string
-	AdditionalFiles    []bootstrapv1.File
-	WriteFiles         []bootstrapv1.File
-	ConfigFile         bootstrapv1.File
-	RKE2Version        string
+	Header              string
+	PreRKE2Commands     []string
+	DeployRKE2Commands  []string
+	PostRKE2Commands    []string
+	AdditionalFiles     []bootstrapv1.File
+	WriteFiles          []bootstrapv1.File
+	ConfigFile          bootstrapv1.File
+	RKE2Version         string
+	SentinelFileCommand string
 }
 
 func generate(kind string, tpl string, data interface{}) ([]byte, error) {

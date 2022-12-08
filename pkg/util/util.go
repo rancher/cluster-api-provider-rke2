@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,4 +83,16 @@ func Random(size int) (string, error) {
 // TokenName returns a token name from the cluster name
 func TokenName(clusterName string) string {
 	return fmt.Sprintf("%s-token", clusterName)
+}
+
+func Rke2ToKubeVersion(rk2Version string) (kubeVersion string, err error) {
+	var regexStr string = "v(\\d\\.\\d{2}\\.\\d)\\+rke2r\\d"
+	var regex *regexp.Regexp
+	regex, err = regexp.Compile(regexStr)
+	if err != nil {
+		return "", err
+	}
+	kubeVersion = string(regex.ReplaceAll([]byte(rk2Version), []byte("$1")))
+
+	return kubeVersion, nil
 }

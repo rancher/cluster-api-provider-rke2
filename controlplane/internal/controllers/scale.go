@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -27,6 +26,7 @@ import (
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 
 	rke2 "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
+	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -226,11 +226,18 @@ func selectMachineForScaleDown(controlPlane *rke2.ControlPlane, outdatedMachines
 	switch {
 	case controlPlane.MachineWithDeleteAnnotation(outdatedMachines).Len() > 0:
 		machines = controlPlane.MachineWithDeleteAnnotation(outdatedMachines)
+		controlPlane.Logger().V(5).Info("Inside the withDeleteAnnotation-outdated case", "machines", machines.Names())
 	case controlPlane.MachineWithDeleteAnnotation(machines).Len() > 0:
 		machines = controlPlane.MachineWithDeleteAnnotation(machines)
+		controlPlane.Logger().V(5).Info("Inside the withDeleteAnnotation case", "machines", machines.Names())
 	case outdatedMachines.Len() > 0:
 		machines = outdatedMachines
+		controlPlane.Logger().V(5).Info("Inside the Outdated case", "machines", machines.Names())
+	case machines.Filter(collections.Not(collections.IsReady())).Len() > 0:
+		machines = machines.Filter(collections.Not(collections.IsReady()))
+		controlPlane.Logger().V(5).Info("Inside the IsReady case", "machines", machines.Names())
 	}
+	controlPlane.Logger().V(5).Info("Inside the SelectForScaleDown - finished all cases", "machines", machines.Names())
 	// Without support for FailureDomains, returning oldest machine
 	return machines.Oldest(), nil
 }
@@ -342,20 +349,8 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(ctx context.Context, rcp
 	return bootstrapRef, nil
 }
 
-func (r *RKE2ControlPlaneReconciler) rke2ToKubeVersion(rk2Version string) (kubeVersion string, err error) {
-	var regexStr string = "v(\\d\\.\\d{2}\\.\\d)\\+rke2r\\d"
-	var regex *regexp.Regexp
-	regex, err = regexp.Compile(regexStr)
-	if err != nil {
-		return "", err
-	}
-	kubeVersion = string(regex.ReplaceAll([]byte(rk2Version), []byte("$1")))
-
-	return kubeVersion, nil
-}
-
 func (r *RKE2ControlPlaneReconciler) generateMachine(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, infraRef, bootstrapRef *corev1.ObjectReference) error {
-	newVersion, err := r.rke2ToKubeVersion(rcp.Spec.Version)
+	newVersion, err := bsutil.Rke2ToKubeVersion(rcp.Spec.Version)
 	logger := log.FromContext(ctx)
 	logger.Info("Version checking...", "rke2-version", rcp.Spec.Version, "machine-version: ", newVersion)
 	if err != nil {
