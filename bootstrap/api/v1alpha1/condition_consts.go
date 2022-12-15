@@ -40,3 +40,9 @@ const (
 	// NOTE: Having the cluster infrastructure ready is a pre-condition for starting to create machines;
 	WaitingForClusterInfrastructureReason string = "WaitingForClusterInfrastructure"
 )
+
+const (
+	CertificatesAvailableCondition clusterv1.ConditionType = "CertificatesAvailable"
+
+	CertificatesGenerationFailedReason string = "CertificateGenerationFailed"
+)

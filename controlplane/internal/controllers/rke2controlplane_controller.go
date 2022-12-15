@@ -24,9 +24,9 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -44,6 +44,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/kubeconfig"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
+)
+
+const (
+	// dependentCertRequeueAfter is how long to wait before checking again to see if
+	// dependent certificates have been created.
+	dependentCertRequeueAfter = 30 * time.Second
 )
 
 // RKE2ControlPlaneReconciler reconciles a RKE2ControlPlane object
@@ -275,17 +285,17 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 			conditions.MarkTrue(rcp, controlplanev1.ResizedCondition)
 		}
 	}
-	secret := corev1.Secret{}
+	kubeconfigSecret := corev1.Secret{}
 	err = r.Client.Get(ctx, types.NamespacedName{
 		Namespace: cluster.Namespace,
-		Name:      cluster.Name + "-kubeconfig",
-	}, &secret)
+		Name:      secret.Name(cluster.Name, secret.Kubeconfig),
+	}, &kubeconfigSecret)
 	if err != nil {
 		r.Log.Info("Kubeconfig secret does not yet exist")
 		return err
 	}
 
-	kubeConfig := secret.Data["value"]
+	kubeConfig := kubeconfigSecret.Data[secret.KubeconfigDataName]
 	if kubeConfig == nil {
 		return fmt.Errorf("unable to find a value entry in the kubeconfig secret")
 	}
@@ -316,6 +326,15 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(ctx context.Context, cluste
 		logger.Info("Cluster infrastructure is not ready yet")
 		return ctrl.Result{}, nil
 	}
+
+	certificates := secret.NewCertificatesForInitialControlPlane()
+	controllerRef := metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane"))
+	if err := certificates.LookupOrGenerate(ctx, r.Client, util.ObjectKey(cluster), *controllerRef); err != nil {
+		logger.Error(err, "unable to lookup or create cluster certificates")
+		conditions.MarkFalse(rcp, controlplanev1.CertificatesAvailableCondition, controlplanev1.CertificatesGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		return ctrl.Result{}, err
+	}
+	conditions.MarkTrue(rcp, controlplanev1.CertificatesAvailableCondition)
 
 	// If ControlPlaneEndpoint is not set, return early
 	if !cluster.Spec.ControlPlaneEndpoint.IsValid() {
@@ -488,10 +507,39 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context, cluste
 
 func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 	ctx context.Context,
-	namespacedName types.NamespacedName,
+	clusterName client.ObjectKey,
 	endpoint clusterv1.APIEndpoint,
 	rcp *controlplanev1.RKE2ControlPlane) (ctrl.Result, error) {
 
+	if endpoint.IsZero() {
+		return ctrl.Result{}, nil
+	}
+
+	controllerOwnerRef := *metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane"))
+	configSecret, err := secret.GetFromNamespacedName(ctx, r.Client, clusterName, secret.Kubeconfig)
+	switch {
+	case apierrors.IsNotFound(errors.Cause(err)):
+		createErr := kubeconfig.CreateSecretWithOwner(
+			ctx,
+			r.Client,
+			clusterName,
+			endpoint.String(),
+			controllerOwnerRef,
+		)
+		if errors.Is(createErr, kubeconfig.ErrDependentCertificateNotFound) {
+			return ctrl.Result{RequeueAfter: dependentCertRequeueAfter}, nil
+		}
+		// always return if we have just created in order to skip rotation checks
+		return ctrl.Result{}, createErr
+
+	case err != nil:
+		return ctrl.Result{}, errors.Wrap(err, "failed to retrieve kubeconfig Secret")
+	}
+
+	// only do rotation on owned secrets
+	if !util.IsControlledBy(configSecret, rcp) {
+		return ctrl.Result{}, nil
+	}
 	return ctrl.Result{}, nil
 }
 

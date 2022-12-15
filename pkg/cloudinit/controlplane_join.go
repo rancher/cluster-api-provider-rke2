@@ -18,38 +18,15 @@ package cloudinit
 
 import (
 	"fmt"
-
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
 )
-
-const (
-	controlPlaneCloudInit = `{{.Header}}
-{{template "files" .WriteFiles}}
-runcmd:
-{{- template "commands" .PreRKE2Commands }}
-  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s sh -s - server'
-  - 'systemctl enable rke2-server.service'
-  - 'systemctl start rke2-server.service'
-  - 'mkdir /run/cluster-api' 
-  - '{{ .SentinelFileCommand }}'
-{{- template "commands" .PostRKE2Commands }}
-`
-)
-
-// ControlPlaneInput defines the context to generate a controlplane instance user data.
-type ControlPlaneInput struct {
-	BaseUserData
-	secret.Certificates
-}
 
 // NewInitControlPlane returns the user data string to be used on a controlplane instance.
-func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
+func NewJoinControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	input.Header = cloudConfigHeader
-	input.WriteFiles = input.Certificates.AsFiles()
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
-	userData, err := generate("InitControlplane", controlPlaneCloudJoinWithVersion, input)
+	userData, err := generate("JoinControlplane", controlPlaneCloudJoinWithVersion, input)
 	if err != nil {
 		return nil, err
 	}

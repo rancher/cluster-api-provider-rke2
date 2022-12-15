@@ -28,11 +28,13 @@ import (
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/cloudinit"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/locking"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
 	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/pointer"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -264,6 +266,19 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		}
 	}()
 
+	certificates := secret.NewCertificatesForInitialControlPlane()
+	err := certificates.LookupOrGenerate(
+		ctx,
+		r.Client,
+		util.ObjectKey(scope.Cluster),
+		*metav1.NewControllerRef(scope.Config, bootstrapv1.GroupVersion.WithKind("RKE2Config")),
+	)
+	if err != nil {
+		conditions.MarkFalse(scope.Config, bootstrapv1.CertificatesAvailableCondition, bootstrapv1.CertificatesGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		return ctrl.Result{}, err
+	}
+	conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableCondition)
+
 	token, err := r.generateAndStoreToken(ctx, scope)
 	if err != nil {
 		scope.Logger.Error(err, "unable to generate and store an RKE2 server token")
@@ -314,6 +329,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:       files,
 		},
+		Certificates: certificates,
 	}
 
 	cloudInitData, err := cloudinit.NewInitControlPlane(cpinput)
@@ -335,6 +351,71 @@ type RKE2InitLock interface {
 
 // TODO: Implement these functions
 func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
+
+	tokenSecret := &corev1.Secret{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
+		scope.Logger.Info("Token for already initialized RKE2 Cluster not found", "token-namespace", scope.Cluster.Namespace, "token-name", scope.Cluster.Name+"-token")
+		return ctrl.Result{}, err
+	}
+	token := string(tokenSecret.Data["value"])
+
+	scope.Logger.Info("RKE2 server token found in Secret!")
+
+	configStruct, files, err := rke2.GenerateJoinControlPlaneConfig(
+		rke2.RKE2ServerConfigOpts{
+			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
+			Token:                token,
+			ServerURL:            "https://" + scope.Cluster.Spec.ControlPlaneEndpoint.Host + ":9345",
+			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
+			AgentConfig:          scope.Config.Spec.AgentConfig,
+			Ctx:                  ctx,
+			Client:               r.Client,
+		})
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	b, err := kubeyaml.Marshal(configStruct)
+
+	scope.Logger.Info("Showing marshalled config.yaml", "config.yaml", string(b))
+	if err != nil {
+
+		return ctrl.Result{}, err
+	}
+	scope.Logger.Info("Joining Server config marshalled successfully")
+
+	initConfigFile := bootstrapv1.File{
+		Path:        rke2.DefaultRKE2ConfigLocation,
+		Content:     string(b),
+		Owner:       "root:root",
+		Permissions: "0640",
+	}
+
+	//files, err := r.resolveFiles(ctx, scope.Config)
+	//if err != nil {
+	//conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.DataSecretGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+	//return ctrl.Result{}, err
+	//}
+
+	cpinput := &cloudinit.ControlPlaneInput{
+		BaseUserData: cloudinit.BaseUserData{
+			PreRKE2Commands:  scope.Config.Spec.PreRKE2Commands,
+			PostRKE2Commands: scope.Config.Spec.PostRKE2Commands,
+			ConfigFile:       initConfigFile,
+			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
+			WriteFiles:       files,
+		},
+	}
+
+	cloudInitData, err := cloudinit.NewJoinControlPlane(cpinput)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+		return ctrl.Result{}, err
+	}
 	return ctrl.Result{}, nil
 }
 
