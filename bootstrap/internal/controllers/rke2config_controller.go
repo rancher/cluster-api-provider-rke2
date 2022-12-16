@@ -429,11 +429,18 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	token := string(tokenSecret.Data["value"])
 	scope.Logger.Info("RKE2 server token found in Secret!")
 
-	configStruct := rke2.GenerateWorkerConfig(
-		"https://"+scope.Cluster.Spec.ControlPlaneEndpoint.Host+":9345",
-		token,
-		scope.Config.Spec.AgentConfig)
+	configStruct, files, err := rke2.GenerateWorkerConfig(
+		rke2.RKE2AgentConfigOpts{
+			ServerURL:   "https://" + scope.Cluster.Spec.ControlPlaneEndpoint.Host + ":9345",
+			Token:       token,
+			AgentConfig: scope.Config.Spec.AgentConfig,
+			Ctx:         ctx,
+			Client:      r.Client,
+		})
 
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 	b, err := kubeyaml.Marshal(configStruct)
 
 	scope.Logger.V(5).Info("Showing marshalled config.yaml", "config.yaml", string(b))
@@ -461,6 +468,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 			PostRKE2Commands: scope.Config.Spec.PostRKE2Commands,
 			ConfigFile:       wkJoinConfigFile,
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
+			WriteFiles:       files,
 		}
 
 	cloudInitData, err := cloudinit.NewJoinWorker(wkInput)
