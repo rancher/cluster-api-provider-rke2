@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
@@ -87,7 +88,7 @@ func (r *RKE2ControlPlaneReconciler) scaleUpControlPlane(ctx context.Context, cl
 	}
 
 	// Requeue the control plane, in case there are other operations to perform
-	return ctrl.Result{Requeue: true}, nil
+	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(

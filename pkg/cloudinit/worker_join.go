@@ -20,13 +20,27 @@ import (
 	"fmt"
 )
 
+const (
+	workerCloudInit = `{{.Header}}
+{{template "files" .WriteFiles}}
+runcmd:
+{{- template "commands" .PreRKE2Commands }}
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'systemctl enable rke2-agent.service'
+  - 'systemctl start rke2-agent.service'
+  - 'mkdir /run/cluster-api' 
+  - '{{ .SentinelFileCommand }}'
+{{- template "commands" .PostRKE2Commands }}
+`
+)
+
 // NewInitControlPlane returns the user data string to be used on a controlplane instance.
-func NewJoinControlPlane(input *ControlPlaneInput) ([]byte, error) {
+func NewJoinWorker(input *BaseUserData) ([]byte, error) {
 	input.Header = cloudConfigHeader
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
-	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
-	userData, err := generate("JoinControlplane", controlPlaneCloudJoinWithVersion, input)
+	workerCloudJoinWithVersion := fmt.Sprintf(workerCloudInit, input.RKE2Version)
+	userData, err := generate("JoinWorker", workerCloudJoinWithVersion, input)
 	if err != nil {
 		return nil, err
 	}

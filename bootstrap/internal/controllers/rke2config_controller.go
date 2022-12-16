@@ -421,6 +421,57 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 
 // TODO: Implement these functions
 func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
+	tokenSecret := &corev1.Secret{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
+		scope.Logger.Info("Token for already initialized RKE2 Cluster not found", "token-namespace", scope.Cluster.Namespace, "token-name", scope.Cluster.Name+"-token")
+		return ctrl.Result{}, err
+	}
+	token := string(tokenSecret.Data["value"])
+	scope.Logger.Info("RKE2 server token found in Secret!")
+
+	configStruct := rke2.GenerateWorkerConfig(
+		"https://"+scope.Cluster.Spec.ControlPlaneEndpoint.Host+":9345",
+		token,
+		scope.Config.Spec.AgentConfig)
+
+	b, err := kubeyaml.Marshal(configStruct)
+
+	scope.Logger.V(5).Info("Showing marshalled config.yaml", "config.yaml", string(b))
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	scope.Logger.Info("Joining Worker config marshalled successfully")
+
+	wkJoinConfigFile := bootstrapv1.File{
+		Path:        rke2.DefaultRKE2ConfigLocation,
+		Content:     string(b),
+		Owner:       "root:root",
+		Permissions: "0640",
+	}
+
+	//files, err := r.resolveFiles(ctx, scope.Config)
+	//if err != nil {
+	//conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.DataSecretGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+	//return ctrl.Result{}, err
+	//}
+
+	wkInput :=
+		&cloudinit.BaseUserData{
+			PreRKE2Commands:  scope.Config.Spec.PreRKE2Commands,
+			PostRKE2Commands: scope.Config.Spec.PostRKE2Commands,
+			ConfigFile:       wkJoinConfigFile,
+			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
+		}
+
+	cloudInitData, err := cloudinit.NewJoinWorker(wkInput)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 

@@ -21,12 +21,12 @@ spec:
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: DockerCluster
-    name: ${CABPR_CLUSTER_NAME}-my-cluster
+    name: ${CABPR_CLUSTER_NAME}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerCluster
 metadata:
-  name: ${CABPR_CLUSTER_NAME}-my-cluster
+  name: ${CABPR_CLUSTER_NAME}
   namespace: ${CABPR_NAMESPACE}
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1alpha1
@@ -36,7 +36,7 @@ metadata:
   namespace: ${CABPR_NAMESPACE}
 spec: 
   replicas: ${CABPR_CP_REPLICAS}
-  version: v1.25.3+rke2r1
+  version: ${KUBERNETES_VERSION}+rke2r1
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: DockerMachineTemplate
@@ -59,18 +59,18 @@ metadata:
   namespace: ${CABPR_NAMESPACE}
 spec:
   clusterName: ${CABPR_CLUSTER_NAME}
-  replicas: 1
+  replicas: ${CABPR_WK_REPLICAS}
   selector:
     matchLabels:
       cluster.x-k8s.io/cluster-name: ${CABPR_CLUSTER_NAME}
   template:
     spec:
-      version: v1.25.3
-      clusterName: my-cluster
+      version: ${KUBERNETES_VERSION}
+      clusterName: ${CABPR_CLUSTER_NAME}
       bootstrap:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1alpha1
-          kind: RKE2Config
+          kind: RKE2ConfigTemplate
           name: ${CABPR_CLUSTER_NAME}-agent
           namespace: ${CABPR_NAMESPACE}
       infrastructureRef:
@@ -89,10 +89,12 @@ spec:
     spec: {}
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha1
-kind: RKE2Config
+kind: RKE2ConfigTemplate
 metadata:
   namespace: ${CABPR_NAMESPACE}
   name: ${CABPR_CLUSTER_NAME}-agent
 spec: 
-  agentConfig:
-    version: v1.25.3+rke2r1
+  template:
+    spec:
+      agentConfig:
+        version: ${KUBERNETES_VERSION}+rke2r1

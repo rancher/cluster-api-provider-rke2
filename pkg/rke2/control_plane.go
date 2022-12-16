@@ -141,10 +141,12 @@ func (c *ControlPlane) GenerateRKE2Config(spec *bootstrapv1.RKE2ConfigSpec) *boo
 
 	bootstrapConfig := &bootstrapv1.RKE2Config{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            names.SimpleNameGenerator.GenerateName(c.RCP.Name + "-"),
-			Namespace:       c.RCP.Namespace,
-			Labels:          ControlPlaneLabelsForCluster(c.Cluster.Name),
-			OwnerReferences: []metav1.OwnerReference{owner},
+			Name:      names.SimpleNameGenerator.GenerateName(c.RCP.Name + "-"),
+			Namespace: c.RCP.Namespace,
+			Labels:    ControlPlaneLabelsForCluster(c.Cluster.Name),
+			OwnerReferences: []metav1.OwnerReference{
+				owner,
+			},
 		},
 		Spec: *spec,
 	}
