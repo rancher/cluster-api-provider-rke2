@@ -36,7 +36,7 @@ func GetOwnerControlPlane(ctx context.Context, c client.Client, obj metav1.Objec
 	ownerRefs := obj.OwnerReferences
 	var cpOwnerRef metav1.OwnerReference
 	for _, ownerRef := range ownerRefs {
-		logger.Info("Inside GetOwnerControlPlane", "ownerRef.APIVersion", ownerRef.APIVersion, "ownerRef.Kind", ownerRef.Kind, "cpv1.GroupVersion.Group", controlplanev1.GroupVersion.Group)
+		logger.V(5).Info("Inside GetOwnerControlPlane", "ownerRef.APIVersion", ownerRef.APIVersion, "ownerRef.Kind", ownerRef.Kind, "cpv1.GroupVersion.Group", controlplanev1.GroupVersion.Group)
 		if ownerRef.APIVersion == controlplanev1.GroupVersion.Group+"/"+controlplanev1.GroupVersion.Version && ownerRef.Kind == "RKE2ControlPlane" {
 			cpOwnerRef = ownerRef
 		}
