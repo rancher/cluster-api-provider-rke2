@@ -87,8 +87,20 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	scope := &Scope{}
 
-	// ctx, logger, err := clog.AddOw
-	cp, err := bsutil.GetOwnerControlPlane(ctx, r.Client, config.ObjectMeta)
+	machine, err := util.GetOwnerMachine(ctx, r.Client, config.ObjectMeta)
+	if err != nil {
+		logger.Error(err, "Failed to retrieve owner Machine from the API Server", config.Namespace+"/"+config.Name, "machine", machine.Name)
+		return ctrl.Result{}, err
+	}
+	if machine == nil {
+		logger.Info("Machine Controller has not yet set OwnerRef")
+		return ctrl.Result{Requeue: true}, nil
+	}
+	scope.Machine = machine
+	logger = logger.WithValues(machine.Kind, machine.GetNamespace()+"/"+machine.GetName(), "resourceVersion", machine.GetResourceVersion())
+
+	// Getting the ControlPlane owner
+	cp, err := bsutil.GetOwnerControlPlane(ctx, r.Client, scope.Machine.ObjectMeta)
 	if err != nil {
 		logger.Error(err, "Failed to retrieve owner ControlPlane from the API Server", config.Namespace+"/"+config.Name, "cluster", cp.Name)
 		return ctrl.Result{}, err
@@ -102,18 +114,6 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		scope.ControlPlane = cp
 		logger = logger.WithValues(cp.Kind, cp.GetNamespace()+"/"+cp.GetName(), "resourceVersion", cp.GetResourceVersion())
 	}
-
-	machine, err := util.GetOwnerMachine(ctx, r.Client, config.ObjectMeta)
-	if err != nil {
-		logger.Error(err, "Failed to retrieve owner Machine from the API Server", config.Namespace+"/"+config.Name, "machine", machine.Name)
-		return ctrl.Result{}, err
-	}
-	if machine == nil {
-		logger.Info("Machine Controller has not yet set OwnerRef")
-		return ctrl.Result{Requeue: true}, nil
-	}
-	scope.Machine = machine
-	logger = logger.WithValues(machine.Kind, machine.GetNamespace()+"/"+machine.GetName(), "resourceVersion", machine.GetResourceVersion())
 
 	cluster, err := util.GetClusterByName(ctx, r.Client, machine.GetNamespace(), machine.Spec.ClusterName)
 	if err != nil {
