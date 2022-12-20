@@ -36,7 +36,7 @@ type RKE2ControlPlaneSpec struct {
 	// Replicas is the number of replicas for the Control Plane
 	Replicas *int32 `json:"replicas,omitempty"`
 
-	// bootstrapv1.RKE2AgentConfig references fields from the Agent Configuration in the Bootstrap Provider because an RKE2 Server node also has an agent
+	// RKE2AgentConfig references fields from the Agent Configuration in the Bootstrap Provider because an RKE2 Server node also has an agent
 	bootstrapv1.RKE2AgentConfig `json:",inline"`
 
 	// ServerConfig specifies configuration for the agent nodes.
@@ -60,6 +60,10 @@ type RKE2ControlPlaneSpec struct {
 }
 
 type RKE2ServerConfig struct {
+	// AuditPolicySecret path to the file that defines the audit policy configuration.
+	//+optional
+	AuditPolicySecret *corev1.ObjectReference `json:"auditPolicySecret,omitempty"`
+
 	// BindAddress describes the rke2 bind address (default: 0.0.0.0).
 	//+optional
 	BindAddress string `json:"bindAddress,omitempty"`
@@ -88,10 +92,6 @@ type RKE2ServerConfig struct {
 	//+optional
 	DisableComponents DisableComponents `json:"disableComponents,omitempty"`
 
-	// LoadBalancerPort Local port for supervisor client load-balancer. If the supervisor and apiserver are not colocated an additional port 1 less than this port will also be used for the apiserver client load-balancer (default: 6444).
-	//+optional
-	LoadBalancerPort int `json:"loadBalancerPort,omitempty"`
-
 	// CNI describes the CNI Plugins to deploy, one of none, calico, canal, cilium; optionally with multus as the first value to enable the multus meta-plugin (default: canal).
 	// +kubebuilder:validation:Enum=none;calico;canal;cilium
 	//+optional
@@ -101,41 +101,33 @@ type RKE2ServerConfig struct {
 	//+optional
 	PauseImage string `json:"pauseImage,omitempty"`
 
-	// RuntimeImage Override image to use for runtime binaries (containerd, kubectl, crictl, etc).
-	//+optional
-	RuntimeImage string `json:"runtimeImage,omitempty"`
-
-	// CloudProviderName  Cloud provider name.
-	//+optional
-	CloudProviderName string `json:"cloudProviderName,omitempty"`
-
-	// CloudProviderConfigMap  is a reference to a ConfigMap containing Cloud provider configuration.
-	//+optional
-	CloudProviderConfigMap corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
-
-	// AuditPolicySecret Path to the file that defines the audit policy configuration.
-	//+optional
-	AuditPolicySecret corev1.ObjectReference `json:"auditPolicySecret,omitempty"`
-
 	// Etcd defines optional custom configuration of ETCD.
 	//+optional
 	Etcd EtcdConfig `json:"etcd,omitempty"`
 
 	// KubeAPIServer defines optional custom configuration of the Kube API Server.
 	//+optional
-	KubeAPIServer bootstrapv1.ComponentConfig `json:"kubeAPIServer,omitempty"`
+	KubeAPIServer *bootstrapv1.ComponentConfig `json:"kubeAPIServer,omitempty"`
 
 	// KubeControllerManager defines optional custom configuration of the Kube Controller Manager.
 	//+optional
-	KubeControllerManager bootstrapv1.ComponentConfig `json:"kubeControllerManager,omitempty"`
+	KubeControllerManager *bootstrapv1.ComponentConfig `json:"kubeControllerManager,omitempty"`
 
 	// KubeScheduler defines optional custom configuration of the Kube Scheduler.
 	//+optional
-	KubeScheduler bootstrapv1.ComponentConfig `json:"kubeScheduler,omitempty"`
+	KubeScheduler *bootstrapv1.ComponentConfig `json:"kubeScheduler,omitempty"`
 
 	// CloudControllerManager defines optional custom configuration of the Cloud Controller Manager.
 	//+optional
-	CloudControllerManager bootstrapv1.ComponentConfig `json:"cloudControllerManager,omitempty"`
+	CloudControllerManager *bootstrapv1.ComponentConfig `json:"cloudControllerManager,omitempty"`
+
+	// CloudProviderName cloud provider name.
+	//+optional
+	CloudProviderName string `json:"cloudProviderName,omitempty"`
+	// CloudProviderConfigMap is a reference to a ConfigMap containing Cloud provider configuration.
+	// The config map must contain a key named cloud-config.
+	//+optional
+	CloudProviderConfigMap *corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
 }
 
 // RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane
@@ -194,14 +186,14 @@ type EtcdConfig struct {
 	// if value is true, ETCD metrics will be exposed
 	// if value is false, ETCD metrics will NOT be exposed
 	// +optional
-	ExposeEtcdMetrics bool `json:"exposeEtcdMetrics,omitempty"`
+	ExposeMetrics bool `json:"exposeMetrics,omitempty"`
 
 	// BackupConfig defines how RKE2 will snapshot ETCD: target storage, schedule, etc.
 	//+optional
 	BackupConfig EtcdBackupConfig `json:"backupConfig,omitempty"`
 
 	// CustomConfig defines the custom settings for ETCD.
-	CustomConfig bootstrapv1.ComponentConfig `json:"customConfig,omitempty"`
+	CustomConfig *bootstrapv1.ComponentConfig `json:"customConfig,omitempty"`
 }
 
 // EtcdBackupConfig describes the backup configuration for ETCD.
@@ -228,7 +220,7 @@ type EtcdBackupConfig struct {
 
 	// S3 Enable backup to an S3-compatible Object Store.
 	//+optional
-	S3 EtcdS3 `json:"s3,omitempty"`
+	S3 *EtcdS3 `json:"s3,omitempty"`
 }
 
 type EtcdS3 struct {
@@ -236,15 +228,17 @@ type EtcdS3 struct {
 	Endpoint string `json:"endpoint"`
 
 	// EndpointCA references the Secret that contains a custom CA that should be trusted to connect to S3 endpoint.
+	// The secret must contain a key named "ca.pem" that contains the CA certificate.
 	//+optional
-	EndpointCA corev1.ObjectReference `json:"endpointCA,omitempty"`
+	EndpointCASecret *corev1.ObjectReference `json:"endpointCAsecret,omitempty"`
 
 	// EnforceSSLVerify may be set to false to skip verifying the registry's certificate, default is true.
 	//+optional
 	EnforceSSLVerify bool `json:"enforceSslVerify,omitempty"`
 
 	// S3CredentialSecret is a reference to a Secret containing the Access Key and Secret Key necessary to access the target S3 Bucket.
-	S3CredentialSecret corev1.ObjectReference `json:"S3CredentialSecret"`
+	// The Secret must contain the following keys: "aws_access_key_id" and "aws_secret_access_key".
+	S3CredentialSecret corev1.ObjectReference `json:"s3CredentialSecret"`
 
 	// Bucket S3 bucket name.
 	//+optional

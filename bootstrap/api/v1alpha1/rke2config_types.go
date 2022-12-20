@@ -68,15 +68,20 @@ type RKE2AgentConfig struct {
 	NTP *NTP `json:"ntp,omitempty"`
 
 	// ImageCredentialProviderConfigMap is a reference to the ConfigMap that contains credential provider plugin config
-	// The configMap should contain a YAML file content + a Path to the Binaries for Credential Provider.
+	// The config map should contain a key "credential-config.yaml" with YAML file content and
+	// a key "credential-provider-binaries" with the a path to the binaries for the credential provider.
 	//+optional
-	ImageCredentialProviderConfigMap corev1.ObjectReference `json:"imageCredentialProviderConfigMap,omitempty"`
+	ImageCredentialProviderConfigMap *corev1.ObjectReference `json:"imageCredentialProviderConfigMap,omitempty"`
 
 	// TODO: Remove ContainerRuntimeEndpoint since this feature will probably not be offered by CAPI Bootstrap provider?
 
 	// ContainerRuntimeEndpoint Disable embedded containerd and use alternative CRI implementation.
 	//+optional
 	ContainerRuntimeEndpoint string `json:"containerRuntimeEndpoint,omitempty"`
+
+	// Snapshotter override default containerd snapshotter (default: "overlayfs").
+	//+optional
+	Snapshotter string `json:"snapshotter,omitempty"`
 
 	// TODO: Find a way to handle IP addresses that should be advertised but that RKE2 cannot find on the host (Example: Elastic IPs on Cloud Providers).
 
@@ -95,7 +100,7 @@ type RKE2AgentConfig struct {
 
 	// ResolvConf is a reference to a ConfigMap containing resolv.conf content for the node.
 	//+optional
-	ResolvConf corev1.ObjectReference `json:"resolvConf,omitempty"`
+	ResolvConf *corev1.ObjectReference `json:"resolvConf,omitempty"`
 
 	// ProtectKernelDefaults defines Kernel tuning behavior. If true, error if kernel tunables are different than kubelet defaults.
 	// if false, kernel tunable can be different from kubelet defaults
@@ -118,11 +123,19 @@ type RKE2AgentConfig struct {
 
 	// KubeletArgs Customized flag for kubelet process.
 	//+optional
-	Kubelet ComponentConfig `json:"kubelet,omitempty"`
+	Kubelet *ComponentConfig `json:"kubelet,omitempty"`
 
 	// KubeProxyArgs Customized flag for kube-proxy process.
 	//+optional
-	KubeProxy ComponentConfig `json:"kubeProxy,omitempty"`
+	KubeProxy *ComponentConfig `json:"kubeProxy,omitempty"`
+
+	// RuntimeImage override image to use for runtime binaries (containerd, kubectl, crictl, etc).
+	//+optional
+	RuntimeImage string `json:"runtimeImage,omitempty"`
+
+	// LoadBalancerPort local port for supervisor client load-balancer. If the supervisor and apiserver are not colocated an additional port 1 less than this port will also be used for the apiserver client load-balancer (default: 6444).
+	//+optional
+	LoadBalancerPort int `json:"loadBalancerPort,omitempty"`
 
 	// Version specifies the rke2 version.
 	//+optional
@@ -321,7 +334,7 @@ type ComponentConfig struct {
 
 	// ExtraArgs is a map of command line arguments to pass to a Kubernetes Component command.
 	//+optional
-	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+	ExtraArgs []string `json:"extraArgs,omitempty"`
 
 	// ExtraMounts is a map of volume mounts to be added for the Kubernetes component StaticPod
 	//+optional

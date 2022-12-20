@@ -17,163 +17,439 @@ limitations under the License.
 package rke2
 
 import (
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	"context"
+	"fmt"
 
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const DefaultRKE2ConfigLocation = "/etc/rancher/rke2/config.yaml"
 const DefaultRKE2JoinPort = 9345
 
-type RKE2ServerConfig struct {
-	// TODO: check what this is supposed to do and modify the struct accordingly
-	TLSSan                            []string `json:"tls-san,omitempty"`
-	BindAddress                       string   `json:"bind-address,omitempty"`
-	AdvertiseAddress                  string   `json:"advertise-address,omitempty"`
-	ClusterCidr                       string   `json:"cluster-cidr,omitempty"`
-	ServiceCidr                       string   `json:"service-cidr,omitempty"`
-	ClusterDNS                        string   `json:"cluster-dns,omitempty"`
-	ClusterDomain                     string   `json:"cluster-domain,omitempty"`
-	DisableComponents                 []string `json:"disable,omitempty"`
-	CNI                               string   `json:"cni"`
-	EnableServiceLoadBalancer         bool     `json:"enable-servicelb,omitempty"`
-	DisableScheduler                  bool     `json:"disable-scheduler,omitempty"`
-	DisableCloudController            bool     `json:"disable-cloud-controller,omitempty"`
-	DisableKubeProxy                  bool     `json:"disable-kube-proxy,omitempty"`
-	DisableAPIserver                  bool     `json:"disable-apiserver,omitempty"`
-	DisableControllerManager          bool     `json:"disable-controller-manager,omitempty"`
-	DisableEtcd                       bool     `json:"disable-etcd,omitempty"`
-	EtcdDisableSnapshots              bool     `json:"etcd-disable-snapshots,omitempty"`
-	EtcdSnapshotScheduleCron          string   `json:"etcd-snapshot-schedule-cron,omitempty"`
-	EtcdSnapshotRetention             string   `json:"etcd-snapshot-retention,omitempty"`
-	EtcdSnapshotDir                   string   `json:"etcd-snapshot-dir,omitempty"`
-	EtcdSnapshotName                  string   `json:"etcd-snapshot-name,omitempty"`
-	EtcdSnapshotCompress              string   `json:"etcd-snapshot-compress,omitempty"`
-	EgressSelectorMode                string   `json:"egress-selector-mode,omitempty"`
-	AgentToken                        string   `json:"agent-token,omitempty"`
-	AgentTokenFile                    string   `json:"agent-token-file,omitempty"`
-	Server                            string   `json:"server,omitempty"`
-	Snapshotter                       string   `json:"snapshotter,omitempty"`
-	ServiceNodePortRange              string   `json:"service-node-port-range,omitempty"`
-	EtcdExposeMetrics                 bool     `json:"etcd-expose-metrics,omitempty"`
-	AirgapExtraRegistry               string   `json:"airgap-extra-registry,omitempty"`
-	EtcdS3                            bool     `json:"etcd-s3,omitempty"`
-	EtcdS3Endpoint                    string   `json:"etcd-s3-endpoint,omitempty"`
-	EtcdS3EndpointCa                  string   `json:"etcd-s3-endpoint-ca,omitempty"`
-	EtcdS3SkipSslVerify               bool     `json:"etcd-s3-skip-ssl-verify,omitempty"`
-	EtcdS3AccessKey                   string   `json:"etcd-s3-access-key,omitempty"`
-	EtcdS3SecretKey                   string   `json:"etcd-s3-secret-key,omitempty"`
-	EtcdS3Bucket                      string   `json:"etcd-s3-bucket,omitempty"`
-	EtcdS3Region                      string   `json:"etcd-s3-region,omitempty"`
-	EtcdS3Folder                      string   `json:"etcd-s3-folder,omitempty"`
-	EtcdS3Insecure                    bool     `json:"etcd-s3-insecure,omitempty"`
-	EtcdS3Timeout                     string   `json:"etcd-s3-timeout,omitempty"`
-	EnablePprof                       bool     `json:"enable-pprof,omitempty"`
-	ServicelbNamespace                string   `json:"servicelb-namespace,omitempty"`
-	KubeAPIServerArgs                 []string `json:"kube-apiserver-arg,omitempty"`
-	KubeAPIserverImage                string   `json:"kube-apiserver-image,omitempty"`
-	KubeAPIserverExtraMounts          []string `json:"kube-apiserver-extra-mount,omitempty"`
-	KubeAPIserverExtraEnvs            []string `json:"kube-apiserver-extra-env,omitempty"`
-	EtcdArgs                          []string `json:"etcd-arg,omitempty"`
-	KubeSchedulerArgs                 []string `json:"kube-scheduler-arg,omitempty"`
-	KubeSchedulerImage                string   `json:"kube-scheduler-image,omitempty"`
-	KubeSchedulerExtraMounts          []string `json:"kube-scheduler-extra-mount,omitempty"`
-	KubeSchedulerExtraEnvs            []string `json:"kube-scheduler-extra-env,omitempty"`
-	KubeControllerManagerArgs         []string `json:"kube-controller-manager-arg,omitempty"`
-	KubeControllerManagerImage        string   `json:"kube-controller-manager-image,omitempty"`
-	KubeControllerManagerExtraMounts  []string `json:"kube-controller-manager-extra-mount,omitempty"`
-	KubeControllerManagerExtraEnvs    []string `json:"kube-controller-manager-extra-env,omitempty"`
-	EtcdExtraMounts                   []string `json:"etcd-extra-mount,omitempty"`
-	EtcdExtraEnvs                     []string `json:"etcd-extra-env,omitempty"`
-	CloudControllerManagerExtraMounts []string `json:"cloud-controller-manager-extra-mount,omitempty"`
-	CloudControllerManagerExtraEnvs   []string `json:"cloud-controller-manager-extra-env,omitempty"`
-	RKE2AgentConfig                   `json:",inline"`
+type rke2ServerConfig struct {
+	AdvertiseAddress                  string            `json:"advertise-address,omitempty"`
+	AuditPolicyFile                   string            `json:"audit-policy-file,omitempty"`
+	BindAddress                       string            `json:"bind-address,omitempty"`
+	CNI                               string            `json:"cni"`
+	CloudControllerManagerExtraEnv    map[string]string `json:"cloud-controller-manager-extra-env,omitempty"`
+	CloudControllerManagerExtraMounts map[string]string `json:"cloud-controller-manager-extra-mount,omitempty"`
+	CloudProviderConfig               string            `json:"cloud-provider-config,omitempty"`
+	CloudProviderName                 string            `json:"cloud-provider-name,omitempty"`
+	ClusterDNS                        string            `json:"cluster-dns,omitempty"`
+	ClusterDomain                     string            `json:"cluster-domain,omitempty"`
+	DisableCloudController            bool              `json:"disable-cloud-controller,omitempty"`
+	DisableComponents                 []string          `json:"disable,omitempty"`
+	DisableKubeProxy                  bool              `json:"disable-kube-proxy,omitempty"`
+	DisableScheduler                  bool              `json:"disable-scheduler,omitempty"`
+	EtcdDisableSnapshots              bool              `json:"etcd-disable-snapshots,omitempty"`
+	EtcdExposeMetrics                 bool              `json:"etcd-expose-metrics,omitempty"`
+	EtcdS3                            bool              `json:"etcd-s3,omitempty"`
+	EtcdS3AccessKey                   string            `json:"etcd-s3-access-key,omitempty"`
+	EtcdS3Bucket                      string            `json:"etcd-s3-bucket,omitempty"`
+	EtcdS3Endpoint                    string            `json:"etcd-s3-endpoint,omitempty"`
+	EtcdS3EndpointCA                  string            `json:"etcd-s3-endpoint-ca,omitempty"`
+	EtcdS3Folder                      string            `json:"etcd-s3-folder,omitempty"`
+	EtcdS3Region                      string            `json:"etcd-s3-region,omitempty"`
+	EtcdS3SecretKey                   string            `json:"etcd-s3-secret-key,omitempty"`
+	EtcdS3SkipSslVerify               bool              `json:"etcd-s3-skip-ssl-verify,omitempty"`
+	EtcdSnapshotDir                   string            `json:"etcd-snapshot-dir,omitempty"`
+	EtcdSnapshotName                  string            `json:"etcd-snapshot-name,omitempty"`
+	EtcdSnapshotRetention             string            `json:"etcd-snapshot-retention,omitempty"`
+	EtcdSnapshotScheduleCron          string            `json:"etcd-snapshot-schedule-cron,omitempty"`
+	KubeAPIServerArgs                 []string          `json:"kube-apiserver-arg,omitempty"`
+	KubeAPIserverExtraEnv             map[string]string `json:"kube-apiserver-extra-env,omitempty"`
+	KubeAPIserverExtraMounts          map[string]string `json:"kube-apiserver-extra-mount,omitempty"`
+	KubeAPIserverImage                string            `json:"kube-apiserver-image,omitempty"`
+	KubeControllerManagerArgs         []string          `json:"kube-controller-manager-arg,omitempty"`
+	KubeControllerManagerExtraEnv     map[string]string `json:"kube-controller-manager-extra-env,omitempty"`
+	KubeControllerManagerExtraMounts  map[string]string `json:"kube-controller-manager-extra-mount,omitempty"`
+	KubeControllerManagerImage        string            `json:"kube-controller-manager-image,omitempty"`
+	KubeSchedulerArgs                 []string          `json:"kube-scheduler-arg,omitempty"`
+	KubeSchedulerExtraEnv             map[string]string `json:"kube-scheduler-extra-env,omitempty"`
+	KubeSchedulerExtraMounts          map[string]string `json:"kube-scheduler-extra-mount,omitempty"`
+	KubeSchedulerImage                string            `json:"kube-scheduler-image,omitempty"`
+	ServiceNodePortRange              string            `json:"service-node-port-range,omitempty"`
+	TLSSan                            []string          `json:"tls-san,omitempty"`
+
+	// We don't expose these fields in the API
+	ClusterCIDR string `json:"cluster-cidr,omitempty"`
+	ServiceCIDR string `json:"service-cidr,omitempty"`
+
+	// Fields below are missing from our API and RKE2 docs
+	AirgapExtraRegistry       string `json:"airgap-extra-registry,omitempty"`
+	DisableAPIserver          bool   `json:"disable-apiserver,omitempty"`
+	DisableControllerManager  bool   `json:"disable-controller-manager,omitempty"`
+	EgressSelectorMode        string `json:"egress-selector-mode,omitempty"`
+	EnablePprof               bool   `json:"enable-pprof,omitempty"`
+	EnableServiceLoadBalancer bool   `json:"enable-servicelb,omitempty"`
+	EtcdS3Insecure            bool   `json:"etcd-s3-insecure,omitempty"`
+	EtcdS3Timeout             string `json:"etcd-s3-timeout,omitempty"`
+	EtcdSnapshotCompress      string `json:"etcd-snapshot-compress,omitempty"`
+	ServicelbNamespace        string `json:"servicelb-namespace,omitempty"`
+
+	rke2AgentConfig `json:",inline"`
 }
 
-type RKE2AgentConfig struct {
-	// TODO: check what this is supposed to do and modify the struct accordingly
-	Token                          string   `json:"token,omitempty"`
-	Server                         string   `json:"server,omitempty"`
-	DataDir                        string   `json:"data-dir"`
-	NodeName                       string   `json:"node-name,omitempty"`
-	NodeLabels                     []string `json:"node-label,omitempty"`
-	NodeTaints                     []string `json:"node-taint,omitempty"`
-	ImageCredentialProviderBinDir  string   `json:"image-credential-provider-bin-dir,omitempty"`
-	ImageCredentialProviderConfig  string   `json:"image-credential-provider-config,omitempty"`
-	ContainerRuntimeEndpoint       string   `json:"container-runtime-endpoint,omitempty"`
-	PrivateRegistry                string   `json:"private-registry,omitempty"`
-	NodeIp                         string   `json:"node-ip,omitempty"`
-	NodeExternalIp                 string   `json:"node-external-ip,omitempty"`
-	ResolvConf                     string   `json:"resolv-conf,omitempty"`
-	KubeletArgs                    []string `json:"kubelet-arg,omitempty"`
-	KubeProxyArgs                  []string `json:"kube-proxy-arg,omitempty"`
-	KubeProxyExtraMounts           []string `json:"kube-proxy-extra-mount,omitempty"`
-	KubeProxyExtraEnvs             []string `json:"kube-proxy-extra-env,omitempty"`
-	ProtectKernelDefaults          bool     `json:"protect-kernel-defaults,omitempty"`
-	Selinux                        bool     `json:"selinux,omitempty"`
-	LbServerPort                   string   `json:"lb-server-port,omitempty"`
-	KubeProxyImage                 string   `json:"kube-proxy-image,omitempty"`
-	PauseImage                     string   `json:"pause-image,omitempty"`
-	RuntimeImage                   string   `json:"runtime-image,omitempty"`
-	EtcdImage                      string   `json:"etcd-image,omitempty"`
-	KubeletPath                    string   `json:"kubelet-path,omitempty"`
-	CloudProviderName              string   `json:"cloud-provider-name,omitempty"`
-	CloudProviderConfig            string   `json:"cloud-provider-config,omitempty"`
-	Profile                        string   `json:"profile,omitempty"`
-	AuditPolicyFile                string   `json:"audit-policy-file,omitempty"`
-	PodSecurityAdmissionConfigFile string   `json:"pod-security-admission-config-file,omitempty"`
-	ControlPlaneResourceRequests   []string `json:"control-plane-resource-requests,omitempty"`
-	ControlPlaneResourceLimits     []string `json:"control-plane-resource-limits,omitempty"`
+type RKE2ServerConfigOpts struct {
+	ControlPlaneEndpoint string
+	Token                string
+	ServerURL            string
+	ServerConfig         controlplanev1.RKE2ServerConfig
+	AgentConfig          bootstrapv1.RKE2AgentConfig
+	Ctx                  context.Context
+	Client               client.Client
 }
 
-func GenerateInitControlPlaneConfig(controlPlaneEndpoint string, token string, serverConfig controlplanev1.RKE2ServerConfig, agentConfig bootstrapv1.RKE2AgentConfig) RKE2ServerConfig {
-	rke2ServerConfig := RKE2ServerConfig{
-		// TODO: Add data to the struct
-		DisableCloudController: true,
-		TLSSan:                 append(serverConfig.TLSSan, controlPlaneEndpoint),
-		BindAddress:            serverConfig.BindAddress,
-		AdvertiseAddress:       serverConfig.AdvertiseAddress,
-		ClusterDNS:             serverConfig.ClusterDNS,
-		ClusterDomain:          serverConfig.ClusterDomain,
+func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+	rke2ServerConfig := &rke2ServerConfig{}
+	files := []bootstrapv1.File{}
+	rke2ServerConfig.AdvertiseAddress = opts.ServerConfig.AdvertiseAddress
+	if opts.ServerConfig.AuditPolicySecret != nil {
+		auditPolicySecret := &corev1.Secret{}
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.ServerConfig.AuditPolicySecret.Name,
+			Namespace: opts.ServerConfig.AuditPolicySecret.Namespace,
+		}, auditPolicySecret); err != nil {
+			return nil, nil, fmt.Errorf("failed to get audit policy secret: %w", err)
+		}
+		auditPolicy, ok := auditPolicySecret.Data["audit-policy.yaml"]
+		if !ok {
+			return nil, nil, fmt.Errorf("audit policy secret is missing audit-policy.yaml key")
+		}
+		rke2ServerConfig.AuditPolicyFile = "/etc/rancher/rke2/audit-policy.yaml"
+		files = append(files, bootstrapv1.File{
+			Path:        rke2ServerConfig.AuditPolicyFile,
+			Content:     string(auditPolicy),
+			Owner:       "root:root",
+			Permissions: "0644",
+		})
+	}
+	rke2ServerConfig.BindAddress = opts.ServerConfig.BindAddress
+	rke2ServerConfig.CNI = string(opts.ServerConfig.CNI)
+	rke2ServerConfig.ClusterDNS = opts.ServerConfig.ClusterDNS
+	rke2ServerConfig.ClusterDomain = opts.ServerConfig.ClusterDomain
+	if opts.ServerConfig.CloudProviderConfigMap != nil {
+		cloudProviderConfigMap := &corev1.ConfigMap{}
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.ServerConfig.CloudProviderConfigMap.Name,
+			Namespace: opts.ServerConfig.CloudProviderConfigMap.Namespace,
+		}, cloudProviderConfigMap); err != nil {
+			return nil, nil, fmt.Errorf("failed to get cloud provider config map: %w", err)
+		}
+		cloudProviderConfig, ok := cloudProviderConfigMap.Data["cloud-config"]
+		if !ok {
+			return nil, nil, fmt.Errorf("cloud provider config map is missing cloud-config key")
+		}
+		rke2ServerConfig.CloudProviderConfig = "/etc/rancher/rke2/cloud-provider-config"
+		files = append(files, bootstrapv1.File{
+			Path:        rke2ServerConfig.CloudProviderConfig,
+			Content:     cloudProviderConfig,
+			Owner:       "root:root",
+			Permissions: "0644",
+		})
+	}
+	rke2ServerConfig.CloudProviderName = opts.ServerConfig.CloudProviderName
+	rke2ServerConfig.DisableComponents = func() []string {
+		disabled := []string{}
+		for _, plugin := range opts.ServerConfig.DisableComponents.PluginComponents {
+			disabled = append(disabled, string(plugin))
+		}
+		return disabled
+	}()
+	for _, component := range opts.ServerConfig.DisableComponents.KubernetesComponents {
+		switch component {
+		case controlplanev1.KubeProxy:
+			rke2ServerConfig.DisableKubeProxy = true
+		case controlplanev1.CloudController:
+			rke2ServerConfig.DisableCloudController = true
+		case controlplanev1.Scheduler:
+			rke2ServerConfig.DisableScheduler = true
+		}
+	}
+	rke2ServerConfig.EtcdDisableSnapshots = !opts.ServerConfig.Etcd.BackupConfig.EnableAutomaticSnapshots // TODO: change API to disable so don't have to negate?
+	rke2ServerConfig.EtcdExposeMetrics = opts.ServerConfig.Etcd.ExposeMetrics
+	if opts.ServerConfig.Etcd.BackupConfig.S3 != nil {
+		rke2ServerConfig.EtcdS3 = true
+		awsCredentialsSecret := &corev1.Secret{}
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Name,
+			Namespace: opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Namespace,
+		}, awsCredentialsSecret); err != nil {
+			return nil, nil, fmt.Errorf("failed to get aws credentials secret: %w", err)
+		}
+		accessKeyID, ok := awsCredentialsSecret.Data["aws_access_key_id"]
+		if !ok {
+			return nil, nil, fmt.Errorf("aws credentials secret is missing aws_access_key_id")
+		}
+		secretAccessKey, ok := awsCredentialsSecret.Data["aws_secret_access_key"]
+		if !ok {
+			return nil, nil, fmt.Errorf("aws credentials secret is missing aws_secret_access_key")
+		}
+		rke2ServerConfig.EtcdS3AccessKey = string(accessKeyID)
+		rke2ServerConfig.EtcdS3SecretKey = string(secretAccessKey)
+		rke2ServerConfig.EtcdS3Bucket = opts.ServerConfig.Etcd.BackupConfig.S3.Bucket
+		rke2ServerConfig.EtcdS3Region = opts.ServerConfig.Etcd.BackupConfig.S3.Region
+		rke2ServerConfig.EtcdS3Folder = opts.ServerConfig.Etcd.BackupConfig.S3.Folder
+		rke2ServerConfig.EtcdS3Endpoint = opts.ServerConfig.Etcd.BackupConfig.S3.Endpoint
+		if opts.ServerConfig.Etcd.BackupConfig.S3.EndpointCASecret != nil {
+			endpointCAsecret := &corev1.Secret{}
+			if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+				Name:      opts.ServerConfig.Etcd.BackupConfig.S3.EndpointCASecret.Name,
+				Namespace: opts.ServerConfig.Etcd.BackupConfig.S3.EndpointCASecret.Namespace,
+			}, endpointCAsecret); err != nil {
+				return nil, nil, fmt.Errorf("failed to get aws credentials secret: %w", err)
+			}
+			caCert, ok := endpointCAsecret.Data["ca.pem"]
+			if !ok {
+				return nil, nil, fmt.Errorf("endpoint CA secret is missing ca.pem")
+			}
+			rke2ServerConfig.EtcdS3EndpointCA = "/etc/rancher/rke2/etcd-s3-ca.crt"
+			files = append(files, bootstrapv1.File{
+				Path:        rke2ServerConfig.EtcdS3EndpointCA,
+				Content:     string(caCert),
+				Owner:       "root:root",
+				Permissions: "0640",
+			})
+		}
+		rke2ServerConfig.EtcdSnapshotDir = opts.ServerConfig.Etcd.BackupConfig.Directory
+		rke2ServerConfig.EtcdSnapshotName = opts.ServerConfig.Etcd.BackupConfig.SnapshotName
+		rke2ServerConfig.EtcdSnapshotRetention = opts.ServerConfig.Etcd.BackupConfig.Retention
+		rke2ServerConfig.EtcdSnapshotScheduleCron = opts.ServerConfig.Etcd.BackupConfig.ScheduleCron
+		rke2ServerConfig.EtcdS3SkipSslVerify = !opts.ServerConfig.Etcd.BackupConfig.S3.EnforceSSLVerify // TODO: change API to skip so don't have to negate?
 	}
 
-	rke2ServerConfig.RKE2AgentConfig = RKE2AgentConfig{
-		Token:      token,
-		NodeLabels: agentConfig.NodeLabels,
-		NodeTaints: agentConfig.NodeTaints,
+	if opts.ServerConfig.Etcd.CustomConfig != nil {
+		rke2ServerConfig.EtcdArgs = opts.ServerConfig.Etcd.CustomConfig.ExtraArgs
+		rke2ServerConfig.EtcdImage = opts.ServerConfig.Etcd.CustomConfig.OverrideImage
+		rke2ServerConfig.EtcdExtraMounts = opts.ServerConfig.Etcd.CustomConfig.ExtraMounts
+		rke2ServerConfig.EtcdExtraEnv = opts.ServerConfig.Etcd.CustomConfig.ExtraEnv
 	}
 
-	return rke2ServerConfig
+	rke2ServerConfig.ServiceNodePortRange = opts.ServerConfig.ServiceNodePortRange
+	rke2ServerConfig.TLSSan = append(opts.ServerConfig.TLSSan, opts.ControlPlaneEndpoint)
+
+	if opts.ServerConfig.KubeAPIServer != nil {
+		rke2ServerConfig.KubeAPIServerArgs = opts.ServerConfig.KubeAPIServer.ExtraArgs
+		rke2ServerConfig.KubeAPIserverImage = opts.ServerConfig.KubeAPIServer.OverrideImage
+		rke2ServerConfig.KubeAPIserverExtraMounts = opts.ServerConfig.KubeAPIServer.ExtraMounts
+		rke2ServerConfig.KubeAPIserverExtraEnv = opts.ServerConfig.KubeAPIServer.ExtraEnv
+	}
+
+	if opts.ServerConfig.KubeScheduler != nil {
+		rke2ServerConfig.KubeSchedulerArgs = opts.ServerConfig.KubeScheduler.ExtraArgs
+		rke2ServerConfig.KubeSchedulerImage = opts.ServerConfig.KubeScheduler.OverrideImage
+		rke2ServerConfig.KubeSchedulerExtraMounts = opts.ServerConfig.KubeScheduler.ExtraMounts
+		rke2ServerConfig.KubeSchedulerExtraEnv = opts.ServerConfig.KubeScheduler.ExtraEnv
+	}
+
+	if opts.ServerConfig.KubeControllerManager != nil {
+		rke2ServerConfig.KubeControllerManagerArgs = opts.ServerConfig.KubeControllerManager.ExtraArgs
+		rke2ServerConfig.KubeControllerManagerImage = opts.ServerConfig.KubeControllerManager.OverrideImage
+		rke2ServerConfig.KubeControllerManagerExtraMounts = opts.ServerConfig.KubeControllerManager.ExtraMounts
+		rke2ServerConfig.KubeControllerManagerExtraEnv = opts.ServerConfig.KubeControllerManager.ExtraEnv
+	}
+
+	if opts.ServerConfig.CloudControllerManager != nil {
+		rke2ServerConfig.CloudControllerManagerExtraMounts = opts.ServerConfig.CloudControllerManager.ExtraMounts
+		rke2ServerConfig.CloudControllerManagerExtraEnv = opts.ServerConfig.CloudControllerManager.ExtraEnv
+	}
+
+	return rke2ServerConfig, files, nil
 }
 
-func GenerateJoinControlPlaneConfig(serverUrl string, token string, controlplaneendpoint string, serverConfig controlplanev1.RKE2ServerConfig, agentConfig bootstrapv1.RKE2AgentConfig) RKE2ServerConfig {
+type rke2AgentConfig struct {
+	ContainerRuntimeEndpoint      string            `json:"container-runtime-endpoint,omitempty"`
+	DataDir                       string            `json:"data-dir"`
+	EtcdArgs                      []string          `json:"etcd-arg,omitempty"`
+	EtcdExtraEnv                  map[string]string `json:"etcd-extra-env,omitempty"`
+	EtcdExtraMounts               map[string]string `json:"etcd-extra-mount,omitempty"`
+	EtcdImage                     string            `json:"etcd-image,omitempty"`
+	ImageCredentialProviderConfig string            `json:"image-credential-provider-config,omitempty"`
+	ImageCredentialProviderBinDir string            `json:"image-credential-provider-bin-dir,omitempty"`
+	KubeProxyArgs                 []string          `json:"kube-proxy-arg,omitempty"`
+	KubeProxyExtraEnv             map[string]string `json:"kube-proxy-extra-env,omitempty"`
+	KubeProxyExtraMounts          map[string]string `json:"kube-proxy-extra-mount,omitempty"`
+	KubeProxyImage                string            `json:"kube-proxy-image,omitempty"`
+	KubeletArgs                   []string          `json:"kubelet-arg,omitempty"`
+	KubeletPath                   string            `json:"kubelet-path,omitempty"`
+	LbServerPort                  int               `json:"lb-server-port,omitempty"`
+	NodeLabels                    []string          `json:"node-label,omitempty"`
+	NodeTaints                    []string          `json:"node-taint,omitempty"`
+	Profile                       string            `json:"profile,omitempty"`
+	ProtectKernelDefaults         bool              `json:"protect-kernel-defaults,omitempty"`
+	ResolvConf                    string            `json:"resolv-conf,omitempty"`
+	RuntimeImage                  string            `json:"runtime-image,omitempty"`
+	Selinux                       bool              `json:"selinux,omitempty"`
+	Server                        string            `json:"server,omitempty"`
+	Snapshotter                   string            `json:"snapshotter,omitempty"`
+	Token                         string            `json:"token,omitempty"` // TODO: generate the token?
 
-	rke2ServerConfig := RKE2ServerConfig{
-		// TODO: Add data to the struct
-		DisableCloudController: true,
-		TLSSan:                 append(serverConfig.TLSSan, controlplaneendpoint),
-		BindAddress:            serverConfig.BindAddress,
-		ClusterDNS:             serverConfig.ClusterDNS,
-		ClusterDomain:          serverConfig.ClusterDomain,
-	}
+	// We don't expose these in the API
+	PauseImage                     string `json:"pause-image,omitempty"`
+	PodSecurityAdmissionConfigFile string `json:"pod-security-admission-config-file,omitempty"` // new flag, not present in the RKE2 docs yet
+	PrivateRegistry                string `json:"private-registry,omitempty"`
 
-	rke2ServerConfig.RKE2AgentConfig = RKE2AgentConfig{
-		// TODO : Add data to the struct
-		Token:      token,
-		Server:     serverUrl,
-		NodeLabels: agentConfig.NodeLabels,
-		NodeTaints: agentConfig.NodeTaints,
-	}
-
-	return rke2ServerConfig
+	NodeExternalIp string `json:"node-external-ip,omitempty"` // TODO: infra provider can provider external ip, we should use it here and for TLS SAN.
+	NodeIp         string `json:"node-ip,omitempty"`          // TODO: obtain the node ip from the infra provider
+	NodeName       string `json:"node-name,omitempty"`        // TODO: figure our how to handle this using node name prefix from API
 }
 
-func GenerateWorkerConfig(serverUrl string, token string, agentConfig bootstrapv1.RKE2AgentConfig) RKE2AgentConfig {
-	return RKE2AgentConfig{
-		// TODO : Add data to the struct
-		Server:     serverUrl,
-		Token:      token,
-		NodeLabels: agentConfig.NodeLabels,
-		NodeTaints: agentConfig.NodeTaints,
+type RKE2AgentConfigOpts struct {
+	ServerURL   string
+	Token       string
+	AgentConfig bootstrapv1.RKE2AgentConfig
+	Ctx         context.Context
+	Client      client.Client
+}
+
+func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
+	rke2AgentConfig := &rke2AgentConfig{}
+	files := []bootstrapv1.File{}
+	rke2AgentConfig.ContainerRuntimeEndpoint = opts.AgentConfig.ContainerRuntimeEndpoint
+	rke2AgentConfig.DataDir = opts.AgentConfig.DataDir
+	if opts.AgentConfig.ImageCredentialProviderConfigMap != nil {
+		imageCredentialProviderCM := &corev1.ConfigMap{}
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.AgentConfig.ImageCredentialProviderConfigMap.Name,
+			Namespace: opts.AgentConfig.ImageCredentialProviderConfigMap.Namespace,
+		}, imageCredentialProviderCM); err != nil {
+			return nil, nil, fmt.Errorf("failed to get image credential provider config map: %w", err)
+		}
+		credentialConfig, ok := imageCredentialProviderCM.Data["credential-config.yaml"]
+		if !ok {
+			return nil, nil, fmt.Errorf("image credential provider config map is missing config.yaml")
+		}
+		credentialProviderBinaries, ok := imageCredentialProviderCM.Data["credential-provider-binaries"]
+		if !ok {
+			return nil, nil, fmt.Errorf("image credential provider config map is missing credential-provider-binaries")
+		}
+		rke2AgentConfig.ImageCredentialProviderBinDir = credentialProviderBinaries
+		rke2AgentConfig.ImageCredentialProviderConfig = "/etc/rancher/rke2/credential-config.yaml"
+		files = append(files, bootstrapv1.File{
+			Path:        rke2AgentConfig.ImageCredentialProviderConfig,
+			Content:     credentialConfig,
+			Owner:       "root:root",
+			Permissions: "0644",
+		})
 	}
+	rke2AgentConfig.KubeletPath = opts.AgentConfig.KubeletPath
+	if opts.AgentConfig.Kubelet != nil {
+		rke2AgentConfig.KubeletArgs = opts.AgentConfig.Kubelet.ExtraArgs // TODO: Add a webhook validation to ensure that only args are used in this struct.
+	}
+	rke2AgentConfig.LbServerPort = opts.AgentConfig.LoadBalancerPort
+	rke2AgentConfig.NodeLabels = opts.AgentConfig.NodeLabels
+	rke2AgentConfig.NodeTaints = opts.AgentConfig.NodeTaints
+	rke2AgentConfig.Profile = string(opts.AgentConfig.CISProfile)
+	rke2AgentConfig.ProtectKernelDefaults = opts.AgentConfig.ProtectKernelDefaults
+	if opts.AgentConfig.ResolvConf != nil {
+		resolvConfCM := &corev1.ConfigMap{}
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.AgentConfig.ResolvConf.Name,
+			Namespace: opts.AgentConfig.ResolvConf.Namespace,
+		}, resolvConfCM); err != nil {
+			return nil, nil, fmt.Errorf("failed to get resolv.conf config map: %w", err)
+		}
+		resolvConf, ok := resolvConfCM.Data["resolv.conf"]
+		if !ok {
+			return nil, nil, fmt.Errorf("resolv conf config map is missing resolv.conf")
+		}
+		rke2AgentConfig.ResolvConf = "/etc/rancher/rke2/resolv.conf"
+		files = append(files, bootstrapv1.File{
+			Path:        rke2AgentConfig.ResolvConf,
+			Content:     resolvConf,
+			Owner:       "root:root",
+			Permissions: "0644",
+		})
+	}
+	rke2AgentConfig.RuntimeImage = opts.AgentConfig.RuntimeImage
+	rke2AgentConfig.Selinux = opts.AgentConfig.EnableContainerdSElinux
+	rke2AgentConfig.Server = opts.ServerURL
+	rke2AgentConfig.Snapshotter = opts.AgentConfig.Snapshotter
+	if opts.AgentConfig.KubeProxy != nil {
+		rke2AgentConfig.KubeProxyArgs = opts.AgentConfig.KubeProxy.ExtraArgs
+		rke2AgentConfig.KubeProxyImage = opts.AgentConfig.KubeProxy.OverrideImage
+		rke2AgentConfig.KubeProxyExtraMounts = opts.AgentConfig.KubeProxy.ExtraMounts
+		rke2AgentConfig.KubeProxyExtraEnv = opts.AgentConfig.KubeProxy.ExtraEnv
+	}
+	rke2AgentConfig.Token = opts.Token
+
+	return rke2AgentConfig, files, nil
+}
+
+func GenerateInitControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+	if opts.Token == "" {
+		return nil, nil, fmt.Errorf("token is required")
+	}
+
+	rke2ServerConfig, serverFiles, err := newRKE2ServerConfig(opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate rke2 server config: %w", err)
+	}
+
+	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(RKE2AgentConfigOpts{
+		AgentConfig: opts.AgentConfig,
+		Client:      opts.Client,
+		Ctx:         opts.Ctx,
+		Token:       opts.Token,
+	})
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
+	}
+
+	rke2ServerConfig.rke2AgentConfig = *rke2AgentConfig
+
+	return rke2ServerConfig, append(serverFiles, agentFiles...), nil
+}
+
+func GenerateJoinControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+	if opts.ServerURL == "" {
+		return nil, nil, fmt.Errorf("server url is required")
+	}
+
+	if opts.Token == "" {
+		return nil, nil, fmt.Errorf("token is required")
+	}
+
+	rke2ServerConfig, serverFiles, err := newRKE2ServerConfig(opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate rke2 server config: %w", err)
+	}
+
+	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(RKE2AgentConfigOpts{
+		AgentConfig: opts.AgentConfig,
+		Client:      opts.Client,
+		Ctx:         opts.Ctx,
+		ServerURL:   opts.ServerURL,
+		Token:       opts.Token,
+	})
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
+	}
+
+	rke2ServerConfig.rke2AgentConfig = *rke2AgentConfig
+
+	return rke2ServerConfig, append(serverFiles, agentFiles...), nil
+}
+
+func GenerateWorkerConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
+	if opts.ServerURL == "" {
+		return nil, nil, fmt.Errorf("server url is required")
+	}
+
+	if opts.Token == "" {
+		return nil, nil, fmt.Errorf("token is required")
+	}
+
+	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
+	}
+
+	return rke2AgentConfig, agentFiles, nil
 }
