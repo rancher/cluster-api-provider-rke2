@@ -33,7 +33,8 @@ var _ = Describe("WorkerAirGappedCloudInitTest", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
 		workerCloudInitString := string(workerCloudInitData)
-		GinkgoWriter.Write(workerCloudInitData)
+		_, err = GinkgoWriter.Write(workerCloudInitData)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(workerCloudInitString).To(Equal(`## template: jinja
 #cloud-config
 
@@ -64,7 +65,8 @@ var _ = Describe("WorkerOnlineCloudInitTest", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
 		workerCloudInitString := string(workerCloudInitData)
-		GinkgoWriter.Write(workerCloudInitData)
+		_, err = GinkgoWriter.Write(workerCloudInitData)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(workerCloudInitString).To(Equal(`## template: jinja
 #cloud-config
 
