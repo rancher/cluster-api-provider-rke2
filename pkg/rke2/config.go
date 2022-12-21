@@ -34,7 +34,7 @@ type rke2ServerConfig struct {
 	AdvertiseAddress                  string            `json:"advertise-address,omitempty"`
 	AuditPolicyFile                   string            `json:"audit-policy-file,omitempty"`
 	BindAddress                       string            `json:"bind-address,omitempty"`
-	CNI                               string            `json:"cni"`
+	CNI                               string            `json:"cni,omitempty"`
 	CloudControllerManagerExtraEnv    map[string]string `json:"cloud-controller-manager-extra-env,omitempty"`
 	CloudControllerManagerExtraMounts map[string]string `json:"cloud-controller-manager-extra-mount,omitempty"`
 	CloudProviderConfig               string            `json:"cloud-provider-config,omitempty"`
@@ -45,7 +45,7 @@ type rke2ServerConfig struct {
 	DisableComponents                 []string          `json:"disable,omitempty"`
 	DisableKubeProxy                  bool              `json:"disable-kube-proxy,omitempty"`
 	DisableScheduler                  bool              `json:"disable-scheduler,omitempty"`
-	EtcdDisableSnapshots              bool              `json:"etcd-disable-snapshots,omitempty"`
+	EtcdDisableSnapshots              *bool             `json:"etcd-disable-snapshots,omitempty"`
 	EtcdExposeMetrics                 bool              `json:"etcd-expose-metrics,omitempty"`
 	EtcdS3                            bool              `json:"etcd-s3,omitempty"`
 	EtcdS3AccessKey                   string            `json:"etcd-s3-access-key,omitempty"`
@@ -170,7 +170,7 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 			rke2ServerConfig.DisableScheduler = true
 		}
 	}
-	rke2ServerConfig.EtcdDisableSnapshots = !opts.ServerConfig.Etcd.BackupConfig.EnableAutomaticSnapshots // TODO: change API to disable so don't have to negate?
+	rke2ServerConfig.EtcdDisableSnapshots = opts.ServerConfig.Etcd.BackupConfig.DisableAutomaticSnapshots // TODO: change API to disable so don't have to negate?
 	rke2ServerConfig.EtcdExposeMetrics = opts.ServerConfig.Etcd.ExposeMetrics
 	if opts.ServerConfig.Etcd.BackupConfig.S3 != nil {
 		rke2ServerConfig.EtcdS3 = true
@@ -263,7 +263,7 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 
 type rke2AgentConfig struct {
 	ContainerRuntimeEndpoint      string            `json:"container-runtime-endpoint,omitempty"`
-	DataDir                       string            `json:"data-dir"`
+	DataDir                       string            `json:"data-dir,omitempty"`
 	EtcdArgs                      []string          `json:"etcd-arg,omitempty"`
 	EtcdExtraEnv                  map[string]string `json:"etcd-extra-env,omitempty"`
 	EtcdExtraMounts               map[string]string `json:"etcd-extra-mount,omitempty"`

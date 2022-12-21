@@ -506,8 +506,8 @@ spec:
                           directory:
                             description: Directory Directory to save db snapshots.
                             type: string
-                          enableAutomaticSnapshots:
-                            description: EnableAutomaticSnapshots defines the policy
+                          disableAutomaticSnapshots:
+                            description: DisableAutomaticSnapshots defines the policy
                               for ETCD snapshots. true means automatic snapshots will
                               be scheduled, false means automatic snapshots will not
                               be scheduled.

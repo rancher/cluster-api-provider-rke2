@@ -210,9 +210,9 @@ type EtcdConfig struct {
 
 // EtcdBackupConfig describes the backup configuration for ETCD.
 type EtcdBackupConfig struct {
-	// EnableAutomaticSnapshots defines the policy for ETCD snapshots. true means automatic snapshots will be scheduled, false means automatic snapshots will not be scheduled.
+	// DisableAutomaticSnapshots defines the policy for ETCD snapshots. true means automatic snapshots will be scheduled, false means automatic snapshots will not be scheduled.
 	//+optional
-	EnableAutomaticSnapshots bool `json:"enableAutomaticSnapshots,omitempty"`
+	DisableAutomaticSnapshots *bool `json:"disableAutomaticSnapshots,omitempty"`
 
 	// SnapshotName Set the base name of etcd snapshots. Default: etcd-snapshot-<unix-timestamp> (default: "etcd-snapshot").
 	//+optional

@@ -74,7 +74,6 @@ var _ = Describe("RKE2ServerConfig", func() {
 				Etcd: controlplanev1.EtcdConfig{
 					ExposeMetrics: true,
 					BackupConfig: controlplanev1.EtcdBackupConfig{
-						EnableAutomaticSnapshots: true,
 						S3: &controlplanev1.EtcdS3{
 							S3CredentialSecret: corev1.ObjectReference{
 								Name:      "test",

@@ -315,11 +315,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		Permissions: "0640",
 	}
 
-	//files, err := r.resolveFiles(ctx, scope.Config)
-	//if err != nil {
-	//conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.DataSecretGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
-	//return ctrl.Result{}, err
-	//}
+	// TODO: Implement adding additional files through API
 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
@@ -371,9 +367,11 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
 			Client:               r.Client,
-		})
+		},
+	)
 
 	if err != nil {
+		scope.Logger.Error(err, "unable to generate config.yaml for a Secondary Control Plane node")
 		return ctrl.Result{}, err
 	}
 
@@ -393,11 +391,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		Permissions: "0640",
 	}
 
-	//files, err := r.resolveFiles(ctx, scope.Config)
-	//if err != nil {
-	//conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.DataSecretGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
-	//return ctrl.Result{}, err
-	//}
+	// TODO: Implement adding additional files through API
 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
@@ -458,11 +452,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		Permissions: "0640",
 	}
 
-	//files, err := r.resolveFiles(ctx, scope.Config)
-	//if err != nil {
-	//conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.DataSecretGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
-	//return ctrl.Result{}, err
-	//}
+	// TODO: Implement adding additional files through API
 
 	wkInput :=
 		&cloudinit.BaseUserData{
