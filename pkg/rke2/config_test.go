@@ -147,7 +147,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.DisableKubeProxy).To(BeTrue())
 		Expect(rke2ServerConfig.DisableCloudController).To(BeTrue())
 		Expect(rke2ServerConfig.DisableScheduler).To(BeTrue())
-		Expect(rke2ServerConfig.EtcdDisableSnapshots).To(BeFalse())
+		//Expect(rke2ServerConfig.EtcdDisableSnapshots).To(BeFalse())
 		Expect(rke2ServerConfig.EtcdExposeMetrics).To(Equal(serverConfig.Etcd.ExposeMetrics))
 		Expect(rke2ServerConfig.EtcdS3).To(BeTrue())
 		Expect(rke2ServerConfig.EtcdS3AccessKey).To(Equal("test_id"))
