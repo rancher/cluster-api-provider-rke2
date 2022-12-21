@@ -80,6 +80,7 @@ type BaseUserData struct {
 	ConfigFile          bootstrapv1.File
 	RKE2Version         string
 	SentinelFileCommand string
+	AirGapped           bool
 }
 
 func generate(kind string, tpl string, data interface{}) ([]byte, error) {

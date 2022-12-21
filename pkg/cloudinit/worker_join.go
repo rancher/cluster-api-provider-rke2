@@ -25,7 +25,7 @@ const (
 {{template "files" .WriteFiles}}
 runcmd:
 {{- template "commands" .PreRKE2Commands }}
-  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s INSTALL_RKE2_TYPE="agent" sh -s -'
+  - '{{ if .AirGapped }}INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts sh /opt/install.sh{{ else }}curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s INSTALL_RKE2_TYPE="agent" sh -s -{{end}}'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir /run/cluster-api' 
