@@ -360,8 +360,9 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 
 	configStruct, files, err := rke2.GenerateJoinControlPlaneConfig(
 		rke2.RKE2ServerConfigOpts{
-			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
+			Cluster:              *scope.Cluster,
 			Token:                token,
+			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
 			ServerURL:            "https://" + scope.Cluster.Spec.ControlPlaneEndpoint.Host + ":9345",
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,

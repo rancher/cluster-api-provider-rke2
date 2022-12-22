@@ -24,6 +24,7 @@ import (
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -95,6 +96,7 @@ type rke2ServerConfig struct {
 }
 
 type RKE2ServerConfigOpts struct {
+	Cluster              clusterv1.Cluster
 	ControlPlaneEndpoint string
 	Token                string
 	ServerURL            string
@@ -127,6 +129,13 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 			Owner:       "root:root",
 			Permissions: "0644",
 		})
+	}
+	if opts.Cluster.Spec.ClusterNetwork != nil && opts.Cluster.Spec.ClusterNetwork.Pods != nil && len(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks) > 0 {
+		rke2ServerConfig.ClusterCIDR = opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks[0]
+
+	}
+	if opts.Cluster.Spec.ClusterNetwork != nil && opts.Cluster.Spec.ClusterNetwork.Services != nil && len(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks) > 0 {
+		rke2ServerConfig.ServiceCIDR = opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks[0]
 	}
 	rke2ServerConfig.BindAddress = opts.ServerConfig.BindAddress
 	rke2ServerConfig.CNI = string(opts.ServerConfig.CNI)
@@ -164,12 +173,11 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 		switch component {
 		case controlplanev1.KubeProxy:
 			rke2ServerConfig.DisableKubeProxy = true
-		case controlplanev1.CloudController:
-			rke2ServerConfig.DisableCloudController = true
 		case controlplanev1.Scheduler:
 			rke2ServerConfig.DisableScheduler = true
 		}
 	}
+	rke2ServerConfig.DisableCloudController = true
 	rke2ServerConfig.EtcdDisableSnapshots = opts.ServerConfig.Etcd.BackupConfig.DisableAutomaticSnapshots // TODO: change API to disable so don't have to negate?
 	rke2ServerConfig.EtcdExposeMetrics = opts.ServerConfig.Etcd.ExposeMetrics
 	if opts.ServerConfig.Etcd.BackupConfig.S3 != nil {
