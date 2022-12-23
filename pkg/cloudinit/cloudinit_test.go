@@ -43,7 +43,7 @@ write_files:
     content: |
       
 runcmd:
-  - 'INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts sh /opt/install.sh'
+  - 'INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir /run/cluster-api' 
