@@ -7,6 +7,16 @@ updates:
     labels:
       - "kind/cleanup"
       - "area/dependency"
+    ignore:
+      # Ignore Cluster-API as its upgraded manually.
+      - dependency-name: "sigs.k8s.io/cluster-api"
+      # Ignore controller-runtime as its upgraded manually.
+      - dependency-name: "sigs.k8s.io/controller-runtime"
+      # Ignore k8s and its transitives modules as they are upgraded manually
+      # together with controller-runtime.
+      - dependency-name: "k8s.io/*"
+      - dependency-name: "go.etcd.io/*"
+      - dependency-name: "google.golang.org/grpc"
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
