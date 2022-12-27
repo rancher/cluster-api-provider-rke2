@@ -26,7 +26,6 @@ import (
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/machinefilters"
 	rke2 "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +36,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -47,7 +47,7 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(ctx context.Context,
 
 	// Perform an uncached read of all the owned machines. This check is in place to make sure
 	// that the controller cache is not misbehaving and we end up initializing the cluster more than once.
-	ownedMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, util.ObjectKey(cluster), machinefilters.OwnedMachines(rcp))
+	ownedMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, util.ObjectKey(cluster), collections.OwnedMachines(rcp))
 	if err != nil {
 		logger.Error(err, "failed to perform an uncached read of control plane machines for cluster")
 		return ctrl.Result{}, err
@@ -97,7 +97,7 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 	cluster *clusterv1.Cluster,
 	rcp *controlplanev1.RKE2ControlPlane,
 	controlPlane *rke2.ControlPlane,
-	outdatedMachines rke2.FilterableMachineCollection,
+	outdatedMachines collections.Machines,
 ) (ctrl.Result, error) {
 	logger := controlPlane.Logger()
 
@@ -171,7 +171,7 @@ func (r *RKE2ControlPlaneReconciler) preflightChecks(ctx context.Context, contro
 
 	// If there are deleting machines, wait for the operation to complete.
 	if controlPlane.HasDeletingMachine() {
-		logger.Info("Waiting for machines to be deleted", "Machines", strings.Join(controlPlane.Machines.Filter(machinefilters.HasDeletionTimestamp).Names(), ", "))
+		logger.Info("Waiting for machines to be deleted", "Machines", strings.Join(controlPlane.Machines.Filter(collections.HasDeletionTimestamp).Names(), ", "))
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
 
@@ -223,7 +223,7 @@ func preflightCheckCondition(kind string, obj conditions.Getter, condition clust
 	return nil
 }
 
-func selectMachineForScaleDown(controlPlane *rke2.ControlPlane, outdatedMachines rke2.FilterableMachineCollection) (*clusterv1.Machine, error) {
+func selectMachineForScaleDown(controlPlane *rke2.ControlPlane, outdatedMachines collections.Machines) (*clusterv1.Machine, error) {
 	machines := controlPlane.Machines
 	switch {
 	case controlPlane.MachineWithDeleteAnnotation(outdatedMachines).Len() > 0:
@@ -249,7 +249,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(ctx context.
 	}
 
 	// Clone the infrastructure template
-	infraRef, err := external.CloneTemplate(ctx, &external.CloneTemplateInput{
+	infraRef, err := external.CreateFromTemplate(ctx, &external.CreateFromTemplateInput{
 		Client:      r.Client,
 		TemplateRef: &rcp.Spec.InfrastructureRef,
 		Namespace:   rcp.Namespace,

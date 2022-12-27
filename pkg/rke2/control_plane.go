@@ -21,7 +21,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/machinefilters"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +34,7 @@ import (
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	"sigs.k8s.io/cluster-api/controllers/external"
 
+	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,7 +45,7 @@ import (
 type ControlPlane struct {
 	RCP                  *controlplanev1.RKE2ControlPlane
 	Cluster              *clusterv1.Cluster
-	Machines             FilterableMachineCollection
+	Machines             collections.Machines
 	machinesPatchHelpers map[string]*patch.Helper
 
 	// reconciliationTime is the time of the current reconciliation, and should be used for all "now" calculations
@@ -58,7 +58,7 @@ type ControlPlane struct {
 }
 
 // NewControlPlane returns an instantiated ControlPlane.
-func NewControlPlane(ctx context.Context, client client.Client, cluster *clusterv1.Cluster, kcp *controlplanev1.RKE2ControlPlane, ownedMachines FilterableMachineCollection) (*ControlPlane, error) {
+func NewControlPlane(ctx context.Context, client client.Client, cluster *clusterv1.Cluster, kcp *controlplanev1.RKE2ControlPlane, ownedMachines collections.Machines) (*ControlPlane, error) {
 	infraObjects, err := getInfraResources(ctx, client, ownedMachines)
 	if err != nil {
 		return nil, err
@@ -126,9 +126,9 @@ func (c *ControlPlane) EtcdImageData() (string, string) {
 }
 
 // MachineInFailureDomainWithMostMachines returns the first matching failure domain with machines that has the most control-plane machines on it.
-func (c *ControlPlane) MachineInFailureDomainWithMostMachines(machines FilterableMachineCollection) (*clusterv1.Machine, error) {
+func (c *ControlPlane) MachineInFailureDomainWithMostMachines(machines collections.Machines) (*clusterv1.Machine, error) {
 	fd := c.FailureDomainWithMostMachines(machines)
-	machinesInFailureDomain := machines.Filter(machinefilters.InFailureDomains(fd))
+	machinesInFailureDomain := machines.Filter(collections.InFailureDomains(fd))
 	machineToMark := machinesInFailureDomain.Oldest()
 	if machineToMark == nil {
 		return nil, errors.New("failed to pick control plane Machine to mark for deletion")
@@ -137,7 +137,7 @@ func (c *ControlPlane) MachineInFailureDomainWithMostMachines(machines Filterabl
 }
 
 // MachineWithDeleteAnnotation returns a machine that has been annotated with DeleteMachineAnnotation key.
-func (c *ControlPlane) MachineWithDeleteAnnotation(machines FilterableMachineCollection) FilterableMachineCollection {
+func (c *ControlPlane) MachineWithDeleteAnnotation(machines collections.Machines) collections.Machines {
 	// See if there are any machines with DeleteMachineAnnotation key.
 	//annotatedMachines := machines.Filter(machinefilters.HasAnnotationKey(clusterv1.DeleteMachineAnnotation))
 	// If there are, return list of annotated machines.
@@ -146,10 +146,10 @@ func (c *ControlPlane) MachineWithDeleteAnnotation(machines FilterableMachineCol
 
 // FailureDomainWithMostMachines returns a fd which exists both in machines and control-plane machines and has the most
 // control-plane machines on it.
-func (c *ControlPlane) FailureDomainWithMostMachines(machines FilterableMachineCollection) *string {
+func (c *ControlPlane) FailureDomainWithMostMachines(machines collections.Machines) *string {
 	// See if there are any Machines that are not in currently defined failure domains first.
 	notInFailureDomains := machines.Filter(
-		machinefilters.Not(machinefilters.InFailureDomains(c.FailureDomains().FilterControlPlane().GetIDs()...)),
+		collections.Not(collections.InFailureDomains(c.FailureDomains().FilterControlPlane().GetIDs()...)),
 	)
 	if len(notInFailureDomains) > 0 {
 		// return the failure domain for the oldest Machine not in the current list of failure domains
@@ -245,31 +245,31 @@ func (c *ControlPlane) NeedsReplacementNode() bool {
 
 // HasDeletingMachine returns true if any machine in the control plane is in the process of being deleted.
 func (c *ControlPlane) HasDeletingMachine() bool {
-	return len(c.Machines.Filter(machinefilters.HasDeletionTimestamp)) > 0
+	return len(c.Machines.Filter(collections.HasDeletionTimestamp)) > 0
 }
 
 // MachinesNeedingRollout return a list of machines that need to be rolled out.
-func (c *ControlPlane) MachinesNeedingRollout() FilterableMachineCollection {
+func (c *ControlPlane) MachinesNeedingRollout() collections.Machines {
 	// Ignore machines to be deleted.
-	machines := c.Machines.Filter(machinefilters.Not(machinefilters.HasDeletionTimestamp))
+	machines := c.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
 
 	// Return machines if they are scheduled for rollout or if with an outdated configuration.
 	return machines.AnyFilter(
 		// Machines that are scheduled for rollout (RCP.Spec.UpgradeAfter set, the UpgradeAfter deadline is expired, and the machine was created before the deadline).
-		machinefilters.ShouldRolloutAfter(&c.reconciliationTime),
+		// collections.ShouldRolloutAfter(&c.reconciliationTime, c.RCP.Spec.RolloutAfter), // TODO: Add rollout after field to RKE2ControlPlane if we want to support this.
 		// Machines that do not match with RCP config.
-		machinefilters.Not(machinefilters.MatchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
+		collections.Not(matchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
 	)
 }
 
 // UpToDateMachines returns the machines that are up to date with the control
 // plane's configuration and therefore do not require rollout.
-func (c *ControlPlane) UpToDateMachines() FilterableMachineCollection {
+func (c *ControlPlane) UpToDateMachines() collections.Machines {
 	return c.Machines.Difference(c.MachinesNeedingRollout())
 }
 
 // getInfraResources fetches the external infrastructure resource for each machine in the collection and returns a map of machine.Name -> infraResource.
-func getInfraResources(ctx context.Context, cl client.Client, machines FilterableMachineCollection) (map[string]*unstructured.Unstructured, error) {
+func getInfraResources(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*unstructured.Unstructured, error) {
 	result := map[string]*unstructured.Unstructured{}
 	for _, m := range machines {
 		infraObj, err := external.Get(ctx, cl, &m.Spec.InfrastructureRef, m.Namespace)
@@ -285,7 +285,7 @@ func getInfraResources(ctx context.Context, cl client.Client, machines Filterabl
 }
 
 // getRKE2Configs fetches the RKE2 config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
-func getRKE2Configs(ctx context.Context, cl client.Client, machines FilterableMachineCollection) (map[string]*bootstrapv1.RKE2Config, error) {
+func getRKE2Configs(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*bootstrapv1.RKE2Config, error) {
 	result := map[string]*bootstrapv1.RKE2Config{}
 	for _, m := range machines {
 		bootstrapRef := m.Spec.Bootstrap.ConfigRef
@@ -305,13 +305,13 @@ func getRKE2Configs(ctx context.Context, cl client.Client, machines FilterableMa
 }
 
 // UnhealthyMachines returns the list of control plane machines marked as unhealthy by MHC.
-func (c *ControlPlane) UnhealthyMachines() FilterableMachineCollection {
-	return c.Machines.Filter(machinefilters.HasUnhealthyCondition)
+func (c *ControlPlane) UnhealthyMachines() collections.Machines {
+	return c.Machines.Filter(collections.HasUnhealthyCondition)
 }
 
 // HealthyMachines returns the list of control plane machines not marked as unhealthy by MHC.
-func (c *ControlPlane) HealthyMachines() FilterableMachineCollection {
-	return c.Machines.Filter(machinefilters.Not(machinefilters.HasUnhealthyCondition))
+func (c *ControlPlane) HealthyMachines() collections.Machines {
+	return c.Machines.Filter(collections.Not(collections.HasUnhealthyCondition))
 }
 
 // HasUnhealthyMachine returns true if any machine in the control plane is marked as unhealthy by MHC.

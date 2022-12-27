@@ -24,8 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/controllers/remote"
-
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/machinefilters"
+	"sigs.k8s.io/cluster-api/util/collections"
 
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -35,7 +34,7 @@ import (
 type ManagementCluster interface {
 	ctrlclient.Reader
 
-	GetMachinesForCluster(ctx context.Context, cluster ctrlclient.ObjectKey, filters ...machinefilters.Func) (FilterableMachineCollection, error)
+	GetMachinesForCluster(ctx context.Context, cluster ctrlclient.ObjectKey, filters ...collections.Func) (collections.Machines, error)
 	GetWorkloadCluster(ctx context.Context, clusterKey ctrlclient.ObjectKey) (WorkloadCluster, error)
 }
 
@@ -65,7 +64,7 @@ func (m *Management) List(ctx context.Context, list ctrlclient.ObjectList, opts 
 
 // GetMachinesForCluster returns a list of machines that can be filtered or not.
 // If no filter is supplied then all machines associated with the target cluster are returned.
-func (m *Management) GetMachinesForCluster(ctx context.Context, cluster ctrlclient.ObjectKey, filters ...machinefilters.Func) (FilterableMachineCollection, error) {
+func (m *Management) GetMachinesForCluster(ctx context.Context, cluster ctrlclient.ObjectKey, filters ...collections.Func) (collections.Machines, error) {
 	logger := log.FromContext(ctx)
 	selector := map[string]string{
 		clusterv1.ClusterLabelName: cluster.Name,
@@ -76,7 +75,8 @@ func (m *Management) GetMachinesForCluster(ctx context.Context, cluster ctrlclie
 		return nil, errors.Wrap(err, "failed to list machines")
 	}
 	logger.Info("End of listing machines for cluster")
-	machines := NewFilterableMachineCollectionFromMachineList(ml)
+	machines := collections.FromMachineList(ml)
+
 	return machines.Filter(filters...), nil
 }
 
