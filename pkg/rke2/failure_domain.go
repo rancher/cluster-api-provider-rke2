@@ -23,6 +23,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util/collections"
 )
 
 // Log is the global logger for the internal package.
@@ -51,7 +52,7 @@ func (f failureDomainAggregations) Swap(i, j int) {
 }
 
 // PickMost returns a failure domain that is in machines and has most control-plane machines on.
-func PickMost(c *ControlPlane, machines FilterableMachineCollection) *string {
+func PickMost(c *ControlPlane, machines collections.Machines) *string {
 	// orderDescending sorts failure domains according to all control plane machines
 	fds := orderDescending(c.Cluster.Status.FailureDomains.FilterControlPlane(), c.Machines)
 	for _, fd := range fds {
@@ -68,7 +69,7 @@ func PickMost(c *ControlPlane, machines FilterableMachineCollection) *string {
 }
 
 // orderDescending returns the sorted failure domains in decreasing order.
-func orderDescending(failureDomains clusterv1.FailureDomains, machines FilterableMachineCollection) failureDomainAggregations {
+func orderDescending(failureDomains clusterv1.FailureDomains, machines collections.Machines) failureDomainAggregations {
 	aggregations := pick(failureDomains, machines)
 	if len(aggregations) == 0 {
 		return nil
@@ -78,7 +79,7 @@ func orderDescending(failureDomains clusterv1.FailureDomains, machines Filterabl
 }
 
 // PickFewest returns the failure domain with the fewest number of machines.
-func PickFewest(failureDomains clusterv1.FailureDomains, machines FilterableMachineCollection) *string {
+func PickFewest(failureDomains clusterv1.FailureDomains, machines collections.Machines) *string {
 	aggregations := pick(failureDomains, machines)
 	if len(aggregations) == 0 {
 		return nil
@@ -87,7 +88,7 @@ func PickFewest(failureDomains clusterv1.FailureDomains, machines FilterableMach
 	return pointer.StringPtr(aggregations[0].id)
 }
 
-func pick(failureDomains clusterv1.FailureDomains, machines FilterableMachineCollection) failureDomainAggregations {
+func pick(failureDomains clusterv1.FailureDomains, machines collections.Machines) failureDomainAggregations {
 	if len(failureDomains) == 0 {
 		return failureDomainAggregations{}
 	}

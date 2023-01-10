@@ -24,7 +24,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/machinefilters"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,6 +33,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
+	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -257,7 +257,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(ctx context.Context, cluste
 		return result, err
 	}
 
-	controlPlaneMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, util.ObjectKey(cluster), machinefilters.ControlPlaneMachines(cluster.Name))
+	controlPlaneMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, util.ObjectKey(cluster), collections.ControlPlaneMachines(cluster.Name))
 	if err != nil {
 		logger.Error(err, "failed to retrieve control plane machines for cluster")
 		return ctrl.Result{}, err
@@ -272,7 +272,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(ctx context.Context, cluste
 
 	logger.V(5).Info("Checking on Reconciler 2")
 
-	ownedMachines := controlPlaneMachines.Filter(machinefilters.OwnedMachines(rcp))
+	ownedMachines := controlPlaneMachines.Filter(collections.OwnedMachines(rcp))
 	if len(ownedMachines) != len(controlPlaneMachines) {
 		logger.Info("Not all control plane machines are owned by this RKE2ControlPlane, refusing to operate in mixed management mode")
 		return ctrl.Result{}, nil
@@ -331,7 +331,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(ctx context.Context, cluste
 	case numMachines > desiredReplicas:
 		logger.Info("Scaling down control plane", "Desired", desiredReplicas, "Existing", numMachines)
 		// The last parameter (i.e. machines needing to be rolled out) should always be empty here.
-		return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, rke2.FilterableMachineCollection{})
+		return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, collections.Machines{})
 	}
 
 	return ctrl.Result{}, nil
@@ -406,7 +406,7 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 	cluster *clusterv1.Cluster,
 	rcp *controlplanev1.RKE2ControlPlane,
 	controlPlane *rke2.ControlPlane,
-	machinesRequireUpgrade rke2.FilterableMachineCollection,
+	machinesRequireUpgrade collections.Machines,
 ) (ctrl.Result, error) {
 	logger := controlPlane.Logger()
 

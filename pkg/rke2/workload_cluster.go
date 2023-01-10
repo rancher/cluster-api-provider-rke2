@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -108,7 +109,7 @@ func (w *Workload) ClusterStatus(ctx context.Context) (ClusterStatus, error) {
 	return status, nil
 }
 
-func hasProvisioningMachine(machines FilterableMachineCollection) bool {
+func hasProvisioningMachine(machines collections.Machines) bool {
 	for _, machine := range machines {
 		if machine.Status.NodeRef == nil {
 			return true
