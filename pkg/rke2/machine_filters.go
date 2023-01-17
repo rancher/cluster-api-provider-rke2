@@ -21,7 +21,7 @@ func matchesRCPConfiguration(infraConfigs map[string]*unstructured.Unstructured,
 // matchesRKE2BootstrapConfig checks if machine's RKE2ConfigSpec is equivalent with RCP's RKE2ConfigSpec.
 func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Config, rcp *controlplanev1.RKE2ControlPlane) collections.Func {
 	return func(machine *clusterv1.Machine) bool {
-		return true // TODO: implement
+		return true // TODO: implement by using inspiration from https://github.com/kubernetes-sigs/cluster-api/blob/v1.3.2/controlplane/kubeadm/internal/filters.go#L81
 	}
 }
 

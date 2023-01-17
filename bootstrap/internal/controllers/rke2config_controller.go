@@ -49,6 +49,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	fileOwner        string = "root:root"
+	filePermissions  string = "0640"
+	registrationPort int    = 9345
+	serverURLFormat  string = "https://%v:%v"
+)
+
 // RKE2ConfigReconciler reconciles a Rke2Config object
 type RKE2ConfigReconciler struct {
 	RKE2InitLock RKE2InitLock
@@ -106,7 +113,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 	if cp == nil {
-		logger.Info("This config is for a worker node")
+		logger.V(5).Info("This config is for a worker node")
 		scope.HasControlPlaneOwner = false
 	} else {
 		logger.Info("This config is for a ControlPlane node")
@@ -242,12 +249,6 @@ func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // handleClusterNotInitialized handles the first control plane node
 func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, scope *Scope) (res ctrl.Result, reterr error) {
 
-	// initialize the DataSecretAvailableCondition if missing.
-	// this is required in order to avoid the condition's LastTransitionTime to flicker in case of errors surfacing
-	// using the DataSecretGeneratedFailedReason
-	// if conditions.GetReason(scope.Config, bootstrapv1.DataSecretAvailableCondition) != bootstrapv1.DataSecretGenerationFailedReason {
-	// 	conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
-	// }
 	if !scope.HasControlPlaneOwner {
 		scope.Logger.Info("Requeuing because this machine is not a Control Plane machine")
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
@@ -267,13 +268,12 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	}()
 
 	certificates := secret.NewCertificatesForInitialControlPlane()
-	err := certificates.LookupOrGenerate(
+	if err := certificates.LookupOrGenerate(
 		ctx,
 		r.Client,
 		util.ObjectKey(scope.Cluster),
 		*metav1.NewControllerRef(scope.Config, bootstrapv1.GroupVersion.WithKind("RKE2Config")),
-	)
-	if err != nil {
+	); err != nil {
 		conditions.MarkFalse(scope.Config, bootstrapv1.CertificatesAvailableCondition, bootstrapv1.CertificatesGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return ctrl.Result{}, err
 	}
@@ -290,7 +290,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		rke2.RKE2ServerConfigOpts{
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
 			Token:                token,
-			ServerURL:            "https://" + scope.Cluster.Spec.ControlPlaneEndpoint.Host + ":9345",
+			ServerURL:            fmt.Sprintf(serverURLFormat, scope.Cluster.Spec.ControlPlaneEndpoint.Host, registrationPort),
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
@@ -311,8 +311,8 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	initConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
 		Content:     string(b),
-		Owner:       "root:root",
-		Permissions: "0640",
+		Owner:       fileOwner,
+		Permissions: filePermissions,
 	}
 
 	// TODO: Implement adding additional files through API
@@ -346,12 +346,13 @@ type RKE2InitLock interface {
 	Lock(ctx context.Context, cluster *clusterv1.Cluster, machine *clusterv1.Machine) bool
 }
 
-// TODO: Implement these functions
+// joinControlPlane implements the part of the Reconciler which bootstraps a secondary
+// Control Plane machine joining a cluster that is already initialized
 func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
 
 	tokenSecret := &corev1.Secret{}
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
-		scope.Logger.Info("Token for already initialized RKE2 Cluster not found", "token-namespace", scope.Cluster.Namespace, "token-name", scope.Cluster.Name+"-token")
+		scope.Logger.Error(err, "Token for already initialized RKE2 Cluster not found", "token-namespace", scope.Cluster.Namespace, "token-name", scope.Cluster.Name+"-token")
 		return ctrl.Result{}, err
 	}
 	token := string(tokenSecret.Data["value"])
@@ -363,7 +364,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			Cluster:              *scope.Cluster,
 			Token:                token,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
-			ServerURL:            "https://" + scope.Cluster.Spec.ControlPlaneEndpoint.Host + ":9345",
+			ServerURL:            fmt.Sprintf(serverURLFormat, scope.Cluster.Spec.ControlPlaneEndpoint.Host, registrationPort),
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
@@ -388,11 +389,11 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	initConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
 		Content:     string(b),
-		Owner:       "root:root",
-		Permissions: "0640",
+		Owner:       fileOwner,
+		Permissions: filePermissions,
 	}
 
-	// TODO: Implement adding additional files through API
+	// TODO: Implement adding additional files through API, coming in future PR
 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
@@ -416,7 +417,8 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	return ctrl.Result{}, nil
 }
 
-// TODO: Implement these functions
+// joinWorker implements the part of the Reconciler which bootstraps a worker node
+// after the cluster has been initialized
 func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
 	tokenSecret := &corev1.Secret{}
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
@@ -428,7 +430,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 
 	configStruct, files, err := rke2.GenerateWorkerConfig(
 		rke2.RKE2AgentConfigOpts{
-			ServerURL:   "https://" + scope.Cluster.Spec.ControlPlaneEndpoint.Host + ":9345",
+			ServerURL:   fmt.Sprintf(serverURLFormat, scope.Cluster.Spec.ControlPlaneEndpoint.Host, registrationPort),
 			Token:       token,
 			AgentConfig: scope.Config.Spec.AgentConfig,
 			Ctx:         ctx,
@@ -449,8 +451,8 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	wkJoinConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
 		Content:     string(b),
-		Owner:       "root:root",
-		Permissions: "0640",
+		Owner:       fileOwner,
+		Permissions: filePermissions,
 	}
 
 	// TODO: Implement adding additional files through API
@@ -477,8 +479,9 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	return ctrl.Result{}, nil
 }
 
+// generateAndStoreToken generates a random token with 16 characters then stores it in a Secret in the API
 func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope *Scope) (string, error) {
-	tokn, err := bsutil.Random(16)
+	token, err := bsutil.Random(16)
 	if err != nil {
 		return "", err
 	}
@@ -503,24 +506,15 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 			},
 		},
 		Data: map[string][]byte{
-			"value": []byte(tokn),
+			"value": []byte(token),
 		},
 		Type: clusterv1.ClusterSecretType,
 	}
 
-	// as secret creation and scope.Config status patch are not atomic operations
-	// it is possible that secret creation happens but the config.Status patches are not applied
-	if err := r.Client.Create(ctx, secret); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return "", errors.Wrapf(err, "failed to create token for RKE2Config %s/%s", scope.Config.Namespace, scope.Config.Name)
-		}
-		// r.Log.Info("bootstrap data secret for RKE2Config already exists, updating", "secret", secret.Name, "RKE2Config", scope.Config.Name)
-		if err := r.Client.Update(ctx, secret); err != nil {
-			return "", errors.Wrapf(err, "failed to update bootstrap token secret for RKE2Config %s/%s", scope.Config.Namespace, scope.Config.Name)
-		}
+	if err := r.createOrUpdateSecretFromObject(*secret, ctx, scope.Logger, "token", *scope.Config); err != nil {
+		return "", err
 	}
-
-	return tokn, nil
+	return token, nil
 }
 
 // storeBootstrapData creates a new secret with the data passed in as input,
@@ -535,8 +529,8 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: bootstrapv1.GroupVersion.String(),
-					Kind:       "RKE2Config",
+					APIVersion: scope.Config.APIVersion,
+					Kind:       scope.Config.Kind,
 					Name:       scope.Config.Name,
 					UID:        scope.Config.UID,
 					Controller: pointer.BoolPtr(true),
@@ -549,20 +543,25 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 		Type: clusterv1.ClusterSecretType,
 	}
 
-	// as secret creation and scope.Config status patch are not atomic operations
-	// it is possible that secret creation happens but the config.Status patches are not applied
-	if err := r.Client.Create(ctx, secret); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create bootstrap data secret for RKE2Config %s/%s", scope.Config.Namespace, scope.Config.Name)
-		}
-		scope.Logger.Info("bootstrap data secret for RKE2Config already exists, updating", "secret", secret.Name, "RKE2Config", scope.Config.Name)
-		if err := r.Client.Update(ctx, secret); err != nil {
-			return errors.Wrapf(err, "failed to update bootstrap data secret for RKE2Config %s/%s", scope.Config.Namespace, scope.Config.Name)
-		}
+	if err := r.createOrUpdateSecretFromObject(*secret, ctx, scope.Logger, "bootstrap data", *scope.Config); err != nil {
+		return err
 	}
-
 	scope.Config.Status.DataSecretName = pointer.StringPtr(secret.Name)
 	scope.Config.Status.Ready = true
 	//	conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
 	return nil
+}
+
+// createOrUpdateSecret tries to create the given secret in the API, if that secret exists it will update it.
+func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(secret corev1.Secret, ctx context.Context, logger logr.Logger, secretType string, config bootstrapv1.RKE2Config) (reterr error) {
+	if err := r.Client.Create(ctx, &secret); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create %s secret for %s: %s/%s", secretType, config.Kind, config.Name, config.Namespace)
+		}
+		logger.Info("%s secret for %s %s already exists, updating", secretType, config.Kind, config.Name)
+		if err := r.Client.Update(ctx, &secret); err != nil {
+			return errors.Wrapf(err, "failed to update %s secret for %s: %s/%s", secretType, config.Kind, config.Namespace, config.Name)
+		}
+	}
+	return
 }
