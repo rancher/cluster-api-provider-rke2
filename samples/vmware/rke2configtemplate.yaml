@@ -1,0 +1,14 @@
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha1
+kind: RKE2ConfigTemplate
+metadata:
+  namespace: ${CABPR_NAMESPACE}
+  name: rke2-agent
+spec: 
+  template:
+    spec:
+      agentConfig:
+        version: ${RKE2_VERSION}
+        kubelet:
+          extraArgs:
+            - "--cloud-provider=external"
+
