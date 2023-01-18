@@ -23,6 +23,7 @@ import (
 const (
 	workerCloudInit = `{{.Header}}
 {{template "files" .WriteFiles}}
+{{template "ntp" .NTPServers}}
 runcmd:
 {{- template "commands" .PreRKE2Commands }}
   - '{{ if .AirGapped }}INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh{{ else }}curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s INSTALL_RKE2_TYPE="agent" sh -s -{{end}}'

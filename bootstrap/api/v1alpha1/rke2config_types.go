@@ -286,13 +286,13 @@ type Mirror struct {
 	// with host specified.
 	// The scheme, host and path from the endpoint URL will be used.
 	//+optional
-	Endpoints []string `json:"endpoint,omitempty"`
+	Endpoint []string `json:"endpoint,omitempty"`
 
 	// Rewrites are repository rewrite rules for a namespace. When fetching image resources
 	// from an endpoint and a key matches the repository via regular expression matching
 	// it will be replaced with the corresponding value from the map in the resource request.
 	//+optional
-	Rewrites map[string]string `json:"rewrite,omitempty"`
+	Rewrite map[string]string `json:"rewrite,omitempty"`
 }
 
 // RegistryConfig contains configuration used to communicate with the registry.
@@ -314,9 +314,9 @@ type TLSConfig struct {
 	// +optional
 	TLSConfigSecret corev1.ObjectReference `json:"tlsConfigSecret,omitempty"`
 
-	// EnforceSSLVerify may be set to false to skip verifying the registry's certificate, default is true.
+	// InsecureSkipVerify may be set to false to skip verifying the registry's certificate, default is true.
 	//+optional
-	EnforceSSLVerify bool `json:"enforceSslVerify,omitempty"`
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
 type ComponentConfig struct {

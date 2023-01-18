@@ -7,7 +7,7 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster 
 metadata:
   namespace: ${CABPR_NAMESPACE}
-  name: ${CABPR_CLUSTER_NAME} 
+  name: ${CLUSTER_NAME} 
 spec:
   clusterNetwork:
     pods:
@@ -17,22 +17,22 @@ spec:
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1alpha1
     kind: RKE2ControlPlane
-    name: ${CABPR_CLUSTER_NAME}-control-plane
+    name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: DockerCluster
-    name: ${CABPR_CLUSTER_NAME}-my-cluster
+    name: ${CLUSTER_NAME}-my-cluster
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerCluster
 metadata:
-  name: ${CABPR_CLUSTER_NAME}-my-cluster
+  name: ${CLUSTER_NAME}-my-cluster
   namespace: ${CABPR_NAMESPACE}
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1alpha1
 kind: RKE2ControlPlane
 metadata:
-  name: ${CABPR_CLUSTER_NAME}-control-plane
+  name: ${CLUSTER_NAME}-control-plane
   namespace: ${CABPR_NAMESPACE}
 spec: 
   replicas: ${CABPR_CP_REPLICAS}
@@ -58,20 +58,20 @@ metadata:
   name: worker-md-0
   namespace: ${CABPR_NAMESPACE}
 spec:
-  clusterName: ${CABPR_CLUSTER_NAME}
+  clusterName: ${CLUSTER_NAME}
   replicas: 1
   selector:
     matchLabels:
-      cluster.x-k8s.io/cluster-name: ${CABPR_CLUSTER_NAME}
+      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
   template:
     spec:
       version: v1.25.3
-      clusterName: my-cluster
+      clusterName: ${CLUSTER_NAME}
       bootstrap:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1alpha1
           kind: RKE2Config
-          name: ${CABPR_CLUSTER_NAME}-agent
+          name: ${CLUSTER_NAME}-agent
           namespace: ${CABPR_NAMESPACE}
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -92,7 +92,7 @@ apiVersion: bootstrap.cluster.x-k8s.io/v1alpha1
 kind: RKE2Config
 metadata:
   namespace: ${CABPR_NAMESPACE}
-  name: ${CABPR_CLUSTER_NAME}-agent
+  name: ${CLUSTER_NAME}-agent
 spec: 
   agentConfig:
     version: v1.25.3+rke2r1

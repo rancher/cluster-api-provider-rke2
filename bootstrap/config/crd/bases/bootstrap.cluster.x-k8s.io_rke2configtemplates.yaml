@@ -411,8 +411,8 @@ spec:
                                     then are used when creating the transport that
                                     communicates with the registry.
                                   properties:
-                                    enforceSslVerify:
-                                      description: EnforceSSLVerify may be set to
+                                    insecureSkipVerify:
+                                      description: InsecureSkipVerify may be set to
                                         false to skip verifying the registry's certificate,
                                         default is true.
                                       type: boolean

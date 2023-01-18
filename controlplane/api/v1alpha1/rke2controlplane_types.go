@@ -33,11 +33,11 @@ const (
 
 // RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane
 type RKE2ControlPlaneSpec struct {
-	// Replicas is the number of replicas for the Control Plane
-	Replicas *int32 `json:"replicas,omitempty"`
+	// RKE2AgentSpec contains the node spec for the RKE2 Control plane nodes.
+	bootstrapv1.RKE2ConfigSpec `json:",inline"`
 
-	// RKE2AgentConfig references fields from the Agent Configuration in the Bootstrap Provider because an RKE2 Server node also has an agent
-	bootstrapv1.RKE2AgentConfig `json:",inline"`
+	// Replicas is the number of replicas for the Control Plane.
+	Replicas *int32 `json:"replicas,omitempty"`
 
 	// ServerConfig specifies configuration for the agent nodes.
 	//+optional
@@ -130,12 +130,12 @@ type RKE2ServerConfig struct {
 	CloudProviderConfigMap *corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
 }
 
-// RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane
+// RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane.
 type RKE2ControlPlaneStatus struct {
 	// Ready indicates the BootstrapData field is ready to be consumed.
 	Ready bool `json:"ready,omitempty"`
 
-	// Initialized indicates the target cluster has completed initialization
+	// Initialized indicates the target cluster has completed initialization.
 	Initialized bool `json:"initialized,omitempty"`
 
 	// DataSecretName is the name of the secret that stores the bootstrap data script.
@@ -158,17 +158,21 @@ type RKE2ControlPlaneStatus struct {
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 
-	// Replicas is the number of replicas current attached to this ControlPlane Resource
+	// Replicas is the number of replicas current attached to this ControlPlane Resource.
 	Replicas int32 `json:"replicas,omitempty"`
 
-	// ReadyReplicas is the number of replicas current attached to this ControlPlane Resource and that have Ready Status
+	// ReadyReplicas is the number of replicas current attached to this ControlPlane Resource and that have Ready Status.
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 
-	// UpdatedReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config
+	// UpdatedReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config.
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 
-	// UnavailableReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config
+	// UnavailableReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config.
 	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
+
+	// AvailableServerIPs is a list of the Control Plane IP adds that can be used to register further nodes.
+	// +optional
+	AvailableServerIPs []string `json:"availableServerIPs,omitempty"`
 }
 
 //+kubebuilder:object:root=true

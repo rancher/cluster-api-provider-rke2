@@ -1,18 +1,23 @@
 package rke2
 
 import (
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"encoding/json"
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
+
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 )
 
 // matchesRCPConfiguration returns a filter to find all machines that matches with RCP config and do not require any rollout.
 // Kubernetes version, infrastructure template, and RKE2Config field need to be equivalent.
 func matchesRCPConfiguration(infraConfigs map[string]*unstructured.Unstructured, machineConfigs map[string]*bootstrapv1.RKE2Config, rcp *controlplanev1.RKE2ControlPlane) func(machine *clusterv1.Machine) bool {
 	return collections.And(
-		collections.MatchesKubernetesVersion(rcp.Spec.Version),
+		matchesKubernetesVersion(rcp.Spec.AgentConfig.Version),
 		matchesRKE2BootstrapConfig(machineConfigs, rcp),
 		matchesTemplateClonedFrom(infraConfigs, rcp),
 	)
@@ -21,8 +26,61 @@ func matchesRCPConfiguration(infraConfigs map[string]*unstructured.Unstructured,
 // matchesRKE2BootstrapConfig checks if machine's RKE2ConfigSpec is equivalent with RCP's RKE2ConfigSpec.
 func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Config, rcp *controlplanev1.RKE2ControlPlane) collections.Func {
 	return func(machine *clusterv1.Machine) bool {
-		return true // TODO: implement by using inspiration from https://github.com/kubernetes-sigs/cluster-api/blob/v1.3.2/controlplane/kubeadm/internal/filters.go#L81
+
+		if machine == nil {
+			return true
+		}
+
+		// Check if RCP and machine RKE2Config matche, if not return
+		if match := matchServerConfig(rcp, machine); !match {
+			return false
+		}
+
+		bootstrapRef := machine.Spec.Bootstrap.ConfigRef
+		if bootstrapRef == nil {
+			// Missing bootstrap reference should not be considered as unmatching.
+			// This is a safety precaution to avoid selecting machines that are broken, which in the future should be remediated separately.
+			return true
+		}
+
+		machineConfig, found := machineConfigs[machine.Name]
+		if !found {
+			// Return true here because failing to get KubeadmConfig should not be considered as unmatching.
+			// This is a safety precaution to avoid rolling out machines if the client or the api-server is misbehaving.
+			return true
+		}
+
+		// Check if RCP AgentConfig and machineBootstrapConfig matches
+		return reflect.DeepEqual(machineConfig.Spec.AgentConfig, rcp.Spec.AgentConfig)
 	}
+}
+
+// matchServerConfig checks if RKE2Configs in the ControlPlane object and the machine annotation match
+func matchServerConfig(rcp *controlplanev1.RKE2ControlPlane, machine *clusterv1.Machine) bool {
+	machineServerConfigStr, ok := machine.GetAnnotations()[controlplanev1.RKE2ServerConfigurationAnnotation]
+	if !ok {
+		// We don't have enough information to make a decision; don't' trigger a roll out.
+		return true
+	}
+
+	machineServerConfig := &controlplanev1.RKE2ServerConfig{}
+	// RKE2ServerConfig annotation is not correct, need to rollout new machine
+	if err := json.Unmarshal([]byte(machineServerConfigStr), &machineServerConfig); err != nil {
+		return false
+	}
+
+	if machineServerConfig == nil {
+		machineServerConfig = &controlplanev1.RKE2ServerConfig{}
+	}
+
+	rcpServerConfig := &rcp.Spec.ServerConfig
+	if rcpServerConfig == nil {
+		rcpServerConfig = &controlplanev1.RKE2ServerConfig{}
+	}
+
+	// Compare and return
+	return reflect.DeepEqual(machineServerConfig, rcpServerConfig)
+
 }
 
 // matchesTemplateClonedFrom returns a filter to find all machines that match a given RCP infra template.
@@ -53,5 +111,23 @@ func matchesTemplateClonedFrom(infraConfigs map[string]*unstructured.Unstructure
 			return false
 		}
 		return true
+	}
+}
+
+// matchesKubernetesVersion returns a filter to find all machines that match a given Kubernetes version.
+func matchesKubernetesVersion(kubernetesVersion string) func(*clusterv1.Machine) bool {
+	return func(machine *clusterv1.Machine) bool {
+		if machine == nil {
+			return false
+		}
+		if machine.Spec.Version == nil {
+			return false
+		}
+
+		rcpKubeVersion, err := bsutil.Rke2ToKubeVersion(kubernetesVersion)
+		if err != nil {
+			return true
+		}
+		return bsutil.CompareVersions(*machine.Spec.Version, rcpKubeVersion)
 	}
 }

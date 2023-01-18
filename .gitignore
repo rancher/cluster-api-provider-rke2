@@ -29,6 +29,14 @@ hack/tools/bin
 
 !vendor/**/zz_generated.*
 
+# private key files and certificates
+*.key
+*.pem
+*.crt
+
+# environment configuration files
+*.env
+
 # editor and IDE paraphernalia
 .idea
 *.swp
