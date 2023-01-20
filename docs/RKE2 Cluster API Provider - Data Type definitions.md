@@ -14,7 +14,7 @@ RKE2 is a very configurable Kubernetes distribution. The main ways to configure 
 
 - config.yaml file (default location at /etc/rancher/rke2/): configuration options for RKE2 that are described in this [documentation page]([Server Configuration Reference - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/install/install_options/server_config/))
   
-- registries.yaml ()
+- registries.yaml (default location at /etc/rancher/rke2/): Container Image registry configuration for the cluster (mirrors, rewrites, etc.), documentation available in this [RKE2 Documentation page](https://docs.rke2.io/install/containerd_registry_configuration)
   
 - Environement variables for versions, etc. (options documented [here]([Overview - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/install/install_options/install_options/#configuring-the-linux-installation-script)))
   
@@ -22,9 +22,6 @@ RKE2 is a very configurable Kubernetes distribution. The main ways to configure 
   
 - Should be possible to deploy in **Air-Gapped** mode
   
-
-<mark>Question: Should the use be able to uninstall ?</mark>
-
 ### First configuration section: config.yaml
 
 In order to make RKE2 installation sufficiently configurable, we rely on the documentation page above and implement all options.
@@ -516,3 +513,59 @@ type CisProfile string
 // +kubebuilder:validation:enum=none;calico;canal;cilium
 type Cni string
 ```
+
+### Further improvement
+After generating the previous Go Data types, some improvements were done by nesting some configurations that are relevant to the same components, as well as making some parts re-usable.
+
+Now, the `RKE2ControlPlaneSpec` struct (`spec` field of the `rke2controlplane` resource ) embeds a `RKE2ConfigSpec` struct (inline) which contains the fields of the `spec` field of `rke2config` resource. This makes it possible to embed Agent configuration inside the control plane resource.
+
+This is an extract of the `RKE2ControlPlaneSpec` struct:
+
+```golang
+// RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane
+type RKE2ControlPlaneSpec struct {
+	// Replicas is the number of replicas for the Control Plane
+	Replicas *int32 `json:"replicas,omitempty"`
+
+	// RKE2AgentConfig references fields from the Agent Configuration in the Bootstrap Provider because an RKE2 Server node also has an agent
+	bootstrapv1.RKE2ConfigSpec `json:",inline"`
+
+	// ServerConfig specifies configuration for the agent nodes.
+	//+optional
+	ServerConfig RKE2ServerConfig `json:"serverConfig,omitempty"`
+
+	// ManifestsConfigMapReference references a ConfigMap which contains Kubernetes manifests to be deployed automatically on the cluster
+	// Each data entry in the ConfigMap will be will be copied to a folder on the control plane nodes that RKE2 scans and uses to deploy manifests.
+	//+optional
+	ManifestsConfigMapReference corev1.ObjectReference `json:"manifestsConfigMapReference,omitempty"`
+
+	// InfrastructureRef is a required reference to a custom resource
+	// offered by an infrastructure provider.
+	InfrastructureRef corev1.ObjectReference `json:"infrastructureRef"`
+
+	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// +optional
+	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
+}
+```
+
+#### `manifestsConfigMapReference` Field
+This field has been added to the `RKE2ControlPlaneSpec` struct in order to make it easier for the user to provider manifests to deploy on the cluster. This is an RKE2 feature, that might be useful for deploying a custom CNI for instance during a cluster bootstrap. We will monitor feedback on this feature since it might be duplicated by the `ResourceSet` feature of upstream CAPI.
+
+#### `privateRegistryConfig` field in `RKE2ConfigSpec` struct
+This field has been added to simplify defining custom registries or mirror configurations for RKE2. It relies on a similar structure than the native RKE2's `registries.yaml` but references Secrets to store Trust Certificates.
+
+#### Air-gapped mode
+The Bootstrap provider for RKE2 implements an Air-Gapped mode, which is based on [Tarball-based Air-Gapped installation procedure of RKE2](https://docs.rke2.io/install/airgap#tarball-method). If the `rke2config.spec.agentConfig.airGapped` field (`AirGapped` field of the `RKE2AgentConfig` struct) is set to `true`, the bootstrap provider will:
+- Assume the usage of a custom VM Image that contains the necessary RKE2 assets.
+- Execute the above tarball installation of RKE2, executing `/opt/install.sh` which it assumes would be available in the VM image. This `install.sh` is nothing more than the downloaded script from `https://get.rke2.io` URL.
+
+The necessary files should be at these locations:
+- Those who don't depend on RKE2's version:
+  - /opt/install.sh
+- Those which depend on RKE2's version, available in RKE2's release page assets:
+  - /opt/rke2-artifacts/rke2-images.linux-amd64.tar.zst
+  - /opt/rke2-artifacts/rke2.linux-amd64.tar.gz
+  - /opt/rke2-artifacts/sha256sum-amd64.txt

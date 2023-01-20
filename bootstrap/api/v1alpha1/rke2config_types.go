@@ -73,8 +73,6 @@ type RKE2AgentConfig struct {
 	//+optional
 	ImageCredentialProviderConfigMap *corev1.ObjectReference `json:"imageCredentialProviderConfigMap,omitempty"`
 
-	// TODO: Remove ContainerRuntimeEndpoint since this feature will probably not be offered by CAPI Bootstrap provider?
-
 	// ContainerRuntimeEndpoint Disable embedded containerd and use alternative CRI implementation.
 	//+optional
 	ContainerRuntimeEndpoint string `json:"containerRuntimeEndpoint,omitempty"`
@@ -82,16 +80,6 @@ type RKE2AgentConfig struct {
 	// Snapshotter override default containerd snapshotter (default: "overlayfs").
 	//+optional
 	Snapshotter string `json:"snapshotter,omitempty"`
-
-	// TODO: Find a way to handle IP addresses that should be advertised but that RKE2 cannot find on the host (Example: Elastic IPs on Cloud Providers).
-
-	// NodeIp IPv4/IPv6 addresses to advertise for node.
-	//+optional.
-	//NodeIp string `json:"nodeIp,omitempty"`
-
-	// NodeExternalIp IPv4/IPv6 external IP addresses to advertise for node.
-	//+optional
-	// NodeExternalIp string `json:"nodeExternalIp,omitempty"`
 
 	// CISProfile activates CIS compliance of RKE2 for a certain profile
 	// +kubebuilder:validation:Enum=cis-1.23
@@ -140,6 +128,10 @@ type RKE2AgentConfig struct {
 	// Version specifies the rke2 version.
 	//+optional
 	Version string `json:"version,omitempty"`
+
+	// AirGapped is a boolean value to define if the bootstrapping should be air-gapped,
+	// basically supposing that online container registries and RKE2 install scripts are not reachable.
+	AirGapped bool `json:"airGapped,omitempty"`
 }
 
 // NTP defines input for generated ntp in cloud-init.
