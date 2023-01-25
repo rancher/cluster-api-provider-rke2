@@ -1,0 +1,16 @@
+apiVersion: controlplane.cluster.x-k8s.io/v1alpha1
+kind: RKE2ControlPlane
+metadata:
+  name: rke2-control-plane
+  namespace: ${CABPR_NAMESPACE}
+spec: 
+  replicas: ${CABPR_CP_REPLICAS}
+  version: ${RKE2_VERSION}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: VSphereMachineTemplate
+    name: vsphere-controlplane
+  nodeDrainTimeout: 2m
+  kubelet:
+    extraArgs:
+      - "--cloud-provider=external"
