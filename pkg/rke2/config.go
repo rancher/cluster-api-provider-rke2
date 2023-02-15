@@ -28,8 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const DefaultRKE2ConfigLocation = "/etc/rancher/rke2/config.yaml"
-const DefaultRKE2JoinPort = 9345
+const (
+	DefaultRKE2ConfigLocation              = "/etc/rancher/rke2/config.yaml"
+	DefaultRKE2CloudProviderConfigLocation = "/etc/rancher/rke2/cloud-provider-config"
+	DefaultRKE2JoinPort                    = 9345
+)
 
 type rke2ServerConfig struct {
 	AdvertiseAddress                  string            `json:"advertise-address,omitempty"`
@@ -271,6 +274,8 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 
 type rke2AgentConfig struct {
 	ContainerRuntimeEndpoint      string            `json:"container-runtime-endpoint,omitempty"`
+	CloudProviderConfig           string            `json:"cloud-provider-config,omitempty"`
+	CloudProviderName             string            `json:"cloud-provider-name,omitempty"`
 	DataDir                       string            `json:"data-dir,omitempty"`
 	EtcdArgs                      []string          `json:"etcd-arg,omitempty"`
 	EtcdExtraEnv                  map[string]string `json:"etcd-extra-env,omitempty"`
@@ -307,17 +312,40 @@ type rke2AgentConfig struct {
 }
 
 type RKE2AgentConfigOpts struct {
-	ServerURL   string
-	Token       string
-	AgentConfig bootstrapv1.RKE2AgentConfig
-	Ctx         context.Context
-	Client      client.Client
+	ServerURL              string
+	Token                  string
+	AgentConfig            bootstrapv1.RKE2AgentConfig
+	Ctx                    context.Context
+	Client                 client.Client
+	CloudProviderName      string
+	CloudProviderConfigMap *corev1.ObjectReference
 }
 
 func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
 	rke2AgentConfig := &rke2AgentConfig{}
 	files := []bootstrapv1.File{}
 	rke2AgentConfig.ContainerRuntimeEndpoint = opts.AgentConfig.ContainerRuntimeEndpoint
+	if opts.CloudProviderConfigMap != nil {
+		cloudProviderConfigMap := &corev1.ConfigMap{}
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.CloudProviderConfigMap.Name,
+			Namespace: opts.CloudProviderConfigMap.Namespace,
+		}, cloudProviderConfigMap); err != nil {
+			return nil, nil, fmt.Errorf("failed to get cloud provider config map: %w", err)
+		}
+		cloudProviderConfig, ok := cloudProviderConfigMap.Data["cloud-config"]
+		if !ok {
+			return nil, nil, fmt.Errorf("cloud provider config map is missing cloud-config key")
+		}
+		rke2AgentConfig.CloudProviderConfig = DefaultRKE2CloudProviderConfigLocation
+		files = append(files, bootstrapv1.File{
+			Path:        rke2AgentConfig.CloudProviderConfig,
+			Content:     cloudProviderConfig,
+			Owner:       "root:root",
+			Permissions: "0644",
+		})
+	}
+	rke2AgentConfig.CloudProviderName = opts.CloudProviderName
 	rke2AgentConfig.DataDir = opts.AgentConfig.DataDir
 	if opts.AgentConfig.ImageCredentialProviderConfigMap != nil {
 		imageCredentialProviderCM := &corev1.ConfigMap{}

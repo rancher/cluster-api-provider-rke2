@@ -31,16 +31,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/controllers/external"
-	"sigs.k8s.io/cluster-api/util/collections"
-	"sigs.k8s.io/cluster-api/util/patch"
+	capifd "sigs.k8s.io/cluster-api/util/failuredomains"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"sigs.k8s.io/cluster-api/controllers/external"
+	"sigs.k8s.io/cluster-api/util/collections"
+	"sigs.k8s.io/cluster-api/util/patch"
 )
 
 // ControlPlane holds business logic around control planes.
 // It should never need to connect to a service, that responsibility lies outside of this struct.
+// Going forward we should be trying to add more logic to here and reduce the amount of logic in the reconciler.
 type ControlPlane struct {
 	RCP                  *controlplanev1.RKE2ControlPlane
 	Cluster              *clusterv1.Cluster
@@ -50,6 +52,8 @@ type ControlPlane struct {
 	// reconciliationTime is the time of the current reconciliation, and should be used for all "now" calculations
 	reconciliationTime metav1.Time
 
+	// TODO: we should see if we can combine these with the Machine objects so we don't have all these separate lookups
+	// See discussion on https://github.com/kubernetes-sigs/cluster-api/pull/3405
 	rke2Configs    map[string]*bootstrapv1.RKE2Config
 	infraResources map[string]*unstructured.Unstructured
 }
@@ -89,9 +93,17 @@ func (c *ControlPlane) Logger() logr.Logger {
 	return klogr.New().WithValues("namespace", c.RCP.Namespace, "name", c.RCP.Name, "cluster-name", c.Cluster.Name)
 }
 
+// FailureDomains returns a slice of failure domain objects synced from the infrastructure provider into Cluster.Status.
+func (c *ControlPlane) FailureDomains() clusterv1.FailureDomains {
+	if c.Cluster.Status.FailureDomains == nil {
+		return clusterv1.FailureDomains{}
+	}
+	return c.Cluster.Status.FailureDomains
+}
+
 // Version returns the RKE2ControlPlane's version.
 func (c *ControlPlane) Version() *string {
-	return &c.RCP.Spec.Version
+	return &c.RCP.Spec.AgentConfig.Version
 }
 
 // InfrastructureTemplate returns the RKE2ControlPlane's infrastructure template.
@@ -109,6 +121,17 @@ func (c *ControlPlane) AsOwnerReference() *metav1.OwnerReference {
 	}
 }
 
+// MachineInFailureDomainWithMostMachines returns the first matching failure domain with machines that has the most control-plane machines on it.
+func (c *ControlPlane) MachineInFailureDomainWithMostMachines(machines collections.Machines) (*clusterv1.Machine, error) {
+	fd := c.FailureDomainWithMostMachines(machines)
+	machinesInFailureDomain := machines.Filter(collections.InFailureDomains(fd))
+	machineToMark := machinesInFailureDomain.Oldest()
+	if machineToMark == nil {
+		return nil, errors.New("failed to pick control plane Machine to mark for deletion")
+	}
+	return machineToMark, nil
+}
+
 // MachineWithDeleteAnnotation returns a machine that has been annotated with DeleteMachineAnnotation key.
 func (c *ControlPlane) MachineWithDeleteAnnotation(machines collections.Machines) collections.Machines {
 	// See if there are any machines with DeleteMachineAnnotation key.
@@ -117,15 +140,39 @@ func (c *ControlPlane) MachineWithDeleteAnnotation(machines collections.Machines
 	return annotatedMachines
 }
 
+// FailureDomainWithMostMachines returns a fd which exists both in machines and control-plane machines and has the most
+// control-plane machines on it.
+func (c *ControlPlane) FailureDomainWithMostMachines(machines collections.Machines) *string {
+	// See if there are any Machines that are not in currently defined failure domains first.
+	notInFailureDomains := machines.Filter(
+		collections.Not(collections.InFailureDomains(c.FailureDomains().FilterControlPlane().GetIDs()...)),
+	)
+	if len(notInFailureDomains) > 0 {
+		// return the failure domain for the oldest Machine not in the current list of failure domains
+		// this could be either nil (no failure domain defined) or a failure domain that is no longer defined
+		// in the cluster status.
+		return notInFailureDomains.Oldest().Spec.FailureDomain
+	}
+	return capifd.PickMost(c.Cluster.Status.FailureDomains.FilterControlPlane(), c.Machines, machines)
+}
+
+// NextFailureDomainForScaleUp returns the failure domain with the fewest number of up-to-date machines.
+func (c *ControlPlane) NextFailureDomainForScaleUp() *string {
+	if len(c.Cluster.Status.FailureDomains.FilterControlPlane()) == 0 {
+		return nil
+	}
+	return capifd.PickFewest(c.FailureDomains().FilterControlPlane(), c.UpToDateMachines())
+}
+
 // InitialControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for an initializing control plane.
-func (c *ControlPlane) InitialControlPlaneConfig() *bootstrapv1.RKE2AgentConfig {
-	bootstrapSpec := c.RCP.Spec.RKE2AgentConfig.DeepCopy()
+func (c *ControlPlane) InitialControlPlaneConfig() *bootstrapv1.RKE2ConfigSpec {
+	bootstrapSpec := c.RCP.Spec.RKE2ConfigSpec.DeepCopy()
 	return bootstrapSpec
 }
 
 // JoinControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for joining control planes.
-func (c *ControlPlane) JoinControlPlaneConfig() *bootstrapv1.RKE2AgentConfig {
-	bootstrapSpec := c.RCP.Spec.RKE2AgentConfig.DeepCopy()
+func (c *ControlPlane) JoinControlPlaneConfig() *bootstrapv1.RKE2ConfigSpec {
+	bootstrapSpec := c.RCP.Spec.RKE2ConfigSpec.DeepCopy()
 	return bootstrapSpec
 }
 

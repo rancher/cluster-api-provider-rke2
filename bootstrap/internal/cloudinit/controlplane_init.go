@@ -25,6 +25,7 @@ import (
 const (
 	controlPlaneCloudInit = `{{.Header}}
 {{template "files" .WriteFiles}}
+{{template "ntp" .NTPServers}}
 runcmd:
 {{- template "commands" .PreRKE2Commands }}
   - {{ if .AirGapped }}INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts sh /opt/install.sh{{ else }}'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s sh -s - server'{{ end }}
@@ -45,7 +46,7 @@ type ControlPlaneInput struct {
 // NewInitControlPlane returns the user data string to be used on a controlplane instance.
 func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	input.Header = cloudConfigHeader
-	input.WriteFiles = input.Certificates.AsFiles()
+	input.WriteFiles = append(input.WriteFiles, input.Certificates.AsFiles()...)
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)

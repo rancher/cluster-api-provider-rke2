@@ -23,13 +23,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/cloudinit"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/locking"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
-	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,16 +30,24 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/pointer"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	kubeyaml "sigs.k8s.io/yaml"
+
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
-	kubeyaml "sigs.k8s.io/yaml"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/locking"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
+	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 )
 
 const (
@@ -62,6 +63,10 @@ type RKE2ConfigReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
+
+const (
+	DefaultManifestDirectory string = "/var/lib/rancher/rke2/server/manifests"
+)
 
 //+kubebuilder:rbac:groups=bootstrap.cluster.x-k8s.io,resources=rke2configs;rke2configs/status;rke2configs/finalizers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes;rke2controlplanes/status,verbs=get;list;watch
@@ -214,13 +219,18 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// It's a worker join
+	// GetTheControlPlane for the worker
+	wkControlPlane := controlplanev1.RKE2ControlPlane{}
+	err = r.Client.Get(ctx, types.NamespacedName{
+		Namespace: scope.Cluster.Spec.ControlPlaneRef.Namespace,
+		Name:      scope.Cluster.Spec.ControlPlaneRef.Name,
+	}, &wkControlPlane)
+	if err != nil {
+		scope.Logger.Info("Unable to find control plane object for owning Cluster", "error", err)
+		return ctrl.Result{Requeue: true}, nil
+	}
+	scope.ControlPlane = &wkControlPlane
 	return r.joinWorker(ctx, scope)
-	// if machine.Status.Phase != string(clusterv1.MachinePhasePending) {
-	// 	logger.Info("Machine is not in pending state")
-	// 	return ctrl.Result{Requeue: true}, nil
-	// }
-
-	// return ctrl.Result{}, nil
 }
 
 // Scope is a scoped struct used during reconciliation.
@@ -286,8 +296,9 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	}
 	scope.Logger.Info("RKE2 server token generated and stored in Secret!")
 
-	configStruct, files, err := rke2.GenerateInitControlPlaneConfig(
+	configStruct, configFiles, err := rke2.GenerateInitControlPlaneConfig(
 		rke2.RKE2ServerConfigOpts{
+			Cluster:              *scope.Cluster,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
 			Token:                token,
 			ServerURL:            fmt.Sprintf(serverURLFormat, scope.Cluster.Spec.ControlPlaneEndpoint.Host, registrationPort),
@@ -315,7 +326,22 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		Permissions: filePermissions,
 	}
 
-	// TODO: Implement adding additional files through API
+	files, err := r.generateFileListIncludingRegistries(ctx, scope, configFiles)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	manifestFiles, err := generateFilesFromManifestConfig(ctx, r.Client, scope.ControlPlane.Spec.ManifestsConfigMapReference)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			scope.Logger.Error(err, "ConfigMap referenced by manifestsConfigMapReference not found!", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+			return ctrl.Result{}, err
+		}
+		scope.Logger.Error(err, "Problem when getting ConfigMap referenced by manifestsConfigMapReference", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+		return ctrl.Result{}, err
+	}
+
+	files = append(files, manifestFiles...)
 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
@@ -325,6 +351,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			ConfigFile:       initConfigFile,
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:       files,
+			NTPServers:       scope.Config.Spec.AgentConfig.NTP.Servers,
 		},
 		Certificates: certificates,
 	}
@@ -339,6 +366,42 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// generateFileListIncludingRegistries generates a list of files to be written to disk on the node
+// This list includes a registries.yaml file if the user has provided a PrivateRegistriesConfig
+// and the files fields provided in the RKE2Config
+func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(ctx context.Context, scope *Scope, configFiles []bootstrapv1.File) ([]bootstrapv1.File, error) {
+	registries, registryFiles, err := rke2.GenerateRegistries(rke2.RKE2ConfigRegistry{
+		Registry: scope.Config.Spec.PrivateRegistriesConfig,
+		Client:   r.Client,
+		Ctx:      ctx,
+		Logger:   scope.Logger,
+	})
+
+	if err != nil {
+		scope.Logger.Error(err, "unable to generate registries.yaml for Init Control Plane node")
+		return nil, err
+	}
+
+	registriesYAML, err := kubeyaml.Marshal(registries)
+	if err != nil {
+		scope.Logger.Error(err, "unable to marshall registries.yaml")
+		return nil, err
+	}
+	scope.Logger.V(4).Info("Registries.yaml marshalled successfully")
+
+	initRegistriesFile := bootstrapv1.File{
+		Path:        rke2.DefaultRKE2RegistriesLocation,
+		Content:     string(registriesYAML),
+		Owner:       fileOwner,
+		Permissions: filePermissions,
+	}
+
+	files := append(configFiles, registryFiles...)
+	files = append(files, initRegistriesFile)
+	files = append(files, scope.Config.Spec.Files...)
+	return files, nil
 }
 
 type RKE2InitLock interface {
@@ -359,12 +422,17 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 
 	scope.Logger.Info("RKE2 server token found in Secret!")
 
-	configStruct, files, err := rke2.GenerateJoinControlPlaneConfig(
+	if len(scope.ControlPlane.Status.AvailableServerIPs) == 0 {
+		scope.Logger.V(3).Info("No ControlPlane IP Address found for node registration")
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
+	configStruct, configFiles, err := rke2.GenerateJoinControlPlaneConfig(
 		rke2.RKE2ServerConfigOpts{
 			Cluster:              *scope.Cluster,
 			Token:                token,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
-			ServerURL:            fmt.Sprintf(serverURLFormat, scope.Cluster.Spec.ControlPlaneEndpoint.Host, registrationPort),
+			ServerURL:            fmt.Sprintf(serverURLFormat, scope.ControlPlane.Status.AvailableServerIPs[0], registrationPort),
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
@@ -393,7 +461,22 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		Permissions: filePermissions,
 	}
 
-	// TODO: Implement adding additional files through API, coming in future PR
+	files, err := r.generateFileListIncludingRegistries(ctx, scope, configFiles)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	manifestFiles, err := generateFilesFromManifestConfig(ctx, r.Client, scope.ControlPlane.Spec.ManifestsConfigMapReference)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			scope.Logger.Error(err, "ConfigMap referenced by manifestsConfigMapReference not found!", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+			return ctrl.Result{}, err
+		}
+		scope.Logger.Error(err, "Problem when getting ConfigMap referenced by manifestsConfigMapReference", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+		return ctrl.Result{}, err
+	}
+
+	files = append(files, manifestFiles...)
 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
@@ -403,6 +486,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			ConfigFile:       initConfigFile,
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:       files,
+			NTPServers:       scope.Config.Spec.AgentConfig.NTP.Servers,
 		},
 	}
 
@@ -428,13 +512,20 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	token := string(tokenSecret.Data["value"])
 	scope.Logger.Info("RKE2 server token found in Secret!")
 
-	configStruct, files, err := rke2.GenerateWorkerConfig(
+	if len(scope.ControlPlane.Status.AvailableServerIPs) == 0 {
+		scope.Logger.V(3).Info("No ControlPlane IP Address found for node registration")
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
+	configStruct, configFiles, err := rke2.GenerateWorkerConfig(
 		rke2.RKE2AgentConfigOpts{
-			ServerURL:   fmt.Sprintf(serverURLFormat, scope.Cluster.Spec.ControlPlaneEndpoint.Host, registrationPort),
-			Token:       token,
-			AgentConfig: scope.Config.Spec.AgentConfig,
-			Ctx:         ctx,
-			Client:      r.Client,
+			ServerURL:              fmt.Sprintf(serverURLFormat, scope.ControlPlane.Status.AvailableServerIPs[0], registrationPort),
+			Token:                  token,
+			AgentConfig:            scope.Config.Spec.AgentConfig,
+			Ctx:                    ctx,
+			Client:                 r.Client,
+			CloudProviderName:      scope.ControlPlane.Spec.ServerConfig.CloudProviderName,
+			CloudProviderConfigMap: scope.ControlPlane.Spec.ServerConfig.CloudProviderConfigMap,
 		})
 
 	if err != nil {
@@ -455,7 +546,10 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		Permissions: filePermissions,
 	}
 
-	// TODO: Implement adding additional files through API
+	files, err := r.generateFileListIncludingRegistries(ctx, scope, configFiles)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	wkInput :=
 		&cloudinit.BaseUserData{
@@ -465,6 +559,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 			ConfigFile:       wkJoinConfigFile,
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:       files,
+			NTPServers:       scope.Config.Spec.AgentConfig.NTP.Servers,
 		}
 
 	cloudInitData, err := cloudinit.NewJoinWorker(wkInput)
@@ -562,6 +657,31 @@ func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(secret corev1.Secr
 		if err := r.Client.Update(ctx, &secret); err != nil {
 			return errors.Wrapf(err, "failed to update %s secret for %s: %s/%s", secretType, config.Kind, config.Namespace, config.Name)
 		}
+	}
+	return
+}
+
+func generateFilesFromManifestConfig(ctx context.Context, cl client.Client, manifestConfigMap corev1.ObjectReference) (files []bootstrapv1.File, err error) {
+	if (manifestConfigMap == corev1.ObjectReference{}) {
+		return []bootstrapv1.File{}, nil
+	}
+
+	manifestSec := &corev1.ConfigMap{}
+
+	err = cl.Get(ctx, types.NamespacedName{
+		Namespace: manifestConfigMap.Namespace,
+		Name:      manifestConfigMap.Name,
+	}, manifestSec)
+
+	if err != nil {
+		return
+	}
+
+	for filename, content := range manifestSec.Data {
+		files = append(files, bootstrapv1.File{
+			Path:    DefaultManifestDirectory + "/" + filename,
+			Content: string(content),
+		})
 	}
 	return
 }

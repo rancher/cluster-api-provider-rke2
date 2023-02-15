@@ -42,7 +42,7 @@ func GetOwnerControlPlane(ctx context.Context, c client.Client, obj metav1.Objec
 		}
 	}
 
-	logger.Info("GetOwnerControlPlane result:", "cpOwnerRef", cpOwnerRef)
+	logger.V(5).Info("GetOwnerControlPlane result:", "cpOwnerRef", cpOwnerRef)
 	if (cpOwnerRef != metav1.OwnerReference{}) {
 		return GetControlPlaneByName(ctx, c, obj.Namespace, cpOwnerRef.Name)
 	}
@@ -95,4 +95,40 @@ func Rke2ToKubeVersion(rk2Version string) (kubeVersion string, err error) {
 	kubeVersion = string(regex.ReplaceAll([]byte(rk2Version), []byte("$1")))
 
 	return kubeVersion, nil
+}
+
+// AppendIfNotPresent appends a string to a slice only if the value does not already exist
+func AppendIfNotPresent(origSlice []string, strItem string) (resultSlice []string) {
+	present := false
+	for _, item := range origSlice {
+		if item == strItem {
+			present = true
+		}
+	}
+	if !present {
+		return append(origSlice, strItem)
+	}
+	return origSlice
+}
+
+// CompareVersions compares two string version supposing those would begin with 'v' or not
+func CompareVersions(v1 string, v2 string) bool {
+	if string(v1[0]) != "v" {
+		v1 = "v" + v1
+	}
+
+	if string(v2[0]) != "v" {
+		v2 = "v" + v2
+	}
+	return v1 == v2
+}
+
+// GetMapKeysAsString returns a comma separated string of keys from a map
+func GetMapKeysAsString(m map[string][]byte) (keys string) {
+	for k := range m {
+		keys = keys + k + ","
+	}
+	// remove last comma
+	keys = keys[:len(keys)-1]
+	return
 }

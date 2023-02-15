@@ -70,11 +70,11 @@ func (m *Management) GetMachinesForCluster(ctx context.Context, cluster ctrlclie
 		clusterv1.ClusterLabelName: cluster.Name,
 	}
 	ml := &clusterv1.MachineList{}
-	logger.Info("Getting List of machines for Cluster")
+	logger.V(5).Info("Getting List of machines for Cluster")
 	if err := m.Client.List(ctx, ml, ctrlclient.InNamespace(cluster.Namespace), ctrlclient.MatchingLabels(selector)); err != nil {
 		return nil, errors.Wrap(err, "failed to list machines")
 	}
-	logger.Info("End of listing machines for cluster")
+	logger.V(5).Info("End of listing machines for cluster")
 	machines := collections.FromMachineList(ml)
 
 	return machines.Filter(filters...), nil

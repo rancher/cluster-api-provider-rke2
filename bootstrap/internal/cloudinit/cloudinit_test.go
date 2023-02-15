@@ -42,6 +42,7 @@ write_files:
 -   path: 
     content: |
       
+
 runcmd:
   - 'INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh'
   - 'systemctl enable rke2-agent.service'
@@ -74,8 +75,44 @@ write_files:
 -   path: 
     content: |
       
+
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'systemctl enable rke2-agent.service'
+  - 'systemctl start rke2-agent.service'
+  - 'mkdir /run/cluster-api' 
+  - 'echo success > /run/cluster-api/bootstrap-success.complete'
+`))
+	})
+})
+
+var _ = Describe("NTPWorkerTest", func() {
+	var input *BaseUserData
+
+	BeforeEach(func() {
+		input = &BaseUserData{
+			NTPServers: []string{"test.ntp.org"},
+		}
+	})
+	It("Should use the RKE2 Online installation method", func() {
+		workerCloudInitData, err := NewJoinWorker(input)
+		Expect(err).ToNot(HaveOccurred())
+		workerCloudInitString := string(workerCloudInitData)
+		_, err = GinkgoWriter.Write(workerCloudInitData)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(workerCloudInitString).To(Equal(`## template: jinja
+#cloud-config
+
+write_files:
+-   path: 
+    content: |
+      
+ntp:
+  enabled: true
+  servers:
+  - "test.ntp.org"
+runcmd:
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION= INSTALL_RKE2_TYPE="agent" sh -s -'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir /run/cluster-api' 

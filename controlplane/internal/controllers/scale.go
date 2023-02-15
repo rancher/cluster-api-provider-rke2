@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -61,7 +62,8 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(ctx context.Context,
 	}
 
 	bootstrapSpec := controlPlane.InitialControlPlaneConfig()
-	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec); err != nil {
+	fd := controlPlane.NextFailureDomainForScaleUp()
+	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
 		logger.Error(err, "Failed to create initial control plane Machine")
 		r.recorder.Eventf(rcp, corev1.EventTypeWarning, "FailedInitialization", "Failed to create initial control plane Machine for cluster %s/%s control plane: %v", cluster.Namespace, cluster.Name, err)
 		return ctrl.Result{}, err
@@ -81,7 +83,8 @@ func (r *RKE2ControlPlaneReconciler) scaleUpControlPlane(ctx context.Context, cl
 
 	// Create the bootstrap configuration
 	bootstrapSpec := controlPlane.JoinControlPlaneConfig()
-	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec); err != nil {
+	fd := controlPlane.NextFailureDomainForScaleUp()
+	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
 		logger.Error(err, "Failed to create additional control plane Machine")
 		r.recorder.Eventf(rcp, corev1.EventTypeWarning, "FailedScaleUp", "Failed to create additional control plane Machine for cluster %s/%s control plane: %v", cluster.Namespace, cluster.Name, err)
 		return ctrl.Result{}, err
@@ -238,12 +241,10 @@ func selectMachineForScaleDown(controlPlane *rke2.ControlPlane, outdatedMachines
 		machines = machines.Filter(collections.Not(collections.IsReady()))
 		controlPlane.Logger().V(5).Info("Inside the IsReady case", "machines", machines.Names())
 	}
-	controlPlane.Logger().V(5).Info("Inside the SelectForScaleDown - finished all cases", "machines", machines.Names())
-	// Without support for FailureDomains, returning oldest machine
-	return machines.Oldest(), nil
+	return controlPlane.MachineInFailureDomainWithMostMachines(machines)
 }
 
-func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(ctx context.Context, cluster *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, bootstrapSpec *bootstrapv1.RKE2AgentConfig) error {
+func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(ctx context.Context, cluster *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, bootstrapSpec *bootstrapv1.RKE2ConfigSpec, failureDomain *string) error {
 	var errs []error
 
 	// Since the cloned resource should eventually have a controller ref for the Machine, we create an
@@ -277,7 +278,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(ctx context.
 
 	// Only proceed to generating the Machine if we haven't encountered an error
 	if len(errs) == 0 {
-		if err := r.generateMachine(ctx, rcp, cluster, infraRef, bootstrapRef); err != nil {
+		if err := r.generateMachine(ctx, rcp, cluster, infraRef, bootstrapRef, failureDomain); err != nil {
 			errs = append(errs, errors.Wrap(err, "failed to create Machine"))
 		}
 	}
@@ -314,7 +315,7 @@ func (r *RKE2ControlPlaneReconciler) cleanupFromGeneration(ctx context.Context, 
 	return kerrors.NewAggregate(errs)
 }
 
-func (r *RKE2ControlPlaneReconciler) generateRKE2Config(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, spec *bootstrapv1.RKE2AgentConfig) (*corev1.ObjectReference, error) {
+func (r *RKE2ControlPlaneReconciler) generateRKE2Config(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, spec *bootstrapv1.RKE2ConfigSpec) (*corev1.ObjectReference, error) {
 	// Create an owner reference without a controller reference because the owning controller is the machine controller
 	owner := metav1.OwnerReference{
 		APIVersion: controlplanev1.GroupVersion.String(),
@@ -330,9 +331,7 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(ctx context.Context, rcp
 			Labels:          rke2.ControlPlaneLabelsForCluster(cluster.Name),
 			OwnerReferences: []metav1.OwnerReference{owner},
 		},
-		Spec: bootstrapv1.RKE2ConfigSpec{
-			AgentConfig: *spec,
-		},
+		Spec: *spec,
 	}
 
 	if err := r.Client.Create(ctx, bootstrapConfig); err != nil {
@@ -350,13 +349,13 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(ctx context.Context, rcp
 	return bootstrapRef, nil
 }
 
-func (r *RKE2ControlPlaneReconciler) generateMachine(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, infraRef, bootstrapRef *corev1.ObjectReference) error {
-	newVersion, err := bsutil.Rke2ToKubeVersion(rcp.Spec.Version)
-	logger := log.FromContext(ctx)
-	logger.Info("Version checking...", "rke2-version", rcp.Spec.Version, "machine-version: ", newVersion)
+func (r *RKE2ControlPlaneReconciler) generateMachine(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, infraRef, bootstrapRef *corev1.ObjectReference, failureDomain *string) error {
+	newVersion, err := bsutil.Rke2ToKubeVersion(rcp.Spec.AgentConfig.Version)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to convert rke2 version to kubernetes version: %w", err)
 	}
+	logger := log.FromContext(ctx)
+	logger.Info("Version checking...", "rke2-version", rcp.Spec.AgentConfig.Version, "machine-version: ", newVersion)
 	machine := &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.SimpleNameGenerator.GenerateName(rcp.Name + "-"),
@@ -373,6 +372,7 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(ctx context.Context, rcp *c
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
+			FailureDomain:    failureDomain,
 			NodeDrainTimeout: rcp.Spec.NodeDrainTimeout,
 		},
 	}
