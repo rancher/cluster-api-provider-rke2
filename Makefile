@@ -428,7 +428,7 @@ docker-push-manifest-rke2-bootstrap: ## Push the multiarch manifest for the rke2
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./bootstrap/config/default/manager_pull_policy.yaml"
 
 .PHONY: docker-push-manifest-rke2-control-plane
-docker-push-manifest-rke-control-plane: ## Push the multiarch manifest for the rke2 control plane docker images
+docker-push-manifest-rke2-control-plane: ## Push the multiarch manifest for the rke2 control plane docker images
 	## Minimum docker version 18.06.0 is required for creating and pushing manifest images.
 	docker manifest create --amend $(CONTROLPLANE_IMG):$(TAG) $(shell echo $(ALL_ARCH) | sed -e "s~[^ ]*~$(CONTROLPLANE_IMG)\-&:$(TAG)~g")
 	@for arch in $(ALL_ARCH); do docker manifest annotate --arch $${arch} ${CONTROLPLANE_IMG}:${TAG} ${CONTROLPLANE_IMG}-$${arch}:${TAG}; done
