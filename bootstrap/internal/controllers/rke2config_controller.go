@@ -343,6 +343,11 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 	files = append(files, manifestFiles...)
 
+	var ntpServers []string
+	if scope.Config.Spec.AgentConfig.NTP != nil {
+		ntpServers = scope.Config.Spec.AgentConfig.NTP.Servers
+	}
+
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
 			AirGapped:        scope.Config.Spec.AgentConfig.AirGapped,
@@ -351,7 +356,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			ConfigFile:       initConfigFile,
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:       files,
-			NTPServers:       scope.Config.Spec.AgentConfig.NTP.Servers,
+			NTPServers:       ntpServers,
 		},
 		Certificates: certificates,
 	}
@@ -478,6 +483,11 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 
 	files = append(files, manifestFiles...)
 
+	var ntpServers []string
+	if scope.Config.Spec.AgentConfig.NTP != nil {
+		ntpServers = scope.Config.Spec.AgentConfig.NTP.Servers
+	}
+
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
 			AirGapped:        scope.Config.Spec.AgentConfig.AirGapped,
@@ -486,7 +496,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			ConfigFile:       initConfigFile,
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:       files,
-			NTPServers:       scope.Config.Spec.AgentConfig.NTP.Servers,
+			NTPServers:       ntpServers,
 		},
 	}
 
@@ -551,6 +561,11 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		return ctrl.Result{}, err
 	}
 
+	var ntpServers []string
+	if scope.Config.Spec.AgentConfig.NTP != nil {
+		ntpServers = scope.Config.Spec.AgentConfig.NTP.Servers
+	}
+
 	wkInput :=
 		&cloudinit.BaseUserData{
 			PreRKE2Commands:  scope.Config.Spec.PreRKE2Commands,
@@ -559,7 +574,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 			ConfigFile:       wkJoinConfigFile,
 			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:       files,
-			NTPServers:       scope.Config.Spec.AgentConfig.NTP.Servers,
+			NTPServers:       ntpServers,
 		}
 
 	cloudInitData, err := cloudinit.NewJoinWorker(wkInput)

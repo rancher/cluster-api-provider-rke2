@@ -141,3 +141,45 @@ var _ = Describe("RKE2RegistryConfig", func() {
 	})
 },
 )
+
+var _ = Describe("RKE2RegistryConfig is empty", func() {
+	var rke2ConfigReg RKE2ConfigRegistry
+	BeforeEach(func() {
+		rke2RegistryConfig := bootstrapv1.Registry{}
+		rke2ConfigReg = RKE2ConfigRegistry{
+			Registry: rke2RegistryConfig,
+			Client:   fake.NewClientBuilder().Build(),
+			Ctx:      context.Background(),
+			Logger:   log.FromContext(context.Background()),
+		}
+	},
+	)
+
+	It("should generate a valid registries.yaml file", func() {
+		registryResult, files, err := GenerateRegistries(rke2ConfigReg)
+		Expect(err).To(Not(HaveOccurred()))
+		Expect(len(files)).To(Equal(0))
+		Expect(len(registryResult.Mirrors)).To(Equal(0))
+		Expect(len(registryResult.Configs)).To(Equal(0))
+	})
+})
+
+var _ = Describe("RKE2RegistryConfig is nil", func() {
+	var rke2ConfigReg RKE2ConfigRegistry
+	BeforeEach(func() {
+		rke2ConfigReg = RKE2ConfigRegistry{
+			Client: fake.NewClientBuilder().Build(),
+			Ctx:    context.Background(),
+			Logger: log.FromContext(context.Background()),
+		}
+	},
+	)
+
+	It("should generate a valid registries.yaml file", func() {
+		registryResult, files, err := GenerateRegistries(rke2ConfigReg)
+		Expect(err).To(Not(HaveOccurred()))
+		Expect(len(files)).To(Equal(0))
+		Expect(len(registryResult.Mirrors)).To(Equal(0))
+		Expect(len(registryResult.Configs)).To(Equal(0))
+	})
+})
