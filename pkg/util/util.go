@@ -85,6 +85,7 @@ func TokenName(clusterName string) string {
 	return fmt.Sprintf("%s-token", clusterName)
 }
 
+// Rke2ToKubeVersion converts an RKE2 version to a Kubernetes version
 func Rke2ToKubeVersion(rk2Version string) (kubeVersion string, err error) {
 	var regexStr string = "v(\\d\\.\\d{2}\\.\\d)\\+rke2r\\d"
 	var regex *regexp.Regexp
