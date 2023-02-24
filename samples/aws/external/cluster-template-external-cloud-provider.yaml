@@ -755,7 +755,7 @@ data:
               env:
                 - name: ADDRESS
                   value: /var/lib/csi/sockets/pluginproxy/csi.sock
-              image: registry.k8.io/sig-storage/csi-provisioner:v2.1.1
+              image: registry.k8s.io/sig-storage/csi-provisioner:v2.1.1
               name: csi-provisioner
               volumeMounts:
                 - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -767,7 +767,7 @@ data:
               env:
                 - name: ADDRESS
                   value: /var/lib/csi/sockets/pluginproxy/csi.sock
-              image: registry.k8.io/sig-storage/csi-attacher:v3.1.0
+              image: registry.k8s.io/sig-storage/csi-attacher:v3.1.0
               name: csi-attacher
               volumeMounts:
                 - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -778,7 +778,7 @@ data:
               env:
                 - name: ADDRESS
                   value: /var/lib/csi/sockets/pluginproxy/csi.sock
-              image: registry.k8.io/sig-storage/csi-snapshotter:v3.0.3
+              image: registry.k8s.io/sig-storage/csi-snapshotter:v3.0.3
               name: csi-snapshotter
               volumeMounts:
                 - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -789,7 +789,7 @@ data:
               env:
                 - name: ADDRESS
                   value: /var/lib/csi/sockets/pluginproxy/csi.sock
-              image: registry.k8.io/sig-storage/csi-resizer:v1.0.0
+              image: registry.k8s.io/sig-storage/csi-resizer:v1.0.0
               imagePullPolicy: Always
               name: csi-resizer
               volumeMounts:
@@ -797,7 +797,7 @@ data:
                   name: socket-dir
             - args:
                 - --csi-address=/csi/csi.sock
-              image: registry.k8.io/sig-storage/livenessprobe:v2.2.0
+              image: registry.k8s.io/sig-storage/livenessprobe:v2.2.0
               name: liveness-probe
               volumeMounts:
                 - mountPath: /csi
