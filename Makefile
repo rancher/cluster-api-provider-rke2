@@ -387,7 +387,7 @@ manifest-modification: # Set the manifest images to the staging/production bucke
 release-manifests: $(RELEASE_DIR) $(KUSTOMIZE) ## Build the manifests to publish with a release
 	# Build bootstrap-components.
 	$(KUSTOMIZE) build bootstrap/config/default > $(RELEASE_DIR)/bootstrap-components.yaml
-	$(MAKE) set-manifest-image MANIFEST_IMG=$(CONTROLPLANE_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="$(RELEASE_DIR)/bootstrap-components.yaml"
+	$(MAKE) set-manifest-image MANIFEST_IMG=$(BOOTSTRAP_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="$(RELEASE_DIR)/bootstrap-components.yaml"
 	# Build control-plane-components.
 	$(KUSTOMIZE) build controlplane/config/default > $(RELEASE_DIR)/control-plane-components.yaml
 	$(MAKE) set-manifest-image MANIFEST_IMG=$(CONTROLPLANE_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="$(RELEASE_DIR)/control-plane-components.yaml"
@@ -426,7 +426,7 @@ docker-push-manifest-rke2-bootstrap: ## Push the multiarch manifest for the rke2
 	docker manifest create --amend $(BOOTSTRAP_IMG):$(TAG) $(shell echo $(ALL_ARCH) | sed -e "s~[^ ]*~$(BOOTSTRAP_IMG)\-&:$(TAG)~g")
 	@for arch in $(ALL_ARCH); do docker manifest annotate --arch $${arch} ${BOOTSTRAP_IMG}:${TAG} ${BOOTSTRAP_IMG}-$${arch}:${TAG}; done
 	docker manifest push --purge $(BOOTSTRAP_IMG):$(TAG)
-	$(MAKE) set-manifest-image MANIFEST_IMG=$(BOOTSTRAP_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./bootstrap/config/default/manager_image_patch.yaml"
+	## $(MAKE) set-manifest-image MANIFEST_IMG=$(BOOTSTRAP_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./bootstrap/config/default/manager_image_patch.yaml"
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./bootstrap/config/default/manager_pull_policy.yaml"
 
 .PHONY: docker-push-manifest-rke2-control-plane
