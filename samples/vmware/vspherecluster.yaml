@@ -1,3 +1,4 @@
+---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VSphereCluster
 metadata:
@@ -5,7 +6,7 @@ metadata:
   namespace: ${CABPR_NAMESPACE}
 spec:
   controlPlaneEndpoint:
-    host: ${CABPR_VCENTER_NAME}
+    host: ${CABPR_CONTROLPLANE_ENDPOINT}
     port: 6443
   identityRef:
     kind: Secret

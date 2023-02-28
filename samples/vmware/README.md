@@ -1,4 +1,6 @@
-# VMWare Example Manifests
+# Example manifests
+
+This config includes a kubevip loadbalancer on the controlplane nodes. The VIP of the loadbalancer for the Kubernetes API is set by the CABPR_CONTROLPLANE_ENDPOINT variable.
 
 Usage: 
 
@@ -11,6 +13,7 @@ export CABPR_CP_REPLICAS=3
 export CABPR_WK_REPLICAS=2
 export KUBERNETES_VERSION=v1.24.6
 export RKE2_VERSION=v1.24.6+rke2r1
+export CABPR_CONTROLPLANE_ENDPOINT=192.168.1.100
 
 export CABPR_VCENTER_HOSTNAME=vcenter.example.com
 export CABPR_VCENTER_USERNAME=admin
@@ -27,7 +30,10 @@ export CABPR_VCENTER_VM_MEMORY=4096
 export CABPR_VCENTER_VM_TEMPLATE=template
 ```
 
+Create the namespace first.
+
 run:
 ```shell
+envsubt < namespace.yaml | kubectl apply -f -
 envsubt < *.yaml | kubectl apply -f -
 ```
