@@ -104,7 +104,7 @@ You can now create your first workload cluster by running the following:
   clusterctl generate cluster [name] --kubernetes-version [version] | kubectl apply -f -
 ```
 ### Create a workload cluster
-There are some sample cluster templates available under the `samples` folder. For this `Getting Started` section, we will be using the `docker` samples available under `samples/docker/oneline-default` folder. This folder contains a YAML template file called `rke2-sample.yaml` which contains environment variable placeholders which can be substituted using the `envsubst` tool (generally available in your package manager. If not, you might want to use [this version](https://github.com/a8m/envsubst/releases)).
+There are some sample cluster templates available under the `samples` folder. For this `Getting Started` section, we will be using the `docker` samples available under `samples/docker/oneline-default` folder. This folder contains a YAML template file called `rke2-sample.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
 Set the following environment variables:
 - CABPR_NAMESPACE
 - CLUSTER_NAME
@@ -125,7 +125,7 @@ export KUBERNETES_VERSION=v1.24.6
 The next step is to substitue the values in the YAML using the following commands:
 
 ```bash
-cat rke2-sample.yaml | envsubst > rke2-docker-example.yaml
+cat rke2-sample.yaml | clusterctl generate yaml > rke2-docker-example.yaml
 ```
 
 At this moment, you can take some time to study the resulting YAML, then you can apply it to the management cluster:
