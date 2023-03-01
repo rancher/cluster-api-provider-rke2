@@ -88,3 +88,7 @@ tilt up
 ```
 
 11. Press the **space** key to see the Tilt web ui and check that everything goes green.
+
+## Get in contact
+
+You can get in contact with us via the [#capbr](https://rancher-users.slack.com/archives/C046X0CDKCH) channel on the [Rancher Users Slack](https://slack.rancher.io/).
