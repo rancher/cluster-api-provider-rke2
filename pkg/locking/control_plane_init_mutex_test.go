@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,9 +42,7 @@ const (
 	clusterNamespace = "test-namespace"
 )
 
-var (
-	ctx = ctrl.SetupSignalHandler()
-)
+var ctx = ctrl.SetupSignalHandler()
 
 func TestControlPlaneInitMutex_Lock(t *testing.T) {
 	g := NewWithT(t)
@@ -145,10 +144,12 @@ func TestControlPlaneInitMutex_LockWithMachineDeletion(t *testing.T) {
 					&corev1.ConfigMap{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      configMapName(clusterName),
-							Namespace: clusterNamespace},
+							Namespace: clusterNamespace,
+						},
 						Data: map[string]string{
 							"lock-information": "{\"machineName\":\"existent-machine\"}",
-						}},
+						},
+					},
 					&clusterv1.Machine{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "existent-machine",
@@ -166,15 +167,18 @@ func TestControlPlaneInitMutex_LockWithMachineDeletion(t *testing.T) {
 					&corev1.ConfigMap{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      configMapName(clusterName),
-							Namespace: clusterNamespace},
+							Namespace: clusterNamespace,
+						},
 						Data: map[string]string{
 							"lock-information": "{\"machineName\":\"non-existent-machine\"}",
-						}},
+						},
+					},
 				).Build(),
 			},
 			expectedMachineName: newMachineName,
 		},
 	}
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			l := &ControlPlaneInitMutex{
@@ -206,6 +210,7 @@ func TestControlPlaneInitMutex_LockWithMachineDeletion(t *testing.T) {
 				g.Expect(err).To(BeNil())
 
 				g.Expect(info.MachineName).To(Equal(tc.expectedMachineName))
+
 				return nil
 			}, "20s").Should(Succeed())
 		})
@@ -291,6 +296,7 @@ func (fc *fakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.
 	if fc.getError != nil {
 		return fc.getError
 	}
+
 	return fc.Client.Get(ctx, key, obj, opts...)
 }
 
@@ -298,6 +304,7 @@ func (fc *fakeClient) Create(ctx context.Context, obj client.Object, opts ...cli
 	if fc.createError != nil {
 		return fc.createError
 	}
+
 	return fc.Client.Create(ctx, obj, opts...)
 }
 
@@ -305,5 +312,6 @@ func (fc *fakeClient) Delete(ctx context.Context, obj client.Object, opts ...cli
 	if fc.deleteError != nil {
 		return fc.deleteError
 	}
+
 	return fc.Client.Delete(ctx, obj, opts...)
 }

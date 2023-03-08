@@ -26,6 +26,7 @@ import (
 // log is for logging in this package.
 var rke2controlplanetemplatelog = logf.Log.WithName("rke2controlplanetemplate-resource")
 
+// SetupWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.
 func (r *RKE2ControlPlaneTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
@@ -36,31 +37,30 @@ func (r *RKE2ControlPlaneTemplate) SetupWebhookWithManager(mgr ctrl.Manager) err
 
 var _ webhook.Defaulter = &RKE2ControlPlaneTemplate{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2ControlPlaneTemplate) Default() {
 	rke2controlplanetemplatelog.Info("default", "name", r.Name)
-
 }
 
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplanetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1alpha1,name=vrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RKE2ControlPlaneTemplate{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlaneTemplate) ValidateCreate() error {
 	rke2controlplanetemplatelog.Info("validate create", "name", r.Name)
 
 	return nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) error {
 	rke2controlplanetemplatelog.Info("validate update", "name", r.Name)
 
 	return nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlaneTemplate) ValidateDelete() error {
 	rke2controlplanetemplatelog.Info("validate delete", "name", r.Name)
 

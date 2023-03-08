@@ -24,17 +24,19 @@ import (
 )
 
 const (
+	// DefaultRKE2RegistriesLocation is the default location for the registries.yaml file.
 	DefaultRKE2RegistriesLocation string = "/etc/rancher/rke2/registries.yaml"
-	registryCertsPath             string = "/etc/rancher/rke2/tls"
+
+	registryCertsPath string = "/etc/rancher/rke2/tls"
 )
 
 // GenerateRegistries generates the registries.yaml file and the corresponding
 // files for the TLS certificates.
-func GenerateRegistries(rke2ConfigRegistry RKE2ConfigRegistry) (*Registry, []bootstrapv1.File, error) {
-
+func GenerateRegistries(rke2ConfigRegistry RegistryScope) (*Registry, []bootstrapv1.File, error) {
 	registry := &Registry{}
 	files := []bootstrapv1.File{}
 	registry.Mirrors = make(map[string]Mirror)
+
 	for mirrorName, mirror := range rke2ConfigRegistry.Registry.Mirrors {
 		registry.Mirrors[mirrorName] = Mirror{
 			Endpoint: mirror.Endpoint,
@@ -45,6 +47,7 @@ func GenerateRegistries(rke2ConfigRegistry RKE2ConfigRegistry) (*Registry, []boo
 	for configName, regConfig := range rke2ConfigRegistry.Registry.Configs {
 		tlsSecret := corev1.Secret{}
 		authSecret := corev1.Secret{}
+
 		err := rke2ConfigRegistry.Client.Get(
 			rke2ConfigRegistry.Ctx,
 			types.NamespacedName{
@@ -53,17 +56,19 @@ func GenerateRegistries(rke2ConfigRegistry RKE2ConfigRegistry) (*Registry, []boo
 			},
 			&tlsSecret,
 		)
-
 		if err != nil {
 			rke2ConfigRegistry.Logger.Error(err, "TLS Config Secret for the registry was not found!")
+
 			return &Registry{}, []bootstrapv1.File{}, err
 		}
 
 		for _, secretEntry := range []string{"tls.crt", "tls.key", "ca.crt"} {
 			if tlsSecret.Data[secretEntry] == nil {
 				rke2ConfigRegistry.Logger.Error(err, "TLS Config Secret for the registry is missing entries!", "secret-missing-entry", secretEntry)
+
 				return &Registry{}, []bootstrapv1.File{}, err
 			}
+
 			files = append(files, bootstrapv1.File{
 				Path:    registryCertsPath + "/" + secretEntry,
 				Content: string(tlsSecret.Data[secretEntry]),
@@ -81,6 +86,7 @@ func GenerateRegistries(rke2ConfigRegistry RKE2ConfigRegistry) (*Registry, []boo
 
 		if err != nil {
 			rke2ConfigRegistry.Logger.Error(err, "Auth Config Secret for the registry was not found!")
+
 			return &Registry{}, []bootstrapv1.File{}, err
 		}
 
@@ -90,7 +96,11 @@ func GenerateRegistries(rke2ConfigRegistry RKE2ConfigRegistry) (*Registry, []boo
 		ok := isBasicAuth || isTokenAuth
 
 		if !ok {
-			rke2ConfigRegistry.Logger.Error(err, "Auth Secret for the registry is missing entries! Possible entries are: (\"username\" AND \"password\") OR \"identity-token\" ", "secret-entries", bsutil.GetMapKeysAsString(authSecret.Data))
+			rke2ConfigRegistry.Logger.Error(
+				err,
+				"Auth Secret for the registry is missing entries! Possible entries are: (\"username\" AND \"password\") OR \"identity-token\" ",
+				"secret-entries", bsutil.GetMapKeysAsString(authSecret.Data))
+
 			return &Registry{}, []bootstrapv1.File{}, err
 		}
 
@@ -99,6 +109,7 @@ func GenerateRegistries(rke2ConfigRegistry RKE2ConfigRegistry) (*Registry, []boo
 			authData.Username = string(authSecret.Data["username"])
 			authData.Password = string(authSecret.Data["password"])
 		}
+
 		if isTokenAuth {
 			authData.IdentityToken = string(authSecret.Data["identity-token"])
 		}
@@ -116,5 +127,4 @@ func GenerateRegistries(rke2ConfigRegistry RKE2ConfigRegistry) (*Registry, []boo
 	}
 
 	return registry, files, nil
-
 }

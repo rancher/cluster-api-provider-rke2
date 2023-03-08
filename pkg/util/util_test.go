@@ -6,7 +6,6 @@ import (
 )
 
 var _ = Describe("Testing RKE2 to Kubernetes Version conversion", func() {
-
 	machineVersion := "1.24.6"
 	rke2Version := "v1.24.6+rke2r1"
 	It("Should match RKE2 and Kubernetes version", func() {
@@ -14,7 +13,6 @@ var _ = Describe("Testing RKE2 to Kubernetes Version conversion", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cpKubeVersion).To(Equal(machineVersion))
 	})
-
 })
 
 var _ = Describe(("Testing GetMapKeysAsString"), func() {

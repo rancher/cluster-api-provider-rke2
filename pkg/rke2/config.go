@@ -13,25 +13,32 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
+//nolint:tagliatelle
 package rke2
 
 import (
 	"context"
 	"fmt"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 )
 
 const (
-	DefaultRKE2ConfigLocation              = "/etc/rancher/rke2/config.yaml"
+	// DefaultRKE2ConfigLocation is the default location for the RKE2 config file.
+	DefaultRKE2ConfigLocation = "/etc/rancher/rke2/config.yaml"
+
+	// DefaultRKE2CloudProviderConfigLocation is the default location for the RKE2 cloud provider config file.
 	DefaultRKE2CloudProviderConfigLocation = "/etc/rancher/rke2/cloud-provider-config"
-	DefaultRKE2JoinPort                    = 9345
+
+	// DefaultRKE2JoinPort is the default port used for joining nodes to the cluster. It is open on the control plane nodes.
+	DefaultRKE2JoinPort = 9345
 )
 
 type rke2ServerConfig struct {
@@ -98,7 +105,8 @@ type rke2ServerConfig struct {
 	rke2AgentConfig `json:",inline"`
 }
 
-type RKE2ServerConfigOpts struct {
+// ServerConfigOpts is a struct that contains the information needed to generate a RKE2 server config.
+type ServerConfigOpts struct {
 	Cluster              clusterv1.Cluster
 	ControlPlaneEndpoint string
 	Token                string
@@ -109,10 +117,11 @@ type RKE2ServerConfigOpts struct {
 	Client               client.Client
 }
 
-func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
 	rke2ServerConfig := &rke2ServerConfig{}
 	files := []bootstrapv1.File{}
 	rke2ServerConfig.AdvertiseAddress = opts.ServerConfig.AdvertiseAddress
+
 	if opts.ServerConfig.AuditPolicySecret != nil {
 		auditPolicySecret := &corev1.Secret{}
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
@@ -121,11 +130,14 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 		}, auditPolicySecret); err != nil {
 			return nil, nil, fmt.Errorf("failed to get audit policy secret: %w", err)
 		}
+
 		auditPolicy, ok := auditPolicySecret.Data["audit-policy.yaml"]
 		if !ok {
 			return nil, nil, fmt.Errorf("audit policy secret is missing audit-policy.yaml key")
 		}
+
 		rke2ServerConfig.AuditPolicyFile = "/etc/rancher/rke2/audit-policy.yaml"
+
 		files = append(files, bootstrapv1.File{
 			Path:        rke2ServerConfig.AuditPolicyFile,
 			Content:     string(auditPolicy),
@@ -133,17 +145,24 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 			Permissions: "0644",
 		})
 	}
-	if opts.Cluster.Spec.ClusterNetwork != nil && opts.Cluster.Spec.ClusterNetwork.Pods != nil && len(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks) > 0 {
-		rke2ServerConfig.ClusterCIDR = opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks[0]
 
+	if opts.Cluster.Spec.ClusterNetwork != nil &&
+		opts.Cluster.Spec.ClusterNetwork.Pods != nil &&
+		len(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks) > 0 {
+		rke2ServerConfig.ClusterCIDR = opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks[0]
 	}
-	if opts.Cluster.Spec.ClusterNetwork != nil && opts.Cluster.Spec.ClusterNetwork.Services != nil && len(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks) > 0 {
+
+	if opts.Cluster.Spec.ClusterNetwork != nil &&
+		opts.Cluster.Spec.ClusterNetwork.Services != nil &&
+		len(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks) > 0 {
 		rke2ServerConfig.ServiceCIDR = opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks[0]
 	}
+
 	rke2ServerConfig.BindAddress = opts.ServerConfig.BindAddress
 	rke2ServerConfig.CNI = string(opts.ServerConfig.CNI)
 	rke2ServerConfig.ClusterDNS = opts.ServerConfig.ClusterDNS
 	rke2ServerConfig.ClusterDomain = opts.ServerConfig.ClusterDomain
+
 	if opts.ServerConfig.CloudProviderConfigMap != nil {
 		cloudProviderConfigMap := &corev1.ConfigMap{}
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
@@ -152,11 +171,14 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 		}, cloudProviderConfigMap); err != nil {
 			return nil, nil, fmt.Errorf("failed to get cloud provider config map: %w", err)
 		}
+
 		cloudProviderConfig, ok := cloudProviderConfigMap.Data["cloud-config"]
 		if !ok {
 			return nil, nil, fmt.Errorf("cloud provider config map is missing cloud-config key")
 		}
+
 		rke2ServerConfig.CloudProviderConfig = "/etc/rancher/rke2/cloud-provider-config"
+
 		files = append(files, bootstrapv1.File{
 			Path:        rke2ServerConfig.CloudProviderConfig,
 			Content:     cloudProviderConfig,
@@ -164,14 +186,17 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 			Permissions: "0644",
 		})
 	}
+
 	rke2ServerConfig.CloudProviderName = opts.ServerConfig.CloudProviderName
 	rke2ServerConfig.DisableComponents = func() []string {
 		disabled := []string{}
 		for _, plugin := range opts.ServerConfig.DisableComponents.PluginComponents {
 			disabled = append(disabled, string(plugin))
 		}
+
 		return disabled
 	}()
+
 	for _, component := range opts.ServerConfig.DisableComponents.KubernetesComponents {
 		switch component {
 		case controlplanev1.KubeProxy:
@@ -180,32 +205,41 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 			rke2ServerConfig.DisableScheduler = true
 		}
 	}
+
 	rke2ServerConfig.DisableCloudController = true
-	rke2ServerConfig.EtcdDisableSnapshots = opts.ServerConfig.Etcd.BackupConfig.DisableAutomaticSnapshots // TODO: change API to disable so don't have to negate?
+	rke2ServerConfig.EtcdDisableSnapshots = opts.ServerConfig.Etcd.BackupConfig.DisableAutomaticSnapshots
 	rke2ServerConfig.EtcdExposeMetrics = opts.ServerConfig.Etcd.ExposeMetrics
+
 	if opts.ServerConfig.Etcd.BackupConfig.S3 != nil {
 		rke2ServerConfig.EtcdS3 = true
 		awsCredentialsSecret := &corev1.Secret{}
+
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
 			Name:      opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Name,
 			Namespace: opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Namespace,
 		}, awsCredentialsSecret); err != nil {
 			return nil, nil, fmt.Errorf("failed to get aws credentials secret: %w", err)
 		}
+
 		accessKeyID, ok := awsCredentialsSecret.Data["aws_access_key_id"]
+
 		if !ok {
 			return nil, nil, fmt.Errorf("aws credentials secret is missing aws_access_key_id")
 		}
+
 		secretAccessKey, ok := awsCredentialsSecret.Data["aws_secret_access_key"]
+
 		if !ok {
 			return nil, nil, fmt.Errorf("aws credentials secret is missing aws_secret_access_key")
 		}
+
 		rke2ServerConfig.EtcdS3AccessKey = string(accessKeyID)
 		rke2ServerConfig.EtcdS3SecretKey = string(secretAccessKey)
 		rke2ServerConfig.EtcdS3Bucket = opts.ServerConfig.Etcd.BackupConfig.S3.Bucket
 		rke2ServerConfig.EtcdS3Region = opts.ServerConfig.Etcd.BackupConfig.S3.Region
 		rke2ServerConfig.EtcdS3Folder = opts.ServerConfig.Etcd.BackupConfig.S3.Folder
 		rke2ServerConfig.EtcdS3Endpoint = opts.ServerConfig.Etcd.BackupConfig.S3.Endpoint
+
 		if opts.ServerConfig.Etcd.BackupConfig.S3.EndpointCASecret != nil {
 			endpointCAsecret := &corev1.Secret{}
 			if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
@@ -214,11 +248,14 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 			}, endpointCAsecret); err != nil {
 				return nil, nil, fmt.Errorf("failed to get aws credentials secret: %w", err)
 			}
+
 			caCert, ok := endpointCAsecret.Data["ca.pem"]
 			if !ok {
 				return nil, nil, fmt.Errorf("endpoint CA secret is missing ca.pem")
 			}
+
 			rke2ServerConfig.EtcdS3EndpointCA = "/etc/rancher/rke2/etcd-s3-ca.crt"
+
 			files = append(files, bootstrapv1.File{
 				Path:        rke2ServerConfig.EtcdS3EndpointCA,
 				Content:     string(caCert),
@@ -226,11 +263,12 @@ func newRKE2ServerConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootst
 				Permissions: "0640",
 			})
 		}
+
 		rke2ServerConfig.EtcdSnapshotDir = opts.ServerConfig.Etcd.BackupConfig.Directory
 		rke2ServerConfig.EtcdSnapshotName = opts.ServerConfig.Etcd.BackupConfig.SnapshotName
 		rke2ServerConfig.EtcdSnapshotRetention = opts.ServerConfig.Etcd.BackupConfig.Retention
 		rke2ServerConfig.EtcdSnapshotScheduleCron = opts.ServerConfig.Etcd.BackupConfig.ScheduleCron
-		rke2ServerConfig.EtcdS3SkipSslVerify = !opts.ServerConfig.Etcd.BackupConfig.S3.EnforceSSLVerify // TODO: change API to skip so don't have to negate?
+		rke2ServerConfig.EtcdS3SkipSslVerify = !opts.ServerConfig.Etcd.BackupConfig.S3.EnforceSSLVerify
 	}
 
 	if opts.ServerConfig.Etcd.CustomConfig != nil {
@@ -299,19 +337,20 @@ type rke2AgentConfig struct {
 	Selinux                       bool              `json:"selinux,omitempty"`
 	Server                        string            `json:"server,omitempty"`
 	Snapshotter                   string            `json:"snapshotter,omitempty"`
-	Token                         string            `json:"token,omitempty"` // TODO: generate the token?
+	Token                         string            `json:"token,omitempty"`
 
 	// We don't expose these in the API
 	PauseImage                     string `json:"pause-image,omitempty"`
 	PodSecurityAdmissionConfigFile string `json:"pod-security-admission-config-file,omitempty"` // new flag, not present in the RKE2 docs yet
 	PrivateRegistry                string `json:"private-registry,omitempty"`
 
-	NodeExternalIp string `json:"node-external-ip,omitempty"` // TODO: infra provider can provider external ip, we should use it here and for TLS SAN.
-	NodeIp         string `json:"node-ip,omitempty"`          // TODO: obtain the node ip from the infra provider
-	NodeName       string `json:"node-name,omitempty"`        // TODO: figure our how to handle this using node name prefix from API
+	NodeExternalIp string `json:"node-external-ip,omitempty"`
+	NodeIp         string `json:"node-ip,omitempty"`
+	NodeName       string `json:"node-name,omitempty"`
 }
 
-type RKE2AgentConfigOpts struct {
+// AgentConfigOpts is a struct that holds the information needed to generate the rke2 server config.
+type AgentConfigOpts struct {
 	ServerURL              string
 	Token                  string
 	AgentConfig            bootstrapv1.RKE2AgentConfig
@@ -321,10 +360,11 @@ type RKE2AgentConfigOpts struct {
 	CloudProviderConfigMap *corev1.ObjectReference
 }
 
-func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
+func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
 	rke2AgentConfig := &rke2AgentConfig{}
 	files := []bootstrapv1.File{}
 	rke2AgentConfig.ContainerRuntimeEndpoint = opts.AgentConfig.ContainerRuntimeEndpoint
+
 	if opts.CloudProviderConfigMap != nil {
 		cloudProviderConfigMap := &corev1.ConfigMap{}
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
@@ -333,11 +373,15 @@ func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrap
 		}, cloudProviderConfigMap); err != nil {
 			return nil, nil, fmt.Errorf("failed to get cloud provider config map: %w", err)
 		}
+
 		cloudProviderConfig, ok := cloudProviderConfigMap.Data["cloud-config"]
+
 		if !ok {
 			return nil, nil, fmt.Errorf("cloud provider config map is missing cloud-config key")
 		}
+
 		rke2AgentConfig.CloudProviderConfig = DefaultRKE2CloudProviderConfigLocation
+
 		files = append(files, bootstrapv1.File{
 			Path:        rke2AgentConfig.CloudProviderConfig,
 			Content:     cloudProviderConfig,
@@ -345,8 +389,10 @@ func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrap
 			Permissions: "0644",
 		})
 	}
+
 	rke2AgentConfig.CloudProviderName = opts.CloudProviderName
 	rke2AgentConfig.DataDir = opts.AgentConfig.DataDir
+
 	if opts.AgentConfig.ImageCredentialProviderConfigMap != nil {
 		imageCredentialProviderCM := &corev1.ConfigMap{}
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
@@ -355,16 +401,21 @@ func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrap
 		}, imageCredentialProviderCM); err != nil {
 			return nil, nil, fmt.Errorf("failed to get image credential provider config map: %w", err)
 		}
+
 		credentialConfig, ok := imageCredentialProviderCM.Data["credential-config.yaml"]
+
 		if !ok {
 			return nil, nil, fmt.Errorf("image credential provider config map is missing config.yaml")
 		}
+
 		credentialProviderBinaries, ok := imageCredentialProviderCM.Data["credential-provider-binaries"]
 		if !ok {
 			return nil, nil, fmt.Errorf("image credential provider config map is missing credential-provider-binaries")
 		}
+
 		rke2AgentConfig.ImageCredentialProviderBinDir = credentialProviderBinaries
 		rke2AgentConfig.ImageCredentialProviderConfig = "/etc/rancher/rke2/credential-config.yaml"
+
 		files = append(files, bootstrapv1.File{
 			Path:        rke2AgentConfig.ImageCredentialProviderConfig,
 			Content:     credentialConfig,
@@ -372,15 +423,18 @@ func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrap
 			Permissions: "0644",
 		})
 	}
+
 	rke2AgentConfig.KubeletPath = opts.AgentConfig.KubeletPath
 	if opts.AgentConfig.Kubelet != nil {
-		rke2AgentConfig.KubeletArgs = opts.AgentConfig.Kubelet.ExtraArgs // TODO: Add a webhook validation to ensure that only args are used in this struct.
+		rke2AgentConfig.KubeletArgs = opts.AgentConfig.Kubelet.ExtraArgs
 	}
+
 	rke2AgentConfig.LbServerPort = opts.AgentConfig.LoadBalancerPort
 	rke2AgentConfig.NodeLabels = opts.AgentConfig.NodeLabels
 	rke2AgentConfig.NodeTaints = opts.AgentConfig.NodeTaints
 	rke2AgentConfig.Profile = string(opts.AgentConfig.CISProfile)
 	rke2AgentConfig.ProtectKernelDefaults = opts.AgentConfig.ProtectKernelDefaults
+
 	if opts.AgentConfig.ResolvConf != nil {
 		resolvConfCM := &corev1.ConfigMap{}
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
@@ -389,11 +443,14 @@ func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrap
 		}, resolvConfCM); err != nil {
 			return nil, nil, fmt.Errorf("failed to get resolv.conf config map: %w", err)
 		}
+
 		resolvConf, ok := resolvConfCM.Data["resolv.conf"]
 		if !ok {
 			return nil, nil, fmt.Errorf("resolv conf config map is missing resolv.conf")
 		}
+
 		rke2AgentConfig.ResolvConf = "/etc/rancher/rke2/resolv.conf"
+
 		files = append(files, bootstrapv1.File{
 			Path:        rke2AgentConfig.ResolvConf,
 			Content:     resolvConf,
@@ -401,22 +458,26 @@ func newRKE2AgentConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrap
 			Permissions: "0644",
 		})
 	}
+
 	rke2AgentConfig.RuntimeImage = opts.AgentConfig.RuntimeImage
 	rke2AgentConfig.Selinux = opts.AgentConfig.EnableContainerdSElinux
 	rke2AgentConfig.Server = opts.ServerURL
 	rke2AgentConfig.Snapshotter = opts.AgentConfig.Snapshotter
+
 	if opts.AgentConfig.KubeProxy != nil {
 		rke2AgentConfig.KubeProxyArgs = opts.AgentConfig.KubeProxy.ExtraArgs
 		rke2AgentConfig.KubeProxyImage = opts.AgentConfig.KubeProxy.OverrideImage
 		rke2AgentConfig.KubeProxyExtraMounts = opts.AgentConfig.KubeProxy.ExtraMounts
 		rke2AgentConfig.KubeProxyExtraEnv = opts.AgentConfig.KubeProxy.ExtraEnv
 	}
+
 	rke2AgentConfig.Token = opts.Token
 
 	return rke2AgentConfig, files, nil
 }
 
-func GenerateInitControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+// GenerateInitControlPlaneConfig generates the rke2 server and agent config for the init control plane node.
+func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
 	if opts.Token == "" {
 		return nil, nil, fmt.Errorf("token is required")
 	}
@@ -426,13 +487,12 @@ func GenerateInitControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfi
 		return nil, nil, fmt.Errorf("failed to generate rke2 server config: %w", err)
 	}
 
-	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(RKE2AgentConfigOpts{
+	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(AgentConfigOpts{
 		AgentConfig: opts.AgentConfig,
 		Client:      opts.Client,
 		Ctx:         opts.Ctx,
 		Token:       opts.Token,
 	})
-
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
 	}
@@ -442,7 +502,8 @@ func GenerateInitControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfi
 	return rke2ServerConfig, append(serverFiles, agentFiles...), nil
 }
 
-func GenerateJoinControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+// GenerateJoinControlPlaneConfig generates the rke2 agent config for joining a control plane node.
+func GenerateJoinControlPlaneConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
 	if opts.ServerURL == "" {
 		return nil, nil, fmt.Errorf("server url is required")
 	}
@@ -456,14 +517,13 @@ func GenerateJoinControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfi
 		return nil, nil, fmt.Errorf("failed to generate rke2 server config: %w", err)
 	}
 
-	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(RKE2AgentConfigOpts{
+	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(AgentConfigOpts{
 		AgentConfig: opts.AgentConfig,
 		Client:      opts.Client,
 		Ctx:         opts.Ctx,
 		ServerURL:   opts.ServerURL,
 		Token:       opts.Token,
 	})
-
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
 	}
@@ -473,7 +533,8 @@ func GenerateJoinControlPlaneConfig(opts RKE2ServerConfigOpts) (*rke2ServerConfi
 	return rke2ServerConfig, append(serverFiles, agentFiles...), nil
 }
 
-func GenerateWorkerConfig(opts RKE2AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
+// GenerateWorkerConfig generates the rke2 agent config and files.
+func GenerateWorkerConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
 	if opts.ServerURL == "" {
 		return nil, nil, fmt.Errorf("server url is required")
 	}

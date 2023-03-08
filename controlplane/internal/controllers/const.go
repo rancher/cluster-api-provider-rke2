@@ -24,6 +24,6 @@ const (
 	deleteRequeueAfter = 30 * time.Second
 
 	// preflightFailedRequeueAfter is how long to wait before trying to scale
-	// up/down if some preflight check for those operation has failed
+	// up/down if some preflight check for those operation has failed.
 	preflightFailedRequeueAfter = 15 * time.Second
 )

@@ -21,15 +21,17 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
 var _ = Describe("RKE2RegistryConfig", func() {
-	var rke2ConfigReg RKE2ConfigRegistry
+	var rke2ConfigReg RegistryScope
 	BeforeEach(func() {
 		rke2RegistryConfig := bootstrapv1.Registry{
 			Mirrors: map[string]bootstrapv1.Mirror{
@@ -63,7 +65,7 @@ var _ = Describe("RKE2RegistryConfig", func() {
 			},
 		}
 
-		rke2ConfigReg = RKE2ConfigRegistry{
+		rke2ConfigReg = RegistryScope{
 			Registry: rke2RegistryConfig,
 			Client: fake.NewClientBuilder().WithObjects(
 				&corev1.Secret{
@@ -113,7 +115,7 @@ var _ = Describe("RKE2RegistryConfig", func() {
 		fileNameArray := []string{"tls.crt", "tls.key", "ca.crt"}
 		for _, file := range files {
 
-			var found bool = false
+			found := false
 			var position int
 			for i, filename := range fileNameArray {
 				pathSlice := strings.Split(file.Path, "/")
@@ -121,6 +123,7 @@ var _ = Describe("RKE2RegistryConfig", func() {
 				if origFilename == filename {
 					found = true
 					position = i
+
 					break
 				}
 			}
@@ -137,16 +140,15 @@ var _ = Describe("RKE2RegistryConfig", func() {
 		Expect(registryResult.Configs["https://test-registry"].TLS.CertFile).To(Equal(registryCertsPath + "/" + "tls.crt"))
 		Expect(registryResult.Configs["https://test-registry"].TLS.KeyFile).To(Equal(registryCertsPath + "/" + "tls.key"))
 		Expect(registryResult.Configs["https://test-registry"].TLS.InsecureSkipVerify).To(BeTrue())
-
 	})
 },
 )
 
 var _ = Describe("RKE2RegistryConfig is empty", func() {
-	var rke2ConfigReg RKE2ConfigRegistry
+	var rke2ConfigReg RegistryScope
 	BeforeEach(func() {
 		rke2RegistryConfig := bootstrapv1.Registry{}
-		rke2ConfigReg = RKE2ConfigRegistry{
+		rke2ConfigReg = RegistryScope{
 			Registry: rke2RegistryConfig,
 			Client:   fake.NewClientBuilder().Build(),
 			Ctx:      context.Background(),
@@ -165,9 +167,9 @@ var _ = Describe("RKE2RegistryConfig is empty", func() {
 })
 
 var _ = Describe("RKE2RegistryConfig is nil", func() {
-	var rke2ConfigReg RKE2ConfigRegistry
+	var rke2ConfigReg RegistryScope
 	BeforeEach(func() {
-		rke2ConfigReg = RKE2ConfigRegistry{
+		rke2ConfigReg = RegistryScope{
 			Client: fake.NewClientBuilder().Build(),
 			Ctx:    context.Background(),
 			Logger: log.FromContext(context.Background()),

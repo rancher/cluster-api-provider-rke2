@@ -5,9 +5,101 @@ run:
     - "zz_generated.*\\.go$"
     - "vendored_openapi\\.go$"
   allow-parallel-runners: true
-linters:
-  enable-all: true
 issues:
   include:
     - EXC0012
     - EXC0014
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - testpackage
+        - gochecknoglobals
+    - path: controlplane/api/v1alpha1/*
+      linters:
+        - gochecknoglobals
+    - source: "^//\\+kubebuilder:"
+      linters:
+        - lll
+    - path: _webhook\.go
+      linters:
+        - dupl
+        - wrapcheck
+    - text: var-naming
+      linters:
+        - revive
+    - text: ST1003
+      linters: 
+        - stylecheck
+    - text: G114    # Needs further discussion to confirm disabling 
+      linters:
+        - gosec  
+    - text: G402    # Needs futher discussion
+      path: api/v1alpha1
+      linters:
+        - gosec
+    - text: unexported-return
+      path: pkg/rke2
+      linters:
+        - revive
+linters-settings:
+  funlen:
+    lines: 110
+    statements: 60
+  lll:
+    line-length: 150
+  gomnd:
+    ignored-numbers:
+      - "5"
+      - "4"
+      - "3"
+  goimports:
+    local-prefixes: github.com/rancher-sandbox/cluster-api-provider-rke2
+  gci:
+    custom-order: true
+    #local-prefixes: github.com/rancher-sandbox/cluster-api-provider-rke2
+    sections:
+      - "standard" 
+      - "blank"
+      - "dot"
+      - "default"
+      - "prefix(sigs.k8s.io/cluster-api)"
+      - "prefix(github.com/rancher-sandbox/cluster-api-provider-rke2)"
+linters:
+  enable-all: true
+  disable:
+    - nolintlint
+    - tagliatelle
+    - exhaustruct
+    - exhaustive
+    - exhaustivestruct
+    - maligned
+    - funlen
+    - wrapcheck
+    - goerr113  # this one should probably be re-enabled soon
+    - paralleltest
+    - varnamelen
+    - cyclop
+    - gochecknoglobals
+    - gochecknoinits
+    - nonamedreturns
+    - gocritic
+    - ireturn     # Needs further discussion
+    - maintidx    # Needs further discussion
+    - nestif      # Needs further discussion
+    - gocognit    # Needs further discussion
+    - containedctx # Needs further discussion
+    # The following are all deprecated linters
+    - deadcode
+    - ifshort
+    - varcheck
+    - scopelint
+    - interfacer
+    - structcheck
+    - golint
+    - nosnakecase
+    # Disabled because of generics
+    - rowserrcheck
+    - sqlclosecheck
+    - wastedassign
+
+    

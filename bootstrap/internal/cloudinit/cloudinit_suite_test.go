@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-	//+kubebuilder:scaffold:imports
 )
 
 func TestCloudInit(t *testing.T) {
@@ -32,5 +31,4 @@ func TestCloudInit(t *testing.T) {
 	RunSpecsWithDefaultAndCustomReporters(t,
 		"CloudInit Suite",
 		[]Reporter{printer.NewlineReporter{}})
-
 }
