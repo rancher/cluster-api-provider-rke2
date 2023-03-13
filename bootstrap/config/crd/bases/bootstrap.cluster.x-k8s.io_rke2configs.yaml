@@ -48,6 +48,8 @@ spec:
                       certain profile
                     enum:
                     - cis-1.23
+                    - cis-1.5
+                    - cis-1.6
                     type: string
                   containerRuntimeEndpoint:
                     description: ContainerRuntimeEndpoint Disable embedded containerd

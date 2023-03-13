@@ -83,7 +83,7 @@ type RKE2AgentConfig struct {
 	Snapshotter string `json:"snapshotter,omitempty"`
 
 	// CISProfile activates CIS compliance of RKE2 for a certain profile
-	// +kubebuilder:validation:Enum=cis-1.23
+	// +kubebuilder:validation:Enum=cis-1.23;cis-1.5;cis-1.6
 	//+optional
 	CISProfile CISProfile `json:"cisProfile,omitempty"`
 
@@ -210,6 +210,12 @@ type CISProfile string
 const (
 	// CIS1_23 references RKE2's CIS Profile "cis-1.23".
 	CIS1_23 CISProfile = "cis-1.23"
+
+	// CIS1_5 references RKE2's CIS Profile "cis-1.5".
+	CIS1_5 CISProfile = "cis-1.5"
+
+	// CIS1_6 references RKE2's CIS Profile "cis-1.6".
+	CIS1_6 CISProfile = "cis-1.6"
 )
 
 // Encoding specifies the cloud-init file encoding.

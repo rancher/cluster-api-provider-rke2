@@ -92,6 +92,7 @@ type BaseUserData struct {
 	SentinelFileCommand string
 	AirGapped           bool
 	NTPServers          []string
+	CISEnabled          bool
 }
 
 func generate(kind string, tpl string, data interface{}) ([]byte, error) {

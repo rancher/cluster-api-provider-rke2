@@ -120,3 +120,38 @@ runcmd:
 `))
 	})
 })
+
+var _ = Describe("WorkerCISTest", func() {
+	var input *BaseUserData
+
+	BeforeEach(func() {
+		input = &BaseUserData{
+			AirGapped:   false,
+			CISEnabled:  true,
+			RKE2Version: "v1.25.6+rke2r1",
+		}
+	})
+	It("Should use the RKE2 CIS Node Preparation script", func() {
+		workerCloudInitData, err := NewJoinWorker(input)
+		Expect(err).ToNot(HaveOccurred())
+		workerCloudInitString := string(workerCloudInitData)
+		_, err = GinkgoWriter.Write(workerCloudInitData)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(workerCloudInitString).To(Equal(`## template: jinja
+#cloud-config
+
+write_files:
+-   path: 
+    content: |
+      
+
+runcmd:
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - '/opt/rke2-cis-script.sh'
+  - 'systemctl enable rke2-agent.service'
+  - 'systemctl start rke2-agent.service'
+  - 'mkdir /run/cluster-api' 
+  - 'echo success > /run/cluster-api/bootstrap-success.complete'
+`))
+	})
+})

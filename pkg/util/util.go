@@ -24,12 +24,19 @@ import (
 	"regexp"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+)
+
+const (
+	// RKE2_CIS_VERSION_CHANGE is the version where the CIS benchmark changed in RKE2 (because of PSPs).
+	RKE2_CIS_VERSION_CHANGE = "v1.25.0"
 )
 
 // ErrControlPlaneNotFound is returned when a control plane is not found.
@@ -160,4 +167,38 @@ func GetMapKeysAsString(m map[string][]byte) (keys string) {
 	keys = keys[:len(keys)-1]
 
 	return
+}
+
+// AtLeastv125 returns true if the RKE2 version is at least v1.25.0.
+func AtLeastv125(rke2version string) (bool, error) {
+	kubeVersion, err := Rke2ToKubeVersion(rke2version)
+	if err != nil {
+		return false, err
+	}
+
+	parsedVersion := version.MustParseGeneric(kubeVersion)
+	if parsedVersion.AtLeast(version.MustParseGeneric(RKE2_CIS_VERSION_CHANGE)) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// ProfileCompliant returns true if the CIS profile is compliant.
+func ProfileCompliant(profile bootstrapv1.CISProfile, version string) bool {
+	isAtLeastv125, err := AtLeastv125(version)
+	if err != nil {
+		return false
+	}
+
+	switch profile {
+	case bootstrapv1.CIS1_23:
+		return isAtLeastv125
+	case bootstrapv1.CIS1_5:
+		return !isAtLeastv125
+	case bootstrapv1.CIS1_6:
+		return !isAtLeastv125
+	default:
+		return false
+	}
 }
