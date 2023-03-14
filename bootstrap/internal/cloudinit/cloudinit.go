@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//nolint:gochecknoglobals
 package cloudinit
 
 import (
@@ -22,18 +23,18 @@ import (
 	"text/template"
 
 	"github.com/pkg/errors"
+
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
-var (
-	defaultTemplateFuncMap = template.FuncMap{
-		"Indent": templateYAMLIndent,
-	}
-)
+var defaultTemplateFuncMap = template.FuncMap{
+	"Indent": templateYAMLIndent,
+}
 
 func templateYAMLIndent(i int, input string) string {
 	split := strings.Split(input, "\n")
 	ident := "\n" + strings.Repeat(" ", i)
+
 	return strings.Repeat(" ", i) + strings.Join(split, ident)
 }
 

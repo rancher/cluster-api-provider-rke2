@@ -56,16 +56,19 @@ func (c *ControlPlaneInitMutex) Lock(ctx context.Context, cluster *clusterv1.Clu
 		Namespace: cluster.Namespace,
 		Name:      cmName,
 	}, sema.ConfigMap)
+
 	switch {
 	case apierrors.IsNotFound(err):
 		break
 	case err != nil:
 		log.Error(err, "Failed to acquire init lock")
+
 		return false
 	default: // Successfully found an existing config map.
 		info, err := sema.information()
 		if err != nil {
 			log.Error(err, "Failed to get information about the existing init lock")
+
 			return false
 		}
 		// The machine requesting the lock is the machine that created the lock, therefore the lock is acquired.
@@ -79,11 +82,14 @@ func (c *ControlPlaneInitMutex) Lock(ctx context.Context, cluster *clusterv1.Clu
 			Name:      info.MachineName,
 		}, &clusterv1.Machine{}); err != nil {
 			log.Error(err, "Failed to get machine holding init lock")
+
 			if apierrors.IsNotFound(err) {
 				c.Unlock(ctx, cluster)
 			}
 		}
+
 		log.Info(fmt.Sprintf("Waiting for Machine %s to initialize", info.MachineName))
+
 		return false
 	}
 
@@ -92,17 +98,22 @@ func (c *ControlPlaneInitMutex) Lock(ctx context.Context, cluster *clusterv1.Clu
 	// Adds the additional information
 	if err := sema.setInformation(&information{MachineName: machine.Name}); err != nil {
 		log.Error(err, "Failed to acquire init lock while setting semaphore information")
+
 		return false
 	}
 
 	log.Info("Attempting to acquire the lock")
+
 	err = c.client.Create(ctx, sema.ConfigMap)
+
 	switch {
 	case apierrors.IsAlreadyExists(err):
 		log.Info("Cannot acquire the init lock. The init lock has been acquired by someone else")
+
 		return false
 	case err != nil:
 		log.Error(err, "Error acquiring the init lock")
+
 		return false
 	default:
 		return true
@@ -118,12 +129,15 @@ func (c *ControlPlaneInitMutex) Unlock(ctx context.Context, cluster *clusterv1.C
 		Namespace: cluster.Namespace,
 		Name:      cmName,
 	}, sema.ConfigMap)
+
 	switch {
 	case apierrors.IsNotFound(err):
 		log.Info("Control plane init lock not found, it may have been released already")
+
 		return true
 	case err != nil:
 		log.Error(err, "Error unlocking the control plane init lock")
+
 		return false
 	default:
 		// Delete the config map semaphore if there is no error fetching it
@@ -131,9 +145,12 @@ func (c *ControlPlaneInitMutex) Unlock(ctx context.Context, cluster *clusterv1.C
 			if apierrors.IsNotFound(err) {
 				return true
 			}
+
 			log.Error(err, "Error deleting the config map underlying the control plane init lock")
+
 			return false
 		}
+
 		return true
 	}
 }
@@ -159,6 +176,7 @@ func (s semaphore) information() (*information, error) {
 	if err := json.Unmarshal([]byte(s.Data[semaphoreInformationKey]), li); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal semaphore information")
 	}
+
 	return li, nil
 }
 
@@ -167,8 +185,10 @@ func (s semaphore) setInformation(information *information) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal semaphore information")
 	}
+
 	s.Data = map[string]string{}
 	s.Data[semaphoreInformationKey] = string(b)
+
 	return nil
 }
 

@@ -57,7 +57,7 @@ const (
 	serverURLFormat  string = "https://%v:%v"
 )
 
-// RKE2ConfigReconciler reconciles a Rke2Config object
+// RKE2ConfigReconciler reconciles a Rke2Config object.
 type RKE2ConfigReconciler struct {
 	RKE2InitLock RKE2InitLock
 	client.Client
@@ -65,7 +65,12 @@ type RKE2ConfigReconciler struct {
 }
 
 const (
+	// DefaultManifestDirectory is the default directory to store kubernetes manifests that RKE2 will deploy automatically.
 	DefaultManifestDirectory string = "/var/lib/rancher/rke2/server/manifests"
+
+	// DefaultRequeueAfter is the default requeue time.
+	DefaultRequeueAfter time.Duration = 20 * time.Second
+	defaultTokenLength                = 16
 )
 
 //+kubebuilder:rbac:groups=bootstrap.cluster.x-k8s.io,resources=rke2configs;rke2configs/status;rke2configs/finalizers,verbs=get;list;watch;create;update;patch;delete
@@ -75,143 +80,97 @@ const (
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Rke2Config object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
 func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, rerr error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Reconcile RKE2Config")
 
-	config := &bootstrapv1.RKE2Config{}
-
-	if err := r.Get(ctx, req.NamespacedName, config, &client.GetOptions{}); err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Error(err, "rke2Config not found", "rke2-config-name", req.NamespacedName)
-			return ctrl.Result{}, err
-		}
-		logger.Error(err, "", "rke2-config-namespaced-name", req.NamespacedName)
-		return ctrl.Result{Requeue: true}, err
-	}
-
-	scope := &Scope{}
-
-	machine, err := util.GetOwnerMachine(ctx, r.Client, config.ObjectMeta)
+	scope, res, err := r.prepareScope(ctx, logger, req)
 	if err != nil {
-		logger.Error(err, "Failed to retrieve owner Machine from the API Server", config.Namespace+"/"+config.Name, "machine", machine.Name)
-		return ctrl.Result{}, err
-	}
-	if machine == nil {
-		logger.Info("Machine Controller has not yet set OwnerRef")
-		return ctrl.Result{Requeue: true}, nil
-	}
-	scope.Machine = machine
-	logger = logger.WithValues(machine.Kind, machine.GetNamespace()+"/"+machine.GetName(), "resourceVersion", machine.GetResourceVersion())
+		if errors.Is(errors.Cause(err), util.ErrNoCluster) {
+			logger.Info(fmt.Sprintf("%s does not belong to a cluster yet, waiting until it's part of a cluster", scope.Machine.Kind))
 
-	// Getting the ControlPlane owner
-	cp, err := bsutil.GetOwnerControlPlane(ctx, r.Client, scope.Machine.ObjectMeta)
-	if err != nil {
-		logger.Error(err, "Failed to retrieve owner ControlPlane from the API Server", config.Namespace+"/"+config.Name, "cluster", cp.Name)
-		return ctrl.Result{}, err
-	}
-	if cp == nil {
-		logger.V(5).Info("This config is for a worker node")
-		scope.HasControlPlaneOwner = false
-	} else {
-		logger.Info("This config is for a ControlPlane node")
-		scope.HasControlPlaneOwner = true
-		scope.ControlPlane = cp
-		logger = logger.WithValues(cp.Kind, cp.GetNamespace()+"/"+cp.GetName(), "resourceVersion", cp.GetResourceVersion())
-	}
-
-	cluster, err := util.GetClusterByName(ctx, r.Client, machine.GetNamespace(), machine.Spec.ClusterName)
-	if err != nil {
-		if errors.Cause(err) == util.ErrNoCluster {
-			logger.Info(fmt.Sprintf("%s does not belong to a cluster yet, waiting until it's part of a cluster", machine.Kind))
-			return ctrl.Result{}, nil
+			return res, nil
 		}
 
 		if apierrors.IsNotFound(err) {
 			logger.Info("Cluster does not exist yet, waiting until it is created")
-			return ctrl.Result{}, nil
+
+			return res, nil
 		}
+
 		logger.Error(err, "Could not get cluster with metadata")
-		return ctrl.Result{}, err
+
+		return res, nil
 	}
 
-	if annotations.IsPaused(cluster, config) {
-		logger.Info("Reconciliation is paused for this object")
-		return ctrl.Result{}, nil
+	if res != (ctrl.Result{}) {
+		return res, nil
 	}
 
-	scope.Cluster = cluster
-	scope.Config = config
-	scope.Logger = logger
 	ctx = ctrl.LoggerInto(ctx, logger)
 
 	// Initialize the patch helper.
-	patchHelper, err := patch.NewHelper(config, r.Client)
+	patchHelper, err := patch.NewHelper(scope.Config, r.Client)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Attempt to Patch the RKE2Config object and status after each reconciliation if no error occurs.
 	defer func() {
-		// always update the readyCondition; the summary is represented using the "1 of x completed" notation.
-		conditions.SetSummary(config,
+		conditions.SetSummary(scope.Config,
 			conditions.WithConditions(
 				bootstrapv1.DataSecretAvailableCondition,
 			),
 		)
-		// Patch ObservedGeneration only if the reconciliation completed successfully
+
 		patchOpts := []patch.Option{}
 		if rerr == nil {
 			patchOpts = append(patchOpts, patch.WithStatusObservedGeneration{})
 		}
-		if err := patchHelper.Patch(ctx, config, patchOpts...); err != nil {
+
+		if err := patchHelper.Patch(ctx, scope.Config, patchOpts...); err != nil {
 			logger.Error(rerr, "Failed to patch config")
+
 			if rerr == nil {
 				rerr = err
 			}
 		}
 	}()
 
-	if !cluster.Status.InfrastructureReady {
+	if !scope.Cluster.Status.InfrastructureReady {
 		logger.Info("Infrastructure machine not yet ready")
-		conditions.MarkFalse(config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(
+			scope.Config,
+			bootstrapv1.DataSecretAvailableCondition,
+			bootstrapv1.WaitingForClusterInfrastructureReason,
+			clusterv1.ConditionSeverityInfo,
+			"")
+
 		return ctrl.Result{Requeue: true}, nil
 	}
-	// Migrate plaintext data to secret.
-	// if config.Status.BootstrapData != nil && config.Status.DataSecretName == nil {
-	// 	return ctrl.Result{}, r.storeBootstrapData(ctx, scope, config.Status.BootstrapData)
-	// }
-	// Reconcile status for machines that already have a secret reference, but our status isn't up to date.
-	// This case solves the pivoting scenario (or a backup restore) which doesn't preserve the status subresource on objects.
-	if machine.Spec.Bootstrap.DataSecretName != nil && (!config.Status.Ready || config.Status.DataSecretName == nil) {
-		config.Status.Ready = true
-		config.Status.DataSecretName = machine.Spec.Bootstrap.DataSecretName
-		conditions.MarkTrue(config, bootstrapv1.DataSecretAvailableCondition)
+
+	if scope.Machine.Spec.Bootstrap.DataSecretName != nil && (!scope.Config.Status.Ready || scope.Config.Status.DataSecretName == nil) {
+		scope.Config.Status.Ready = true
+		scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
+		conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+
 		return ctrl.Result{}, nil
 	}
 	// Status is ready means a config has been generated.
-	if config.Status.Ready {
+	if scope.Config.Status.Ready {
 		// In any other case just return as the config is already generated and need not be generated again.
-		conditions.MarkTrue(config, bootstrapv1.DataSecretAvailableCondition)
+		conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+
 		return ctrl.Result{}, nil
 	}
 
 	// Note: can't use IsFalse here because we need to handle the absence of the condition as well as false.
-	if !conditions.IsTrue(cluster, clusterv1.ControlPlaneInitializedCondition) {
+	if !conditions.IsTrue(scope.Cluster, clusterv1.ControlPlaneInitializedCondition) {
 		return r.handleClusterNotInitialized(ctx, scope)
 	}
 
-	// Every other case it's a join scenario
-
 	// Unlock any locks that might have been set during init process
-	r.RKE2InitLock.Unlock(ctx, cluster)
+	r.RKE2InitLock.Unlock(ctx, scope.Cluster)
 
 	// it's a control plane join
 	if scope.HasControlPlaneOwner {
@@ -225,12 +184,90 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		Namespace: scope.Cluster.Spec.ControlPlaneRef.Namespace,
 		Name:      scope.Cluster.Spec.ControlPlaneRef.Name,
 	}, &wkControlPlane)
+
 	if err != nil {
 		scope.Logger.Info("Unable to find control plane object for owning Cluster", "error", err)
+
 		return ctrl.Result{Requeue: true}, nil
 	}
+
 	scope.ControlPlane = &wkControlPlane
+
 	return r.joinWorker(ctx, scope)
+}
+
+func (r *RKE2ConfigReconciler) prepareScope(
+	ctx context.Context,
+	logger logr.Logger,
+	req ctrl.Request,
+) (*Scope, ctrl.Result, error) {
+	config := &bootstrapv1.RKE2Config{}
+
+	if err := r.Get(ctx, req.NamespacedName, config, &client.GetOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Error(err, "rke2Config not found", "rke2-config-name", req.NamespacedName)
+
+			return nil, ctrl.Result{}, err
+		}
+
+		logger.Error(err, "", "rke2-config-namespaced-name", req.NamespacedName)
+
+		return nil, ctrl.Result{Requeue: true}, err
+	}
+
+	machine, err := util.GetOwnerMachine(ctx, r.Client, config.ObjectMeta)
+	if err != nil {
+		logger.Error(err, "Failed to retrieve owner Machine from the API Server", "RKE2Config", config.Namespace+"/"+config.Name)
+
+		return nil, ctrl.Result{}, err
+	}
+
+	if machine == nil {
+		logger.Info("Machine Controller has not yet set OwnerRef")
+
+		return nil, ctrl.Result{Requeue: true}, nil
+	}
+
+	logger = logger.WithValues(machine.Kind, machine.GetNamespace()+"/"+machine.GetName(), "resourceVersion", machine.GetResourceVersion())
+	scope := &Scope{
+		Config:  config,
+		Machine: machine,
+		Logger:  logger,
+	}
+
+	// Getting the ControlPlane owner
+	cp, err := bsutil.GetOwnerControlPlane(ctx, r.Client, scope.Machine.ObjectMeta)
+	if err != nil && cp != nil {
+		logger.Error(err, "Failed to retrieve owner ControlPlane from the API Server", "RKE2Config", config.Namespace+"/"+config.Name)
+
+		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, err
+	}
+
+	if cp == nil {
+		logger.V(5).Info("This config is for a worker node")
+
+		scope.HasControlPlaneOwner = false
+	} else {
+		logger.Info("This config is for a ControlPlane node")
+		scope.HasControlPlaneOwner = true
+		scope.ControlPlane = cp
+		logger = logger.WithValues(cp.Kind, cp.GetNamespace()+"/"+cp.GetName(), "resourceVersion", cp.GetResourceVersion())
+	}
+
+	cluster, err := util.GetClusterByName(ctx, r.Client, machine.GetNamespace(), machine.Spec.ClusterName)
+	if err != nil {
+		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, err
+	}
+
+	if annotations.IsPaused(cluster, config) {
+		logger.Info("Reconciliation is paused for this object")
+
+		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, fmt.Errorf("reconciliation is paused for this object")
+	}
+
+	scope.Cluster = cluster
+
+	return scope, ctrl.Result{}, nil
 }
 
 // Scope is a scoped struct used during reconciliation.
@@ -245,28 +282,27 @@ type Scope struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
 	if r.RKE2InitLock == nil {
 		r.RKE2InitLock = locking.NewControlPlaneInitMutex(mgr.GetClient())
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&bootstrapv1.RKE2Config{}).
 		Complete(r)
 }
 
-// TODO: Implement these functions
-
-// handleClusterNotInitialized handles the first control plane node
-func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, scope *Scope) (res ctrl.Result, reterr error) {
-
+// handleClusterNotInitialized handles the first control plane node.
+func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, scope *Scope) (res ctrl.Result, reterr error) { //nolint:funlen
 	if !scope.HasControlPlaneOwner {
 		scope.Logger.Info("Requeuing because this machine is not a Control Plane machine")
-		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+
+		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}
 
 	if !r.RKE2InitLock.Lock(ctx, scope.Cluster, scope.Machine) {
 		scope.Logger.Info("A control plane is already being initialized, requeuing until control plane is ready")
-		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+
+		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}
 
 	defer func() {
@@ -284,20 +320,29 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		util.ObjectKey(scope.Cluster),
 		*metav1.NewControllerRef(scope.Config, bootstrapv1.GroupVersion.WithKind("RKE2Config")),
 	); err != nil {
-		conditions.MarkFalse(scope.Config, bootstrapv1.CertificatesAvailableCondition, bootstrapv1.CertificatesGenerationFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		conditions.MarkFalse(
+			scope.Config,
+			bootstrapv1.CertificatesAvailableCondition,
+			bootstrapv1.CertificatesGenerationFailedReason,
+			clusterv1.ConditionSeverityWarning,
+			err.Error())
+
 		return ctrl.Result{}, err
 	}
+
 	conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableCondition)
 
 	token, err := r.generateAndStoreToken(ctx, scope)
 	if err != nil {
 		scope.Logger.Error(err, "unable to generate and store an RKE2 server token")
+
 		return ctrl.Result{}, err
 	}
+
 	scope.Logger.Info("RKE2 server token generated and stored in Secret!")
 
 	configStruct, configFiles, err := rke2.GenerateInitControlPlaneConfig(
-		rke2.RKE2ServerConfigOpts{
+		rke2.ServerConfigOpts{
 			Cluster:              *scope.Cluster,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
 			Token:                token,
@@ -307,16 +352,15 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			Ctx:                  ctx,
 			Client:               r.Client,
 		})
-
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	b, err := kubeyaml.Marshal(configStruct)
 	if err != nil {
-
 		return ctrl.Result{}, err
 	}
+
 	scope.Logger.Info("Server config marshalled successfully")
 
 	initConfigFile := bootstrapv1.File{
@@ -333,11 +377,17 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 	manifestFiles, err := generateFilesFromManifestConfig(ctx, r.Client, scope.ControlPlane.Spec.ManifestsConfigMapReference)
 	if err != nil {
+		manifestCm := scope.ControlPlane.Spec.ManifestsConfigMapReference.Name
+		ns := scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace
+
 		if apierrors.IsNotFound(err) {
-			scope.Logger.Error(err, "ConfigMap referenced by manifestsConfigMapReference not found!", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+			scope.Logger.Error(err, "Manifest ConfigMap referenced!", "namespace", ns, "name", manifestCm)
+
 			return ctrl.Result{}, err
 		}
-		scope.Logger.Error(err, "Problem when getting ConfigMap referenced by manifestsConfigMapReference", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+
+		scope.Logger.Error(err, "Problem when getting Manifest ConfigMap!", "namespace", ns, "name", manifestCm)
+
 		return ctrl.Result{}, err
 	}
 
@@ -375,25 +425,31 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 // generateFileListIncludingRegistries generates a list of files to be written to disk on the node
 // This list includes a registries.yaml file if the user has provided a PrivateRegistriesConfig
-// and the files fields provided in the RKE2Config
-func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(ctx context.Context, scope *Scope, configFiles []bootstrapv1.File) ([]bootstrapv1.File, error) {
-	registries, registryFiles, err := rke2.GenerateRegistries(rke2.RKE2ConfigRegistry{
+// and the files fields provided in the RKE2Config.
+func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
+	ctx context.Context,
+	scope *Scope,
+	configFiles []bootstrapv1.File,
+) ([]bootstrapv1.File, error) {
+	registries, registryFiles, err := rke2.GenerateRegistries(rke2.RegistryScope{
 		Registry: scope.Config.Spec.PrivateRegistriesConfig,
 		Client:   r.Client,
 		Ctx:      ctx,
 		Logger:   scope.Logger,
 	})
-
 	if err != nil {
 		scope.Logger.Error(err, "unable to generate registries.yaml for Init Control Plane node")
+
 		return nil, err
 	}
 
 	registriesYAML, err := kubeyaml.Marshal(registries)
 	if err != nil {
 		scope.Logger.Error(err, "unable to marshall registries.yaml")
+
 		return nil, err
 	}
+
 	scope.Logger.V(4).Info("Registries.yaml marshalled successfully")
 
 	initRegistriesFile := bootstrapv1.File{
@@ -403,37 +459,47 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(ctx context.C
 		Permissions: filePermissions,
 	}
 
-	files := append(configFiles, registryFiles...)
+	files := configFiles
+	files = append(files, registryFiles...)
 	files = append(files, initRegistriesFile)
 	files = append(files, scope.Config.Spec.Files...)
+
 	return files, nil
 }
 
+// RKE2InitLock is an interface for locking/unlocking Machine Creation as soon as an Init Process for the Control Plane
+// has been started.
 type RKE2InitLock interface {
 	Unlock(ctx context.Context, cluster *clusterv1.Cluster) bool
 	Lock(ctx context.Context, cluster *clusterv1.Cluster, machine *clusterv1.Machine) bool
 }
 
 // joinControlPlane implements the part of the Reconciler which bootstraps a secondary
-// Control Plane machine joining a cluster that is already initialized
+// Control Plane machine joining a cluster that is already initialized.
 func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
-
 	tokenSecret := &corev1.Secret{}
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
-		scope.Logger.Error(err, "Token for already initialized RKE2 Cluster not found", "token-namespace", scope.Cluster.Namespace, "token-name", scope.Cluster.Name+"-token")
+		scope.Logger.Error(
+			err,
+			"Token for already initialized RKE2 Cluster not found", "token-namespace",
+			scope.Cluster.Namespace, "token-name",
+			scope.Cluster.Name+"-token")
+
 		return ctrl.Result{}, err
 	}
+
 	token := string(tokenSecret.Data["value"])
 
 	scope.Logger.Info("RKE2 server token found in Secret!")
 
 	if len(scope.ControlPlane.Status.AvailableServerIPs) == 0 {
 		scope.Logger.V(3).Info("No ControlPlane IP Address found for node registration")
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+
+		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}
 
 	configStruct, configFiles, err := rke2.GenerateJoinControlPlaneConfig(
-		rke2.RKE2ServerConfigOpts{
+		rke2.ServerConfigOpts{
 			Cluster:              *scope.Cluster,
 			Token:                token,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
@@ -444,19 +510,20 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			Client:               r.Client,
 		},
 	)
-
 	if err != nil {
 		scope.Logger.Error(err, "unable to generate config.yaml for a Secondary Control Plane node")
+
 		return ctrl.Result{}, err
 	}
 
 	b, err := kubeyaml.Marshal(configStruct)
 
 	scope.Logger.Info("Showing marshalled config.yaml", "config.yaml", string(b))
-	if err != nil {
 
+	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	scope.Logger.Info("Joining Server config marshalled successfully")
 
 	initConfigFile := bootstrapv1.File{
@@ -473,11 +540,17 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 
 	manifestFiles, err := generateFilesFromManifestConfig(ctx, r.Client, scope.ControlPlane.Spec.ManifestsConfigMapReference)
 	if err != nil {
+		manifestCm := scope.ControlPlane.Spec.ManifestsConfigMapReference.Name
+		ns := scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace
+
 		if apierrors.IsNotFound(err) {
-			scope.Logger.Error(err, "ConfigMap referenced by manifestsConfigMapReference not found!", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+			scope.Logger.Error(err, "Manifest ConfigMap not found!", "namespace", ns, "name", manifestCm)
+
 			return ctrl.Result{}, err
 		}
-		scope.Logger.Error(err, "Problem when getting ConfigMap referenced by manifestsConfigMapReference", "namespace", scope.ControlPlane.Spec.ManifestsConfigMapReference.Namespace, "name", scope.ControlPlane.Spec.ManifestsConfigMapReference.Name)
+
+		scope.Logger.Error(err, "Problem when getting ConfigMap referenced by manifestsConfigMapReference", "namespace", ns, "name", manifestCm)
+
 		return ctrl.Result{}, err
 	}
 
@@ -508,27 +581,38 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
 		return ctrl.Result{}, err
 	}
+
 	return ctrl.Result{}, nil
 }
 
 // joinWorker implements the part of the Reconciler which bootstraps a worker node
-// after the cluster has been initialized
+// after the cluster has been initialized.
 func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
 	tokenSecret := &corev1.Secret{}
+
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
-		scope.Logger.Info("Token for already initialized RKE2 Cluster not found", "token-namespace", scope.Cluster.Namespace, "token-name", scope.Cluster.Name+"-token")
+		scope.Logger.Info(
+			"Token for already initialized RKE2 Cluster not found",
+			"token-namespace",
+			scope.Cluster.Namespace,
+			"token-name",
+			scope.Cluster.Name+"-token")
+
 		return ctrl.Result{}, err
 	}
+
 	token := string(tokenSecret.Data["value"])
+
 	scope.Logger.Info("RKE2 server token found in Secret!")
 
 	if len(scope.ControlPlane.Status.AvailableServerIPs) == 0 {
 		scope.Logger.V(3).Info("No ControlPlane IP Address found for node registration")
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+
+		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}
 
 	configStruct, configFiles, err := rke2.GenerateWorkerConfig(
-		rke2.RKE2AgentConfigOpts{
+		rke2.AgentConfigOpts{
 			ServerURL:              fmt.Sprintf(serverURLFormat, scope.ControlPlane.Status.AvailableServerIPs[0], registrationPort),
 			Token:                  token,
 			AgentConfig:            scope.Config.Spec.AgentConfig,
@@ -537,16 +621,18 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 			CloudProviderName:      scope.ControlPlane.Spec.ServerConfig.CloudProviderName,
 			CloudProviderConfigMap: scope.ControlPlane.Spec.ServerConfig.CloudProviderConfigMap,
 		})
-
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	b, err := kubeyaml.Marshal(configStruct)
 
 	scope.Logger.V(5).Info("Showing marshalled config.yaml", "config.yaml", string(b))
+
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	scope.Logger.Info("Joining Worker config marshalled successfully")
 
 	wkJoinConfigFile := bootstrapv1.File{
@@ -566,16 +652,15 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		ntpServers = scope.Config.Spec.AgentConfig.NTP.Servers
 	}
 
-	wkInput :=
-		&cloudinit.BaseUserData{
-			PreRKE2Commands:  scope.Config.Spec.PreRKE2Commands,
-			AirGapped:        scope.Config.Spec.AgentConfig.AirGapped,
-			PostRKE2Commands: scope.Config.Spec.PostRKE2Commands,
-			ConfigFile:       wkJoinConfigFile,
-			RKE2Version:      scope.Config.Spec.AgentConfig.Version,
-			WriteFiles:       files,
-			NTPServers:       ntpServers,
-		}
+	wkInput := &cloudinit.BaseUserData{
+		PreRKE2Commands:  scope.Config.Spec.PreRKE2Commands,
+		AirGapped:        scope.Config.Spec.AgentConfig.AirGapped,
+		PostRKE2Commands: scope.Config.Spec.PostRKE2Commands,
+		ConfigFile:       wkJoinConfigFile,
+		RKE2Version:      scope.Config.Spec.AgentConfig.Version,
+		WriteFiles:       files,
+		NTPServers:       ntpServers,
+	}
 
 	cloudInitData, err := cloudinit.NewJoinWorker(wkInput)
 	if err != nil {
@@ -589,9 +674,9 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	return ctrl.Result{}, nil
 }
 
-// generateAndStoreToken generates a random token with 16 characters then stores it in a Secret in the API
+// generateAndStoreToken generates a random token with 16 characters then stores it in a Secret in the API.
 func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope *Scope) (string, error) {
-	token, err := bsutil.Random(16)
+	token, err := bsutil.Random(defaultTokenLength)
 	if err != nil {
 		return "", err
 	}
@@ -621,9 +706,10 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 		Type: clusterv1.ClusterSecretType,
 	}
 
-	if err := r.createOrUpdateSecretFromObject(*secret, ctx, scope.Logger, "token", *scope.Config); err != nil {
+	if err := r.createOrUpdateSecretFromObject(ctx, *secret, scope.Logger, "token", *scope.Config); err != nil {
 		return "", err
 	}
+
 	return token, nil
 }
 
@@ -653,9 +739,10 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 		Type: clusterv1.ClusterSecretType,
 	}
 
-	if err := r.createOrUpdateSecretFromObject(*secret, ctx, scope.Logger, "bootstrap data", *scope.Config); err != nil {
+	if err := r.createOrUpdateSecretFromObject(ctx, *secret, scope.Logger, "bootstrap data", *scope.Config); err != nil {
 		return err
 	}
+
 	scope.Config.Status.DataSecretName = pointer.StringPtr(secret.Name)
 	scope.Config.Status.Ready = true
 	//	conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
@@ -663,20 +750,36 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 }
 
 // createOrUpdateSecret tries to create the given secret in the API, if that secret exists it will update it.
-func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(secret corev1.Secret, ctx context.Context, logger logr.Logger, secretType string, config bootstrapv1.RKE2Config) (reterr error) {
+func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(
+	ctx context.Context,
+	secret corev1.Secret,
+	logger logr.Logger,
+	secretType string,
+	config bootstrapv1.RKE2Config,
+) (reterr error) {
 	if err := r.Client.Create(ctx, &secret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create %s secret for %s: %s/%s", secretType, config.Kind, config.Name, config.Namespace)
 		}
-		logger.Info("%s secret for %s %s already exists, updating", secretType, config.Kind, config.Name)
+
+		logger.Info("Secret for already exists, updating",
+			"secret-type", secretType,
+			"secret-ref", secret.Namespace+"/"+secret.Name,
+			"RKE2Config", config.Name)
+
 		if err := r.Client.Update(ctx, &secret); err != nil {
 			return errors.Wrapf(err, "failed to update %s secret for %s: %s/%s", secretType, config.Kind, config.Namespace, config.Name)
 		}
 	}
+
 	return
 }
 
-func generateFilesFromManifestConfig(ctx context.Context, cl client.Client, manifestConfigMap corev1.ObjectReference) (files []bootstrapv1.File, err error) {
+func generateFilesFromManifestConfig(
+	ctx context.Context,
+	cl client.Client,
+	manifestConfigMap corev1.ObjectReference,
+) (files []bootstrapv1.File, err error) {
 	if (manifestConfigMap == corev1.ObjectReference{}) {
 		return []bootstrapv1.File{}, nil
 	}
@@ -695,8 +798,9 @@ func generateFilesFromManifestConfig(ctx context.Context, cl client.Client, mani
 	for filename, content := range manifestSec.Data {
 		files = append(files, bootstrapv1.File{
 			Path:    DefaultManifestDirectory + "/" + filename,
-			Content: string(content),
+			Content: content,
 		})
 	}
+
 	return
 }

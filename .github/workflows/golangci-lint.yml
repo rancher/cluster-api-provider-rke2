@@ -25,3 +25,4 @@ jobs:
         with:
           version: v1.50.1
           working-directory: ${{matrix.working-directory}}
+          args: --timeout=5m0s

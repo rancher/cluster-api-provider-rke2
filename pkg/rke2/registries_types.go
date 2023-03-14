@@ -19,11 +19,12 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
-// Mirror contains the config related to the registry mirror
+// Mirror contains the config related to the registry mirror.
 type Mirror struct {
 	// Endpoints are endpoints for a namespace. CRI plugin will try the endpoints
 	// one by one until a working one is found. The endpoint must be a valid url
@@ -37,7 +38,7 @@ type Mirror struct {
 	Rewrite map[string]string `toml:"rewrite" yaml:"rewrite,omitempty"`
 }
 
-// AuthConfig contains the config related to authentication to a specific registry
+// AuthConfig contains the config related to authentication to a specific registry.
 type AuthConfig struct {
 	// Username is the username to login the registry.
 	Username string `toml:"username" yaml:"username,omitempty"`
@@ -51,7 +52,7 @@ type AuthConfig struct {
 	IdentityToken string `toml:"identitytoken" yaml:"identity_token,omitempty"`
 }
 
-// TLSConfig contains the CA/Cert/Key used for a registry
+// TLSConfig contains the CA/Cert/Key used for a registry.
 type TLSConfig struct {
 	CAFile             string `toml:"ca_file" yaml:"ca_file"`
 	CertFile           string `toml:"cert_file" yaml:"cert_file"`
@@ -59,7 +60,7 @@ type TLSConfig struct {
 	InsecureSkipVerify bool   `toml:"insecure_skip_verify" yaml:"insecure_skip_verify"`
 }
 
-// Registry is registry settings including mirrors, TLS, and credentials
+// Registry is registry settings including mirrors, TLS, and credentials.
 type Registry struct {
 	// Mirrors are namespace to mirror mapping for all namespaces.
 	Mirrors map[string]Mirror `toml:"mirrors" yaml:"mirrors"`
@@ -77,9 +78,9 @@ type RegistryConfig struct {
 	TLS *TLSConfig `toml:"tls" yaml:"tls,omitempty"`
 }
 
-// RKE2ConfigRegistry is a wrapper around the Registry struct to provide
-// the client, context and a logger to the Registry struct
-type RKE2ConfigRegistry struct {
+// RegistryScope is a wrapper around the Registry struct to provide
+// the client, context and a logger to the Registry struct.
+type RegistryScope struct {
 	Registry bootstrapv1.Registry
 	Client   client.Client
 	Ctx      context.Context

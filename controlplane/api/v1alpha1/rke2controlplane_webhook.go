@@ -26,6 +26,7 @@ import (
 // log is for logging in this package.
 var rke2controlplanelog = logf.Log.WithName("rke2controlplane-resource")
 
+// SetupWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlane resource.
 func (r *RKE2ControlPlane) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
@@ -36,30 +37,30 @@ func (r *RKE2ControlPlane) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 var _ webhook.Defaulter = &RKE2ControlPlane{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) Default() {
 	rke2controlplanelog.Info("default", "name", r.Name)
-
 }
 
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplane,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes,verbs=create;update,versions=v1alpha1,name=vrke2controlplane.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RKE2ControlPlane{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateCreate() error {
 	rke2controlplanelog.Info("validate create", "name", r.Name)
+
 	return nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) error {
 	rke2controlplanelog.Info("validate update", "name", r.Name)
 
 	return nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateDelete() error {
 	rke2controlplanelog.Info("validate delete", "name", r.Name)
 

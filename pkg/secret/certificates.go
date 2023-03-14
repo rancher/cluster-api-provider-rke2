@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	// rootOwnerValue is the Certificate Root Owner for creating new Certificate Authority
+	// rootOwnerValue is the Certificate Root Owner for creating new Certificate Authority.
 	rootOwnerValue = "root:root"
 
 	// DefaultCertificatesDir is the default location (file path) where the provider will put the certificates, this location will then
@@ -50,10 +50,10 @@ const (
 	// Kubeconfig is the secret name suffix storing the Cluster Kubeconfig.
 	Kubeconfig = Purpose("kubeconfig")
 
-	// KubeconfigDataName is the data entry name for the Kubeconfig file content
+	// KubeconfigDataName is the data entry name for the Kubeconfig file content.
 	KubeconfigDataName string = "value"
 
-	// EtcdCA is the secret name suffix for the Etcd CA
+	// EtcdCA is the secret name suffix for the Etcd CA.
 	EtcdCA Purpose = "etcd"
 
 	// ClusterCA is the secret name suffix for APIServer CA.
@@ -68,11 +68,14 @@ const (
 	// TLSCrtDataName is the key used to store a TLS certificate in the secret's data field.
 	TLSCrtDataName = "tls.crt"
 
-	// APIServerEtcdClient is the secret name of user-supplied secret containing the apiserver-etcd-client key/cert
+	// APIServerEtcdClient is the secret name of user-supplied secret containing the apiserver-etcd-client key/cert.
 	APIServerEtcdClient Purpose = "apiserver-etcd-client"
 
-	// ServiceAccount is the secret name suffix for the Service Account keys
+	// ServiceAccount is the secret name suffix for the Service Account keys.
 	ServiceAccount Purpose = "sa"
+
+	// TenYears is the duration of one year.
+	TenYears = time.Hour * 24 * 365 * 10
 )
 
 // Purpose is the name to append to the secret generated for a cluster.
@@ -90,7 +93,7 @@ type Certificate struct {
 // Certificates are the certificates necessary to bootstrap a cluster.
 type Certificates []*Certificate
 
-// NewCertificatesForInitialControlPlane returns a list of certificates configured for a control plane node
+// NewCertificatesForInitialControlPlane returns a list of certificates configured for a control plane node.
 func NewCertificatesForInitialControlPlane() Certificates {
 	certificatesDir := DefaultCertificatesDir
 
@@ -118,6 +121,7 @@ func (c Certificates) GetByPurpose(purpose Purpose) *Certificate {
 			return certificate
 		}
 	}
+
 	return nil
 }
 
@@ -130,13 +134,16 @@ func (c Certificates) Lookup(ctx context.Context, ctrlclient client.Client, clus
 			Name:      Name(clusterName.Name, certificate.Purpose),
 			Namespace: clusterName.Namespace,
 		}
+
 		if err := ctrlclient.Get(ctx, key, s); err != nil {
 			if apierrors.IsNotFound(err) {
 				if certificate.External {
 					return errors.WithMessage(err, "external certificate not found")
 				}
+
 				continue
 			}
+
 			return errors.WithStack(err)
 		}
 		// If a user has a badly formatted secret it will prevent the cluster from working.
@@ -144,11 +151,14 @@ func (c Certificates) Lookup(ctx context.Context, ctrlclient client.Client, clus
 		if err != nil {
 			return err
 		}
+
 		certificate.KeyPair = kp
 	}
+
 	return nil
 }
 
+// Generate will generate any certificates that do not have KeyPair data.
 func (c *Certificate) Generate() error {
 	// Do not generate the APIServerEtcdClient key pair. It is user supplied
 	if c.Purpose == APIServerEtcdClient {
@@ -164,6 +174,7 @@ func (c *Certificate) Generate() error {
 	if err != nil {
 		return err
 	}
+
 	c.KeyPair = kp
 	c.Generated = true
 
@@ -180,6 +191,7 @@ func (c Certificates) Generate() error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -189,16 +201,23 @@ func (c Certificates) SaveGenerated(ctx context.Context, ctrlclient client.Clien
 		if !certificate.Generated {
 			continue
 		}
+
 		s := certificate.AsSecret(clusterName, owner)
 		if err := ctrlclient.Create(ctx, s); err != nil {
 			return errors.WithStack(err)
 		}
 	}
+
 	return nil
 }
 
 // LookupOrGenerate is a convenience function that wraps cluster bootstrap certificate behavior.
-func (c Certificates) LookupOrGenerate(ctx context.Context, ctrlclient client.Client, clusterName client.ObjectKey, owner metav1.OwnerReference) error {
+func (c Certificates) LookupOrGenerate(
+	ctx context.Context,
+	ctrlclient client.Client,
+	clusterName client.ObjectKey,
+	owner metav1.OwnerReference,
+) error {
 	// Find the certificates that exist
 	if err := c.Lookup(ctx, ctrlclient, clusterName); err != nil {
 		return err
@@ -237,6 +256,7 @@ func (c *Certificate) AsSecret(clusterName client.ObjectKey, owner metav1.OwnerR
 	if c.Generated {
 		s.OwnerReferences = []metav1.OwnerReference{owner}
 	}
+
 	return s
 }
 
@@ -251,6 +271,7 @@ func (c *Certificate) AsFiles() []bootstrapv1.File {
 			Content:     string(c.KeyPair.Cert),
 		})
 	}
+
 	if len(c.KeyPair.Key) > 0 {
 		out = append(out, bootstrapv1.File{
 			Path:        c.KeyFile,
@@ -259,6 +280,7 @@ func (c *Certificate) AsFiles() []bootstrapv1.File {
 			Content:     string(c.KeyPair.Key),
 		})
 	}
+
 	return out
 }
 
@@ -278,9 +300,11 @@ func (c Certificates) AsFiles() []bootstrapv1.File {
 	if clusterCA != nil {
 		certFiles = append(certFiles, clusterCA.AsFiles()...)
 	}
+
 	if clientClusterCA != nil {
 		certFiles = append(certFiles, clientClusterCA.AsFiles()...)
 	}
+
 	if etcdCA != nil {
 		certFiles = append(certFiles, etcdCA.AsFiles()...)
 	}
@@ -294,7 +318,7 @@ func (c Certificates) AsFiles() []bootstrapv1.File {
 	return certFiles
 }
 
-// secretToKeyPair gets a Certificate Keypair from a data entry in a secret
+// secretToKeyPair gets a Certificate Keypair from a data entry in a secret.
 func secretToKeyPair(s *corev1.Secret) (*certs.KeyPair, error) {
 	c, exists := s.Data[TLSCrtDataName]
 	if !exists {
@@ -302,7 +326,6 @@ func secretToKeyPair(s *corev1.Secret) (*certs.KeyPair, error) {
 	}
 
 	// In some cases (external etcd) it's ok if the etcd.key does not exist.
-	// TODO: some other function should ensure that the certificates we need exist.
 	key, exists := s.Data[TLSKeyDataName]
 	if !exists {
 		key = []byte("")
@@ -319,13 +342,14 @@ func generateCACert() (*certs.KeyPair, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &certs.KeyPair{
 		Cert: certs.EncodeCertPEM(x509Cert),
 		Key:  certs.EncodePrivateKeyPEM(privKey),
 	}, nil
 }
 
-// newCertificateAuthority creates new certificate and private key for the certificate authority
+// newCertificateAuthority creates new certificate and private key for the certificate authority.
 func newCertificateAuthority() (*x509.Certificate, *rsa.PrivateKey, error) {
 	key, err := certs.NewPrivateKey()
 	if err != nil {
@@ -355,7 +379,7 @@ func newSelfSignedCACert(key *rsa.PrivateKey) (*x509.Certificate, error) {
 			Organization: cfg.Organization,
 		},
 		NotBefore:             now.Add(time.Minute * -5),
-		NotAfter:              now.Add(time.Hour * 24 * 365 * 10), // 10 years
+		NotAfter:              now.Add(TenYears), // 10 years
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		MaxPathLenZero:        true,
 		BasicConstraintsValid: true,
@@ -369,6 +393,7 @@ func newSelfSignedCACert(key *rsa.PrivateKey) (*x509.Certificate, error) {
 	}
 
 	c, err := x509.ParseCertificate(b)
+
 	return c, errors.WithStack(err)
 }
 
@@ -377,10 +402,12 @@ func generateServiceAccountKeys() (*certs.KeyPair, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	saPub, err := certs.EncodePublicKeyPEM(&saCreds.PublicKey)
 	if err != nil {
 		return nil, err
 	}
+
 	return &certs.KeyPair{
 		Cert: saPub,
 		Key:  certs.EncodePrivateKeyPEM(saCreds),

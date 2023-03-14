@@ -31,13 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/external"
+	"sigs.k8s.io/cluster-api/util/collections"
 	capifd "sigs.k8s.io/cluster-api/util/failuredomains"
+	"sigs.k8s.io/cluster-api/util/patch"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	"sigs.k8s.io/cluster-api/controllers/external"
-	"sigs.k8s.io/cluster-api/util/collections"
-	"sigs.k8s.io/cluster-api/util/patch"
 )
 
 // ControlPlane holds business logic around control planes.
@@ -52,28 +52,36 @@ type ControlPlane struct {
 	// reconciliationTime is the time of the current reconciliation, and should be used for all "now" calculations
 	reconciliationTime metav1.Time
 
-	// TODO: we should see if we can combine these with the Machine objects so we don't have all these separate lookups
-	// See discussion on https://github.com/kubernetes-sigs/cluster-api/pull/3405
 	rke2Configs    map[string]*bootstrapv1.RKE2Config
 	infraResources map[string]*unstructured.Unstructured
 }
 
 // NewControlPlane returns an instantiated ControlPlane.
-func NewControlPlane(ctx context.Context, client client.Client, cluster *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, ownedMachines collections.Machines) (*ControlPlane, error) {
+func NewControlPlane(
+	ctx context.Context,
+	client client.Client,
+	cluster *clusterv1.Cluster,
+	rcp *controlplanev1.RKE2ControlPlane,
+	ownedMachines collections.Machines,
+) (*ControlPlane, error) {
 	infraObjects, err := getInfraResources(ctx, client, ownedMachines)
 	if err != nil {
 		return nil, err
 	}
+
 	rke2Configs, err := getRKE2Configs(ctx, client, ownedMachines)
 	if err != nil {
 		return nil, err
 	}
+
 	patchHelpers := map[string]*patch.Helper{}
+
 	for _, machine := range ownedMachines {
 		patchHelper, err := patch.NewHelper(machine, client)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create patch helper for machine %s", machine.Name)
 		}
+
 		patchHelpers[machine.Name] = patchHelper
 	}
 
@@ -98,6 +106,7 @@ func (c *ControlPlane) FailureDomains() clusterv1.FailureDomains {
 	if c.Cluster.Status.FailureDomains == nil {
 		return clusterv1.FailureDomains{}
 	}
+
 	return c.Cluster.Status.FailureDomains
 }
 
@@ -106,7 +115,7 @@ func (c *ControlPlane) Version() *string {
 	return &c.RCP.Spec.AgentConfig.Version
 }
 
-// InfrastructureTemplate returns the RKE2ControlPlane's infrastructure template.
+// InfrastructureRef returns the RKE2ControlPlane's infrastructure template.
 func (c *ControlPlane) InfrastructureRef() *corev1.ObjectReference {
 	return &c.RCP.Spec.InfrastructureRef
 }
@@ -126,9 +135,11 @@ func (c *ControlPlane) MachineInFailureDomainWithMostMachines(machines collectio
 	fd := c.FailureDomainWithMostMachines(machines)
 	machinesInFailureDomain := machines.Filter(collections.InFailureDomains(fd))
 	machineToMark := machinesInFailureDomain.Oldest()
+
 	if machineToMark == nil {
 		return nil, errors.New("failed to pick control plane Machine to mark for deletion")
 	}
+
 	return machineToMark, nil
 }
 
@@ -153,6 +164,7 @@ func (c *ControlPlane) FailureDomainWithMostMachines(machines collections.Machin
 		// in the cluster status.
 		return notInFailureDomains.Oldest().Spec.FailureDomain
 	}
+
 	return capifd.PickMost(c.Cluster.Status.FailureDomains.FilterControlPlane(), c.Machines, machines)
 }
 
@@ -161,18 +173,21 @@ func (c *ControlPlane) NextFailureDomainForScaleUp() *string {
 	if len(c.Cluster.Status.FailureDomains.FilterControlPlane()) == 0 {
 		return nil
 	}
+
 	return capifd.PickFewest(c.FailureDomains().FilterControlPlane(), c.UpToDateMachines())
 }
 
 // InitialControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for an initializing control plane.
 func (c *ControlPlane) InitialControlPlaneConfig() *bootstrapv1.RKE2ConfigSpec {
 	bootstrapSpec := c.RCP.Spec.RKE2ConfigSpec.DeepCopy()
+
 	return bootstrapSpec
 }
 
 // JoinControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for joining control planes.
 func (c *ControlPlane) JoinControlPlaneConfig() *bootstrapv1.RKE2ConfigSpec {
 	bootstrapSpec := c.RCP.Spec.RKE2ConfigSpec.DeepCopy()
+
 	return bootstrapSpec
 }
 
@@ -197,6 +212,7 @@ func (c *ControlPlane) GenerateRKE2Config(spec *bootstrapv1.RKE2ConfigSpec) *boo
 		},
 		Spec: *spec,
 	}
+
 	return bootstrapConfig
 }
 
@@ -253,8 +269,6 @@ func (c *ControlPlane) MachinesNeedingRollout() collections.Machines {
 
 	// Return machines if they are scheduled for rollout or if with an outdated configuration.
 	return machines.AnyFilter(
-		// Machines that are scheduled for rollout (RCP.Spec.UpgradeAfter set, the UpgradeAfter deadline is expired, and the machine was created before the deadline).
-		// collections.ShouldRolloutAfter(&c.reconciliationTime, c.RCP.Spec.RolloutAfter), // TODO: Add rollout after field to RKE2ControlPlane if we want to support this.
 		// Machines that do not match with RCP config.
 		collections.Not(matchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
 	)
@@ -266,39 +280,50 @@ func (c *ControlPlane) UpToDateMachines() collections.Machines {
 	return c.Machines.Difference(c.MachinesNeedingRollout())
 }
 
-// getInfraResources fetches the external infrastructure resource for each machine in the collection and returns a map of machine.Name -> infraResource.
+// getInfraResources fetches the external infrastructure resource for each machine in the collection
+// and returns a map of machine.Name -> infraResource.
 func getInfraResources(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*unstructured.Unstructured, error) {
 	result := map[string]*unstructured.Unstructured{}
+
 	for _, m := range machines {
 		infraObj, err := external.Get(ctx, cl, &m.Spec.InfrastructureRef, m.Namespace)
 		if err != nil {
 			if apierrors.IsNotFound(errors.Cause(err)) {
 				continue
 			}
+
 			return nil, errors.Wrapf(err, "failed to retrieve infra obj for machine %q", m.Name)
 		}
+
 		result[m.Name] = infraObj
 	}
+
 	return result, nil
 }
 
 // getRKE2Configs fetches the RKE2 config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
 func getRKE2Configs(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*bootstrapv1.RKE2Config, error) {
 	result := map[string]*bootstrapv1.RKE2Config{}
+
 	for _, m := range machines {
 		bootstrapRef := m.Spec.Bootstrap.ConfigRef
 		if bootstrapRef == nil {
 			continue
 		}
+
 		machineConfig := &bootstrapv1.RKE2Config{}
+
 		if err := cl.Get(ctx, client.ObjectKey{Name: bootstrapRef.Name, Namespace: m.Namespace}, machineConfig); err != nil {
 			if apierrors.IsNotFound(errors.Cause(err)) {
 				continue
 			}
+
 			return nil, errors.Wrapf(err, "failed to retrieve bootstrap config for machine %q", m.Name)
 		}
+
 		result[m.Name] = machineConfig
 	}
+
 	return result, nil
 }
 
@@ -317,8 +342,10 @@ func (c *ControlPlane) HasUnhealthyMachine() bool {
 	return len(c.UnhealthyMachines()) > 0
 }
 
+// PatchMachines patches the machines in the control plane.
 func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 	errList := []error{}
+
 	for i := range c.Machines {
 		machine := c.Machines[i]
 		if helper, ok := c.machinesPatchHelpers[machine.Name]; ok {
@@ -328,9 +355,12 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 			}}); err != nil {
 				errList = append(errList, errors.Wrapf(err, "failed to patch machine %s", machine.Name))
 			}
+
 			continue
 		}
+
 		errList = append(errList, errors.Errorf("failed to get patch helper for machine %s", machine.Name))
 	}
+
 	return kerrors.NewAggregate(errList)
 }

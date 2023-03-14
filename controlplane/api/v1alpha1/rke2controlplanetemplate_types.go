@@ -23,7 +23,7 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// RKE2ControlPlaneTemplateSpec defines the desired state of RKE2ControlPlaneTemplate
+// RKE2ControlPlaneTemplateSpec defines the desired state of RKE2ControlPlaneTemplate.
 type RKE2ControlPlaneTemplateSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -32,7 +32,7 @@ type RKE2ControlPlaneTemplateSpec struct {
 	Foo string `json:"foo,omitempty"`
 }
 
-// RKE2ControlPlaneTemplateStatus defines the observed state of RKE2ControlPlaneTemplate
+// RKE2ControlPlaneTemplateStatus defines the observed state of RKE2ControlPlaneTemplate.
 type RKE2ControlPlaneTemplateStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -41,7 +41,7 @@ type RKE2ControlPlaneTemplateStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// RKE2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates API
+// RKE2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates API.
 type RKE2ControlPlaneTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -52,13 +52,13 @@ type RKE2ControlPlaneTemplate struct {
 
 //+kubebuilder:object:root=true
 
-// RKE2ControlPlaneTemplateList contains a list of RKE2ControlPlaneTemplate
+// RKE2ControlPlaneTemplateList contains a list of RKE2ControlPlaneTemplate.
 type RKE2ControlPlaneTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RKE2ControlPlaneTemplate `json:"items"`
 }
 
-func init() {
+func init() { //nolint:gochecknoinits
 	SchemeBuilder.Register(&RKE2ControlPlaneTemplate{}, &RKE2ControlPlaneTemplateList{})
 }

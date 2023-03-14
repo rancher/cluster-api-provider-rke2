@@ -37,9 +37,9 @@ import (
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
 )
 
-var (
-	ErrDependentCertificateNotFound = errors.New("could not find secret ca")
-)
+// ErrDependentCertificateNotFound is returned when the kubeconfig cannot be generated because the
+// dependent certificate is not found.
+var ErrDependentCertificateNotFound = errors.New("could not find secret ca")
 
 func generateKubeconfig(ctx context.Context, c client.Client, clusterName client.ObjectKey, endpoint string) ([]byte, error) {
 	clusterCA, err := secret.GetFromNamespacedName(ctx, c, clusterName, secret.ClusterCA)
@@ -47,6 +47,7 @@ func generateKubeconfig(ctx context.Context, c client.Client, clusterName client
 		if apierrors.IsNotFound(errors.Cause(err)) {
 			return nil, ErrDependentCertificateNotFound
 		}
+
 		return nil, err
 	}
 
@@ -55,6 +56,7 @@ func generateKubeconfig(ctx context.Context, c client.Client, clusterName client
 		if apierrors.IsNotFound(errors.Cause(err)) {
 			return nil, ErrDependentCertificateNotFound
 		}
+
 		return nil, err
 	}
 
@@ -88,12 +90,16 @@ func generateKubeconfig(ctx context.Context, c client.Client, clusterName client
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to serialize config to yaml")
 	}
+
 	return out, nil
 }
 
 // New creates a new Kubeconfig using the cluster name and specified endpoint.
-func New(clusterName, endpoint string, clientCACert *x509.Certificate, clientCAKey crypto.Signer, serverCACert *x509.Certificate) (*api.Config, error) {
-
+func New(
+	clusterName,
+	endpoint string,
+	clientCACert *x509.Certificate, clientCAKey crypto.Signer, serverCACert *x509.Certificate,
+) (*api.Config, error) {
 	cfg := &certs.Config{
 		CommonName:   "kubernetes-admin",
 		Organization: []string{"system:masters"},
@@ -139,6 +145,7 @@ func New(clusterName, endpoint string, clientCACert *x509.Certificate, clientCAK
 // CreateSecret creates the Kubeconfig secret for the given cluster.
 func CreateSecret(ctx context.Context, c client.Client, cluster *clusterv1.Cluster) error {
 	name := util.ObjectKey(cluster)
+
 	return CreateSecretWithOwner(ctx, c, name, cluster.Spec.ControlPlaneEndpoint.String(), metav1.OwnerReference{
 		APIVersion: clusterv1.GroupVersion.String(),
 		Kind:       "Cluster",
@@ -150,6 +157,7 @@ func CreateSecret(ctx context.Context, c client.Client, cluster *clusterv1.Clust
 // CreateSecretWithOwner creates the Kubeconfig secret for the given cluster name, namespace, endpoint, and owner reference.
 func CreateSecretWithOwner(ctx context.Context, c client.Client, clusterName client.ObjectKey, endpoint string, owner metav1.OwnerReference) error {
 	server := fmt.Sprintf("https://%s", endpoint)
+
 	out, err := generateKubeconfig(ctx, c, clusterName, server)
 	if err != nil {
 		return err
@@ -161,6 +169,7 @@ func CreateSecretWithOwner(ctx context.Context, c client.Client, clusterName cli
 // GenerateSecret returns a Kubernetes secret for the given Cluster and kubeconfig data.
 func GenerateSecret(cluster *clusterv1.Cluster, data []byte) *corev1.Secret {
 	name := util.ObjectKey(cluster)
+
 	return GenerateSecretWithOwner(name, data, metav1.OwnerReference{
 		APIVersion: clusterv1.GroupVersion.String(),
 		Kind:       "Cluster",

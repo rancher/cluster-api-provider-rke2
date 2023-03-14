@@ -36,9 +36,11 @@ const (
 	MinimumKubernetesVersionClusterTopology = "v1.22.0"
 )
 
-// CheckKubernetesVersion return an error if the Kubernetes version in a cluster is lower than the specified minK8sVersion.
+// CheckKubernetesVersion return an error if the Kubernetes version in a cluster
+// is lower than the specified minK8sVersion.
 func CheckKubernetesVersion(config *rest.Config, minK8sVersion string) error {
 	client := discovery.NewDiscoveryClientForConfigOrDie(config)
+
 	serverVersion, err := client.ServerVersion()
 	if err != nil {
 		return errors.Wrap(err, "failed to get the Kubernetes version")
@@ -50,8 +52,10 @@ func CheckKubernetesVersion(config *rest.Config, minK8sVersion string) error {
 	}
 
 	if compareResult == -1 {
-		return errors.Errorf("unsupported management cluster server version: %s - minimum required version is %s", serverVersion.String(), minK8sVersion)
+		return errors.Errorf("unsupported management cluster server version: %s - minimum required version is %s",
+			serverVersion.String(), minK8sVersion)
 	}
+
 	return nil
 }
 

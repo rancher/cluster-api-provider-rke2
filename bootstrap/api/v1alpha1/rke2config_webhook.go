@@ -26,6 +26,7 @@ import (
 // log is for logging in this package.
 var rke2configlog = logf.Log.WithName("rke2config-resource")
 
+// SetupWebhookWithManager sets up and registers the webhook with the manager.
 func (r *RKE2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
@@ -36,31 +37,30 @@ func (r *RKE2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 var _ webhook.Defaulter = &RKE2Config{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
+// Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2Config) Default() {
 	rke2configlog.Info("default", "name", r.Name)
-
 }
 
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2config,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1alpha1,name=vrke2config.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RKE2Config{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2Config) ValidateCreate() error {
 	rke2configlog.Info("validate create", "name", r.Name)
 
 	return nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2Config) ValidateUpdate(old runtime.Object) error {
 	rke2configlog.Info("validate update", "name", r.Name)
 
 	return nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2Config) ValidateDelete() error {
 	rke2configlog.Info("validate delete", "name", r.Name)
 

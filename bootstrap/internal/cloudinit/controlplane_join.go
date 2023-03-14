@@ -20,13 +20,16 @@ import (
 	"fmt"
 )
 
-// NewInitControlPlane returns the user data string to be used on a controlplane instance.
+// NewJoinControlPlane returns the user data string to be used on a controlplane instance.
+//
+// nolint:gofumpt
 func NewJoinControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	input.Header = cloudConfigHeader
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
 	userData, err := generate("JoinControlplane", controlPlaneCloudJoinWithVersion, input)
+
 	if err != nil {
 		return nil, err
 	}
