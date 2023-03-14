@@ -289,6 +289,7 @@ var _ = Describe("RKE2 Agent Config", func() {
 					ExtraEnv:      map[string]string{"testenv": "testenv"},
 					ExtraMounts:   map[string]string{"testmount": "testmount"},
 				},
+				Version: "v1.25.2",
 			},
 		}
 	})
@@ -319,16 +320,16 @@ var _ = Describe("RKE2 Agent Config", func() {
 		Expect(agentConfig.KubeProxyExtraEnv).To(Equal(opts.AgentConfig.KubeProxy.ExtraEnv))
 		Expect(agentConfig.Token).To(Equal(opts.Token))
 
-		Expect(files).To(HaveLen(2))
+		Expect(files).To(HaveLen(3))
 
-		Expect(files[0].Path).To(Equal(agentConfig.ImageCredentialProviderConfig))
-		Expect(files[0].Content).To(Equal("test_credential_config"))
-		Expect(files[0].Owner).To(Equal("root:root"))
-		Expect(files[0].Permissions).To(Equal("0644"))
-
-		Expect(files[1].Path).To(Equal(agentConfig.ResolvConf))
-		Expect(files[1].Content).To(Equal("test_resolv_conf"))
+		Expect(files[1].Path).To(Equal(agentConfig.ImageCredentialProviderConfig))
+		Expect(files[1].Content).To(Equal("test_credential_config"))
 		Expect(files[1].Owner).To(Equal("root:root"))
 		Expect(files[1].Permissions).To(Equal("0644"))
+
+		Expect(files[2].Path).To(Equal(agentConfig.ResolvConf))
+		Expect(files[2].Content).To(Equal("test_resolv_conf"))
+		Expect(files[2].Owner).To(Equal("root:root"))
+		Expect(files[2].Permissions).To(Equal("0644"))
 	})
 })

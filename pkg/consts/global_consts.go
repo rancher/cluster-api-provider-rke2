@@ -38,4 +38,13 @@ const (
 
 	// DefaultSyncPeriod is the default resync period for the controller manager's cache.
 	DefaultSyncPeriod = 10 * time.Minute
+
+	// DefaultFileOwner is the default owner of the files created by the controller.
+	DefaultFileOwner = "root:root"
+
+	// DefaultFileMode is the default mode of the files created by the controller.
+	DefaultFileMode = "644"
+
+	// FileModeRootExecutable is the mode of the files created by the controller when the owner is root.
+	FileModeRootExecutable = "700"
 )

@@ -28,6 +28,8 @@ import (
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/consts"
+	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 )
 
 const (
@@ -39,6 +41,40 @@ const (
 
 	// DefaultRKE2JoinPort is the default port used for joining nodes to the cluster. It is open on the control plane nodes.
 	DefaultRKE2JoinPort = 9345
+
+	// CISNodePreparationScript is the script that is used to prepare a node for CIS compliance.
+	CISNodePreparationScript = `#!/bin/bash
+set -e
+
+# Adding etcd user if not present
+if id etcd &>/dev/null; then
+    echo 'user etcd already exists'
+else
+		useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U
+fi
+
+YUM_BASED_PARAM_FILE_FOUND=false
+TAR_BASED_PARAM_FILE_FOUND=false
+
+# Using RKE2 generated kernel parameters
+if [ -f /usr/share/rke2/rke2-cis-sysctl.conf ]; then
+		YUM_BASED_PARAM_FILE_FOUND=true
+		cp -f /usr/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/90-rke2-cis.conf
+fi
+
+if [ -f /usr/local/share/rke2/rke2-cis-sysctl.conf ]; then
+		TAR_BASED_PARAM_FILE_FOUND=true
+		cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/90-rke2-cis.conf
+fi
+
+if [ "$YUM_BASED_PARAM_FILE_FOUND" = false ] && [ "$TAR_BASED_PARAM_FILE_FOUND" = false ]; then
+		echo "No kernel parameters file found"
+		exit 1
+fi
+
+# Applying kernel parameters
+sysctl -p /etc/sysctl.d/90-rke2-cis.conf
+`
 )
 
 type rke2ServerConfig struct {
@@ -365,6 +401,20 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 	files := []bootstrapv1.File{}
 	rke2AgentConfig.ContainerRuntimeEndpoint = opts.AgentConfig.ContainerRuntimeEndpoint
 
+	if opts.AgentConfig.CISProfile != "" {
+		if !bsutil.ProfileCompliant(opts.AgentConfig.CISProfile, opts.AgentConfig.Version) {
+			return nil, nil, fmt.Errorf("profile %q is not supported for version %q", opts.AgentConfig.CISProfile, opts.AgentConfig.Version)
+		}
+
+		files = append(files, bootstrapv1.File{
+			Path:        "/opt/rke2-cis-script.sh",
+			Content:     CISNodePreparationScript,
+			Owner:       consts.DefaultFileOwner,
+			Permissions: consts.FileModeRootExecutable,
+		})
+		rke2AgentConfig.Profile = string(opts.AgentConfig.CISProfile)
+	}
+
 	if opts.CloudProviderConfigMap != nil {
 		cloudProviderConfigMap := &corev1.ConfigMap{}
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
@@ -432,7 +482,6 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 	rke2AgentConfig.LbServerPort = opts.AgentConfig.LoadBalancerPort
 	rke2AgentConfig.NodeLabels = opts.AgentConfig.NodeLabels
 	rke2AgentConfig.NodeTaints = opts.AgentConfig.NodeTaints
-	rke2AgentConfig.Profile = string(opts.AgentConfig.CISProfile)
 	rke2AgentConfig.ProtectKernelDefaults = opts.AgentConfig.ProtectKernelDefaults
 
 	if opts.AgentConfig.ResolvConf != nil {

@@ -22,6 +22,7 @@ var _ = Describe(("Testing GetMapKeysAsString"), func() {
 			"foo":   []byte("bar"),
 		}
 		keys := GetMapKeysAsString(testMap)
-		Expect(keys).To(Equal("hello,foo"))
+		keysValid := keys == "hello,foo" || keys == "foo,hello"
+		Expect(keysValid).To(BeTrue())
 	})
 })
