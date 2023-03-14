@@ -25,6 +25,7 @@ const (
 	//
 	// NOTE: When the DataSecret generation starts the process completes immediately and within the
 	// same reconciliation, so the user will always see a transition from Wait to Generated without having
+	// to wait for the next reconciliation.
 	DataSecretAvailableCondition clusterv1.ConditionType = "Available"
 )
 
@@ -37,12 +38,16 @@ const (
 	// WaitingForClusterInfrastructureReason (Severity=Info) document a bootstrap secret generation process
 	// waiting for the cluster infrastructure to be ready.
 	//
-	// NOTE: Having the cluster infrastructure ready is a pre-condition for starting to create machines;
+	// NOTE: Having the cluster infrastructure ready is a pre-condition for starting to create machines.
 	WaitingForClusterInfrastructureReason string = "WaitingForClusterInfrastructure"
 )
 
 const (
+	// CertificatesAvailableCondition documents the status of the certificates generation process.
 	CertificatesAvailableCondition clusterv1.ConditionType = "CertificatesAvailable"
 
+	// CertificatesGenerationFailedReason documents a RKE2Config controller detecting
+	// an error while generating certificates; those kind of errors are usually due to misconfigurations
+	// and user intervention is required to get them fixed.
 	CertificatesGenerationFailedReason string = "CertificateGenerationFailed"
 )

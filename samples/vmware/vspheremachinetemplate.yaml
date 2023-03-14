@@ -1,3 +1,4 @@
+---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VSphereMachineTemplate
 metadata:
@@ -9,7 +10,7 @@ spec:
       cloneMode: linkedClone
       datacenter: ${CABPR_VCENTER_DATACENTER}
       datastore: ${CABPR_VCENTER_DATASTORE}
-      diskGiB:
+      diskGiB: ${CABPR_VCENTER_DISKSIZE}
       folder: ${CABPR_VCENTER_FOLDER}
       memoryMiB: ${CABPR_VCENTER_VM_MEMORY}
       network:
@@ -18,7 +19,7 @@ spec:
           networkName: ${CABPR_VCENTER_NETWORK}
       numCPUs: ${CABPR_VCENTER_VM_VPCU}
       os: Linux
-      resourcePool: ${CABPR_VCENTER_RESOURCEPOOL}
+      resourcePool: "${CABPR_VCENTER_RESOURCEPOOL}"
       server: ${CABPR_VCENTER_HOSTNAME}
       storagePolicyName: ""
       template: ${CABPR_VCENTER_VM_TEMPLATE}
@@ -44,7 +45,7 @@ spec:
           networkName: ${CABPR_VCENTER_NETWORK}
       numCPUs: ${CABPR_VCENTER_VM_VPCU}
       os: Linux
-      resourcePool: ${CABPR_VCENTER_RESOURCEPOOL}
+      resourcePool: "${CABPR_VCENTER_RESOURCEPOOL}"
       server: ${CABPR_VCENTER_HOSTNAME}
       storagePolicyName: ""
       template: ${CABPR_VCENTER_VM_TEMPLATE}

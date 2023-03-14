@@ -18,7 +18,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: RKE2ControlPlane is the Schema for the rke2controlplanes API
+        description: RKE2ControlPlane is the Schema for the rke2controlplanes API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,7 +33,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane
+            description: RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane.
             properties:
               agentConfig:
                 description: AgentConfig specifies configuration for the agent nodes.
@@ -266,8 +266,8 @@ spec:
                         populate the file.
                       properties:
                         secret:
-                          description: Secret represents a secret that should populate
-                            this file.
+                          description: SecretFileSource represents a secret that should
+                            populate this file.
                           properties:
                             key:
                               description: Key is the key in the secret's data map
@@ -706,8 +706,8 @@ spec:
                         - rke2-ingress-nginx
                         - rke2-metrics-server
                         items:
-                          description: DisabledItem selects a plugin Components to
-                            be disabled.
+                          description: DisabledPluginComponent selects a plugin Components
+                            to be disabled.
                           type: string
                         type: array
                     type: object
@@ -719,7 +719,7 @@ spec:
                           ETCD: target storage, schedule, etc.'
                         properties:
                           directory:
-                            description: Directory Directory to save db snapshots.
+                            description: Directory to save db snapshots.
                             type: string
                           disableAutomaticSnapshots:
                             description: DisableAutomaticSnapshots defines the policy

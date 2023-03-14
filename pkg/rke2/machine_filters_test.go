@@ -3,8 +3,10 @@ package rke2
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
 
@@ -31,8 +33,11 @@ var rcp = controlplanev1.RKE2ControlPlane{
 		},
 	},
 }
-var machineVersion = "v1.24.6"
-var regionEuCentral1 = "eu-central-1"
+
+var (
+	machineVersion   = "v1.24.6"
+	regionEuCentral1 = "eu-central-1"
+)
 
 var machine = clusterv1.Machine{
 	ObjectMeta: v1.ObjectMeta{
@@ -58,7 +63,6 @@ var machine = clusterv1.Machine{
 }
 
 var _ = Describe("ServerConfigMatching", func() {
-
 	It("should match the machine annotation", func() {
 		res := matchServerConfig(&rcp, &machine)
 		Expect(res).To(BeTrue())
@@ -92,7 +96,7 @@ var _ = Describe("matchAgentConfig", func() {
 	)
 })
 
-var _ = Describe("maching Kubernetes Version", func() {
+var _ = Describe("matching Kubernetes Version", func() {
 	It("should match version", func() {
 		machineCollection := collections.FromMachines(&machine)
 		matches := machineCollection.AnyFilter(matchesKubernetesVersion(rcp.Spec.AgentConfig.Version))

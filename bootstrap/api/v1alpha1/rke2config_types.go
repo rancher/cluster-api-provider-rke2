@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
@@ -45,7 +46,7 @@ type RKE2ConfigSpec struct {
 	PrivateRegistriesConfig Registry `json:"privateRegistriesConfig,omitempty"`
 }
 
-// RKE2CommonNodeConfig describes some attributes that are common to agent and server nodes
+// RKE2AgentConfig describes some attributes that are common to agent and server nodes.
 type RKE2AgentConfig struct {
 	// DataDir Folder to hold state.
 	//+optional
@@ -121,7 +122,8 @@ type RKE2AgentConfig struct {
 	//+optional
 	RuntimeImage string `json:"runtimeImage,omitempty"`
 
-	// LoadBalancerPort local port for supervisor client load-balancer. If the supervisor and apiserver are not colocated an additional port 1 less than this port will also be used for the apiserver client load-balancer (default: 6444).
+	// LoadBalancerPort local port for supervisor client load-balancer. If the supervisor and apiserver are
+	// not colocated an additional port 1 less than this port will also be used for the apiserver client load-balancer (default: 6444).
 	//+optional
 	LoadBalancerPort int `json:"loadBalancerPort,omitempty"`
 
@@ -183,12 +185,14 @@ type RKE2Config struct {
 	Status RKE2ConfigStatus `json:"status,omitempty"`
 }
 
-func (c *RKE2Config) GetConditions() clusterv1.Conditions {
-	return c.Status.Conditions
+// GetConditions returns the list of conditions for a RKE2Config.
+func (r *RKE2Config) GetConditions() clusterv1.Conditions {
+	return r.Status.Conditions
 }
 
-func (c *RKE2Config) SetConditions(conditions clusterv1.Conditions) {
-	c.Status.Conditions = conditions
+// SetConditions sets the conditions for a RKE2Config.
+func (r *RKE2Config) SetConditions(conditions clusterv1.Conditions) {
+	r.Status.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true
@@ -204,7 +208,7 @@ type RKE2ConfigList struct {
 type CISProfile string
 
 const (
-	// CIS1_23 references RKE2's CIS Profile "cis-1.23"
+	// CIS1_23 references RKE2's CIS Profile "cis-1.23".
 	CIS1_23 CISProfile = "cis-1.23"
 )
 
@@ -251,11 +255,11 @@ type File struct {
 // Only one field may be populated in any given instance. Developers adding new
 // sources of data for target systems should add them here.
 type FileSource struct {
-	// Secret represents a secret that should populate this file.
+	// SecretFileSource represents a secret that should populate this file.
 	Secret SecretFileSource `json:"secret"`
 }
 
-// Adapts a Secret into a FileSource.
+// SecretFileSource adapts a Secret into a FileSource.
 //
 // The contents of the target Secret's Data field will be presented
 // as files using the keys in the Data field as the file names.
@@ -319,6 +323,7 @@ type TLSConfig struct {
 	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
+// ComponentConfig defines the configuration for a Kubernetes Component.
 type ComponentConfig struct {
 	// ExtraEnv is a map of environment variables to pass on to a Kubernetes Component command.
 	//+optional

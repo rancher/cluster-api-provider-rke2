@@ -1,3 +1,4 @@
+---
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha1
 kind: RKE2ConfigTemplate
 metadata:
@@ -6,6 +7,8 @@ metadata:
 spec: 
   template:
     spec:
+      preRKE2Commands:
+        - sleep 30 # fix to give OS time to become ready
       agentConfig:
         version: ${RKE2_VERSION}
         kubelet:

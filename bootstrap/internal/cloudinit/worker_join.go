@@ -20,6 +20,7 @@ import (
 	"fmt"
 )
 
+//nolint:lll
 const (
 	workerCloudInit = `{{.Header}}
 {{template "files" .WriteFiles}}
@@ -35,13 +36,16 @@ runcmd:
 `
 )
 
-// NewInitControlPlane returns the user data string to be used on a controlplane instance.
+// NewJoinWorker returns the user data string to be used on a controlplane instance.
+//
+// nolint:gofumpt
 func NewJoinWorker(input *BaseUserData) ([]byte, error) {
 	input.Header = cloudConfigHeader
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
 	workerCloudJoinWithVersion := fmt.Sprintf(workerCloudInit, input.RKE2Version)
 	userData, err := generate("JoinWorker", workerCloudJoinWithVersion, input)
+
 	if err != nil {
 		return nil, err
 	}

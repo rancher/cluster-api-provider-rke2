@@ -17,13 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
 const (
+	// RKE2ControlPlaneFinalizer allows the controller to clean up resources on delete.
 	RKE2ControlPlaneFinalizer = "rke2.controleplane.cluster.x-k8s.io"
 
 	// RKE2ServerConfigurationAnnotation is a machine annotation that stores the json-marshalled string of RKE2Config
@@ -31,7 +34,7 @@ const (
 	RKE2ServerConfigurationAnnotation = "controlplane.cluster.x-k8s.io/rke2-server-configuration"
 )
 
-// RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane
+// RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane.
 type RKE2ControlPlaneSpec struct {
 	// RKE2AgentSpec contains the node spec for the RKE2 Control plane nodes.
 	bootstrapv1.RKE2ConfigSpec `json:",inline"`
@@ -59,6 +62,7 @@ type RKE2ControlPlaneSpec struct {
 	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
 }
 
+// RKE2ServerConfig specifies configuration for the agent nodes.
 type RKE2ServerConfig struct {
 	// AuditPolicySecret path to the file that defines the audit policy configuration.
 	//+optional
@@ -92,7 +96,8 @@ type RKE2ServerConfig struct {
 	//+optional
 	DisableComponents DisableComponents `json:"disableComponents,omitempty"`
 
-	// CNI describes the CNI Plugins to deploy, one of none, calico, canal, cilium; optionally with multus as the first value to enable the multus meta-plugin (default: canal).
+	// CNI describes the CNI Plugins to deploy, one of none, calico, canal, cilium;
+	// optionally with multus as the first value to enable the multus meta-plugin (default: canal).
 	// +kubebuilder:validation:Enum=none;calico;canal;cilium
 	//+optional
 	CNI CNI `json:"cni,omitempty"`
@@ -178,7 +183,7 @@ type RKE2ControlPlaneStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// RKE2ControlPlane is the Schema for the rke2controlplanes API
+// RKE2ControlPlane is the Schema for the rke2controlplanes API.
 type RKE2ControlPlane struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -189,14 +194,14 @@ type RKE2ControlPlane struct {
 
 //+kubebuilder:object:root=true
 
-// RKE2ControlPlaneList contains a list of RKE2ControlPlane
+// RKE2ControlPlaneList contains a list of RKE2ControlPlane.
 type RKE2ControlPlaneList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RKE2ControlPlane `json:"items"`
 }
 
-// EtcdConfig regroups the ETCD-specific configuration of the control plane
+// EtcdConfig regroups the ETCD-specific configuration of the control plane.
 type EtcdConfig struct {
 	// ExposeEtcdMetrics defines the policy for ETCD Metrics exposure.
 	// if value is true, ETCD metrics will be exposed
@@ -214,7 +219,8 @@ type EtcdConfig struct {
 
 // EtcdBackupConfig describes the backup configuration for ETCD.
 type EtcdBackupConfig struct {
-	// DisableAutomaticSnapshots defines the policy for ETCD snapshots. true means automatic snapshots will be scheduled, false means automatic snapshots will not be scheduled.
+	// DisableAutomaticSnapshots defines the policy for ETCD snapshots.
+	// true means automatic snapshots will be scheduled, false means automatic snapshots will not be scheduled.
 	//+optional
 	DisableAutomaticSnapshots *bool `json:"disableAutomaticSnapshots,omitempty"`
 
@@ -230,7 +236,7 @@ type EtcdBackupConfig struct {
 	//+optional
 	Retention string `json:"retention,omitempty"`
 
-	// Directory Directory to save db snapshots.
+	// Directory to save db snapshots.
 	//+optional
 	Directory string `json:"directory,omitempty"`
 
@@ -239,6 +245,7 @@ type EtcdBackupConfig struct {
 	S3 *EtcdS3 `json:"s3,omitempty"`
 }
 
+// EtcdS3 defines the S3 configuration for ETCD snapshots.
 type EtcdS3 struct {
 	// Endpoint S3 endpoint url (default: "s3.amazonaws.com").
 	Endpoint string `json:"endpoint"`
@@ -273,17 +280,17 @@ type EtcdS3 struct {
 type CNI string
 
 const (
-	// Cilium references the RKE2 CNI Plugin "cilium"
+	// Cilium references the RKE2 CNI Plugin "cilium".
 	Cilium CNI = "cilium"
-	// Calico references the RKE2 CNI Plugin "calico"
+	// Calico references the RKE2 CNI Plugin "calico".
 	Calico CNI = "calico"
-	// Canal references the RKE2 CNI Plugin "canal"
+	// Canal references the RKE2 CNI Plugin "canal".
 	Canal CNI = "canal"
 	// None means that no CNI Plugin will be installed with RKE2, letting the operator install his own CNI afterwards.
 	None CNI = "none"
 )
 
-// DisableComponents describes components of RKE2 (Kubernetes components and plugin components) that should be disabled
+// DisableComponents describes components of RKE2 (Kubernetes components and plugin components) that should be disabled.
 type DisableComponents struct {
 	// KubernetesComponents is a list of Kubernetes components to disable.
 	// +kubebuilder:validation:Enum=scheduler;kubeProxy;cloudController
@@ -298,36 +305,38 @@ type DisableComponents struct {
 type DisabledKubernetesComponent string
 
 const (
-	// Scheduler references the Kube Scheduler Kubernetes components of the control plane/server nodes
+	// Scheduler references the Kube Scheduler Kubernetes components of the control plane/server nodes.
 	Scheduler DisabledKubernetesComponent = "scheduler"
 
-	// KubeProxy references the Kube Proxy Kubernetes components on the agents
+	// KubeProxy references the Kube Proxy Kubernetes components on the agents.
 	KubeProxy DisabledKubernetesComponent = "kubeProxy"
 
-	// CloudController references the Cloud Controller Manager Kubernetes Components on the control plane / server nodes
+	// CloudController references the Cloud Controller Manager Kubernetes Components on the control plane / server nodes.
 	CloudController DisabledKubernetesComponent = "cloudController"
 )
 
-// DisabledItem selects a plugin Components to be disabled.
+// DisabledPluginComponent selects a plugin Components to be disabled.
 type DisabledPluginComponent string
 
 const (
-	// CoreDNS references the RKE2 Plugin "rke2-coredns"
+	// CoreDNS references the RKE2 Plugin "rke2-coredns".
 	CoreDNS DisabledPluginComponent = "rke2-coredns"
-	// IngressNginx references the RKE2 Plugin "rke2-ingress-nginx"
+	// IngressNginx references the RKE2 Plugin "rke2-ingress-nginx".
 	IngressNginx DisabledPluginComponent = "rke2-ingress-nginx"
-	// MetricsServer references the RKE2 Plugin "rke2-metrics-server"
+	// MetricsServer references the RKE2 Plugin "rke2-metrics-server".
 	MetricsServer DisabledPluginComponent = "rke2-metrics-server"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits
 	SchemeBuilder.Register(&RKE2ControlPlane{}, &RKE2ControlPlaneList{})
 }
 
-func (c *RKE2ControlPlane) GetConditions() clusterv1.Conditions {
-	return c.Status.Conditions
+// GetConditions returns the list of conditions for a RKE2ControlPlane object.
+func (r *RKE2ControlPlane) GetConditions() clusterv1.Conditions {
+	return r.Status.Conditions
 }
 
-func (c *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
-	c.Status.Conditions = conditions
+// SetConditions sets the list of conditions for a RKE2ControlPlane object.
+func (r *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
+	r.Status.Conditions = conditions
 }

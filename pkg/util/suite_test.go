@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-	//+kubebuilder:scaffold:imports
 )
 
 func TestUtil(t *testing.T) {
@@ -32,5 +31,4 @@ func TestUtil(t *testing.T) {
 	RunSpecsWithDefaultAndCustomReporters(t,
 		"Util Suite",
 		[]Reporter{printer.NewlineReporter{}})
-
 }

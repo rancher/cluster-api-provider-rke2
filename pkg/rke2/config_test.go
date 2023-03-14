@@ -20,19 +20,22 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"sigs.k8s.io/cluster-api/api/v1beta1"
+
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 )
 
 var _ = Describe("RKE2ServerConfig", func() {
-	var opts *RKE2ServerConfigOpts
+	var opts *ServerConfigOpts
 
 	BeforeEach(func() {
-		opts = &RKE2ServerConfigOpts{
+		opts = &ServerConfigOpts{
 			Cluster: v1beta1.Cluster{
 				Spec: v1beta1.ClusterSpec{
 					ClusterNetwork: &v1beta1.ClusterNetwork{
@@ -181,7 +184,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.DisableKubeProxy).To(BeTrue())
 		Expect(rke2ServerConfig.DisableCloudController).To(BeTrue())
 		Expect(rke2ServerConfig.DisableScheduler).To(BeTrue())
-		//Expect(rke2ServerConfig.EtcdDisableSnapshots).To(BeFalse())
+		// Expect(rke2ServerConfig.EtcdDisableSnapshots).To(BeFalse())
 		Expect(rke2ServerConfig.EtcdExposeMetrics).To(Equal(serverConfig.Etcd.ExposeMetrics))
 		Expect(rke2ServerConfig.EtcdS3).To(BeTrue())
 		Expect(rke2ServerConfig.EtcdS3AccessKey).To(Equal("test_id"))
@@ -237,10 +240,10 @@ var _ = Describe("RKE2ServerConfig", func() {
 })
 
 var _ = Describe("RKE2 Agent Config", func() {
-	var opts *RKE2AgentConfigOpts
+	var opts *AgentConfigOpts
 
 	BeforeEach(func() {
-		opts = &RKE2AgentConfigOpts{
+		opts = &AgentConfigOpts{
 			ServerURL: "testurl",
 			Ctx:       context.Background(),
 			Token:     "testtoken",
@@ -271,7 +274,7 @@ var _ = Describe("RKE2 Agent Config", func() {
 				LoadBalancerPort:      1234,
 				NodeLabels:            []string{"testlabel"},
 				NodeTaints:            []string{"testtaint"},
-				CISProfile:            bootstrapv1.CIS1_23,
+				CISProfile:            bootstrapv1.CIS1_23, //nolint:nosnakecase
 				ProtectKernelDefaults: true,
 				ResolvConf: &corev1.ObjectReference{
 					Name:      "test",
