@@ -29,6 +29,7 @@ import (
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/consts"
 )
 
 var _ = Describe("RKE2ServerConfig", func() {
@@ -224,17 +225,17 @@ var _ = Describe("RKE2ServerConfig", func() {
 
 		Expect(files[0].Path).To(Equal(rke2ServerConfig.AuditPolicyFile))
 		Expect(files[0].Content).To(Equal("test_audit"))
-		Expect(files[0].Owner).To(Equal("root:root"))
-		Expect(files[0].Permissions).To(Equal("0644"))
+		Expect(files[0].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[0].Permissions).To(Equal(consts.DefaultFileMode))
 
 		Expect(files[1].Path).To(Equal(rke2ServerConfig.CloudProviderConfig))
 		Expect(files[1].Content).To(Equal("test_cloud_config"))
-		Expect(files[1].Owner).To(Equal("root:root"))
-		Expect(files[1].Permissions).To(Equal("0644"))
+		Expect(files[1].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[1].Permissions).To(Equal(consts.DefaultFileMode))
 
 		Expect(files[2].Path).To(Equal(rke2ServerConfig.EtcdS3EndpointCA))
 		Expect(files[2].Content).To(Equal("test_ca"))
-		Expect(files[2].Owner).To(Equal("root:root"))
+		Expect(files[2].Owner).To(Equal(consts.DefaultFileOwner))
 		Expect(files[2].Permissions).To(Equal("0640"))
 	})
 })
@@ -324,12 +325,12 @@ var _ = Describe("RKE2 Agent Config", func() {
 
 		Expect(files[1].Path).To(Equal(agentConfig.ImageCredentialProviderConfig))
 		Expect(files[1].Content).To(Equal("test_credential_config"))
-		Expect(files[1].Owner).To(Equal("root:root"))
-		Expect(files[1].Permissions).To(Equal("0644"))
+		Expect(files[1].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[1].Permissions).To(Equal(consts.DefaultFileMode))
 
 		Expect(files[2].Path).To(Equal(agentConfig.ResolvConf))
 		Expect(files[2].Content).To(Equal("test_resolv_conf"))
-		Expect(files[2].Owner).To(Equal("root:root"))
-		Expect(files[2].Permissions).To(Equal("0644"))
+		Expect(files[2].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[2].Permissions).To(Equal(consts.DefaultFileMode))
 	})
 })

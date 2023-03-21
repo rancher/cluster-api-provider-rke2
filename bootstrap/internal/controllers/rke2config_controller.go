@@ -44,6 +44,7 @@ import (
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/consts"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/locking"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
@@ -51,7 +52,6 @@ import (
 )
 
 const (
-	fileOwner        string = "root:root"
 	filePermissions  string = "0640"
 	registrationPort int    = 9345
 	serverURLFormat  string = "https://%v:%v"
@@ -366,7 +366,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	initConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
 		Content:     string(b),
-		Owner:       fileOwner,
+		Owner:       consts.DefaultFileOwner,
 		Permissions: filePermissions,
 	}
 
@@ -456,7 +456,7 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 	initRegistriesFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2RegistriesLocation,
 		Content:     string(registriesYAML),
-		Owner:       fileOwner,
+		Owner:       consts.DefaultFileOwner,
 		Permissions: filePermissions,
 	}
 
@@ -530,7 +530,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	initConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
 		Content:     string(b),
-		Owner:       fileOwner,
+		Owner:       consts.DefaultFileOwner,
 		Permissions: filePermissions,
 	}
 
@@ -640,7 +640,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	wkJoinConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
 		Content:     string(b),
-		Owner:       fileOwner,
+		Owner:       consts.DefaultFileOwner,
 		Permissions: filePermissions,
 	}
 

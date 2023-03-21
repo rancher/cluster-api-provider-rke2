@@ -37,12 +37,10 @@ import (
 	"sigs.k8s.io/cluster-api/util/certs"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/consts"
 )
 
 const (
-	// rootOwnerValue is the Certificate Root Owner for creating new Certificate Authority.
-	rootOwnerValue = "root:root"
-
 	// DefaultCertificatesDir is the default location (file path) where the provider will put the certificates, this location will then
 	// be automatically used by RKE2 to use the pre-defined certificates instead of generating them.
 	DefaultCertificatesDir = "/var/lib/rancher/rke2/server/tls"
@@ -266,7 +264,7 @@ func (c *Certificate) AsFiles() []bootstrapv1.File {
 	if len(c.KeyPair.Cert) > 0 {
 		out = append(out, bootstrapv1.File{
 			Path:        c.CertFile,
-			Owner:       rootOwnerValue,
+			Owner:       consts.DefaultFileOwner,
 			Permissions: "0640",
 			Content:     string(c.KeyPair.Cert),
 		})
@@ -275,7 +273,7 @@ func (c *Certificate) AsFiles() []bootstrapv1.File {
 	if len(c.KeyPair.Key) > 0 {
 		out = append(out, bootstrapv1.File{
 			Path:        c.KeyFile,
-			Owner:       rootOwnerValue,
+			Owner:       consts.DefaultFileOwner,
 			Permissions: "0600",
 			Content:     string(c.KeyPair.Key),
 		})

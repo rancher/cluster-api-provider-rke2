@@ -43,7 +43,7 @@ const (
 	DefaultFileOwner = "root:root"
 
 	// DefaultFileMode is the default mode of the files created by the controller.
-	DefaultFileMode = "644"
+	DefaultFileMode = "0644"
 
 	// FileModeRootExecutable is the mode of the files created by the controller when the owner is root.
 	FileModeRootExecutable = "700"
