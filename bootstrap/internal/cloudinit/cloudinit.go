@@ -23,6 +23,7 @@ import (
 	"text/template"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
@@ -39,6 +40,7 @@ func templateYAMLIndent(i int, input string) string {
 }
 
 const (
+	defaultYamlIndent = 2
 	cloudConfigHeader = `## template: jinja
 #cloud-config
 `
@@ -70,7 +72,7 @@ write_files:{{ range . }}
 	sentinelFileCommand = `echo success > /run/cluster-api/bootstrap-success.complete`
 
 	ntpTemplate = `{{ define "ntp" -}}{{ if . -}}
-	ntp:
+ntp:
   enabled: true
   servers:{{ range .}}
   - {{printf "%q" .}}
@@ -93,6 +95,7 @@ type BaseUserData struct {
 	AirGapped           bool
 	NTPServers          []string
 	CISEnabled          bool
+	AdditionalCloudInit string
 }
 
 func generate(kind string, tpl string, data interface{}) ([]byte, error) {
@@ -120,4 +123,38 @@ func generate(kind string, tpl string, data interface{}) ([]byte, error) {
 	}
 
 	return out.Bytes(), nil
+}
+
+func cleanupAdditionalCloudInit(cloudInitData string) (string, error) {
+	m := make(map[string]interface{})
+
+	err := yaml.Unmarshal([]byte(cloudInitData), m)
+	if err != nil {
+		return "", err
+	}
+
+	// Remove the runcmd section
+	delete(m, "runcmd")
+
+	// Remove the write_files section
+	delete(m, "write_files")
+
+	// Remove the ntp section
+	delete(m, "ntp")
+
+	bytesBuf := bytes.Buffer{}
+	encoder := yaml.NewEncoder(&bytesBuf)
+	encoder.SetIndent(defaultYamlIndent)
+
+	err = encoder.Encode(m)
+	if err != nil {
+		return "", err
+	}
+
+	res := bytesBuf.String()
+	if res == "{}\n" {
+		return "", nil
+	}
+
+	return res, nil
 }

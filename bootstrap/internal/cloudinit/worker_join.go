@@ -35,6 +35,7 @@ runcmd:
   - 'mkdir /run/cluster-api' 
   - '{{ .SentinelFileCommand }}'
 {{- template "commands" .PostRKE2Commands }}
+{{ .AdditionalCloudInit -}}
 `
 )
 
@@ -45,6 +46,14 @@ func NewJoinWorker(input *BaseUserData) ([]byte, error) {
 	input.Header = cloudConfigHeader
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
+
+	var err error
+
+	input.AdditionalCloudInit, err = cleanupAdditionalCloudInit(input.AdditionalCloudInit)
+	if err != nil {
+		return nil, err
+	}
+
 	workerCloudJoinWithVersion := fmt.Sprintf(workerCloudInit, input.RKE2Version)
 	userData, err := generate("JoinWorker", workerCloudJoinWithVersion, input)
 

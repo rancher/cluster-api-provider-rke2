@@ -27,6 +27,14 @@ func NewJoinControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	input.Header = cloudConfigHeader
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
+
+	var err error
+
+	input.AdditionalCloudInit, err = cleanupAdditionalCloudInit(input.AdditionalCloudInit)
+	if err != nil {
+		return nil, err
+	}
+
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
 	userData, err := generate("JoinControlplane", controlPlaneCloudJoinWithVersion, input)
 

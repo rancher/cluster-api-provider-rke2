@@ -131,7 +131,7 @@ var _ = Describe("WorkerCISTest", func() {
 			RKE2Version: "v1.25.6+rke2r1",
 		}
 	})
-	It("Should use the RKE2 CIS Node Preparation script", func() {
+	It("Should run the CIS script", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
 		workerCloudInitString := string(workerCloudInitData)
@@ -152,6 +152,104 @@ runcmd:
   - 'systemctl start rke2-agent.service'
   - 'mkdir /run/cluster-api' 
   - 'echo success > /run/cluster-api/bootstrap-success.complete'
+`))
+	})
+})
+
+var _ = Describe("CleanupCloudInit test", func() {
+	cloudInitData := `## template: jinja
+#cloud-config
+hello: world
+users:
+- name: rke2
+write_files:
+-   path: 
+    content: |
+
+runcmd:
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION= INSTALL_RKE2_TYPE=\"agent\" sh -s -'
+  - 'systemctl enable rke2-agent.service'
+  - 'systemctl start rke2-agent.service'
+  - 'mkdir /run/cluster-api' 
+  - 'echo success > /run/cluster-api/bootstrap-success.complete'
+`
+
+	It("Should remove the runcmd, write_files and ntp lines", func() {
+		cleanCloudInitData, err := cleanupAdditionalCloudInit(cloudInitData)
+		Expect(cleanCloudInitData).To(Equal(`hello: world
+users:
+  - name: rke2
+`))
+		Expect(err).ToNot(HaveOccurred())
+	})
+})
+
+var _ = Describe("CloudInit with custom entries", func() {
+	var input *BaseUserData
+	BeforeEach(func() {
+		cloudInitData := `## template: jinja
+#cloud-config
+device_aliases: {'ephemeral0': '/dev/vdb'}
+disk_setup:
+  ephemeral0:
+    table_type: mbr
+    layout: False
+    overwrite: False
+
+fs_setup:
+  - label: ephemeral0
+    filesystem: ext4
+    device: ephemeral0.0
+
+write_files:
+-   path: /etc/hosts
+    content: |
+      192.168.0.1 test
+
+runcmd:
+  - 'print hello world' 
+`
+		input = &BaseUserData{
+			AirGapped:           false,
+			CISEnabled:          true,
+			RKE2Version:         "v1.25.6+rke2r1",
+			AdditionalCloudInit: cloudInitData,
+		}
+	})
+
+	It("Should remove the runcmd, write_files and ntp lines", func() {
+		workerCloudInitData, err := NewJoinWorker(input)
+		Expect(err).ToNot(HaveOccurred())
+		workerCloudInitString := string(workerCloudInitData)
+		_, err = GinkgoWriter.Write(workerCloudInitData)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(workerCloudInitString).To(Equal(`## template: jinja
+#cloud-config
+
+write_files:
+-   path: 
+    content: |
+      
+
+runcmd:
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - '/opt/rke2-cis-script.sh'
+  - 'systemctl enable rke2-agent.service'
+  - 'systemctl start rke2-agent.service'
+  - 'mkdir /run/cluster-api' 
+  - 'echo success > /run/cluster-api/bootstrap-success.complete'
+device_aliases:
+  ephemeral0: /dev/vdb
+disk_setup:
+  ephemeral0:
+    layout: false
+    overwrite: false
+    table_type: mbr
+fs_setup:
+  - device: ephemeral0.0
+    filesystem: ext4
+    label: ephemeral0
 `))
 	})
 })
