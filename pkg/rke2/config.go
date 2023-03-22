@@ -177,8 +177,8 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv
 		files = append(files, bootstrapv1.File{
 			Path:        rke2ServerConfig.AuditPolicyFile,
 			Content:     string(auditPolicy),
-			Owner:       "root:root",
-			Permissions: "0644",
+			Owner:       consts.DefaultFileOwner,
+			Permissions: consts.DefaultFileMode,
 		})
 	}
 
@@ -218,8 +218,8 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv
 		files = append(files, bootstrapv1.File{
 			Path:        rke2ServerConfig.CloudProviderConfig,
 			Content:     cloudProviderConfig,
-			Owner:       "root:root",
-			Permissions: "0644",
+			Owner:       consts.DefaultFileOwner,
+			Permissions: consts.DefaultFileMode,
 		})
 	}
 
@@ -295,7 +295,7 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv
 			files = append(files, bootstrapv1.File{
 				Path:        rke2ServerConfig.EtcdS3EndpointCA,
 				Content:     string(caCert),
-				Owner:       "root:root",
+				Owner:       consts.DefaultFileOwner,
 				Permissions: "0640",
 			})
 		}
@@ -435,8 +435,8 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 		files = append(files, bootstrapv1.File{
 			Path:        rke2AgentConfig.CloudProviderConfig,
 			Content:     cloudProviderConfig,
-			Owner:       "root:root",
-			Permissions: "0644",
+			Owner:       consts.DefaultFileOwner,
+			Permissions: consts.DefaultFileMode,
 		})
 	}
 
@@ -469,8 +469,8 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 		files = append(files, bootstrapv1.File{
 			Path:        rke2AgentConfig.ImageCredentialProviderConfig,
 			Content:     credentialConfig,
-			Owner:       "root:root",
-			Permissions: "0644",
+			Owner:       consts.DefaultFileOwner,
+			Permissions: consts.DefaultFileMode,
 		})
 	}
 
@@ -503,8 +503,8 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 		files = append(files, bootstrapv1.File{
 			Path:        rke2AgentConfig.ResolvConf,
 			Content:     resolvConf,
-			Owner:       "root:root",
-			Permissions: "0644",
+			Owner:       consts.DefaultFileOwner,
+			Permissions: consts.DefaultFileMode,
 		})
 	}
 
