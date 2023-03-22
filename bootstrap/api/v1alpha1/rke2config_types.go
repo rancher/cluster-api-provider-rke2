@@ -335,7 +335,7 @@ type ComponentConfig struct {
 	//+optional
 	ExtraEnv map[string]string `json:"extraEnv,omitempty"`
 
-	// ExtraArgs is a map of command line arguments to pass to a Kubernetes Component command.
+	// ExtraArgs is a list of command line arguments (format: flag=value) to pass to a Kubernetes Component command.
 	//+optional
 	ExtraArgs []string `json:"extraArgs,omitempty"`
 

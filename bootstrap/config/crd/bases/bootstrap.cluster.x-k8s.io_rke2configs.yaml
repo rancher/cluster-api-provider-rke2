@@ -109,8 +109,8 @@ spec:
                     description: KubeProxyArgs Customized flag for kube-proxy process.
                     properties:
                       extraArgs:
-                        description: ExtraArgs is a map of command line arguments
-                          to pass to a Kubernetes Component command.
+                        description: 'ExtraArgs is a list of command line arguments
+                          (format: flag=value) to pass to a Kubernetes Component command.'
                         items:
                           type: string
                         type: array
@@ -135,8 +135,8 @@ spec:
                     description: KubeletArgs Customized flag for kubelet process.
                     properties:
                       extraArgs:
-                        description: ExtraArgs is a map of command line arguments
-                          to pass to a Kubernetes Component command.
+                        description: 'ExtraArgs is a list of command line arguments
+                          (format: flag=value) to pass to a Kubernetes Component command.'
                         items:
                           type: string
                         type: array
