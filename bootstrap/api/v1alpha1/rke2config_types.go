@@ -135,10 +135,11 @@ type RKE2AgentConfig struct {
 	// basically supposing that online container registries and RKE2 install scripts are not reachable.
 	AirGapped bool `json:"airGapped,omitempty"`
 
-	// AdditionalCloudInit is a field that allows users to specify additional cloud-init configuration to be included in the
+	// AdditionalUserData is a field that allows users to specify additional cloud-init configuration to be included in the
 	// generated cloud-init script.
+	// NOTE: All fields of the UserData that are managed by the RKE2Config controller will be ignored, this include "write_files", "runcmd", "ntp".
 	//+optional
-	AdditionalCloudInit string `json:"additionalCloudInit,omitempty"`
+	AdditionalUserData string `json:"additionalUserData,omitempty"`
 }
 
 // NTP defines input for generated ntp in cloud-init.

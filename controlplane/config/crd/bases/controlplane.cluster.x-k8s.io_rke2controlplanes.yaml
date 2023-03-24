@@ -38,10 +38,12 @@ spec:
               agentConfig:
                 description: AgentConfig specifies configuration for the agent nodes.
                 properties:
-                  additionalCloudInit:
-                    description: AdditionalCloudInit is a field that allows users
+                  additionalUserData:
+                    description: 'AdditionalUserData is a field that allows users
                       to specify additional cloud-init configuration to be included
-                      in the generated cloud-init script.
+                      in the generated cloud-init script. NOTE: All fields of the
+                      UserData that are managed by the RKE2Config controller will
+                      be ignored, this include "write_files", "runcmd", "ntp".'
                     type: string
                   airGapped:
                     description: AirGapped is a boolean value to define if the bootstrapping

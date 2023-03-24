@@ -19,6 +19,7 @@ package cloudinit
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"text/template"
 
@@ -28,9 +29,15 @@ import (
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
-var defaultTemplateFuncMap = template.FuncMap{
-	"Indent": templateYAMLIndent,
-}
+var (
+	// defaultTemplateFuncMap is the default set of functions for the template.
+	defaultTemplateFuncMap = template.FuncMap{
+		"Indent": templateYAMLIndent,
+	}
+
+	// ignoredCloudInitFields is a list of fields that are ignored from additionalCloudInit when generating final configuration.
+	ignoredCloudInitFields = []string{"runcmd", "write_files", "ntp"}
+)
 
 func templateYAMLIndent(i int, input string) string {
 	split := strings.Split(input, "\n")
@@ -128,27 +135,21 @@ func generate(kind string, tpl string, data interface{}) ([]byte, error) {
 func cleanupAdditionalCloudInit(cloudInitData string) (string, error) {
 	m := make(map[string]interface{})
 
-	err := yaml.Unmarshal([]byte(cloudInitData), m)
-	if err != nil {
-		return "", err
+	if err := yaml.Unmarshal([]byte(cloudInitData), m); err != nil {
+		return "", fmt.Errorf("failed to unmarshal additional cloud-init datad: %w, please check if you put valid yaml data", err)
 	}
 
-	// Remove the runcmd section
-	delete(m, "runcmd")
-
-	// Remove the write_files section
-	delete(m, "write_files")
-
-	// Remove the ntp section
-	delete(m, "ntp")
+	// Remove ignored fields from the map
+	for _, field := range ignoredCloudInitFields {
+		delete(m, field)
+	}
 
 	bytesBuf := bytes.Buffer{}
 	encoder := yaml.NewEncoder(&bytesBuf)
 	encoder.SetIndent(defaultYamlIndent)
 
-	err = encoder.Encode(m)
-	if err != nil {
-		return "", err
+	if err := encoder.Encode(m); err != nil {
+		return "", fmt.Errorf("failed to marshal additional cloud-init data: %w", err)
 	}
 
 	res := bytesBuf.String()

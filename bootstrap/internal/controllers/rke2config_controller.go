@@ -408,7 +408,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			RKE2Version:         scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:          files,
 			NTPServers:          ntpServers,
-			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalCloudInit,
+			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData,
 		},
 		Certificates: certificates,
 	}
@@ -573,7 +573,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			RKE2Version:         scope.Config.Spec.AgentConfig.Version,
 			WriteFiles:          files,
 			NTPServers:          ntpServers,
-			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalCloudInit,
+			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData,
 		},
 	}
 
@@ -665,7 +665,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		RKE2Version:         scope.Config.Spec.AgentConfig.Version,
 		WriteFiles:          files,
 		NTPServers:          ntpServers,
-		AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalCloudInit,
+		AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData,
 	}
 
 	cloudInitData, err := cloudinit.NewJoinWorker(wkInput)
