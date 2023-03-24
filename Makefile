@@ -203,8 +203,8 @@ generate-modules: ## Run go mod tidy to ensure modules are up to date
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT) ## Lint the codebase
-	cd $(CAPBPR_DIR); $(GOLANGCI_LINT) run -v --timeout 3m $(GOLANGCI_LINT_EXTRA_ARGS)
-	cd $(CAPRKE2_DIR); $(GOLANGCI_LINT) run -v --timeout 3m $(GOLANGCI_LINT_EXTRA_ARGS)
+	cd $(CAPBPR_DIR); $(GOLANGCI_LINT) run -v --timeout 5m $(GOLANGCI_LINT_EXTRA_ARGS)
+	cd $(CAPRKE2_DIR); $(GOLANGCI_LINT) run -v --timeout 5m $(GOLANGCI_LINT_EXTRA_ARGS)
 	./scripts/ci-lint-dockerfiles.sh $(HADOLINT_VER) $(HADOLINT_FAILURE_THRESHOLD)
 
 .PHONY: lint-dockerfiles

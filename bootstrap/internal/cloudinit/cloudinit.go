@@ -19,17 +19,25 @@ package cloudinit
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
-var defaultTemplateFuncMap = template.FuncMap{
-	"Indent": templateYAMLIndent,
-}
+var (
+	// defaultTemplateFuncMap is the default set of functions for the template.
+	defaultTemplateFuncMap = template.FuncMap{
+		"Indent": templateYAMLIndent,
+	}
+
+	// ignoredCloudInitFields is a list of fields that are ignored from additionalCloudInit when generating final configuration.
+	ignoredCloudInitFields = []string{"runcmd", "write_files", "ntp"}
+)
 
 func templateYAMLIndent(i int, input string) string {
 	split := strings.Split(input, "\n")
@@ -39,6 +47,7 @@ func templateYAMLIndent(i int, input string) string {
 }
 
 const (
+	defaultYamlIndent = 2
 	cloudConfigHeader = `## template: jinja
 #cloud-config
 `
@@ -70,7 +79,7 @@ write_files:{{ range . }}
 	sentinelFileCommand = `echo success > /run/cluster-api/bootstrap-success.complete`
 
 	ntpTemplate = `{{ define "ntp" -}}{{ if . -}}
-	ntp:
+ntp:
   enabled: true
   servers:{{ range .}}
   - {{printf "%q" .}}
@@ -93,6 +102,7 @@ type BaseUserData struct {
 	AirGapped           bool
 	NTPServers          []string
 	CISEnabled          bool
+	AdditionalCloudInit string
 }
 
 func generate(kind string, tpl string, data interface{}) ([]byte, error) {
@@ -120,4 +130,32 @@ func generate(kind string, tpl string, data interface{}) ([]byte, error) {
 	}
 
 	return out.Bytes(), nil
+}
+
+func cleanupAdditionalCloudInit(cloudInitData string) (string, error) {
+	m := make(map[string]interface{})
+
+	if err := yaml.Unmarshal([]byte(cloudInitData), m); err != nil {
+		return "", fmt.Errorf("failed to unmarshal additional cloud-init datad: %w, please check if you put valid yaml data", err)
+	}
+
+	// Remove ignored fields from the map
+	for _, field := range ignoredCloudInitFields {
+		delete(m, field)
+	}
+
+	bytesBuf := bytes.Buffer{}
+	encoder := yaml.NewEncoder(&bytesBuf)
+	encoder.SetIndent(defaultYamlIndent)
+
+	if err := encoder.Encode(m); err != nil {
+		return "", fmt.Errorf("failed to marshal additional cloud-init data: %w", err)
+	}
+
+	res := bytesBuf.String()
+	if res == "{}\n" {
+		return "", nil
+	}
+
+	return res, nil
 }

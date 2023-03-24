@@ -134,6 +134,12 @@ type RKE2AgentConfig struct {
 	// AirGapped is a boolean value to define if the bootstrapping should be air-gapped,
 	// basically supposing that online container registries and RKE2 install scripts are not reachable.
 	AirGapped bool `json:"airGapped,omitempty"`
+
+	// AdditionalUserData is a field that allows users to specify additional cloud-init configuration to be included in the
+	// generated cloud-init script.
+	// NOTE: All fields of the UserData that are managed by the RKE2Config controller will be ignored, this include "write_files", "runcmd", "ntp".
+	//+optional
+	AdditionalUserData string `json:"additionalUserData,omitempty"`
 }
 
 // NTP defines input for generated ntp in cloud-init.

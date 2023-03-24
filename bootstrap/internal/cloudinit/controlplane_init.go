@@ -37,6 +37,7 @@ runcmd:
   - 'mkdir /run/cluster-api' 
   - '{{ .SentinelFileCommand }}'
 {{- template "commands" .PostRKE2Commands }}
+{{ .AdditionalCloudInit -}}
 `
 )
 
@@ -54,6 +55,14 @@ func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	input.WriteFiles = append(input.WriteFiles, input.Certificates.AsFiles()...)
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
+
+	var err error
+
+	input.AdditionalCloudInit, err = cleanupAdditionalCloudInit(input.AdditionalCloudInit)
+	if err != nil {
+		return nil, err
+	}
+
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
 	userData, err := generate("InitControlplane", controlPlaneCloudJoinWithVersion, input)
 
