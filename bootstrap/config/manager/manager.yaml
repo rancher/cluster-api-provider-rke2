@@ -25,11 +25,6 @@ spec:
         - --metrics-bind-addr=localhost:8080
         image: controller:latest
         name: manager
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - "ALL"
         ports:
         - containerPort: 9440
           name: healthz
