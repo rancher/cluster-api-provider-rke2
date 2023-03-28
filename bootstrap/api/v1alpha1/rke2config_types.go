@@ -23,6 +23,18 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
+// Format specifies the output format of the bootstrap data
+// +kubebuilder:validation:Enum=cloud-config;ignition
+type Format string
+
+const (
+	// CloudConfig make the bootstrap data to be of cloud-config format.
+	CloudConfig Format = "cloud-config"
+
+	// Ignition make the bootstrap data to be of Ignition format.
+	Ignition Format = "ignition"
+)
+
 // RKE2ConfigSpec defines the desired state of RKE2Config.
 type RKE2ConfigSpec struct {
 	// Files specifies extra files to be passed to user_data upon creation.
@@ -135,11 +147,26 @@ type RKE2AgentConfig struct {
 	// basically supposing that online container registries and RKE2 install scripts are not reachable.
 	AirGapped bool `json:"airGapped,omitempty"`
 
-	// AdditionalUserData is a field that allows users to specify additional cloud-init configuration to be included in the
-	// generated cloud-init script.
-	// NOTE: All fields of the UserData that are managed by the RKE2Config controller will be ignored, this include "write_files", "runcmd", "ntp".
+	// Format specifies the output format of the bootstrap data. Defaults to cloud-config.
+	// +optional
+	Format Format `json:"format,omitempty"`
+
+	// AdditionalUserData is a field that allows users to specify additional cloud-init or ignition configuration to be included in the
+	// generated cloud-init/ignition script.
 	//+optional
-	AdditionalUserData string `json:"additionalUserData,omitempty"`
+	AdditionalUserData AdditionalUserData `json:"additionalUserData,omitempty"`
+}
+
+// AdditionalUserData is a field that allows users to specify additional cloud-init configuration .
+type AdditionalUserData struct {
+	// In case of using ignition, the data format is documented here: https://kinvolk.io/docs/flatcar-container-linux/latest/provisioning/cl-config/
+	// NOTE: All fields of the UserData that are managed by the RKE2Config controller will be ignored, this include "write_files", "runcmd", "ntp".
+	// +optional
+	Config string `json:"config,omitempty"`
+
+	// Strict controls if Config should be strictly parsed. If so, warnings are treated as errors.
+	// +optional
+	Strict bool `json:"strict,omitempty"`
 }
 
 // NTP defines input for generated ntp in cloud-init.

@@ -51,13 +51,23 @@ spec:
                           nodes.
                         properties:
                           additionalUserData:
-                            description: 'AdditionalUserData is a field that allows
-                              users to specify additional cloud-init configuration
-                              to be included in the generated cloud-init script. NOTE:
-                              All fields of the UserData that are managed by the RKE2Config
-                              controller will be ignored, this include "write_files",
-                              "runcmd", "ntp".'
-                            type: string
+                            description: AdditionalUserData is a field that allows
+                              users to specify additional cloud-init or ignition configuration
+                              to be included in the generated cloud-init/ignition
+                              script.
+                            properties:
+                              config:
+                                description: 'In case of using ignition, the data
+                                  format is documented here: https://kinvolk.io/docs/flatcar-container-linux/latest/provisioning/cl-config/
+                                  NOTE: All fields of the UserData that are managed
+                                  by the RKE2Config controller will be ignored, this
+                                  include "write_files", "runcmd", "ntp".'
+                                type: string
+                              strict:
+                                description: Strict controls if Config should be strictly
+                                  parsed. If so, warnings are treated as errors.
+                                type: boolean
+                            type: object
                           airGapped:
                             description: AirGapped is a boolean value to define if
                               the bootstrapping should be air-gapped, basically supposing
@@ -86,6 +96,13 @@ spec:
                               value is false, Containerd will run without the above
                               flag
                             type: boolean
+                          format:
+                            description: Format specifies the output format of the
+                              bootstrap data. Defaults to cloud-config.
+                            enum:
+                            - cloud-config
+                            - ignition
+                            type: string
                           imageCredentialProviderConfigMap:
                             description: ImageCredentialProviderConfigMap is a reference
                               to the ConfigMap that contains credential provider plugin
