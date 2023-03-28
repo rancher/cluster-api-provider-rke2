@@ -42,10 +42,11 @@ var _ webhook.Defaulter = &RKE2Config{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2Config) Default() {
-	defaultRKE2ConfigSpec(&r.Spec)
+	DefaultRKE2ConfigSpec(&r.Spec)
 }
 
-func defaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
+// DefaultRKE2ConfigSpec defaults the RKE2ConfigSpec.
+func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 	if spec.AgentConfig.Format == "" {
 		spec.AgentConfig.Format = CloudConfig
 	}
@@ -57,12 +58,12 @@ var _ webhook.Validator = &RKE2Config{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2Config) ValidateCreate() error {
-	return validateRKE2ConfigSpec(r.Name, &r.Spec)
+	return ValidateRKE2ConfigSpec(r.Name, &r.Spec)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2Config) ValidateUpdate(_ runtime.Object) error {
-	return validateRKE2ConfigSpec(r.Name, &r.Spec)
+	return ValidateRKE2ConfigSpec(r.Name, &r.Spec)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
@@ -70,7 +71,8 @@ func (r *RKE2Config) ValidateDelete() error {
 	return nil
 }
 
-func validateRKE2ConfigSpec(name string, spec *RKE2ConfigSpec) error {
+// ValidateRKE2ConfigSpec validates the RKE2ConfigSpec.
+func ValidateRKE2ConfigSpec(name string, spec *RKE2ConfigSpec) error {
 	allErrs := spec.validate(field.NewPath("spec"))
 
 	if len(allErrs) == 0 {

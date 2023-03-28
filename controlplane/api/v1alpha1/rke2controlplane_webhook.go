@@ -21,6 +21,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
 // log is for logging in this package.
@@ -39,7 +41,7 @@ var _ webhook.Defaulter = &RKE2ControlPlane{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) Default() {
-	rke2controlplanelog.Info("default", "name", r.Name)
+	bootstrapv1.DefaultRKE2ConfigSpec(&r.Spec.RKE2ConfigSpec)
 }
 
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplane,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes,verbs=create;update,versions=v1alpha1,name=vrke2controlplane.kb.io,admissionReviewVersions=v1
@@ -48,16 +50,12 @@ var _ webhook.Validator = &RKE2ControlPlane{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateCreate() error {
-	rke2controlplanelog.Info("validate create", "name", r.Name)
-
-	return nil
+	return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) error {
-	rke2controlplanelog.Info("validate update", "name", r.Name)
-
-	return nil
+	return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
