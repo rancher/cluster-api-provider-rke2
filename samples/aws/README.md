@@ -141,3 +141,34 @@ Cluster/rke2-aws                                              True              
   └─MachineDeployment/rke2-aws-md-0                           True                     18m
     └─2 Machines...                                           True                     19m    See rke2-aws-md-0-6d47bf584d-g2ljz, rke2-aws-md-0-6d47bf584d-m9z8h
 ```
+
+## Ignition based bootstrap
+
+Make sure that `BootstrapFormatIgnition` feature gate is enable for CAPA manager, you can do it
+by changing flag in the CAPA manager deployment:
+
+```yaml
+containers:
+- args:
+  - --feature-gates=EKS=true,EKSEnableIAM=false,EKSAllowAddRoles=false,EKSFargate=false,MachinePool=false,EventBridgeInstanceState=false,AutoControllerIdentityCreator=true,BootstrapFormatIgnition=true,ExternalResourceGC=false
+  ...
+  name: manager
+```
+or by setting the following environment variable before installing CAPA with `clusterctl`:
+
+```bash
+export BOOTSTRAP_FORMAT_IGNITION=true
+```
+
+For the Ignition based bootstrap, you will also need to set the following environment variables:
+
+```bash
+export AWS_S3_BUCKET_NAME=<YOUR_AWS_S3_BUCKET_NAME>
+```
+
+Now you can generate manifests from the cluster template:
+
+```bash
+clusterctl generate cluster --from https://github.com/rancher-sandbox/cluster-api-provider-rke2/blob/main/samples/aws/ignition-external/cluster-template-aws-ignition-external-cloud-provider.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
+```
+
