@@ -44,6 +44,38 @@ const (
 
 var ctx = ctrl.SetupSignalHandler()
 
+func TestControlPlaneInitMutex_DoubleLock(t *testing.T) {
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	g.Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
+	g.Expect(corev1.AddToScheme(scheme)).To(Succeed())
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	l := &ControlPlaneInitMutex{
+		client: client,
+	}
+
+	uid := types.UID("test-uid")
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: clusterNamespace,
+			Name:      clusterName,
+			UID:       uid,
+		},
+	}
+	machine := &clusterv1.Machine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("machine-%s", cluster.Name),
+		},
+	}
+
+	// create the lock
+	g.Expect(l.Lock(ctx, cluster, machine)).To(Equal(true))
+	// re-lock and succeed since machine is still holding it
+	g.Expect(l.Lock(ctx, cluster, machine)).To(Equal(true))
+}
+
 func TestControlPlaneInitMutex_Lock(t *testing.T) {
 	g := NewWithT(t)
 
@@ -244,6 +276,14 @@ func TestControlPlaneInitMutex_UnLock(t *testing.T) {
 				deleteError: errors.New("delete error"),
 			},
 			shouldRelease: false,
+		},
+		{
+			name: "should release lock if config map disappears on deletion",
+			client: &fakeClient{
+				Client:      fake.NewClientBuilder().WithObjects(configMap).Build(),
+				deleteError: apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "configmaps"}, fmt.Sprintf("%s-controlplane", uid)),
+			},
+			shouldRelease: true,
 		},
 		{
 			name: "should release lock if config map does not exist",
