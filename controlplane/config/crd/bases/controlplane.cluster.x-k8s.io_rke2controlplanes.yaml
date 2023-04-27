@@ -714,26 +714,26 @@ spec:
                       kubernetesComponents:
                         description: KubernetesComponents is a list of Kubernetes
                           components to disable.
-                        enum:
-                        - scheduler
-                        - kubeProxy
-                        - cloudController
                         items:
                           description: 'DisabledKubernetesComponent is an enum field
                             that can take one of the following values: scheduler,
                             kubeProxy or cloudController.'
+                          enum:
+                          - scheduler
+                          - kubeProxy
+                          - cloudController
                           type: string
                         type: array
                       pluginComponents:
                         description: PluginComponents is a list of PluginComponents
                           to disable.
-                        enum:
-                        - rke2-coredns
-                        - rke2-ingress-nginx
-                        - rke2-metrics-server
                         items:
                           description: DisabledPluginComponent selects a plugin Components
                             to be disabled.
+                          enum:
+                          - rke2-coredns
+                          - rke2-ingress-nginx
+                          - rke2-metrics-server
                           type: string
                         type: array
                     type: object
