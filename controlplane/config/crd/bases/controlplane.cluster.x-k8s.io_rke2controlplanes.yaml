@@ -707,6 +707,12 @@ spec:
                     - canal
                     - cilium
                     type: string
+                  cniMultusEnable:
+                    description: 'CNIMultusEnable enables multus as the first CNI
+                      plugin (default: false). This option will automatically make
+                      Multus a primary CNI, and the value, if specified in the CNI
+                      field, as a secondary CNI plugin.'
+                    type: boolean
                   disableComponents:
                     description: DisableComponents lists Kubernetes components and
                       RKE2 plugin components that will be disabled.

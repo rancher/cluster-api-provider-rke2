@@ -42,6 +42,7 @@ spec:
   agentConfig:
     version: ${KUBERNETES_VERSION}+rke2r1
   serverConfig:
+    cniMultusEnable: true
     cni: calico
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1

@@ -17,7 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -50,12 +52,20 @@ var _ webhook.Validator = &RKE2ControlPlane{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateCreate() error {
-	return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
+	if bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec) != nil {
+		return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
+	}
+
+	return ValidateRKE2ControlPlaneSpec(r.Name, &r.Spec)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) error {
-	return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
+	if bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec) != nil {
+		return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
+	}
+
+	return ValidateRKE2ControlPlaneSpec(r.Name, &r.Spec)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
@@ -63,4 +73,27 @@ func (r *RKE2ControlPlane) ValidateDelete() error {
 	rke2controlplanelog.Info("validate delete", "name", r.Name)
 
 	return nil
+}
+
+// ValidateRKE2ControlPlaneSpec validates the RKE2ControlPlaneSpec Object.
+func ValidateRKE2ControlPlaneSpec(name string, spec *RKE2ControlPlaneSpec) error {
+	allErrs := spec.validate()
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), name, allErrs)
+}
+
+// validate validates the RKE2ControlPlaneSpec Object.
+func (s *RKE2ControlPlaneSpec) validate() field.ErrorList {
+	var allErrs field.ErrorList
+
+	if s.ServerConfig.CNIMultusEnable && s.ServerConfig.CNI == "" {
+		allErrs = append(allErrs,
+			field.Invalid(field.NewPath("spec", "serverConfig", "cni"),
+				s.ServerConfig.CNI, "must be specified when cniMultusEnable is true"))
+	}
+
+	return allErrs
 }

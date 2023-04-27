@@ -174,7 +174,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.AdvertiseAddress).To(Equal(serverConfig.AdvertiseAddress))
 		Expect(rke2ServerConfig.AuditPolicyFile).To(Equal("/etc/rancher/rke2/audit-policy.yaml"))
 		Expect(rke2ServerConfig.BindAddress).To(Equal(serverConfig.BindAddress))
-		Expect(rke2ServerConfig.CNI).To(Equal(string(serverConfig.CNI)))
+		Expect(rke2ServerConfig.CNI).To(Equal([]string{string(serverConfig.CNI)}))
 		Expect(rke2ServerConfig.ClusterCIDR).To(Equal("192.168.0.0/16"))
 		Expect(rke2ServerConfig.ServiceCIDR).To(Equal("192.169.0.0/16"))
 		Expect(rke2ServerConfig.ClusterDNS).To(Equal(serverConfig.ClusterDNS))

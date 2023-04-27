@@ -81,7 +81,7 @@ type rke2ServerConfig struct {
 	AdvertiseAddress                  string            `json:"advertise-address,omitempty"`
 	AuditPolicyFile                   string            `json:"audit-policy-file,omitempty"`
 	BindAddress                       string            `json:"bind-address,omitempty"`
-	CNI                               string            `json:"cni,omitempty"`
+	CNI                               []string          `json:"cni,omitempty"`
 	CloudControllerManagerExtraEnv    map[string]string `json:"cloud-controller-manager-extra-env,omitempty"`
 	CloudControllerManagerExtraMounts map[string]string `json:"cloud-controller-manager-extra-mount,omitempty"`
 	CloudProviderConfig               string            `json:"cloud-provider-config,omitempty"`
@@ -153,7 +153,7 @@ type ServerConfigOpts struct {
 	Client               client.Client
 }
 
-func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) { // nolint:gocyclo
 	rke2ServerConfig := &rke2ServerConfig{}
 	files := []bootstrapv1.File{}
 	rke2ServerConfig.AdvertiseAddress = opts.ServerConfig.AdvertiseAddress
@@ -195,7 +195,12 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv
 	}
 
 	rke2ServerConfig.BindAddress = opts.ServerConfig.BindAddress
-	rke2ServerConfig.CNI = string(opts.ServerConfig.CNI)
+	if opts.ServerConfig.CNIMultusEnable {
+		rke2ServerConfig.CNI = append([]string{"multus"}, string(opts.ServerConfig.CNI))
+	} else if opts.ServerConfig.CNI != "" {
+		rke2ServerConfig.CNI = []string{string(opts.ServerConfig.CNI)}
+	}
+
 	rke2ServerConfig.ClusterDNS = opts.ServerConfig.ClusterDNS
 	rke2ServerConfig.ClusterDomain = opts.ServerConfig.ClusterDomain
 
