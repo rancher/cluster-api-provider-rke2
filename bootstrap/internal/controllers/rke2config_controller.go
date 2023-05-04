@@ -414,23 +414,23 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		Certificates: certificates,
 	}
 
-	var cloudInitData []byte
+	var userData []byte
 
 	switch scope.Config.Spec.AgentConfig.Format {
 	case bootstrapv1.Ignition:
-		cloudInitData, err = ignition.NewInitControlPlane(&ignition.ControlPlaneInitInput{
+		userData, err = ignition.NewInitControlPlane(&ignition.ControlPlaneInput{
 			ControlPlaneInput:  cpinput,
 			AdditionalIgnition: &scope.Config.Spec.AgentConfig.AdditionalUserData,
 		})
 	default:
-		cloudInitData, err = cloudinit.NewInitControlPlane(cpinput)
+		userData, err = cloudinit.NewInitControlPlane(cpinput)
 	}
 
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+	if err := r.storeBootstrapData(ctx, scope, userData); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -593,23 +593,23 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		return ctrl.Result{}, err
 	}
 
-	var cloudInitData []byte
+	var userData []byte
 
 	switch scope.Config.Spec.AgentConfig.Format {
 	case bootstrapv1.Ignition:
-		cloudInitData, err = ignition.NewJoinControlPlane(&ignition.ControlPlaneJoinInput{
+		userData, err = ignition.NewJoinControlPlane(&ignition.ControlPlaneInput{
 			ControlPlaneInput:  cpinput,
 			AdditionalIgnition: &scope.Config.Spec.AgentConfig.AdditionalUserData,
 		})
 	default:
-		cloudInitData, err = cloudinit.NewJoinControlPlane(cpinput)
+		userData, err = cloudinit.NewJoinControlPlane(cpinput)
 	}
 
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+	if err := r.storeBootstrapData(ctx, scope, userData); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -695,23 +695,23 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
 	}
 
-	var cloudInitData []byte
+	var userData []byte
 
 	switch scope.Config.Spec.AgentConfig.Format {
 	case bootstrapv1.Ignition:
-		cloudInitData, err = ignition.NewJoinWorker(&ignition.JoinWorkerInput{
+		userData, err = ignition.NewJoinWorker(&ignition.JoinWorkerInput{
 			BaseUserData:       wkInput,
 			AdditionalIgnition: &scope.Config.Spec.AgentConfig.AdditionalUserData,
 		})
 	default:
-		cloudInitData, err = cloudinit.NewJoinWorker(wkInput)
+		userData, err = cloudinit.NewJoinWorker(wkInput)
 	}
 
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+	if err := r.storeBootstrapData(ctx, scope, userData); err != nil {
 		return ctrl.Result{}, err
 	}
 

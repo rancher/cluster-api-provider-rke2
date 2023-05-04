@@ -12,7 +12,7 @@ limitations under the License.
 */
 
 // Package ignition aggregates all Ignition flavors into a single package to be consumed
-// by the bootstrap provider by exposing an API similar to 'internal/cloudinit' package.
+// by the bootstrap provider by exposing an API similar to 'bootstrap/internal/ignition' package.
 package ignition
 
 import (
@@ -49,15 +49,8 @@ type JoinWorkerInput struct {
 	AdditionalIgnition *bootstrapv1.AdditionalUserData
 }
 
-// ControlPlaneJoinInput defines context to generate controlplane instance user data for control plane node join.
-type ControlPlaneJoinInput struct {
-	*cloudinit.ControlPlaneInput
-
-	AdditionalIgnition *bootstrapv1.AdditionalUserData
-}
-
-// ControlPlaneInitInput defines the context to generate a controlplane instance user data.
-type ControlPlaneInitInput struct {
+// ControlPlaneInput defines the context to generate a controlplane instance user data.
+type ControlPlaneInput struct {
 	*cloudinit.ControlPlaneInput
 
 	AdditionalIgnition *bootstrapv1.AdditionalUserData
@@ -70,7 +63,7 @@ func NewJoinWorker(input *JoinWorkerInput) ([]byte, error) {
 	}
 
 	if input.BaseUserData == nil {
-		return nil, fmt.Errorf("node input can't be nil")
+		return nil, fmt.Errorf("base userdata can't be nil")
 	}
 
 	deployRKE2Command, err := getWorkerRKE2Commands(input.BaseUserData)
@@ -85,29 +78,26 @@ func NewJoinWorker(input *JoinWorkerInput) ([]byte, error) {
 }
 
 // NewJoinControlPlane returns Ignition configuration for new controlplane node joining the cluster.
-func NewJoinControlPlane(input *ControlPlaneJoinInput) ([]byte, error) {
-	if input == nil {
-		return nil, fmt.Errorf("input can't be nil")
-	}
-
-	if input.ControlPlaneInput == nil {
-		return nil, fmt.Errorf("controlplane join input can't be nil")
-	}
-
-	deployRKE2Command, err := getControlPlaneRKE2Commands(&input.BaseUserData)
+func NewJoinControlPlane(input *ControlPlaneInput) ([]byte, error) {
+	processedInput, err := controlPlaneConfigInput(input)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get rke2 command: %w", err)
+		return nil, fmt.Errorf("failed to process controlplane input: %w", err)
 	}
 
-	input.DeployRKE2Commands = deployRKE2Command
-	input.WriteFiles = append(input.WriteFiles, input.Certificates.AsFiles()...)
-	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
-
-	return render(&input.BaseUserData, input.AdditionalIgnition)
+	return render(&processedInput.BaseUserData, processedInput.AdditionalIgnition)
 }
 
 // NewInitControlPlane returns Ignition configuration for bootstrapping new cluster.
-func NewInitControlPlane(input *ControlPlaneInitInput) ([]byte, error) {
+func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
+	processedInput, err := controlPlaneConfigInput(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process controlplane input: %w", err)
+	}
+
+	return render(&processedInput.BaseUserData, processedInput.AdditionalIgnition)
+}
+
+func controlPlaneConfigInput(input *ControlPlaneInput) (*ControlPlaneInput, error) {
 	if input == nil {
 		return nil, fmt.Errorf("input can't be nil")
 	}
@@ -125,7 +115,7 @@ func NewInitControlPlane(input *ControlPlaneInitInput) ([]byte, error) {
 	input.WriteFiles = append(input.WriteFiles, input.Certificates.AsFiles()...)
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 
-	return render(&input.BaseUserData, input.AdditionalIgnition)
+	return input, nil
 }
 
 func render(input *cloudinit.BaseUserData, ignitionConfig *bootstrapv1.AdditionalUserData) ([]byte, error) {
@@ -138,28 +128,14 @@ func render(input *cloudinit.BaseUserData, ignitionConfig *bootstrapv1.Additiona
 }
 
 func getControlPlaneRKE2Commands(baseUserData *cloudinit.BaseUserData) ([]string, error) {
-	if baseUserData == nil {
-		return nil, fmt.Errorf("base user data can't be nil")
-	}
-
-	if baseUserData.RKE2Version == "" {
-		return nil, fmt.Errorf("rke2 version can't be empty")
-	}
-
-	rke2Commands := []string{}
-
-	if baseUserData.AirGapped {
-		rke2Commands = append(rke2Commands, airGappedControlPlaneCommand)
-	} else {
-		rke2Commands = append(rke2Commands, fmt.Sprintf(controlPlaneCommand, baseUserData.RKE2Version))
-	}
-
-	rke2Commands = append(rke2Commands, serverSystemdServices...)
-
-	return rke2Commands, nil
+	return getRKE2Commands(baseUserData, controlPlaneCommand, airGappedControlPlaneCommand, serverSystemdServices)
 }
 
 func getWorkerRKE2Commands(baseUserData *cloudinit.BaseUserData) ([]string, error) {
+	return getRKE2Commands(baseUserData, workerCommand, airGappedWorkerCommand, workerSystemdServices)
+}
+
+func getRKE2Commands(baseUserData *cloudinit.BaseUserData, command, airgappedCommand string, systemdServices []string) ([]string, error) {
 	if baseUserData == nil {
 		return nil, fmt.Errorf("base user data can't be nil")
 	}
@@ -171,12 +147,12 @@ func getWorkerRKE2Commands(baseUserData *cloudinit.BaseUserData) ([]string, erro
 	rke2Commands := []string{}
 
 	if baseUserData.AirGapped {
-		rke2Commands = append(rke2Commands, airGappedWorkerCommand)
+		rke2Commands = append(rke2Commands, airgappedCommand)
 	} else {
-		rke2Commands = append(rke2Commands, fmt.Sprintf(workerCommand, baseUserData.RKE2Version))
+		rke2Commands = append(rke2Commands, fmt.Sprintf(command, baseUserData.RKE2Version))
 	}
 
-	rke2Commands = append(rke2Commands, workerSystemdServices...)
+	rke2Commands = append(rke2Commands, systemdServices...)
 
 	return rke2Commands, nil
 }
