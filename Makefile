@@ -360,7 +360,7 @@ SKIP_CLEANUP ?= false
 SKIP_CREATE_MGMT_CLUSTER ?= false
 
 .PHONY: test-e2e-run
-test-e2e-run: $(GINKGO) $(KUSTOMIZE) e2e-image ## Run the end-to-end tests
+test-e2e-run: $(GINKGO) $(KUSTOMIZE) e2e-image inotify-check ## Run the end-to-end tests
 	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" time $(GINKGO) -v --trace -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
 	--tags=e2e --focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
@@ -372,6 +372,17 @@ test-e2e-run: $(GINKGO) $(KUSTOMIZE) e2e-image ## Run the end-to-end tests
 .PHONY: test-e2e
 test-e2e: ## Run the end-to-end tests
 	$(MAKE) test-e2e-run
+
+# https://cluster-api.sigs.k8s.io/user/troubleshooting.html#cluster-api-with-docker----too-many-open-files
+# https://www.suse.com/support/kb/doc/?id=000020048
+.PHONY: inotify-check
+inotify-check:
+	@if [ `cat /proc/sys/fs/inotify/max_user_instances` -le 256 ]; then \
+		echo -e "\033[0;31mfs.inotify.max_user_instances is too low, test may fail (sudo sysctl fs.inotify.max_user_instances=8192)\033[0m";\
+	 fi
+	@if [ `cat /proc/sys/fs/inotify/max_user_watches` -le 8192 ]; then \
+		echo -e "\033[0;31mfs.inotify.max_user_watches is too low, tests may fail (sudo sysctl fs.inotify.max_user_watches=1048576)\033[0m"; \
+	 fi
 
 LOCAL_GINKGO_ARGS ?=
 LOCAL_GINKGO_ARGS += $(GINKGO_ARGS)
