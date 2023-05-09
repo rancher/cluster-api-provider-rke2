@@ -649,8 +649,23 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(ctx context.Context, controlPlane *rke2.ControlPlane) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	if controlPlane.Machines.Len() == 0 {
+	readyCPMachines := controlPlane.Machines.Filter(collections.IsReady())
+
+	if readyCPMachines.Len() == 0 {
 		controlPlane.RCP.Status.Initialized = false
+		controlPlane.RCP.Status.Ready = false
+		controlPlane.RCP.Status.ReadyReplicas = 0
+		controlPlane.RCP.Status.AvailableServerIPs = nil
+		conditions.MarkFalse(
+			controlPlane.RCP,
+			controlplanev1.AvailableCondition,
+			controlplanev1.WaitingForRKE2ServerReason,
+			clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(
+			controlPlane.RCP,
+			controlplanev1.MachinesReadyCondition,
+			controlplanev1.WaitingForRKE2ServerReason,
+			clusterv1.ConditionSeverityInfo, "")
 	}
 
 	// If the cluster is not yet initialized, there is no way to connect to the workload cluster and fetch information
