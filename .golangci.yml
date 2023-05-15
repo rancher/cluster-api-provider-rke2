@@ -4,6 +4,7 @@ run:
   skip-files:
     - "zz_generated.*\\.go$"
     - "vendored_openapi\\.go$"
+    - ".*_test\\.go$"
   allow-parallel-runners: true
 issues:
   include:

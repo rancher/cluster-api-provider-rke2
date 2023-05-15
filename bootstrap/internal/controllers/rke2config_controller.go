@@ -43,6 +43,7 @@ import (
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/ignition"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/consts"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/locking"
@@ -413,12 +414,23 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		Certificates: certificates,
 	}
 
-	cloudInitData, err := cloudinit.NewInitControlPlane(cpinput)
+	var userData []byte
+
+	switch scope.Config.Spec.AgentConfig.Format {
+	case bootstrapv1.Ignition:
+		userData, err = ignition.NewInitControlPlane(&ignition.ControlPlaneInput{
+			ControlPlaneInput:  cpinput,
+			AdditionalIgnition: &scope.Config.Spec.AgentConfig.AdditionalUserData,
+		})
+	default:
+		userData, err = cloudinit.NewInitControlPlane(cpinput)
+	}
+
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+	if err := r.storeBootstrapData(ctx, scope, userData); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -577,12 +589,27 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		},
 	}
 
-	cloudInitData, err := cloudinit.NewJoinControlPlane(cpinput)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+	var userData []byte
+
+	switch scope.Config.Spec.AgentConfig.Format {
+	case bootstrapv1.Ignition:
+		userData, err = ignition.NewJoinControlPlane(&ignition.ControlPlaneInput{
+			ControlPlaneInput:  cpinput,
+			AdditionalIgnition: &scope.Config.Spec.AgentConfig.AdditionalUserData,
+		})
+	default:
+		userData, err = cloudinit.NewJoinControlPlane(cpinput)
+	}
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.storeBootstrapData(ctx, scope, userData); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -668,12 +695,23 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
 	}
 
-	cloudInitData, err := cloudinit.NewJoinWorker(wkInput)
+	var userData []byte
+
+	switch scope.Config.Spec.AgentConfig.Format {
+	case bootstrapv1.Ignition:
+		userData, err = ignition.NewJoinWorker(&ignition.JoinWorkerInput{
+			BaseUserData:       wkInput,
+			AdditionalIgnition: &scope.Config.Spec.AgentConfig.AdditionalUserData,
+		})
+	default:
+		userData, err = cloudinit.NewJoinWorker(wkInput)
+	}
+
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.storeBootstrapData(ctx, scope, cloudInitData); err != nil {
+	if err := r.storeBootstrapData(ctx, scope, userData); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -740,7 +778,8 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 			},
 		},
 		Data: map[string][]byte{
-			"value": data,
+			"value":  data,
+			"format": []byte(scope.Config.Spec.AgentConfig.Format),
 		},
 		Type: clusterv1.ClusterSecretType,
 	}
