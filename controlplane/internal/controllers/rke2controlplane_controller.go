@@ -339,11 +339,15 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	}
 
 	if len(ownedMachines) == 0 {
-		return fmt.Errorf("no Control Plane Machines exist for RKE2ControlPlane %s/%s", rcp.Namespace, rcp.Name)
+		logger.Info(fmt.Sprintf("no Control Plane Machines exist for RKE2ControlPlane %s/%s", rcp.Namespace, rcp.Name))
+
+		return nil
 	}
 
 	if len(readyMachines) == 0 {
-		return fmt.Errorf("no Control Plane Machines are ready for RKE2ControlPlane %s/%s", rcp.Namespace, rcp.Name)
+		logger.Info(fmt.Sprintf("no Control Plane Machines are ready for RKE2ControlPlane %s/%s", rcp.Namespace, rcp.Name))
+
+		return nil
 	}
 
 	availableCPMachines := readyMachines
