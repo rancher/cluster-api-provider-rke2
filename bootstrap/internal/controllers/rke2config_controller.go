@@ -507,7 +507,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	scope.Logger.Info("RKE2 server token found in Secret!")
 
 	if len(scope.ControlPlane.Status.AvailableServerIPs) == 0 {
-		scope.Logger.V(3).Info("No ControlPlane IP Address found for node registration")
+		scope.Logger.Info("No ControlPlane IP Address found for node registration")
 
 		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}
@@ -637,7 +637,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	scope.Logger.Info("RKE2 server token found in Secret!")
 
 	if len(scope.ControlPlane.Status.AvailableServerIPs) == 0 {
-		scope.Logger.V(3).Info("No ControlPlane IP Address found for node registration")
+		scope.Logger.V(1).Info("No ControlPlane IP Address found for node registration")
 
 		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}

@@ -102,6 +102,11 @@ type RKE2ServerConfig struct {
 	//+optional
 	CNI CNI `json:"cni,omitempty"`
 
+	// CNIMultusEnable enables multus as the first CNI plugin (default: false).
+	// This option will automatically make Multus a primary CNI, and the value, if specified in the CNI field, as a secondary CNI plugin.
+	//+optional
+	CNIMultusEnable bool `json:"cniMultusEnable,omitempty"`
+
 	// PauseImage Override image to use for pause.
 	//+optional
 	PauseImage string `json:"pauseImage,omitempty"`

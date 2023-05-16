@@ -120,8 +120,6 @@ metadata:
 spec: 
   template:
     spec:
-      #preRKE2Commands:
-      #- sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/1.0/meta-data/hostname)
       agentConfig:
         version: ${KUBERNETES_VERSION}+rke2r1
 ---
