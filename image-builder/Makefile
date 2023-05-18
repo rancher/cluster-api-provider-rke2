@@ -16,7 +16,6 @@
 
 .DEFAULT_GOAL := help
 
-CONTAINERD_VERSION?=1.5.9
 RKE2_VERSION?=1.26.0+rke2r1
 
 ## --------------------------------------
@@ -66,7 +65,7 @@ AWS_BUILD_TARGETS := $(addprefix build-,$(AWS_BUILD_NAMES))
 
 .PHONY: $(AWS_BUILD_TARGETS)
 $(AWS_BUILD_TARGETS):
-	packer build $(PACKER_FLAGS) -var-file="$(abspath aws/$(subst build-aws-,,$@).json)" -var "containerd_version=$(CONTAINERD_VERSION)" -var "rke2_semver=$(RKE2_VERSION)" aws/packer.json
+	packer build $(PACKER_FLAGS) -var-file="$(abspath aws/$(subst build-aws-,,$@).json)" -var "rke2_semver=$(RKE2_VERSION)" aws/packer.json
 
 ## --------------------------------------
 ## Document dynamic build targets
