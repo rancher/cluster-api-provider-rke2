@@ -21,14 +21,10 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
 func TestCloudInit(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"CloudInit Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "CloudInit Suite")
 }

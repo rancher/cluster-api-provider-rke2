@@ -76,7 +76,7 @@ func (m *Management) GetMachinesForCluster(
 ) (collections.Machines, error) {
 	logger := log.FromContext(ctx)
 	selector := map[string]string{
-		clusterv1.ClusterLabelName: cluster.Name,
+		clusterv1.ClusterNameLabel: cluster.Name,
 	}
 	ml := &clusterv1.MachineList{}
 
