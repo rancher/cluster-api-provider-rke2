@@ -16,7 +16,7 @@
 
 .DEFAULT_GOAL := help
 
-RKE2_VERSION?=1.26.0+rke2r1
+RKE2_VERSION?=1.26.4+rke2r1
 
 ## --------------------------------------
 ## Help
@@ -56,16 +56,22 @@ endif
 ## --------------------------------------
 
 AWS_BUILD_NAMES ?= aws-opensuse-1504 aws-ubuntu-2204
+DOCKER_BUILD_NAMES ?= docker-opensuse-1504 docker-ubuntu-2204
 
 ## --------------------------------------
 ## Dynamic build targets
 ## --------------------------------------
 
 AWS_BUILD_TARGETS := $(addprefix build-,$(AWS_BUILD_NAMES))
+DOCKER_BUILD_TARGETS := $(addprefix build-,$(DOCKER_BUILD_NAMES))
 
 .PHONY: $(AWS_BUILD_TARGETS)
 $(AWS_BUILD_TARGETS):
 	packer build $(PACKER_FLAGS) -var-file="$(abspath aws/$(subst build-aws-,,$@).json)" -var "rke2_semver=$(RKE2_VERSION)" aws/packer.json
+
+.PHONY: $(DOCKER_BUILD_TARGETS)
+$(DOCKER_BUILD_TARGETS):
+	./docker/buildimage.sh $(subst build-docker-,,$@) $(RKE2_VERSION)
 
 ## --------------------------------------
 ## Document dynamic build targets
@@ -73,4 +79,7 @@ $(AWS_BUILD_TARGETS):
 ##@ Builds
 build-aws-opensuse-1504: ## Builds an AMI for OpenSUSE 15.04
 build-aws-ubuntu-2204: ## Builds an AMI for Ubuntu 22.04
-build-aws-all: $(AWS_BUILD_TARGETS) ## Builds all AMIs
+build-aws-all: $(AWS_BUILD_TARGETS) ## Builds all AWS AMIs
+build-docker-all: $(DOCKER_BUILD_TARGETS) ## Builds all docker images
+build-docker-opensuse-1504: ## Builds a Docker image for OpenSUSE 15.04
+build-docker-ubuntu-2204: ## Builds a Docker image for Ubuntu 22.04
