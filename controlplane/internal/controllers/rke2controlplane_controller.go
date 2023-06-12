@@ -47,6 +47,7 @@ import (
 
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/kubeconfig"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/registration"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
 )
@@ -352,15 +353,14 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 
 	availableCPMachines := readyMachines
 
-	validIPAddresses := []string{}
+	registrationmethod, err := registration.NewRegistrationMethod(string(rcp.Spec.RegistrationMethod))
+	if err != nil {
+		return fmt.Errorf("getting node registration method: %w", err)
+	}
 
-	for _, machine := range availableCPMachines {
-		ipAddress, err := getIPAddress(*machine)
-		if err != nil {
-			break
-		}
-
-		validIPAddresses = append(validIPAddresses, ipAddress)
+	validIPAddresses, err := registrationmethod(rcp, availableCPMachines)
+	if err != nil {
+		return fmt.Errorf("getting registration addresses: %w", err)
 	}
 
 	rcp.Status.AvailableServerIPs = validIPAddresses
@@ -750,25 +750,4 @@ func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(o client.Object) 
 	}
 
 	return nil
-}
-
-func getIPAddress(machine clusterv1.Machine) (ip string, err error) {
-	for _, address := range machine.Status.Addresses {
-		switch address.Type {
-		case clusterv1.MachineInternalIP:
-			if address.Address != "" {
-				return address.Address, nil
-			}
-		case clusterv1.MachineExternalIP:
-			if address.Address != "" {
-				ip = address.Address
-			}
-		}
-	}
-
-	if ip == "" {
-		err = fmt.Errorf("no IP Address found for machine: %s", machine.Name)
-	}
-
-	return
 }

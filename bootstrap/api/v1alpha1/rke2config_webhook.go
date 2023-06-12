@@ -23,11 +23,16 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-var cannotUseWithIgnition = fmt.Sprintf("not supported when spec.format is set to %q", Ignition)
+var (
+	cannotUseWithIgnition = fmt.Sprintf("not supported when spec.format is set to %q", Ignition)
+	rke2configlog         = logf.Log.WithName("rke2config-resource")
+)
 
 // SetupWebhookWithManager sets up and registers the webhook with the manager.
 func (r *RKE2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
@@ -58,12 +63,32 @@ var _ webhook.Validator = &RKE2Config{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2Config) ValidateCreate() error {
-	return ValidateRKE2ConfigSpec(r.Name, &r.Spec)
+	rke2configlog.Info("RKE2Config validate create", "rke2config", klog.KObj(r))
+
+	var allErrs field.ErrorList
+
+	allErrs = append(allErrs, ValidateRKE2ConfigSpec(r.Name, &r.Spec)...)
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2Config) ValidateUpdate(_ runtime.Object) error {
-	return ValidateRKE2ConfigSpec(r.Name, &r.Spec)
+	rke2configlog.Info("RKE2Config validate update", "rke2config", klog.KObj(r))
+
+	var allErrs field.ErrorList
+
+	allErrs = append(allErrs, ValidateRKE2ConfigSpec(r.Name, &r.Spec)...)
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
@@ -72,14 +97,14 @@ func (r *RKE2Config) ValidateDelete() error {
 }
 
 // ValidateRKE2ConfigSpec validates the RKE2ConfigSpec.
-func ValidateRKE2ConfigSpec(name string, spec *RKE2ConfigSpec) error {
+func ValidateRKE2ConfigSpec(name string, spec *RKE2ConfigSpec) field.ErrorList {
 	allErrs := spec.validate(field.NewPath("spec"))
 
 	if len(allErrs) == 0 {
 		return nil
 	}
 
-	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), name, allErrs)
+	return allErrs
 }
 
 func (s *RKE2ConfigSpec) validate(pathPrefix *field.Path) field.ErrorList {
