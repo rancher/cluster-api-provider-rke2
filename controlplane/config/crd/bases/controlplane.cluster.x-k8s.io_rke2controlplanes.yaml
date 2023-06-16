@@ -567,6 +567,21 @@ spec:
                     description: Mirrors are namespace to mirror mapping for all namespaces.
                     type: object
                 type: object
+              registrationAddress:
+                description: RegistrationAddress is an explicit address to use when
+                  registering a node. This is required if the registration type is
+                  "address". Its for scenarios where a load-balancer or VIP is used.
+                type: string
+              registrationMethod:
+                default: internal-first
+                description: RegistrationMethod is the method to use for registering
+                  nodes into the RKE2 cluster.
+                enum:
+                - internal-first
+                - internal-only-ips
+                - external-only-ips
+                - address
+                type: string
               replicas:
                 description: Replicas is the number of replicas for the Control Plane.
                 format: int32

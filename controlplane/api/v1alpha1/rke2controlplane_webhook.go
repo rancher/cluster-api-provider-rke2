@@ -17,9 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -44,6 +47,16 @@ var _ webhook.Defaulter = &RKE2ControlPlane{}
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) Default() {
 	bootstrapv1.DefaultRKE2ConfigSpec(&r.Spec.RKE2ConfigSpec)
+
+	if r.Spec.RegistrationMethod == RegistrationMethodAddress {
+		if r.Spec.ServerConfig.AdvertiseAddress == "" {
+			rke2controlplanelog.Info("setting advertise address from registration address",
+				"rke2-control-plane", klog.KObj(r),
+				"address", r.Spec.RegistrationAddress)
+
+			r.Spec.ServerConfig.AdvertiseAddress = r.Spec.RegistrationAddress
+		}
+	}
 }
 
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplane,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes,verbs=create;update,versions=v1alpha1,name=vrke2controlplane.kb.io,admissionReviewVersions=v1
@@ -52,20 +65,46 @@ var _ webhook.Validator = &RKE2ControlPlane{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateCreate() error {
-	if bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec) != nil {
-		return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
+	rke2controlplanelog.Info("RKE2ControlPlane validate create", "control-plane", klog.KObj(r))
+
+	var allErrs field.ErrorList
+
+	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)...)
+	allErrs = append(allErrs, r.validateCNI()...)
+	allErrs = append(allErrs, r.validateRegistrationMethod()...)
+
+	if len(allErrs) == 0 {
+		return nil
 	}
 
-	return ValidateRKE2ControlPlaneSpec(r.Name, &r.Spec)
+	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) error {
-	if bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec) != nil {
-		return bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)
+	oldControlplane, ok := old.(*RKE2ControlPlane)
+	if !ok {
+		return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, field.ErrorList{
+			field.InternalError(nil, errors.New("failed to convert old RKE2ControlPlane to object")),
+		})
 	}
 
-	return ValidateRKE2ControlPlaneSpec(r.Name, &r.Spec)
+	var allErrs field.ErrorList
+
+	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)...)
+	allErrs = append(allErrs, r.validateCNI()...)
+
+	if r.Spec.RegistrationMethod != oldControlplane.Spec.RegistrationMethod {
+		allErrs = append(allErrs,
+			field.Invalid(field.NewPath("spec", "registrationMethod"), r.Spec.RegistrationMethod, "field is immutable"),
+		)
+	}
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
@@ -75,24 +114,27 @@ func (r *RKE2ControlPlane) ValidateDelete() error {
 	return nil
 }
 
-// ValidateRKE2ControlPlaneSpec validates the RKE2ControlPlaneSpec Object.
-func ValidateRKE2ControlPlaneSpec(name string, spec *RKE2ControlPlaneSpec) error {
-	allErrs := spec.validate()
-	if len(allErrs) == 0 {
-		return nil
-	}
-
-	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), name, allErrs)
-}
-
-// validate validates the RKE2ControlPlaneSpec Object.
-func (s *RKE2ControlPlaneSpec) validate() field.ErrorList {
+func (r *RKE2ControlPlane) validateCNI() field.ErrorList {
 	var allErrs field.ErrorList
 
-	if s.ServerConfig.CNIMultusEnable && s.ServerConfig.CNI == "" {
+	if r.Spec.ServerConfig.CNIMultusEnable && r.Spec.ServerConfig.CNI == "" {
 		allErrs = append(allErrs,
 			field.Invalid(field.NewPath("spec", "serverConfig", "cni"),
-				s.ServerConfig.CNI, "must be specified when cniMultusEnable is true"))
+				r.Spec.ServerConfig.CNI, "must be specified when cniMultusEnable is true"))
+	}
+
+	return allErrs
+}
+
+func (r *RKE2ControlPlane) validateRegistrationMethod() field.ErrorList {
+	var allErrs field.ErrorList
+
+	if r.Spec.RegistrationMethod == RegistrationMethodAddress {
+		if r.Spec.RegistrationAddress == "" {
+			allErrs = append(allErrs,
+				field.Invalid(field.NewPath("spec.registrationAddress"),
+					r.Spec.RegistrationAddress, "registrationAddress must be supplied when using registration method 'address'"))
+		}
 	}
 
 	return allErrs

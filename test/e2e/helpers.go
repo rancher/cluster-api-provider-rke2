@@ -178,7 +178,7 @@ func GetRKE2ControlPlaneByCluster(ctx context.Context, input GetRKE2ControlPlane
 	opts := []client.ListOption{
 		client.InNamespace(input.Namespace),
 		client.MatchingLabels{
-			clusterv1.ClusterLabelName: input.ClusterName,
+			clusterv1.ClusterNameLabel: input.ClusterName,
 		},
 	}
 
