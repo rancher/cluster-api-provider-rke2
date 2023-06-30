@@ -47,16 +47,6 @@ var _ webhook.Defaulter = &RKE2ControlPlane{}
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) Default() {
 	bootstrapv1.DefaultRKE2ConfigSpec(&r.Spec.RKE2ConfigSpec)
-
-	if r.Spec.RegistrationMethod == RegistrationMethodAddress {
-		if r.Spec.ServerConfig.AdvertiseAddress == "" {
-			rke2controlplanelog.Info("setting advertise address from registration address",
-				"rke2-control-plane", klog.KObj(r),
-				"address", r.Spec.RegistrationAddress)
-
-			r.Spec.ServerConfig.AdvertiseAddress = r.Spec.RegistrationAddress
-		}
-	}
 }
 
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplane,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes,verbs=create;update,versions=v1alpha1,name=vrke2controlplane.kb.io,admissionReviewVersions=v1
