@@ -117,8 +117,7 @@ func TestInternalFirstMethod(t *testing.T) {
 			actualAddresses, err := regMethod(tc.rcp, col)
 			g.Expect(err).NotTo(HaveOccurred())
 
-			g.Expect(actualAddresses).To(BeComparableTo(tc.expectedAddresses))
-
+			g.Expect(actualAddresses).To(HaveExactElements(tc.expectedAddresses))
 		})
 	}
 }
@@ -170,7 +169,7 @@ func TestInternalOnlyMethod(t *testing.T) {
 			actualAddresses, err := regMethod(tc.rcp, col)
 			g.Expect(err).NotTo(HaveOccurred())
 
-			g.Expect(actualAddresses).To(BeComparableTo(tc.expectedAddresses))
+			g.Expect(actualAddresses).To(HaveExactElements(tc.expectedAddresses))
 
 		})
 	}
@@ -223,7 +222,7 @@ func TestExternalOnlyMethod(t *testing.T) {
 			actualAddresses, err := regMethod(tc.rcp, col)
 			g.Expect(err).NotTo(HaveOccurred())
 
-			g.Expect(actualAddresses).To(BeComparableTo(tc.expectedAddresses))
+			g.Expect(actualAddresses).To(HaveExactElements(tc.expectedAddresses))
 
 		})
 	}
@@ -274,7 +273,7 @@ func TestAddressMethod(t *testing.T) {
 
 			expectedAddresses := []string{"100.100.100.100"}
 
-			g.Expect(actualAddresses).To(BeComparableTo(expectedAddresses))
+			g.Expect(actualAddresses).To(HaveExactElements(expectedAddresses))
 
 		})
 	}
@@ -321,4 +320,16 @@ func createMachine(name string, internalIPs []string, externalIPs []string) *clu
 	}
 
 	return machine
+}
+
+func strEquals(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
