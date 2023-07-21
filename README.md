@@ -65,10 +65,10 @@ In order to use `clusterctl` to deploy the RKE2 Provider, you need a specific co
 ```yaml
 providers:
   - name: "rke2"
-    url: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/v0.1.0-alpha.1/bootstrap-components.yaml"
+    url: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/v0.1.1/bootstrap-components.yaml"
     type: "BootstrapProvider"
   - name: "rke2"
-    url: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/v0.1.0-alpha.1/control-plane-components.yaml"
+    url: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/v0.1.1/control-plane-components.yaml"
     type: "ControlPlaneProvider"
 ``` 
 > NOTE: Due to some issue related to how `CAPD` creates Load Balancer healthchecks, it is necessary to use a fork of `CAPD` by providing in the above configuration file the following :
