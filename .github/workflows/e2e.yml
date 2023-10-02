@@ -34,7 +34,7 @@ jobs:
         run: make test-e2e
       - name: Archive artifacts
         if: always()
-        uses: actions/upload-artifact@v3.1.2
+        uses: actions/upload-artifact@v3.1.3
         with:
           name: e2e-artifacts
           path: _artifacts
