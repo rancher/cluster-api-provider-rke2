@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
@@ -62,7 +63,7 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 var _ webhook.Validator = &RKE2Config{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateCreate() error {
+func (r *RKE2Config) ValidateCreate() (admission.Warnings, error) {
 	rke2configlog.Info("RKE2Config validate create", "rke2config", klog.KObj(r))
 
 	var allErrs field.ErrorList
@@ -70,14 +71,14 @@ func (r *RKE2Config) ValidateCreate() error {
 	allErrs = append(allErrs, ValidateRKE2ConfigSpec(r.Name, &r.Spec)...)
 
 	if len(allErrs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
+	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateUpdate(_ runtime.Object) error {
+func (r *RKE2Config) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
 	rke2configlog.Info("RKE2Config validate update", "rke2config", klog.KObj(r))
 
 	var allErrs field.ErrorList
@@ -85,15 +86,15 @@ func (r *RKE2Config) ValidateUpdate(_ runtime.Object) error {
 	allErrs = append(allErrs, ValidateRKE2ConfigSpec(r.Name, &r.Spec)...)
 
 	if len(allErrs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
+	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateDelete() error {
-	return nil
+func (r *RKE2Config) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 // ValidateRKE2ConfigSpec validates the RKE2ConfigSpec.

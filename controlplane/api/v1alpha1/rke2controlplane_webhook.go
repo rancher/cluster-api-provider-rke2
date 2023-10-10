@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
@@ -54,7 +55,7 @@ func (r *RKE2ControlPlane) Default() {
 var _ webhook.Validator = &RKE2ControlPlane{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlane) ValidateCreate() error {
+func (r *RKE2ControlPlane) ValidateCreate() (admission.Warnings, error) {
 	rke2controlplanelog.Info("RKE2ControlPlane validate create", "control-plane", klog.KObj(r))
 
 	var allErrs field.ErrorList
@@ -64,17 +65,17 @@ func (r *RKE2ControlPlane) ValidateCreate() error {
 	allErrs = append(allErrs, r.validateRegistrationMethod()...)
 
 	if len(allErrs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, allErrs)
+	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) error {
+func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	oldControlplane, ok := old.(*RKE2ControlPlane)
 	if !ok {
-		return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, field.ErrorList{
+		return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, field.ErrorList{
 			field.InternalError(nil, errors.New("failed to convert old RKE2ControlPlane to object")),
 		})
 	}
@@ -91,17 +92,17 @@ func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	return apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, allErrs)
+	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlane) ValidateDelete() error {
+func (r *RKE2ControlPlane) ValidateDelete() (admission.Warnings, error) {
 	rke2controlplanelog.Info("validate delete", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 func (r *RKE2ControlPlane) validateCNI() field.ErrorList {
