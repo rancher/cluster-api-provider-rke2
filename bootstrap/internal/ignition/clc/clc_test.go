@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	ignition "github.com/flatcar/ignition/config/v2_3"
+	ignition "github.com/coreos/ignition/v2/config/v3_0"
 	"k8s.io/utils/pointer"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"

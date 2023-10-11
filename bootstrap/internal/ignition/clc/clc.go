@@ -23,9 +23,9 @@ import (
 	"strings"
 	"text/template"
 
+	ignition "github.com/coreos/ignition/v2/config/v3_0"
+	ignitionTypes "github.com/coreos/ignition/v2/config/v3_0/types"
 	clct "github.com/flatcar/container-linux-config-transpiler/config"
-	ignition "github.com/flatcar/ignition/config/v2_3"
-	ignitionTypes "github.com/flatcar/ignition/config/v2_3/types"
 	"github.com/pkg/errors"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
@@ -239,7 +239,7 @@ func buildIgnitionConfig(baseCLC []byte, additionalConfig *bootstrapv1.Additiona
 
 		clcWarnings = warnings
 
-		ign = ignition.Append(ign, additionalIgn)
+		ign = ignition.Merge(ign, additionalIgn)
 	}
 
 	userData, err := json.Marshal(&ign)
