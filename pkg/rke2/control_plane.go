@@ -352,6 +352,7 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 			if err := helper.Patch(ctx, machine, patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
 				controlplanev1.MachineAgentHealthyCondition,
 				controlplanev1.MachineEtcdMemberHealthyCondition,
+				controlplanev1.NodeMetadataUpToDate,
 			}}); err != nil {
 				errList = append(errList, errors.Wrapf(err, "failed to patch machine %s", machine.Name))
 			}

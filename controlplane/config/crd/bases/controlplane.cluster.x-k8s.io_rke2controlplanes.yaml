@@ -190,6 +190,14 @@ spec:
                       an additional port 1 less than this port will also be used for
                       the apiserver client load-balancer (default: 6444).'
                     type: integer
+                  nodeAnnotations:
+                    additionalProperties:
+                      type: string
+                    description: 'NodeAnnotations  are annotations that are created
+                      on nodes post bootstrap phase. Unfortunately it is not possible
+                      to apply annotations via kubelet using current bootstrap configurations.
+                      Issue: https://github.com/kubernetes/kubernetes/issues/108046'
+                    type: object
                   nodeLabels:
                     description: NodeLabels  Registering and starting kubelet with
                       set of labels.

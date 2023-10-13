@@ -22,16 +22,18 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 )
@@ -46,9 +48,12 @@ var ErrControlPlaneMinNodes = errors.New("cluster has fewer than 2 control plane
 // WorkloadCluster defines all behaviors necessary to upgrade kubernetes on a workload cluster.
 type WorkloadCluster interface {
 	// Basic health and status checks.
-	ClusterStatus(ctx context.Context) (ClusterStatus, error)
-	UpdateAgentConditions(ctx context.Context, controlPlane *ControlPlane)
-	UpdateEtcdConditions(ctx context.Context, controlPlane *ControlPlane)
+	InitWorkload(ctx context.Context, controlPlane *ControlPlane) error
+	UpdateNodeMetadata(ctx context.Context, controlPlane *ControlPlane) error
+
+	ClusterStatus() ClusterStatus
+	UpdateAgentConditions(controlPlane *ControlPlane)
+	UpdateEtcdConditions(controlPlane *ControlPlane)
 	// Upgrade related tasks.
 
 	//	RemoveEtcdMemberForMachine(ctx context.Context, machine *clusterv1.Machine) error
@@ -62,7 +67,53 @@ type WorkloadCluster interface {
 
 // Workload defines operations on workload clusters.
 type Workload struct {
-	Client ctrlclient.Client
+	client.Client
+
+	Nodes            map[string]*corev1.Node
+	nodePatchHelpers map[string]*patch.Helper
+}
+
+// NewWorkload is creating a new ClusterWorkload instance.
+func NewWorkload(cl client.Client) *Workload {
+	return &Workload{
+		Client:           cl,
+		Nodes:            map[string]*corev1.Node{},
+		nodePatchHelpers: map[string]*patch.Helper{},
+	}
+}
+
+// InitWorkload prepares workload for evaluating status conditions.
+func (w *Workload) InitWorkload(ctx context.Context, cp *ControlPlane) error {
+	nodes, err := w.getControlPlaneNodes(ctx)
+	if err != nil {
+		conditions.MarkUnknown(
+			cp.RCP,
+			controlplanev1.ControlPlaneComponentsHealthyCondition,
+			controlplanev1.ControlPlaneComponentsInspectionFailedReason, "Failed to list nodes which are hosting control plane components")
+
+		return err
+	}
+
+	for _, node := range nodes.Items {
+		nodeCopy := node
+		w.Nodes[node.Name] = &nodeCopy
+	}
+
+	for _, node := range w.Nodes {
+		patchHelper, err := patch.NewHelper(node, w.Client)
+		if err != nil {
+			conditions.MarkUnknown(
+				cp.RCP,
+				controlplanev1.ControlPlaneComponentsHealthyCondition,
+				controlplanev1.ControlPlaneComponentsInspectionFailedReason, "Failed to create patch helpers for control plane nodes")
+
+			return errors.Wrapf(err, "failed to create patch helper for node %s", node.Name)
+		}
+
+		w.nodePatchHelpers[node.Name] = patchHelper
+	}
+
+	return nil
 }
 
 // ClusterStatus holds stats information about the cluster.
@@ -79,33 +130,59 @@ func (w *Workload) getControlPlaneNodes(ctx context.Context) (*corev1.NodeList, 
 		labelNodeRoleControlPlane: "true",
 	}
 
-	if err := w.Client.List(ctx, nodes, ctrlclient.MatchingLabels(labels)); err != nil {
+	if err := w.Client.List(ctx, nodes, client.MatchingLabels(labels)); err != nil {
 		return nil, err
 	}
 
 	return nodes, nil
 }
 
+// PatchNodes patches the nodes in the workload cluster.
+func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
+	errList := []error{}
+
+	for i := range w.Nodes {
+		node := w.Nodes[i]
+		if helper, ok := w.nodePatchHelpers[node.Name]; ok {
+			if err := helper.Patch(ctx, node); err != nil {
+				conditions.MarkUnknown(
+					cp.Machines[node.Name],
+					controlplanev1.NodeMetadataUpToDate,
+					controlplanev1.NodePatchFailedReason, errors.Wrapf(err, "failed to patch node %s", node.Name).Error())
+
+				errList = append(errList, errors.Wrapf(err, "failed to patch node %s", node.Name))
+			}
+
+			if !conditions.Has(cp.Machines[node.Name], controlplanev1.NodeMetadataUpToDate) {
+				conditions.MarkTrue(
+					cp.Machines[node.Name],
+					controlplanev1.NodeMetadataUpToDate)
+			}
+
+			continue
+		}
+
+		errList = append(errList, errors.Errorf("failed to get patch helper for node %s", node.Name))
+	}
+
+	return kerrors.NewAggregate(errList)
+}
+
 // ClusterStatus returns the status of the cluster.
-func (w *Workload) ClusterStatus(ctx context.Context) (ClusterStatus, error) {
+func (w *Workload) ClusterStatus() ClusterStatus {
 	status := ClusterStatus{}
 
 	// count the control plane nodes
-	nodes, err := w.getControlPlaneNodes(ctx)
-	if err != nil {
-		return status, err
-	}
-
-	for _, node := range nodes.Items {
+	for _, node := range w.Nodes {
 		nodeCopy := node
 		status.Nodes++
 
-		if util.IsNodeReady(&nodeCopy) {
+		if util.IsNodeReady(nodeCopy) {
 			status.ReadyNodes++
 		}
 	}
 
-	return status, nil
+	return status
 }
 
 func hasProvisioningMachine(machines collections.Machines) bool {
@@ -132,39 +209,21 @@ func nodeHasUnreachableTaint(node corev1.Node) bool {
 // UpdateAgentConditions is responsible for updating machine conditions reflecting the status of all the control plane
 // components running in a static pod generated by RKE2. This operation is best effort, in the sense that in case
 // of problems in retrieving the pod status, it sets the condition to Unknown state without returning any error.
-func (w *Workload) UpdateAgentConditions(ctx context.Context, controlPlane *ControlPlane) {
+func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 	allMachinePodConditions := []clusterv1.ConditionType{
 		controlplanev1.MachineAgentHealthyCondition,
-	}
-
-	// NOTE: this fun uses control plane nodes from the workload cluster as a source of truth for the current state.
-	controlPlaneNodes, err := w.getControlPlaneNodes(ctx)
-	if err != nil {
-		conditions.MarkUnknown(
-			controlPlane.RCP,
-			controlplanev1.ControlPlaneComponentsHealthyCondition,
-			controlplanev1.ControlPlaneComponentsInspectionFailedReason, "Failed to list nodes which are hosting control plane components")
-
-		return
 	}
 
 	// Update conditions for control plane components hosted as static pods on the nodes.
 	var rcpErrors []string
 
-	for _, node := range controlPlaneNodes.Items {
+	for k := range w.Nodes {
+		node := w.Nodes[k]
+
 		// Search for the machine corresponding to the node.
-		var machine *clusterv1.Machine
-
-		for _, m := range controlPlane.Machines {
-			if m.Status.NodeRef != nil && m.Status.NodeRef.Name == node.Name {
-				machine = m
-
-				break
-			}
-		}
-
+		machine, found := controlPlane.Machines[node.Name]
 		// If there is no machine corresponding to a node, determine if this is an error or not.
-		if machine == nil {
+		if !found {
 			// If there are machines still provisioning there is the chance that a chance that a node might be linked to a machine soon,
 			// otherwise report the error at RCP level given that there is no machine to report on.
 			if hasProvisioningMachine(controlPlane.Machines) {
@@ -186,7 +245,7 @@ func (w *Workload) UpdateAgentConditions(ctx context.Context, controlPlane *Cont
 		}
 
 		// If the node is Unreachable, information about static pods could be stale so set all conditions to unknown.
-		if nodeHasUnreachableTaint(node) {
+		if nodeHasUnreachableTaint(*node) {
 			// NOTE: We are assuming unreachable as a temporary condition, leaving to MHC
 			// the responsibility to determine if the node is unhealthy or not.
 			for _, condition := range allMachinePodConditions {
@@ -194,37 +253,6 @@ func (w *Workload) UpdateAgentConditions(ctx context.Context, controlPlane *Cont
 			}
 
 			continue
-		}
-
-		targetnode := corev1.Node{}
-		nodeKey := ctrlclient.ObjectKey{
-			Namespace: metav1.NamespaceSystem,
-			Name:      node.Name,
-		}
-
-		if err := w.Client.Get(ctx, nodeKey, &targetnode); err != nil {
-			// If there is an error getting the Pod, do not set any conditions.
-			if apierrors.IsNotFound(err) {
-				conditions.MarkFalse(machine,
-					controlplanev1.MachineAgentHealthyCondition,
-					controlplanev1.PodMissingReason,
-					clusterv1.ConditionSeverityError,
-					"Node %s is missing", nodeKey.Name)
-
-				return
-			}
-
-			conditions.MarkUnknown(machine,
-				controlplanev1.MachineAgentHealthyCondition,
-				controlplanev1.PodInspectionFailedReason, "Failed to get node status")
-
-			return
-		}
-
-		for _, condition := range targetnode.Status.Conditions {
-			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
-				conditions.MarkTrue(machine, controlplanev1.MachineAgentHealthyCondition)
-			}
 		}
 	}
 
@@ -235,19 +263,18 @@ func (w *Workload) UpdateAgentConditions(ctx context.Context, controlPlane *Cont
 			continue
 		}
 
-		found := false
-
-		for _, node := range controlPlaneNodes.Items {
-			if machine.Status.NodeRef.Name == node.Name {
-				found = true
-
-				break
-			}
-		}
-
+		node, found := w.Nodes[machine.Status.NodeRef.Name]
 		if !found {
 			for _, condition := range allMachinePodConditions {
 				conditions.MarkFalse(machine, condition, controlplanev1.PodFailedReason, clusterv1.ConditionSeverityError, "Missing node")
+			}
+
+			continue
+		}
+
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+				conditions.MarkTrue(machine, controlplanev1.MachineAgentHealthyCondition)
 			}
 		}
 	}
@@ -378,39 +405,18 @@ func aggregateFromMachinesToRCP(input aggregateFromMachinesToRCPInput) {
 // UpdateEtcdConditions is responsible for updating machine conditions reflecting the status of all the etcd members.
 // This operation is best effort, in the sense that in case of problems in retrieving member status, it sets
 // the condition to Unknown state without returning any error.
-func (w *Workload) UpdateEtcdConditions(ctx context.Context, controlPlane *ControlPlane) {
-	w.updateManagedEtcdConditions(ctx, controlPlane)
+func (w *Workload) UpdateEtcdConditions(controlPlane *ControlPlane) {
+	w.updateManagedEtcdConditions(controlPlane)
 }
 
-func (w *Workload) updateManagedEtcdConditions(ctx context.Context, controlPlane *ControlPlane) {
+func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 	// NOTE: This methods uses control plane nodes only to get in contact with etcd but then it relies on etcd
 	// as ultimate source of truth for the list of members and for their health.
-	controlPlaneNodes, err := w.getControlPlaneNodes(ctx)
-	if err != nil {
-		conditions.MarkUnknown(
-			controlPlane.RCP,
-			controlplanev1.EtcdClusterHealthyCondition,
-			controlplanev1.EtcdClusterInspectionFailedReason, "Failed to list nodes which are hosting the etcd members")
+	for k := range w.Nodes {
+		node := w.Nodes[k]
 
-		for _, m := range controlPlane.Machines {
-			conditions.MarkUnknown(m,
-				controlplanev1.MachineEtcdMemberHealthyCondition,
-				controlplanev1.EtcdMemberInspectionFailedReason, "Failed to get the node which is hosting the etcd member")
-		}
-
-		return
-	}
-
-	for _, node := range controlPlaneNodes.Items {
-		var machine *clusterv1.Machine
-
-		for _, m := range controlPlane.Machines {
-			if m.Status.NodeRef != nil && m.Status.NodeRef.Name == node.Name {
-				machine = m
-			}
-		}
-
-		if machine == nil {
+		machine, found := controlPlane.Machines[node.Name]
+		if !found {
 			// If there are machines still provisioning there is the chance that a chance that a node might be linked to a machine soon,
 			// otherwise report the error at RCP level given that there is no machine to report on.
 			if hasProvisioningMachine(controlPlane.Machines) {
@@ -429,4 +435,45 @@ func (w *Workload) updateManagedEtcdConditions(ctx context.Context, controlPlane
 
 		conditions.MarkTrue(machine, controlplanev1.MachineEtcdMemberHealthyCondition)
 	}
+}
+
+// UpdateNodeMetadata is responsible for populating node metadata after
+// it is referenced from machine object.
+func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *ControlPlane) error {
+	for commonName, machine := range controlPlane.Machines {
+		if machine.Spec.Bootstrap.ConfigRef == nil {
+			continue
+		}
+
+		node, nodeFound := w.Nodes[commonName]
+		if !nodeFound {
+			conditions.MarkUnknown(
+				controlPlane.Machines[commonName],
+				controlplanev1.NodeMetadataUpToDate,
+				controlplanev1.NodePatchFailedReason, "associated node not found")
+
+			continue
+		} else if name, ok := node.Annotations[clusterv1.MachineAnnotation]; !ok || name != commonName {
+			conditions.MarkUnknown(
+				controlPlane.Machines[commonName],
+				controlplanev1.NodeMetadataUpToDate,
+				controlplanev1.NodePatchFailedReason, fmt.Sprintf("node object is missing %s annotation", clusterv1.MachineAnnotation))
+
+			continue
+		}
+
+		rkeConfig, found := controlPlane.rke2Configs[commonName]
+		if !found {
+			conditions.MarkUnknown(
+				controlPlane.Machines[commonName],
+				controlplanev1.NodeMetadataUpToDate,
+				controlplanev1.NodePatchFailedReason, "associated RKE2 config not found")
+
+			continue
+		}
+
+		annotations.AddAnnotations(node, rkeConfig.Spec.AgentConfig.NodeAnnotations)
+	}
+
+	return w.PatchNodes(ctx, controlPlane)
 }

@@ -54,8 +54,15 @@ const (
 	// is up to date. Whe this condition is false, the RKE2ControlPlane is executing a rolling upgrade.
 	MachinesSpecUpToDateCondition clusterv1.ConditionType = "MachinesSpecUpToDate"
 
+	// NodeMetadataUpToDate documents that the metadata of the nodes controlled by the RKE2 machines
+	// is up to date. When this condition is false, or missing the node metadata is not propagated.
+	NodeMetadataUpToDate clusterv1.ConditionType = "NodeMetadataUpToDate"
+
 	// MachineAgentHealthyCondition reports a machine's rke2 agent's operational status.
 	MachineAgentHealthyCondition clusterv1.ConditionType = "AgentHealthy"
+
+	// NodePatchFailedReason (Severity=Error) documents reason why Node object could not be patched.
+	NodePatchFailedReason = "NodePatchFailed"
 
 	// PodInspectionFailedReason documents a failure in inspecting the pod status.
 	PodInspectionFailedReason = "PodInspectionFailed"

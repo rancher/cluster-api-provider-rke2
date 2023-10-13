@@ -172,6 +172,13 @@ func (in *RKE2AgentConfig) DeepCopyInto(out *RKE2AgentConfig) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.NodeAnnotations != nil {
+		in, out := &in.NodeAnnotations, &out.NodeAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.NodeTaints != nil {
 		in, out := &in.NodeTaints, &out.NodeTaints
 		*out = make([]string, len(*in))

@@ -68,6 +68,13 @@ type RKE2AgentConfig struct {
 	//+optional
 	NodeLabels []string `json:"nodeLabels,omitempty"`
 
+	// NodeAnnotations  are annotations that are created on nodes post bootstrap phase.
+	// Unfortunately it is not possible to apply annotations via kubelet
+	// using current bootstrap configurations.
+	// Issue: https://github.com/kubernetes/kubernetes/issues/108046
+	//+optional
+	NodeAnnotations map[string]string `json:"nodeAnnotations,omitempty"`
+
 	// NodeTaints Registering kubelet with set of taints.
 	//+optional
 	NodeTaints []string `json:"nodeTaints,omitempty"`
