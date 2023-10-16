@@ -59,12 +59,14 @@ linters-settings:
     custom-order: true
     #local-prefixes: github.com/rancher-sandbox/cluster-api-provider-rke2
     sections:
-      - "standard" 
+      - "standard"
       - "blank"
       - "dot"
       - "default"
       - "prefix(sigs.k8s.io/cluster-api)"
       - "prefix(github.com/rancher-sandbox/cluster-api-provider-rke2)"
+    wsl:
+      force-err-cuddling: false
 linters:
   enable-all: true
   disable:
@@ -84,6 +86,7 @@ linters:
     - gochecknoinits
     - nonamedreturns
     - gocritic
+    - depguard
     - ireturn     # Needs further discussion
     - maintidx    # Needs further discussion
     - nestif      # Needs further discussion
@@ -102,5 +105,3 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - wastedassign
-
-    

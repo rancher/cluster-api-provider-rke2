@@ -95,7 +95,7 @@ GO_APIDIFF_PKG := github.com/joelanford/go-apidiff
 HADOLINT_VER := v2.10.0
 HADOLINT_FAILURE_THRESHOLD = warning
 
-GOLANGCI_LINT_VER := v1.49.0
+GOLANGCI_LINT_VER := v1.55.1
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN))
 
@@ -210,8 +210,7 @@ generate-modules: ## Run go mod tidy to ensure modules are up to date
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT) ## Lint the codebase
-	cd $(CAPBPR_DIR); $(GOLANGCI_LINT) run -v --timeout 5m $(GOLANGCI_LINT_EXTRA_ARGS)
-	cd $(CAPRKE2_DIR); $(GOLANGCI_LINT) run -v --timeout 5m $(GOLANGCI_LINT_EXTRA_ARGS)
+	$(GOLANGCI_LINT) run -v --timeout 5m $(GOLANGCI_LINT_EXTRA_ARGS)
 	./scripts/ci-lint-dockerfiles.sh $(HADOLINT_VER) $(HADOLINT_FAILURE_THRESHOLD)
 
 .PHONY: lint-dockerfiles
