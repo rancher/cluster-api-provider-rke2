@@ -61,7 +61,7 @@ func registrationMethodWithFilter(filter addressFilter) GetRegistrationAddresses
 	}
 }
 
-func registrationMethodAddress(rcp *controlplanev1.RKE2ControlPlane, availableMachines collections.Machines) ([]string, error) {
+func registrationMethodAddress(rcp *controlplanev1.RKE2ControlPlane, _ collections.Machines) ([]string, error) {
 	validIPAddresses := []string{}
 
 	validIPAddresses = append(validIPAddresses, rcp.Spec.RegistrationAddress)

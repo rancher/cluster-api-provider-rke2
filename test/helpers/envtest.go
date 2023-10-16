@@ -54,7 +54,7 @@ func init() {
 	root = path.Join(path.Dir(filename), "..", "..")
 }
 
-// TestEnvironmentConfiguration is a wrapper configuration for envtest
+// TestEnvironmentConfiguration is a wrapper configuration for envtest.
 type TestEnvironmentConfiguration struct {
 	env *envtest.Environment
 }
@@ -71,6 +71,7 @@ type TestEnvironment struct {
 // Cleanup deletes all the given objects.
 func (t *TestEnvironment) Cleanup(ctx context.Context, objs ...client.Object) error {
 	errs := []error{}
+
 	for _, o := range objs {
 		err := t.Client.Delete(ctx, o)
 		if apierrors.IsNotFound(err) {
@@ -134,7 +135,6 @@ func (t *TestEnvironmentConfiguration) Build() (*TestEnvironment, error) {
 	}
 
 	mgr, err := ctrl.NewManager(t.env.Config, options)
-
 	if err != nil {
 		klog.Fatalf("Failed to start testenv manager: %v", err)
 	}
@@ -151,12 +151,14 @@ func (t *TestEnvironmentConfiguration) Build() (*TestEnvironment, error) {
 func (t *TestEnvironment) StartManager(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	t.cancel = cancel
+
 	return t.Manager.Start(ctx)
 }
 
 // Stop stops the test environment.
 func (t *TestEnvironment) Stop() error {
 	t.cancel()
+
 	return t.env.Stop()
 }
 
@@ -167,6 +169,7 @@ func getFilePathToCAPICRDs(root string) string {
 	}
 
 	var clusterAPIVersion string
+
 	for _, line := range strings.Split(string(modBits), "\n") {
 		matches := clusterAPIVersionRegex.FindStringSubmatch(line)
 		if len(matches) == 3 {
@@ -179,6 +182,7 @@ func getFilePathToCAPICRDs(root string) string {
 	}
 
 	gopath := envOr("GOPATH", build.Default.GOPATH)
+
 	return filepath.Join(gopath, "pkg", "mod", "sigs.k8s.io", fmt.Sprintf("cluster-api@v%s", clusterAPIVersion), "config", "crd", "bases")
 }
 
@@ -186,5 +190,6 @@ func envOr(envKey, defaultValue string) string {
 	if value, ok := os.LookupEnv(envKey); ok {
 		return value
 	}
+
 	return defaultValue
 }

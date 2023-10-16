@@ -227,11 +227,7 @@ func (c Certificates) LookupOrGenerate(
 	}
 
 	// Save any certificates that have been generated
-	if err := c.SaveGenerated(ctx, ctrlclient, clusterName, owner); err != nil {
-		return err
-	}
-
-	return nil
+	return c.SaveGenerated(ctx, ctrlclient, clusterName, owner)
 }
 
 // AsSecret converts a single certificate into a Kubernetes secret.
