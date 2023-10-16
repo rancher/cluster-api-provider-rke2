@@ -23,9 +23,9 @@ import (
 	"strings"
 	"text/template"
 
-	ignition "github.com/coreos/ignition/v2/config/v3_0"
-	ignitionTypes "github.com/coreos/ignition/v2/config/v3_0/types"
-	clct "github.com/flatcar/container-linux-config-transpiler/config"
+	clct "github.com/coreos/ignition/v2/config/v3_3"
+	ignition "github.com/coreos/ignition/v2/config/v3_3"
+	ignitionTypes "github.com/coreos/ignition/v2/config/v3_3/types"
 	"github.com/pkg/errors"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
@@ -251,18 +251,11 @@ func buildIgnitionConfig(baseCLC []byte, additionalConfig *bootstrapv1.Additiona
 }
 
 func clcToIgnition(data []byte, strict bool) (ignitionTypes.Config, string, error) {
-	clc, ast, reports := clct.Parse(data)
+	clc, reports, err := clct.Parse(data)
 
 	if (len(reports.Entries) > 0 && strict) || reports.IsFatal() {
 		return ignitionTypes.Config{}, "", fmt.Errorf("error parsing Container Linux Config: %v", reports.String())
 	}
 
-	ign, report := clct.Convert(clc, "", ast)
-	if (len(report.Entries) > 0 && strict) || report.IsFatal() {
-		return ignitionTypes.Config{}, "", fmt.Errorf("error converting to Ignition: %v", report.String())
-	}
-
-	reports.Merge(report)
-
-	return ign, reports.String(), nil
+	return clc, reports.String(), err
 }

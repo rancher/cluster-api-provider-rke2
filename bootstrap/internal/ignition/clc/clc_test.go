@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	ignition "github.com/coreos/ignition/v2/config/v3_0"
+	ignition "github.com/coreos/ignition/v2/config"
 	"k8s.io/utils/pointer"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
@@ -104,19 +104,19 @@ var _ = Describe("Render", func() {
 
 		Expect(ign.Storage.Files).To(HaveLen(5))
 
-		Expect(ign.Storage.Files[0].Filesystem).To(Equal("root"))
+		Expect(ign.Storage.Files[0].User).To(Equal("root"))
 		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config"))
 
-		Expect(ign.Storage.Files[1].Filesystem).To(Equal("root"))
+		Expect(ign.Storage.Files[1].User).To(Equal("root"))
 		Expect(ign.Storage.Files[1].Path).To(Equal("/test/file"))
 
-		Expect(ign.Storage.Files[2].Filesystem).To(Equal("root"))
+		Expect(ign.Storage.Files[2].User).To(Equal("root"))
 		Expect(ign.Storage.Files[2].Path).To(Equal("/test/base64"))
 
-		Expect(ign.Storage.Files[3].Filesystem).To(Equal("root"))
+		Expect(ign.Storage.Files[3].User).To(Equal("root"))
 		Expect(ign.Storage.Files[3].Path).To(Equal("/etc/rke2-install.sh"))
 
-		Expect(ign.Storage.Files[4].Filesystem).To(Equal("root"))
+		Expect(ign.Storage.Files[4].User).To(Equal("root"))
 		Expect(ign.Storage.Files[4].Path).To(Equal("/etc/ntp.conf"))
 
 		Expect(ign.Systemd.Units).To(HaveLen(3))
