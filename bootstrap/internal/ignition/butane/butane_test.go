@@ -20,7 +20,7 @@ package butane
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	ignition "github.com/coreos/ignition/v2/config/v3_3"
