@@ -214,7 +214,7 @@ func patchRKE2ControlPlane(ctx context.Context, patchHelper *patch.Helper, rcp *
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RKE2ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&controlplanev1.RKE2ControlPlane{}).
 		Build(r)
@@ -223,8 +223,8 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	err = c.Watch(
-		&source.Kind{Type: &clusterv1.Cluster{}},
-		handler.EnqueueRequestsFromMapFunc(r.ClusterToRKE2ControlPlane),
+		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
+		handler.EnqueueRequestsFromMapFunc(r.ClusterToRKE2ControlPlane(ctx)),
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed adding Watch for Clusters to controller manager")
@@ -736,18 +736,22 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 
 // ClusterToRKE2ControlPlane is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation
 // for RKE2ControlPlane based on updates to a Cluster.
-func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(o client.Object) []ctrl.Request {
-	c, ok := o.(*clusterv1.Cluster)
-	if !ok {
-		r.Log.Error(nil, fmt.Sprintf("Expected a Cluster but got a %T", o))
+func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(ctx context.Context) handler.MapFunc {
+	log := log.FromContext(ctx)
+
+	return func(_ context.Context, o client.Object) []ctrl.Request {
+		c, ok := o.(*clusterv1.Cluster)
+		if !ok {
+			log.Error(nil, fmt.Sprintf("Expected a Cluster but got a %T", o))
+
+			return nil
+		}
+
+		controlPlaneRef := c.Spec.ControlPlaneRef
+		if controlPlaneRef != nil && controlPlaneRef.Kind == "RKE2ControlPlane" {
+			return []ctrl.Request{{NamespacedName: client.ObjectKey{Namespace: controlPlaneRef.Namespace, Name: controlPlaneRef.Name}}}
+		}
 
 		return nil
 	}
-
-	controlPlaneRef := c.Spec.ControlPlaneRef
-	if controlPlaneRef != nil && controlPlaneRef.Kind == "RKE2ControlPlane" {
-		return []ctrl.Request{{NamespacedName: client.ObjectKey{Namespace: controlPlaneRef.Namespace, Name: controlPlaneRef.Name}}}
-	}
-
-	return nil
 }

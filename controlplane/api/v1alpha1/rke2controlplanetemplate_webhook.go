@@ -21,6 +21,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -47,22 +48,22 @@ func (r *RKE2ControlPlaneTemplate) Default() {
 var _ webhook.Validator = &RKE2ControlPlaneTemplate{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplate) ValidateCreate() error {
+func (r *RKE2ControlPlaneTemplate) ValidateCreate() (admission.Warnings, error) {
 	rke2controlplanetemplatelog.Info("validate create", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) error {
+func (r *RKE2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	rke2controlplanetemplatelog.Info("validate update", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplate) ValidateDelete() error {
+func (r *RKE2ControlPlaneTemplate) ValidateDelete() (admission.Warnings, error) {
 	rke2controlplanetemplatelog.Info("validate delete", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
