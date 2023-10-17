@@ -19,7 +19,8 @@ package v1alpha1
 import (
 	"fmt"
 
-	clct "github.com/flatcar/container-linux-config-transpiler/config"
+	"github.com/coreos/butane/config/common"
+	fcos "github.com/coreos/butane/config/fcos/v1_4"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -120,14 +121,14 @@ func (s *RKE2ConfigSpec) validateIgnition(pathPrefix *field.Path) field.ErrorLis
 	var allErrs field.ErrorList
 
 	if s.AgentConfig.Format == Ignition {
-		_, _, reports := clct.Parse([]byte(s.AgentConfig.AdditionalUserData.Config))
+		_, reports, _ := fcos.ToIgn3_3Bytes([]byte(s.AgentConfig.AdditionalUserData.Config), common.TranslateBytesOptions{})
 		if (len(reports.Entries) > 0 && s.AgentConfig.AdditionalUserData.Strict) || reports.IsFatal() {
 			allErrs = append(
 				allErrs,
 				field.Invalid(
 					pathPrefix.Child("agentConfig.AdditionalUserData.Config"),
 					s.AgentConfig.AdditionalUserData.Config,
-					fmt.Sprintf("error parsing Container Linux Config: %v", reports.String()),
+					fmt.Sprintf("error parsing Butane config: %v", reports.String()),
 				),
 			)
 		}
