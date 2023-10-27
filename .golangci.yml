@@ -102,5 +102,6 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - wastedassign
+    - depguard
 
     
