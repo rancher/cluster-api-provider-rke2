@@ -29,6 +29,7 @@ import (
 
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -231,6 +232,23 @@ func WaitForControlPlaneToBeReady(ctx context.Context, input WaitForControlPlane
 
 		return true, nil
 	}, intervals...).Should(BeTrue(), framework.PrettyPrint(controlplane)+"\n")
+}
+
+type WaitForMachineConditionsInput struct {
+	Getter    framework.Getter
+	Machine   *clusterv1.Machine
+	Checker   func(_ conditions.Getter, _ clusterv1.ConditionType) bool
+	Condition clusterv1.ConditionType
+}
+
+func WaitForMachineConditions(ctx context.Context, input WaitForMachineConditionsInput, intervals ...interface{}) {
+	Eventually(func() (bool, error) {
+		if err := input.Getter.Get(ctx, client.ObjectKeyFromObject(input.Machine), input.Machine); err != nil {
+			return false, errors.Wrapf(err, "failed to get machine")
+		}
+
+		return input.Checker(input.Machine, input.Condition), nil
+	}, intervals...).Should(BeTrue(), framework.PrettyPrint(input.Machine)+"\n")
 }
 
 func setDefaults(input *ApplyClusterTemplateAndWaitInput) {
