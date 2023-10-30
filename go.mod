@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/coreos/butane v0.19.0
 	github.com/coreos/ignition/v2 v2.16.2
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.3.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
 	github.com/pkg/errors v0.9.1
