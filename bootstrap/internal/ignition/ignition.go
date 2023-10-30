@@ -18,7 +18,7 @@ package ignition
 import (
 	"fmt"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha2"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/ignition/butane"
 )

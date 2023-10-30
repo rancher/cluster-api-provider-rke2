@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +34,7 @@ func (r *RKE2ControlPlaneTemplate) SetupWebhookWithManager(mgr ctrl.Manager) err
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplanetemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1alpha1,name=mrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-controlplane-cluster-x-k8s-io-v1alpha2-rke2controlplanetemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1alpha2,name=mrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &RKE2ControlPlaneTemplate{}
 
@@ -43,7 +43,7 @@ func (r *RKE2ControlPlaneTemplate) Default() {
 	rke2controlplanetemplatelog.Info("default", "name", r.Name)
 }
 
-//+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha1-rke2controlplanetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1alpha1,name=vrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1alpha2-rke2controlplanetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1alpha2,name=vrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RKE2ControlPlaneTemplate{}
 

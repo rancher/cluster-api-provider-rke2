@@ -22,11 +22,10 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha2"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/registration"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
-
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/registration"
 )
 
 func TestNewRegistrationMethod(t *testing.T) {

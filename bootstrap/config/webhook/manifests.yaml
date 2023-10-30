@@ -10,14 +10,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2config
+      path: /mutate-bootstrap-cluster-x-k8s-io-v1alpha2-rke2config
   failurePolicy: Fail
   name: mrke2config.kb.io
   rules:
   - apiGroups:
     - bootstrap.cluster.x-k8s.io
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
@@ -30,14 +30,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2configtemplate
+      path: /mutate-bootstrap-cluster-x-k8s-io-v1alpha2-rke2configtemplate
   failurePolicy: Fail
   name: mrke2configtemplate.kb.io
   rules:
   - apiGroups:
     - bootstrap.cluster.x-k8s.io
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
@@ -56,14 +56,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2config
+      path: /validate-bootstrap-cluster-x-k8s-io-v1alpha2-rke2config
   failurePolicy: Fail
   name: vrke2config.kb.io
   rules:
   - apiGroups:
     - bootstrap.cluster.x-k8s.io
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
@@ -76,14 +76,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2configtemplate
+      path: /validate-bootstrap-cluster-x-k8s-io-v1alpha2-rke2configtemplate
   failurePolicy: Fail
   name: vrke2configtemplate.kb.io
   rules:
   - apiGroups:
     - bootstrap.cluster.x-k8s.io
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE

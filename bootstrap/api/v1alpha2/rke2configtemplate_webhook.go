@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +34,7 @@ func (r *RKE2ConfigTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2configtemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1alpha1,name=mrke2configtemplate.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1alpha2-rke2configtemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1alpha2,name=mrke2configtemplate.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &RKE2ConfigTemplate{}
 
@@ -43,7 +43,7 @@ func (r *RKE2ConfigTemplate) Default() {
 	RKE2configtemplatelog.Info("default", "name", r.Name)
 }
 
-//+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1alpha1-rke2configtemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1alpha1,name=vrke2configtemplate.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1alpha2-rke2configtemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1alpha2,name=vrke2configtemplate.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RKE2ConfigTemplate{}
 

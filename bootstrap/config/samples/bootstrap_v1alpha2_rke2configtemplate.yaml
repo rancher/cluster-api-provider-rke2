@@ -1,0 +1,12 @@
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha2
+kind: RKE2ConfigTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: rke2configtemplate
+    app.kubernetes.io/instance: rke2configtemplate-sample
+    app.kubernetes.io/part-of: bootstrap
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: bootstrap
+  name: rke2configtemplate-sample
+spec:
+  # TODO(user): Add fields here

@@ -23,7 +23,7 @@ import (
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	bootstrapv1alpha1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
 
 const (
@@ -38,7 +38,7 @@ const (
 // RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane.
 type RKE2ControlPlaneSpec struct {
 	// RKE2AgentSpec contains the node spec for the RKE2 Control plane nodes.
-	bootstrapv1.RKE2ConfigSpec `json:",inline"`
+	bootstrapv1alpha1.RKE2ConfigSpec `json:",inline"`
 
 	// Replicas is the number of replicas for the Control Plane.
 	Replicas *int32 `json:"replicas,omitempty"`
@@ -134,19 +134,19 @@ type RKE2ServerConfig struct {
 
 	// KubeAPIServer defines optional custom configuration of the Kube API Server.
 	//+optional
-	KubeAPIServer *bootstrapv1.ComponentConfig `json:"kubeAPIServer,omitempty"`
+	KubeAPIServer *bootstrapv1alpha1.ComponentConfig `json:"kubeAPIServer,omitempty"`
 
 	// KubeControllerManager defines optional custom configuration of the Kube Controller Manager.
 	//+optional
-	KubeControllerManager *bootstrapv1.ComponentConfig `json:"kubeControllerManager,omitempty"`
+	KubeControllerManager *bootstrapv1alpha1.ComponentConfig `json:"kubeControllerManager,omitempty"`
 
 	// KubeScheduler defines optional custom configuration of the Kube Scheduler.
 	//+optional
-	KubeScheduler *bootstrapv1.ComponentConfig `json:"kubeScheduler,omitempty"`
+	KubeScheduler *bootstrapv1alpha1.ComponentConfig `json:"kubeScheduler,omitempty"`
 
 	// CloudControllerManager defines optional custom configuration of the Cloud Controller Manager.
 	//+optional
-	CloudControllerManager *bootstrapv1.ComponentConfig `json:"cloudControllerManager,omitempty"`
+	CloudControllerManager *bootstrapv1alpha1.ComponentConfig `json:"cloudControllerManager,omitempty"`
 
 	// CloudProviderName cloud provider name.
 	//+optional
@@ -236,7 +236,7 @@ type EtcdConfig struct {
 	BackupConfig EtcdBackupConfig `json:"backupConfig,omitempty"`
 
 	// CustomConfig defines the custom settings for ETCD.
-	CustomConfig *bootstrapv1.ComponentConfig `json:"customConfig,omitempty"`
+	CustomConfig *bootstrapv1alpha1.ComponentConfig `json:"customConfig,omitempty"`
 }
 
 // EtcdBackupConfig describes the backup configuration for ETCD.

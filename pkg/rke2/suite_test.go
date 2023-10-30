@@ -13,8 +13,8 @@ import (
 	. "github.com/onsi/gomega"
 
 	// +kubebuilder:scaffold:imports
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha2"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha2"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/test/helpers"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
