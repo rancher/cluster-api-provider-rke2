@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package clc
+package butane
 
 import (
 	"bytes"
@@ -23,9 +23,10 @@ import (
 	"strings"
 	"text/template"
 
-	clct "github.com/flatcar/container-linux-config-transpiler/config"
-	ignition "github.com/flatcar/ignition/config/v2_3"
-	ignitionTypes "github.com/flatcar/ignition/config/v2_3/types"
+	"github.com/coreos/butane/config/common"
+	fcos "github.com/coreos/butane/config/fcos/v1_4"
+	ignition "github.com/coreos/ignition/v2/config/v3_3"
+	ignitionTypes "github.com/coreos/ignition/v2/config/v3_3/types"
 	"github.com/pkg/errors"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
@@ -41,7 +42,9 @@ import (
 // it runs an additional CIS script to enforce system security standards. If NTP servers are specified,
 // it creates an NTP configuration file at /etc/ntp.conf.
 const (
-	clcTemplate = `---
+	butaneTemplate = `
+variant: fcos
+version: 1.4.0
 systemd:
   units:
     - name: rke2-install.service
@@ -49,7 +52,10 @@ systemd:
       contents: |
         [Unit]
         Description=rke2-install
+        Wants=network-online.target
+        After=network-online.target network.target
         [Service]
+        User=root
         # To not restart the unit when it exits, as it is expected.
         Type=oneshot
         ExecStart=/etc/rke2-install.sh
@@ -63,6 +69,7 @@ storage:
   files:
     - path: /etc/ssh/sshd_config
       mode: 0600
+      overwrite: true
       contents:
         inline: |
           # Use most defaults for sshd configuration.
@@ -146,9 +153,16 @@ storage:
 
 func defaultTemplateFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"Indent":     templateYAMLIndent,
-		"ParseOwner": parseOwner,
+		"Indent":         templateYAMLIndent,
+		"Split":          strings.Split,
+		"Join":           strings.Join,
+		"MountpointName": mountpointName,
+		"ParseOwner":     parseOwner,
 	}
+}
+
+func mountpointName(name string) string {
+	return strings.TrimPrefix(strings.ReplaceAll(name, "/", "-"), "-")
 }
 
 func templateYAMLIndent(i int, input string) string {
@@ -192,8 +206,8 @@ func parseOwner(ownerRaw string) owner {
 	}
 }
 
-func renderCLC(input *cloudinit.BaseUserData) ([]byte, error) {
-	t := template.Must(template.New("template").Funcs(defaultTemplateFuncMap()).Parse(clcTemplate))
+func renderButane(input *cloudinit.BaseUserData) ([]byte, error) {
+	t := template.Must(template.New("template").Funcs(defaultTemplateFuncMap()).Parse(butaneTemplate))
 
 	var out bytes.Buffer
 	if err := t.Execute(&out, input); err != nil {
@@ -203,66 +217,63 @@ func renderCLC(input *cloudinit.BaseUserData) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// Render renders the provided user data and CLC snippets into Ignition config.
-func Render(input *cloudinit.BaseUserData, additionalConfig *bootstrapv1.AdditionalUserData) ([]byte, error) {
+// butaneToIgnition converts butane bytes to an ignition v3.3 `Config`.
+func butaneToIgnition(data []byte, strict bool) (ignitionTypes.Config, error) {
+	// converting butane config to ignition config (bytes)
+	// NB: it could be simpler to Translate directly to a Config struct
+	//     but it doesn't seems to be supported (at least without an over-complicated implementation)
+	ignBytes, reports, err := fcos.ToIgn3_3Bytes(data, common.TranslateBytesOptions{})
+	if err != nil {
+		return ignitionTypes.Config{}, fmt.Errorf("error converting to Ignition: %w", err)
+	}
+
+	if (len(reports.Entries) > 0 && strict) || reports.IsFatal() {
+		return ignitionTypes.Config{}, fmt.Errorf("error converting to Ignition: %s", reports.String())
+	}
+	// parse the ignition config bytes to have a Config struct
+	cfg, parseReport, err := ignition.Parse(ignBytes)
+	if err != nil {
+		return ignitionTypes.Config{}, fmt.Errorf("error parsing resulting Ignition: %w", err)
+	}
+
+	if (len(parseReport.Entries) > 0 && strict) || parseReport.IsFatal() {
+		return ignitionTypes.Config{}, fmt.Errorf("error parsing resulting Ignition: %v", parseReport.String())
+	}
+
+	reports.Merge(parseReport)
+
+	return cfg, nil
+}
+
+// Render renders the provided user data and additional butane config into an Ignition config.
+func Render(input *cloudinit.BaseUserData, butaneCfg *bootstrapv1.AdditionalUserData) ([]byte, error) {
 	if input == nil {
 		return nil, errors.New("empty base user data")
 	}
 
-	clcBytes, err := renderCLC(input)
+	butaneBytes, err := renderButane(input)
 	if err != nil {
-		return nil, errors.Wrapf(err, "rendering CLC configuration")
+		return nil, err
+	}
+	// the base config is derived from the static template above, so treat it as strict
+	cfg, err := butaneToIgnition(butaneBytes, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "converting base config to Ignition")
 	}
 
-	userData, _, err := buildIgnitionConfig(clcBytes, additionalConfig)
+	if butaneCfg != nil && butaneCfg.Config != "" {
+		addCfg, err := butaneToIgnition([]byte(butaneCfg.Config), butaneCfg.Strict)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting additional config to Ignition")
+		}
+
+		cfg = ignition.Merge(cfg, addCfg)
+	}
+
+	userData, err := json.Marshal(cfg)
 	if err != nil {
-		return nil, errors.Wrapf(err, "building Ignition config")
+		return nil, errors.Wrap(err, "marshaling Ignition config into JSON")
 	}
 
 	return userData, nil
-}
-
-func buildIgnitionConfig(baseCLC []byte, additionalConfig *bootstrapv1.AdditionalUserData) ([]byte, string, error) {
-	// We control baseCLC config, so treat it as strict.
-	ign, _, err := clcToIgnition(baseCLC, true)
-	if err != nil {
-		return nil, "", errors.Wrapf(err, "converting generated CLC to Ignition")
-	}
-
-	var clcWarnings string
-
-	if additionalConfig != nil && additionalConfig.Config != "" {
-		additionalIgn, warnings, err := clcToIgnition([]byte(additionalConfig.Config), additionalConfig.Strict)
-		if err != nil {
-			return nil, "", errors.Wrapf(err, "converting additional CLC to Ignition")
-		}
-
-		clcWarnings = warnings
-
-		ign = ignition.Append(ign, additionalIgn)
-	}
-
-	userData, err := json.Marshal(&ign)
-	if err != nil {
-		return nil, "", errors.Wrapf(err, "marshaling generated Ignition config into JSON")
-	}
-
-	return userData, clcWarnings, nil
-}
-
-func clcToIgnition(data []byte, strict bool) (ignitionTypes.Config, string, error) {
-	clc, ast, reports := clct.Parse(data)
-
-	if (len(reports.Entries) > 0 && strict) || reports.IsFatal() {
-		return ignitionTypes.Config{}, "", fmt.Errorf("error parsing Container Linux Config: %v", reports.String())
-	}
-
-	ign, report := clct.Convert(clc, "", ast)
-	if (len(report.Entries) > 0 && strict) || report.IsFatal() {
-		return ignitionTypes.Config{}, "", fmt.Errorf("error converting to Ignition: %v", report.String())
-	}
-
-	reports.Merge(report)
-
-	return ign, reports.String(), nil
 }

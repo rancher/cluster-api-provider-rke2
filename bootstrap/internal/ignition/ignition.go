@@ -20,7 +20,7 @@ import (
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/ignition/clc"
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/ignition/butane"
 )
 
 const (
@@ -119,12 +119,12 @@ func controlPlaneConfigInput(input *ControlPlaneInput) (*ControlPlaneInput, erro
 }
 
 func render(input *cloudinit.BaseUserData, ignitionConfig *bootstrapv1.AdditionalUserData) ([]byte, error) {
-	additionalCLCConfig := &bootstrapv1.AdditionalUserData{}
+	additionalButaneConfig := &bootstrapv1.AdditionalUserData{}
 	if ignitionConfig != nil && ignitionConfig.Config != "" {
-		additionalCLCConfig = ignitionConfig
+		additionalButaneConfig = ignitionConfig
 	}
 
-	return clc.Render(input, additionalCLCConfig)
+	return butane.Render(input, additionalButaneConfig)
 }
 
 func getControlPlaneRKE2Commands(baseUserData *cloudinit.BaseUserData) ([]string, error) {

@@ -32,7 +32,8 @@ func TestIgnition(t *testing.T) {
 	RunSpecs(t, "Ignition Suite")
 }
 
-var additionalIgnition = `---
+var additionalIgnition = `variant: fcos
+version: 1.4.0
 systemd:
   units:
     - name: test.service
