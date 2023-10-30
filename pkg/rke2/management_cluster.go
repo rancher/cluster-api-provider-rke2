@@ -113,7 +113,5 @@ func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclie
 		return nil, &RemoteClusterConnectionError{Name: clusterKey.String(), Err: err}
 	}
 
-	return &Workload{
-		Client: c,
-	}, nil
+	return NewWorkload(c), nil
 }

@@ -99,7 +99,7 @@ func (r *RKE2Config) ValidateDelete() (admission.Warnings, error) {
 }
 
 // ValidateRKE2ConfigSpec validates the RKE2ConfigSpec.
-func ValidateRKE2ConfigSpec(name string, spec *RKE2ConfigSpec) field.ErrorList {
+func ValidateRKE2ConfigSpec(_ string, spec *RKE2ConfigSpec) field.ErrorList {
 	allErrs := spec.validate(field.NewPath("spec"))
 
 	if len(allErrs) == 0 {

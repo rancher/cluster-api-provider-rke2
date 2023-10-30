@@ -56,6 +56,7 @@ const (
 	filePermissions  string = "0640"
 	registrationPort int    = 9345
 	serverURLFormat  string = "https://%v:%v"
+	tokenPrefix      string = "-token"
 )
 
 // RKE2ConfigReconciler reconciles a Rke2Config object.
@@ -492,12 +493,17 @@ type RKE2InitLock interface {
 // Control Plane machine joining a cluster that is already initialized.
 func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
 	tokenSecret := &corev1.Secret{}
-	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
+
+	secretKey := types.NamespacedName{
+		Namespace: scope.Cluster.Namespace,
+		Name:      scope.Cluster.Name + tokenPrefix,
+	}
+	if err := r.Client.Get(ctx, secretKey, tokenSecret); err != nil {
 		scope.Logger.Error(
 			err,
 			"Token for already initialized RKE2 Cluster not found", "token-namespace",
 			scope.Cluster.Namespace, "token-name",
-			scope.Cluster.Name+"-token")
+			scope.Cluster.Name+tokenPrefix)
 
 		return ctrl.Result{}, err
 	}
@@ -621,13 +627,17 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (res ctrl.Result, rerr error) {
 	tokenSecret := &corev1.Secret{}
 
-	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: scope.Cluster.Namespace, Name: scope.Cluster.Name + "-token"}, tokenSecret); err != nil {
+	secretKey := types.NamespacedName{
+		Namespace: scope.Cluster.Namespace,
+		Name:      scope.Cluster.Name + tokenPrefix,
+	}
+	if err := r.Client.Get(ctx, secretKey, tokenSecret); err != nil {
 		scope.Logger.Info(
 			"Token for already initialized RKE2 Cluster not found",
 			"token-namespace",
 			scope.Cluster.Namespace,
 			"token-name",
-			scope.Cluster.Name+"-token")
+			scope.Cluster.Name+tokenPrefix)
 
 		return ctrl.Result{}, err
 	}

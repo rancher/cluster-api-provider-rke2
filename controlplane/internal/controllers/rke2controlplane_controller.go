@@ -649,7 +649,9 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 
 // reconcileControlPlaneConditions is responsible of reconciling conditions reporting the status of static pods and
 // the status of the etcd cluster.
-func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(ctx context.Context, controlPlane *rke2.ControlPlane) (ctrl.Result, error) {
+func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
+	ctx context.Context, controlPlane *rke2.ControlPlane,
+) (res ctrl.Result, retErr error) {
 	logger := log.FromContext(ctx)
 
 	readyCPMachines := controlPlane.Machines.Filter(collections.IsReady())
@@ -679,17 +681,32 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(ctx context
 
 	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, util.ObjectKey(controlPlane.Cluster))
 	if err != nil {
-		logger.Info("Unable to get Workload cluster")
+		logger.Error(err, "Unable to get Workload cluster")
 
 		return ctrl.Result{}, errors.Wrap(err, "cannot get remote client to workload cluster")
 	}
 
-	// Update conditions status
-	workloadCluster.UpdateAgentConditions(ctx, controlPlane)
-	workloadCluster.UpdateEtcdConditions(ctx, controlPlane)
+	defer func() {
+		// Always attempt to Patch the Machine conditions after each reconcile.
+		if err := controlPlane.PatchMachines(ctx); err != nil {
+			retErr = kerrors.NewAggregate([]error{retErr, err})
+		}
+	}()
 
-	// Patch machines with the updated conditions.
-	if err := controlPlane.PatchMachines(ctx); err != nil {
+	if err := workloadCluster.InitWorkload(ctx, controlPlane); err != nil {
+		logger.Error(err, "Unable to initialize workload cluster")
+
+		return ctrl.Result{}, err
+	}
+
+	// Update conditions status
+	workloadCluster.UpdateAgentConditions(controlPlane)
+	workloadCluster.UpdateEtcdConditions(controlPlane)
+
+	// Patch nodes metadata
+	if err := workloadCluster.UpdateNodeMetadata(ctx, controlPlane); err != nil {
+		logger.Error(err, "Unable to update node metadata")
+
 		return ctrl.Result{}, err
 	}
 
@@ -721,10 +738,11 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		return ctrl.Result{}, err
 	}
 
-	status, err := workloadCluster.ClusterStatus(ctx)
-	if err != nil {
+	if err := workloadCluster.InitWorkload(ctx, controlPlane); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	status := workloadCluster.ClusterStatus()
 
 	if status.Nodes <= *rcp.Spec.Replicas {
 		// scaleUp ensures that we don't continue scaling up while waiting for Machines to have NodeRefs

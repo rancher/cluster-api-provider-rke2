@@ -55,7 +55,7 @@ func (r *RKE2ConfigTemplate) ValidateCreate() (admission.Warnings, error) {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *RKE2ConfigTemplate) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
 	RKE2configtemplatelog.Info("validate update", "name", r.Name)
 
 	return nil, nil

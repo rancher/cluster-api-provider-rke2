@@ -34,6 +34,8 @@ spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   agentConfig:
     version: ${KUBERNETES_VERSION}+rke2r1
+    nodeAnnotations:
+      test: "true"
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: DockerMachineTemplate
@@ -89,3 +91,5 @@ spec:
     spec:
       agentConfig:
         version: ${KUBERNETES_VERSION}+rke2r1
+        nodeAnnotations:
+          test: "true"
