@@ -142,6 +142,10 @@ func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
 
 	for i := range w.Nodes {
 		node := w.Nodes[i]
+		if _, found := cp.Machines[node.Name]; !found {
+			continue
+		}
+
 		if helper, ok := w.nodePatchHelpers[node.Name]; ok {
 			if err := helper.Patch(ctx, node); err != nil {
 				conditions.MarkUnknown(
