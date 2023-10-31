@@ -464,6 +464,14 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		return result, err
 	}
 
+	// Check if there are any machines with a deletion timestamp set and requeue, we should
+	// wait for them to be deleted first.
+	if controlPlane.HasDeletingMachine() {
+		logger.Info("Waiting for deleting machines to be deleted first")
+
+		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
+	}
+
 	// Control plane machines rollout due to configuration changes (e.g. upgrades) takes precedence over other operations.
 	needRollout := controlPlane.MachinesNeedingRollout()
 
@@ -742,14 +750,23 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		return ctrl.Result{}, err
 	}
 
-	status := workloadCluster.ClusterStatus()
+	switch rcp.Spec.RolloutStrategy.Type {
+	case controlplanev1.RollingUpdateStrategyType:
+		// RolloutStrategy is currently defaulted and validated to be RollingUpdate
+		// We can ignore MaxUnavailable because we are enforcing health checks before we get here.
+		maxNodes := *rcp.Spec.Replicas + int32(rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge.IntValue())
+		if int32(controlPlane.Machines.Len()) < maxNodes {
+			// scaleUp ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
+			return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)
+		}
 
-	if status.Nodes <= *rcp.Spec.Replicas {
-		// scaleUp ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
-		return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)
+		return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, machinesRequireUpgrade)
+	default:
+		err := fmt.Errorf("unknown rollout strategy type %q", rcp.Spec.RolloutStrategy.Type)
+		logger.Error(err, "RolloutStrategy type is not set to RollingUpdateStrategyType, unable to determine the strategy for rolling out machines")
+
+		return ctrl.Result{}, nil
 	}
-
-	return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, machinesRequireUpgrade)
 }
 
 // ClusterToRKE2ControlPlane is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation

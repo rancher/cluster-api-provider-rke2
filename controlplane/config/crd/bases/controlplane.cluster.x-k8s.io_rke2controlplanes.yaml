@@ -605,6 +605,34 @@ spec:
                 description: Replicas is the number of replicas for the Control Plane.
                 format: int32
                 type: integer
+              rolloutStrategy:
+                default:
+                  rollingUpdate:
+                    maxSurge: 1
+                  type: RollingUpdate
+                description: The RolloutStrategy to use to replace control plane machines
+                  with new ones.
+                properties:
+                  rollingUpdate:
+                    description: Rolling update config params. Present only if RolloutStrategyType
+                      = RollingUpdate.
+                    properties:
+                      maxSurge:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: 'The maximum number of control planes that can
+                          be scheduled above or under the desired number of control
+                          planes. Value can be an absolute number 1 or 0. Defaults
+                          to 1. Example: when this is set to 1, the control plane
+                          can be scaled up immediately when the rolling update starts.'
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  type:
+                    description: Type of rollout. Currently the only supported strategy
+                      is "RollingUpdate". Default is RollingUpdate.
+                    type: string
+                type: object
               serverConfig:
                 description: ServerConfig specifies configuration for the agent nodes.
                 properties:

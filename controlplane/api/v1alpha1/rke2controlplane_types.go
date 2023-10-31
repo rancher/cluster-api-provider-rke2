@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
@@ -71,6 +72,11 @@ type RKE2ControlPlaneSpec struct {
 	// the registration type is "address". Its for scenarios where a load-balancer or VIP is used.
 	// +optional
 	RegistrationAddress string `json:"registrationAddress,omitempty"`
+
+	// The RolloutStrategy to use to replace control plane machines with new ones.
+	// +optional
+	// +kubebuilder:default={type: "RollingUpdate", rollingUpdate: {maxSurge: 1}}
+	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 }
 
 // RKE2ServerConfig specifies configuration for the agent nodes.
@@ -341,6 +347,40 @@ const (
 	IngressNginx DisabledPluginComponent = "rke2-ingress-nginx"
 	// MetricsServer references the RKE2 Plugin "rke2-metrics-server".
 	MetricsServer DisabledPluginComponent = "rke2-metrics-server"
+)
+
+// RolloutStrategy describes how to replace existing machines
+// with new ones.
+type RolloutStrategy struct {
+	// Type of rollout. Currently the only supported strategy is "RollingUpdate".
+	// Default is RollingUpdate.
+	// +optional
+	Type RolloutStrategyType `json:"type,omitempty"`
+
+	// Rolling update config params. Present only if RolloutStrategyType = RollingUpdate.
+	// +optional
+	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
+}
+
+// RollingUpdate is used to control the desired behavior of rolling update.
+type RollingUpdate struct {
+	// The maximum number of control planes that can be scheduled above or under the
+	// desired number of control planes.
+	// Value can be an absolute number 1 or 0.
+	// Defaults to 1.
+	// Example: when this is set to 1, the control plane can be scaled
+	// up immediately when the rolling update starts.
+	// +optional
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
+}
+
+// RolloutStrategyType defines the rollout strategies for a RKE2ControlPlane.
+type RolloutStrategyType string
+
+const (
+	// RollingUpdateStrategyType replaces the old control planes by new one using rolling update
+	// i.e. gradually scale up or down the old control planes and scale up or down the new one.
+	RollingUpdateStrategyType RolloutStrategyType = "RollingUpdate"
 )
 
 func init() { //nolint:gochecknoinits
