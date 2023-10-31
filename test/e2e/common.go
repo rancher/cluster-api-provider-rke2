@@ -40,11 +40,11 @@ import (
 const (
 	KubernetesVersionManagement     = "KUBERNETES_VERSION_MANAGEMENT"
 	KubernetesVersion               = "KUBERNETES_VERSION"
-	KubernetesVersionUpgradeFrom    = "KUBERNETES_VERSION_UPGRADE_FROM"
 	KubernetesVersionUpgradeTo      = "KUBERNETES_VERSION_UPGRADE_TO"
 	CPMachineTemplateUpgradeTo      = "CONTROL_PLANE_MACHINE_TEMPLATE_UPGRADE_TO"
 	WorkersMachineTemplateUpgradeTo = "WORKERS_MACHINE_TEMPLATE_UPGRADE_TO"
 	IPFamily                        = "IP_FAMILY"
+	KindImageVersion                = "KIND_IMAGE_VERSION"
 )
 
 func Byf(format string, a ...interface{}) {

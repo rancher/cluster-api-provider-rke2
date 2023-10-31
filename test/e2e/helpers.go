@@ -20,6 +20,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -249,6 +250,43 @@ func WaitForMachineConditions(ctx context.Context, input WaitForMachineCondition
 
 		return input.Checker(input.Machine, input.Condition), nil
 	}, intervals...).Should(BeTrue(), framework.PrettyPrint(input.Machine)+"\n")
+}
+
+// WaitForClusterToUpgradeInput is the input for WaitForClusterToUpgrade.
+type WaitForClusterToUpgradeInput struct {
+	Lister              framework.Lister
+	ControlPlane        *controlplanev1.RKE2ControlPlane
+	MachineDeployments  []*clusterv1.MachineDeployment
+	VersionAfterUpgrade string
+}
+
+// WaitForClusterToUpgrade will wait for a cluster to be upgraded.
+func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeInput, intervals ...interface{}) {
+	By("Waiting for machines to update")
+
+	totallMachineCount := *input.ControlPlane.Spec.Replicas
+	for _, md := range input.MachineDeployments {
+		totallMachineCount += *md.Spec.Replicas
+	}
+
+	Eventually(func() (bool, error) {
+		machineList := &clusterv1.MachineList{}
+		if err := input.Lister.List(ctx, machineList); err != nil {
+			return false, fmt.Errorf("failed to list machines: %w", err)
+		}
+
+		if len(machineList.Items) != int(totallMachineCount) { // not all replicas are created
+			return false, nil
+		}
+
+		for _, machine := range machineList.Items {
+			if machine.Spec.Version != nil && *machine.Spec.Version != input.VersionAfterUpgrade {
+				return false, nil
+			}
+		}
+
+		return true, nil
+	}, intervals...).Should(BeTrue(), framework.PrettyPrint(input.ControlPlane)+"\n")
 }
 
 func setDefaults(input *ApplyClusterTemplateAndWaitInput) {
