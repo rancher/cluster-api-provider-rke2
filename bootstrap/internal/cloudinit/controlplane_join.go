@@ -35,6 +35,10 @@ func NewJoinControlPlane(input *ControlPlaneInput) ([]byte, error) {
 		return nil, err
 	}
 
+	if err := cleanupArbitraryData(input.AdditionalArbitraryData); err != nil {
+		return nil, err
+	}
+
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
 	userData, err := generate("JoinControlplane", controlPlaneCloudJoinWithVersion, input)
 

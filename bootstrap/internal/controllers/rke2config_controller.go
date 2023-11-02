@@ -402,15 +402,16 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
-			AirGapped:           scope.Config.Spec.AgentConfig.AirGapped,
-			CISEnabled:          scope.Config.Spec.AgentConfig.CISProfile != "",
-			PreRKE2Commands:     scope.Config.Spec.PreRKE2Commands,
-			PostRKE2Commands:    scope.Config.Spec.PostRKE2Commands,
-			ConfigFile:          initConfigFile,
-			RKE2Version:         scope.Config.Spec.AgentConfig.Version,
-			WriteFiles:          files,
-			NTPServers:          ntpServers,
-			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+			AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
+			CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
+			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
+			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
+			ConfigFile:              initConfigFile,
+			RKE2Version:             scope.Config.Spec.AgentConfig.Version,
+			WriteFiles:              files,
+			NTPServers:              ntpServers,
+			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+			AdditionalArbitraryData: scope.Config.Spec.AgentConfig.AdditionalUserData.Data,
 		},
 		Certificates: certificates,
 	}
@@ -694,15 +695,16 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	}
 
 	wkInput := &cloudinit.BaseUserData{
-		PreRKE2Commands:     scope.Config.Spec.PreRKE2Commands,
-		AirGapped:           scope.Config.Spec.AgentConfig.AirGapped,
-		CISEnabled:          scope.Config.Spec.AgentConfig.CISProfile != "",
-		PostRKE2Commands:    scope.Config.Spec.PostRKE2Commands,
-		ConfigFile:          wkJoinConfigFile,
-		RKE2Version:         scope.Config.Spec.AgentConfig.Version,
-		WriteFiles:          files,
-		NTPServers:          ntpServers,
-		AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+		PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
+		AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
+		CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
+		PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
+		ConfigFile:              wkJoinConfigFile,
+		RKE2Version:             scope.Config.Spec.AgentConfig.Version,
+		WriteFiles:              files,
+		NTPServers:              ntpServers,
+		AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+		AdditionalArbitraryData: scope.Config.Spec.AgentConfig.AdditionalUserData.Data,
 	}
 
 	var userData []byte

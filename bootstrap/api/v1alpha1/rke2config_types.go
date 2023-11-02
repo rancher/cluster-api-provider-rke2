@@ -164,12 +164,20 @@ type RKE2AgentConfig struct {
 	AdditionalUserData AdditionalUserData `json:"additionalUserData,omitempty"`
 }
 
-// AdditionalUserData is a field that allows users to specify additional cloud-init configuration .
+// AdditionalUserData is a field that allows users to specify additional
+// cloud-init configuration .
+// +kubebuilder:validation:XValidation:rule="!has(self.data) || !has(self.config)", message="Only config or data could be populated at once"
 type AdditionalUserData struct {
 	// In case of using ignition, the data format is documented here: https://kinvolk.io/docs/flatcar-container-linux/latest/provisioning/cl-config/
 	// NOTE: All fields of the UserData that are managed by the RKE2Config controller will be ignored, this include "write_files", "runcmd", "ntp".
 	// +optional
+	// Deprecated: Data is reserved for the arbitrary cloud-init data
 	Config string `json:"config,omitempty"`
+
+	// Data allows to pass arbitrary set of key/value pairs consistent with
+	// https://cloudinit.readthedocs.io/en/latest/reference/modules.html
+	// to extend existing cloud-init configuration
+	Data map[string]string `json:"data,omitempty"`
 
 	// Strict controls if Config should be strictly parsed. If so, warnings are treated as errors.
 	// +optional

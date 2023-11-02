@@ -87,22 +87,28 @@ ntp:
 {{- end -}}
 {{- end -}}
 `
+	arbitraryTemplate = `{{- define "arbitrary" -}}{{- range $key, $value := . }}
+{{ $key -}}: {{ $value -}}
+{{- end -}}
+{{- end -}}
+`
 )
 
 // BaseUserData is shared across all the various types of files written to disk.
 type BaseUserData struct {
-	Header              string
-	PreRKE2Commands     []string
-	DeployRKE2Commands  []string
-	PostRKE2Commands    []string
-	WriteFiles          []bootstrapv1.File
-	ConfigFile          bootstrapv1.File
-	RKE2Version         string
-	SentinelFileCommand string
-	AirGapped           bool
-	NTPServers          []string
-	CISEnabled          bool
-	AdditionalCloudInit string
+	Header                  string
+	PreRKE2Commands         []string
+	DeployRKE2Commands      []string
+	PostRKE2Commands        []string
+	WriteFiles              []bootstrapv1.File
+	ConfigFile              bootstrapv1.File
+	RKE2Version             string
+	SentinelFileCommand     string
+	AirGapped               bool
+	NTPServers              []string
+	CISEnabled              bool
+	AdditionalCloudInit     string
+	AdditionalArbitraryData map[string]string
 }
 
 func generate(kind string, tpl string, data interface{}) ([]byte, error) {
@@ -117,6 +123,10 @@ func generate(kind string, tpl string, data interface{}) ([]byte, error) {
 
 	if _, err := tm.Parse(ntpTemplate); err != nil {
 		return nil, errors.Wrap(err, "failed to parse ntp template")
+	}
+
+	if _, err := tm.Parse(arbitraryTemplate); err != nil {
+		return nil, errors.Wrap(err, "failed to parse arbitrary template")
 	}
 
 	t, err := tm.Parse(tpl)
@@ -158,4 +168,42 @@ func cleanupAdditionalCloudInit(cloudInitData string) (string, error) {
 	}
 
 	return res, nil
+}
+
+func cleanupArbitraryData(arbitraryData map[string]string) error {
+	// Remove ignored fields from the map
+	for _, field := range ignoredCloudInitFields {
+		delete(arbitraryData, field)
+	}
+
+	if len(arbitraryData) == 0 {
+		return nil
+	}
+
+	m := make(map[string]interface{})
+
+	kind := "arbitrary_prepare"
+	tm := template.New(kind).Funcs(defaultTemplateFuncMap)
+
+	if _, err := tm.Parse(arbitraryTemplate); err != nil {
+		return errors.Wrap(err, "failed to parse arbitrary keys template")
+	}
+
+	t, err := tm.Parse(`{{template "arbitrary" .AdditionalArbitraryData}}`)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse arbitrary template")
+	}
+
+	var out bytes.Buffer
+	if err := t.Execute(&out, BaseUserData{
+		AdditionalArbitraryData: arbitraryData,
+	}); err != nil {
+		return errors.Wrapf(err, "failed to generate %s template", kind)
+	}
+
+	if err := yaml.Unmarshal(out.Bytes(), m); err != nil {
+		return fmt.Errorf("failed to unmarshal arbitrary cloud-init data: %w, please check if you put valid yaml data: %s", err, out.String())
+	}
+
+	return nil
 }
