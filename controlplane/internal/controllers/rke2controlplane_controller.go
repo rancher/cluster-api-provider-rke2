@@ -745,11 +745,10 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 
 	switch rcp.Spec.RolloutStrategy.Type {
 	case controlplanev1.RollingUpdateStrategyType:
-		// RolloutStrategy is currently defaulted and validated to be RollingUpdate
-		// We can ignore MaxUnavailable because we are enforcing health checks before we get here.
+		// RolloutStrategy is currently defaulted and validated to be RollingUpdate.
 		maxNodes := *rcp.Spec.Replicas + int32(rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge.IntValue())
 		if int32(controlPlane.Machines.Len()) < maxNodes {
-			// scaleUp ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
+			// scaleUpControlPlane ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
 			return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)
 		}
 
