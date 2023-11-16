@@ -244,10 +244,11 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv
 			rke2ServerConfig.DisableKubeProxy = true
 		case controlplanev1.Scheduler:
 			rke2ServerConfig.DisableScheduler = true
+		case controlplanev1.CloudController:
+			rke2ServerConfig.DisableCloudController = true
 		}
 	}
 
-	rke2ServerConfig.DisableCloudController = true
 	rke2ServerConfig.EtcdDisableSnapshots = opts.ServerConfig.Etcd.BackupConfig.DisableAutomaticSnapshots
 	rke2ServerConfig.EtcdExposeMetrics = opts.ServerConfig.Etcd.ExposeMetrics
 
