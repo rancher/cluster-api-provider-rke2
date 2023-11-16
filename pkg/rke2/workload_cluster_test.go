@@ -158,3 +158,35 @@ var _ = Describe("Node metadata propagation", func() {
 		}))
 	})
 })
+
+var _ = Describe("Cloud-init fields validation", func() {
+	var (
+		err error
+		ns  *corev1.Namespace
+	)
+
+	BeforeEach(func() {
+		ns, err = testEnv.CreateNamespace(ctx, "ns")
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		testEnv.Cleanup(ctx, ns)
+	})
+
+	It("should prevent populating config and data fields", func() {
+		Expect(testEnv.Create(ctx, &bootstrapv1.RKE2Config{ObjectMeta: metav1.ObjectMeta{
+			Name:      "config",
+			Namespace: ns.Name,
+		}, Spec: bootstrapv1.RKE2ConfigSpec{
+			AgentConfig: bootstrapv1.RKE2AgentConfig{
+				AdditionalUserData: bootstrapv1.AdditionalUserData{
+					Config: "some",
+					Data: map[string]string{
+						"no": "way",
+					},
+				},
+			},
+		}})).ToNot(Succeed())
+	})
+})

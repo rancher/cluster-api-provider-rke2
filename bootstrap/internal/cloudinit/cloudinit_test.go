@@ -43,6 +43,7 @@ write_files:
     content: |
       
 
+
 runcmd:
   - 'INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh'
   - 'systemctl enable rke2-agent.service'
@@ -75,6 +76,7 @@ write_files:
 -   path: 
     content: |
       
+
 
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
@@ -111,6 +113,7 @@ ntp:
   enabled: true
   servers:
   - "test.ntp.org"
+
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION= INSTALL_RKE2_TYPE="agent" sh -s -'
   - 'systemctl enable rke2-agent.service'
@@ -145,6 +148,7 @@ write_files:
     content: |
       
 
+
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
@@ -166,6 +170,7 @@ write_files:
 -   path: 
     content: |
 
+
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION= INSTALL_RKE2_TYPE=\"agent\" sh -s -'
   - 'systemctl enable rke2-agent.service'
@@ -186,8 +191,11 @@ users:
 
 var _ = Describe("CloudInit with custom entries", func() {
 	var input *BaseUserData
+	var cloudInitData string
+	var arbitraryData map[string]string
+
 	BeforeEach(func() {
-		cloudInitData := `## template: jinja
+		cloudInitData = `## template: jinja
 #cloud-config
 device_aliases: {'ephemeral0': '/dev/vdb'}
 disk_setup:
@@ -206,18 +214,29 @@ write_files:
     content: |
       192.168.0.1 test
 
+
 runcmd:
   - 'print hello world' 
 `
-		input = &BaseUserData{
-			AirGapped:           false,
-			CISEnabled:          true,
-			RKE2Version:         "v1.25.6+rke2r1",
-			AdditionalCloudInit: cloudInitData,
+		arbitraryData = map[string]string{
+			"disk_setup": `
+  ephemeral0:
+    table_type: mbr
+    layout: False
+    overwrite: False`,
+			"device_aliases": "{'ephemeral0': '/dev/vdb'}",
+			"runcmd": `
+  - 'print hello world'`,
 		}
 	})
 
-	It("Should remove the runcmd, write_files and ntp lines", func() {
+	It("Should apply the arbitrary data and cleanup the input values", func() {
+		input = &BaseUserData{
+			AirGapped:               false,
+			CISEnabled:              true,
+			RKE2Version:             "v1.25.6+rke2r1",
+			AdditionalArbitraryData: arbitraryData,
+		}
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
 		workerCloudInitString := string(workerCloudInitData)
@@ -231,6 +250,45 @@ write_files:
 -   path: 
     content: |
       
+
+
+device_aliases: {'ephemeral0': '/dev/vdb'}
+disk_setup: 
+  ephemeral0:
+    table_type: mbr
+    layout: False
+    overwrite: False
+runcmd:
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - '/opt/rke2-cis-script.sh'
+  - 'systemctl enable rke2-agent.service'
+  - 'systemctl start rke2-agent.service'
+  - 'mkdir /run/cluster-api' 
+  - 'echo success > /run/cluster-api/bootstrap-success.complete'
+`))
+	})
+
+	It("Should remove the runcmd, write_files and ntp lines", func() {
+		input = &BaseUserData{
+			AirGapped:           false,
+			CISEnabled:          true,
+			RKE2Version:         "v1.25.6+rke2r1",
+			AdditionalCloudInit: cloudInitData,
+		}
+		workerCloudInitData, err := NewJoinWorker(input)
+		Expect(err).ToNot(HaveOccurred())
+		workerCloudInitString := string(workerCloudInitData)
+		_, err = GinkgoWriter.Write(workerCloudInitData)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(workerCloudInitString).To(Equal(`## template: jinja
+#cloud-config
+
+write_files:
+-   path: 
+    content: |
+      
+
 
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'

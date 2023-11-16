@@ -48,13 +48,24 @@ spec:
                           documented here: https://kinvolk.io/docs/flatcar-container-linux/latest/provisioning/cl-config/
                           NOTE: All fields of the UserData that are managed by the
                           RKE2Config controller will be ignored, this include "write_files",
-                          "runcmd", "ntp".'
+                          "runcmd", "ntp". Deprecated: Data is reserved for the arbitrary
+                          cloud-init data'
                         type: string
+                      data:
+                        additionalProperties:
+                          type: string
+                        description: Data allows to pass arbitrary set of key/value
+                          pairs consistent with https://cloudinit.readthedocs.io/en/latest/reference/modules.html
+                          to extend existing cloud-init configuration
+                        type: object
                       strict:
                         description: Strict controls if Config should be strictly
                           parsed. If so, warnings are treated as errors.
                         type: boolean
                     type: object
+                    x-kubernetes-validations:
+                    - message: Only config or data could be populated at once
+                      rule: '!has(self.data) || !has(self.config)'
                   airGapped:
                     description: AirGapped is a boolean value to define if the bootstrapping
                       should be air-gapped, basically supposing that online container
