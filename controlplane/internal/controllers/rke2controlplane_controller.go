@@ -217,6 +217,7 @@ func patchRKE2ControlPlane(ctx context.Context, patchHelper *patch.Helper, rcp *
 func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&controlplanev1.RKE2ControlPlane{}).
+		Owns(&clusterv1.Machine{}).
 		Build(r)
 	if err != nil {
 		return errors.Wrap(err, "failed setting up with a controller manager")
@@ -742,14 +743,22 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		return ctrl.Result{}, err
 	}
 
-	status := workloadCluster.ClusterStatus()
+	switch rcp.Spec.RolloutStrategy.Type {
+	case controlplanev1.RollingUpdateStrategyType:
+		// RolloutStrategy is currently defaulted and validated to be RollingUpdate.
+		maxNodes := *rcp.Spec.Replicas + int32(rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge.IntValue())
+		if int32(controlPlane.Machines.Len()) < maxNodes {
+			// scaleUpControlPlane ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
+			return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)
+		}
 
-	if status.Nodes <= *rcp.Spec.Replicas {
-		// scaleUp ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
-		return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)
+		return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, machinesRequireUpgrade)
+	default:
+		err := fmt.Errorf("unknown rollout strategy type %q", rcp.Spec.RolloutStrategy.Type)
+		logger.Error(err, "RolloutStrategy type is not set to RollingUpdateStrategyType, unable to determine the strategy for rolling out machines")
+
+		return ctrl.Result{}, nil
 	}
-
-	return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, machinesRequireUpgrade)
 }
 
 // ClusterToRKE2ControlPlane is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation
