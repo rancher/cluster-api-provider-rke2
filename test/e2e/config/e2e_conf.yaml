@@ -5,13 +5,19 @@ images:
     loadBehavior: mustLoad
   - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
+  - name: quay.io/jetstack/cert-manager-cainjector:v1.13.2
+    loadBehavior: tryLoad
+  - name: quay.io/jetstack/cert-manager-webhook:v1.13.2
+    loadBehavior: tryLoad
+  - name: quay.io/jetstack/cert-manager-controller:v1.13.2
+    loadBehavior: tryLoad
 
 providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: v1.3.0
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0/core-components.yaml
+      - name: v1.6.0-beta.1
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.0-beta.1/core-components.yaml
         type: url
         contract: v1beta1
         files:
@@ -24,8 +30,8 @@ providers:
   - name: docker
     type: InfrastructureProvider
     versions:
-      - name: v1.3.3
-        value: "https://github.com/belgaied2/cluster-api/releases/download/v1.3.3-cabpr-fix/infrastructure-components.yaml" # NOTE: this uses the docker form for the time being
+      - name: v1.6.0-beta.1
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.0-beta.1/infrastructure-components-development.yaml"
         type: url
         files:
           - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
@@ -42,7 +48,7 @@ providers:
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-      - name: v0.1.99
+      - name: v0.2.99
         value: "../../../controlplane/config/default"
         contract: v1beta1
         files:
@@ -56,7 +62,7 @@ providers:
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-      - name: v0.1.99
+      - name: v0.2.99
         value: ../../../bootstrap/config/default
         contract: v1beta1
         files:
