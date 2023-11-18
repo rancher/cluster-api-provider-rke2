@@ -8,6 +8,11 @@ jobs:
   e2e-tests:
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          docker-images: false
       - name: Checkout code
         uses: actions/checkout@v4
         with:
