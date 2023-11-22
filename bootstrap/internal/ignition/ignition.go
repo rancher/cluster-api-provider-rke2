@@ -32,13 +32,21 @@ const (
 
 var (
 	serverSystemdServices = []string{
+		"semanage fcontext -a -t systemd_unit_file_t  /usr/lib/systemd/system/rke2-server.service",
+		"setenforce 0",
 		"systemctl enable rke2-server.service",
 		"systemctl start rke2-server.service",
+		"restorecon /etc/systemd/system/rke2-server.service",
+		"setenforce 1",
 	}
 
 	workerSystemdServices = []string{
+		"semanage fcontext -a -t systemd_unit_file_t  /usr/lib/systemd/system/rke2-agent.service",
+		"setenforce 0",
 		"systemctl enable rke2-agent.service",
 		"systemctl start rke2-agent.service",
+		"restorecon /etc/systemd/system/rke2-agent.service",
+		"setenforce 1",
 	}
 )
 
