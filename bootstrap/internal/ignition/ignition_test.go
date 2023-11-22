@@ -207,7 +207,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 	It("should return slice of control plane commands", func() {
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(3))
+		Expect(commands).To(HaveLen(7))
 		Expect(commands).To(ContainElements(fmt.Sprintf(controlPlaneCommand, baseUserData.RKE2Version), serverSystemdServices[0], serverSystemdServices[1]))
 	})
 
@@ -215,7 +215,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 		baseUserData.AirGapped = true
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(3))
+		Expect(commands).To(HaveLen(7))
 		Expect(commands).To(ContainElements(airGappedControlPlaneCommand, serverSystemdServices[0], serverSystemdServices[1]))
 	})
 
@@ -247,7 +247,7 @@ var _ = Describe("getWorkerRKE2Commands", func() {
 	It("should return slice of worker commands", func() {
 		commands, err := getWorkerRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(3))
+		Expect(commands).To(HaveLen(7))
 		Expect(commands).To(ContainElements(fmt.Sprintf(workerCommand, baseUserData.RKE2Version), workerSystemdServices[0], workerSystemdServices[1]))
 	})
 
@@ -255,7 +255,7 @@ var _ = Describe("getWorkerRKE2Commands", func() {
 		baseUserData.AirGapped = true
 		commands, err := getWorkerRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(3))
+		Expect(commands).To(HaveLen(7))
 		Expect(commands).To(ContainElements(airGappedWorkerCommand, workerSystemdServices[0], workerSystemdServices[1]))
 	})
 
