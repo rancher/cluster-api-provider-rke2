@@ -207,16 +207,16 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 	It("should return slice of control plane commands", func() {
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
-		Expect(commands).To(ContainElements(fmt.Sprintf(controlPlaneCommand, baseUserData.RKE2Version), serverSystemdServices[0], serverSystemdServices[1]))
+		Expect(commands).To(HaveLen(8))
+		Expect(commands).To(ContainElements(fmt.Sprintf(controlPlaneCommand, baseUserData.RKE2Version), serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
 	It("should return slice of control plane commands with air gapped", func() {
 		baseUserData.AirGapped = true
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
-		Expect(commands).To(ContainElements(airGappedControlPlaneCommand, serverSystemdServices[0], serverSystemdServices[1]))
+		Expect(commands).To(HaveLen(8))
+		Expect(commands).To(ContainElements(airGappedControlPlaneCommand, serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
 	It("should return error if base userdata is nil", func() {
@@ -247,16 +247,16 @@ var _ = Describe("getWorkerRKE2Commands", func() {
 	It("should return slice of worker commands", func() {
 		commands, err := getWorkerRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
-		Expect(commands).To(ContainElements(fmt.Sprintf(workerCommand, baseUserData.RKE2Version), workerSystemdServices[0], workerSystemdServices[1]))
+		Expect(commands).To(HaveLen(8))
+		Expect(commands).To(ContainElements(fmt.Sprintf(workerCommand, baseUserData.RKE2Version), workerDeployCommands[0], workerDeployCommands[1]))
 	})
 
 	It("should return slice of worker commands with air gapped", func() {
 		baseUserData.AirGapped = true
 		commands, err := getWorkerRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
-		Expect(commands).To(ContainElements(airGappedWorkerCommand, workerSystemdServices[0], workerSystemdServices[1]))
+		Expect(commands).To(HaveLen(8))
+		Expect(commands).To(ContainElements(airGappedWorkerCommand, workerDeployCommands[0], workerDeployCommands[1]))
 	})
 
 	It("should return error if base userdata is nil", func() {
