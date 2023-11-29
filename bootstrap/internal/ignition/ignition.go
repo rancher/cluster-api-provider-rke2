@@ -31,21 +31,23 @@ const (
 )
 
 var (
-	serverSystemdServices = []string{
+	serverDeployCommands = []string{
 		"semanage fcontext -a -t systemd_unit_file_t  /usr/lib/systemd/system/rke2-server.service",
 		"setenforce 0",
 		"systemctl enable rke2-server.service",
 		"systemctl start rke2-server.service",
 		"restorecon /etc/systemd/system/rke2-server.service",
+		"mkdir -p /run/cluster-api && echo success > /run/cluster-api/bootstrap-success.complete",
 		"setenforce 1",
 	}
 
-	workerSystemdServices = []string{
+	workerDeployCommands = []string{
 		"semanage fcontext -a -t systemd_unit_file_t  /usr/lib/systemd/system/rke2-agent.service",
 		"setenforce 0",
 		"systemctl enable rke2-agent.service",
 		"systemctl start rke2-agent.service",
 		"restorecon /etc/systemd/system/rke2-agent.service",
+		"mkdir -p /run/cluster-api && echo success > /run/cluster-api/bootstrap-success.complete",
 		"setenforce 1",
 	}
 )
@@ -136,11 +138,11 @@ func render(input *cloudinit.BaseUserData, ignitionConfig *bootstrapv1.Additiona
 }
 
 func getControlPlaneRKE2Commands(baseUserData *cloudinit.BaseUserData) ([]string, error) {
-	return getRKE2Commands(baseUserData, controlPlaneCommand, airGappedControlPlaneCommand, serverSystemdServices)
+	return getRKE2Commands(baseUserData, controlPlaneCommand, airGappedControlPlaneCommand, serverDeployCommands)
 }
 
 func getWorkerRKE2Commands(baseUserData *cloudinit.BaseUserData) ([]string, error) {
-	return getRKE2Commands(baseUserData, workerCommand, airGappedWorkerCommand, workerSystemdServices)
+	return getRKE2Commands(baseUserData, workerCommand, airGappedWorkerCommand, workerDeployCommands)
 }
 
 func getRKE2Commands(baseUserData *cloudinit.BaseUserData, command, airgappedCommand string, systemdServices []string) ([]string, error) {

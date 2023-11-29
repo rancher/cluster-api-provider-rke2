@@ -121,7 +121,6 @@ storage:
           {{ . | Indent 10 }}
           {{- end }}
 
-          mkdir -p /run/cluster-api && echo success > /run/cluster-api/bootstrap-success.complete
           {{range .PostRKE2Commands }}
           {{ . | Indent 10 }}
           {{- end }}
