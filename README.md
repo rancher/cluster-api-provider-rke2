@@ -4,8 +4,6 @@
 
 ------
 
- :exclamation: **This project is early in development**
-
 ## What is Cluster API Provider RKE2
 
 The [Cluster API](https://cluster-api.sigs.k8s.io/) brings declarative, Kubernetes-style APIs to cluster creation, configuration and management.
@@ -21,7 +19,7 @@ Cluster API Provider RKE2 is compliant with the `clusterctl` contract, which mea
 
 In order to use this provider, you need to have a management cluster available to you and have your current KUBECONFIG context set to talk to that cluster. If you do not have a cluster available to you, you can create a `kind` cluster. These are the steps needed to achieve that:
 1. Ensure kind is installed (https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
-2. Create a special `kind` configuration file:
+2. Create a special `kind` configuration file if you intend to use the Docker infrastructure provider:
 
 ```bash
 cat > kind-cluster-with-extramounts.yaml <<EOF
@@ -35,8 +33,6 @@ nodes:
       containerPath: /var/run/docker.sock
 EOF
 ```
-
-> NOTE: if you are using Docker Desktop v4.13 or above then you will you will encounter issues from here. Until a permanent solution is found its recommended you use v4.12
 
 3. Run the following command to create a local kind cluster:
 
@@ -60,7 +56,17 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 ### Setting up clusterctl
 
-In order to use `clusterctl` to deploy the RKE2 Provider, you need a specific configuration. You need to create a file called `clusterctl.yaml` in the `$HOME/.cluster-api` folder with the following content:
+#### CAPI >= v1.6.0
+
+No additional steps are required and you can install the RKE2 provider with **clusterctl** directly:
+
+```bash
+clusterctl init --bootstrap rke2 --control-plane rke2 --infrastructure docker
+```
+
+#### CAPI < v1.6.0
+
+With CAPI & clusterctl versions less than v1.6.0 you need a specific configuration. To do this create a file called `clusterctl.yaml` in the `$HOME/.cluster-api` folder with the following content:
 
 ```yaml
 providers:
@@ -103,8 +109,12 @@ You can now create your first workload cluster by running the following:
 
   clusterctl generate cluster [name] --kubernetes-version [version] | kubectl apply -f -
 ```
+
 ### Create a workload cluster
-There are some sample cluster templates available under the `samples` folder. For this `Getting Started` section, we will be using the `docker` samples available under `samples/docker/oneline-default` folder. This folder contains a YAML template file called `rke2-sample.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
+
+There are some sample cluster templates available under the `samples` folder. This section assumes you are using CAPI v1.6.0 or higher.
+
+For this `Getting Started` section, we will be using the `docker` samples available under `samples/docker/oneline-default` folder. This folder contains a YAML template file called `rke2-sample.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
 Set the following environment variables:
 - CABPR_NAMESPACE
 - CLUSTER_NAME
@@ -262,7 +272,9 @@ tilt up
 11. Press the **space** key to see the Tilt web ui and check that everything goes green.
 
 ## Known Issues
-### When using CAPD unmodified, Cluster creation is stuck after first node and API is not reachable
+
+### When using CAPD  < v1.6.0 unmodified, Cluster creation is stuck after first node and API is not reachable
+
 If you use `docker` as your infrastructure provider without any modification, Cluster creation will stall after provisioning the first node, and the API will not be available using the LB address. This is caused by Load Balancer configuration used in CAPD which is not compatible with RKE2. Therefore, it is necessary to use our own fork of `v1.3.3` by using a specific clusterctl configuration.
 
 ## Get in contact

@@ -35,7 +35,10 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/klogr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
@@ -128,20 +131,32 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsBindAddr,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "rke2-bootstrap-manager-leader-election-capi",
-		LeaseDuration:      &leaderElectionLeaseDuration,
-		RenewDeadline:      &leaderElectionRenewDeadline,
-		RetryPeriod:        &leaderElectionRetryPeriod,
-		SyncPeriod:         &syncPeriod,
-		ClientDisableCacheFor: []client.Object{
-			&corev1.ConfigMap{},
-			&corev1.Secret{},
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsBindAddr,
 		},
-		Port:                   webhookPort,
-		CertDir:                webhookCertDir,
+		LeaderElection:   enableLeaderElection,
+		LeaderElectionID: "rke2-bootstrap-manager-leader-election-capi",
+		LeaseDuration:    &leaderElectionLeaseDuration,
+		RenewDeadline:    &leaderElectionRenewDeadline,
+		RetryPeriod:      &leaderElectionRetryPeriod,
+		Cache: cache.Options{
+			SyncPeriod: &syncPeriod,
+		},
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&corev1.ConfigMap{},
+					&corev1.Secret{},
+				},
+			},
+		},
+		WebhookServer: webhook.NewServer(
+			webhook.Options{
+				Port:    webhookPort,
+				CertDir: webhookCertDir,
+			},
+		),
 		HealthProbeBindAddress: healthAddr,
 	})
 	if err != nil {
