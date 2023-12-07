@@ -13,7 +13,7 @@ SHELL = /usr/bin/env bash -o pipefail
 #
 # Go.
 #
-GO_VERSION ?= 1.19.0
+GO_VERSION ?= 1.20.0
 GO_CONTAINER_IMAGE ?= docker.io/library/golang:$(GO_VERSION)
 
 # Use GOPROXY environment variable if set
@@ -70,12 +70,12 @@ SETUP_ENVTEST_BIN := setup-envtest
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/$(SETUP_ENVTEST_BIN)-$(SETUP_ENVTEST_VER))
 SETUP_ENVTEST_PKG := sigs.k8s.io/controller-runtime/tools/setup-envtest
 
-CONTROLLER_GEN_VER := v0.10.0
+CONTROLLER_GEN_VER := v0.13.0
 CONTROLLER_GEN_BIN := controller-gen
 CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/$(CONTROLLER_GEN_BIN)-$(CONTROLLER_GEN_VER))
 CONTROLLER_GEN_PKG := sigs.k8s.io/controller-tools/cmd/controller-gen
 
-CONVERSION_GEN_VER := v0.25.0
+CONVERSION_GEN_VER := v0.28.0
 CONVERSION_GEN_BIN := conversion-gen
 # We are intentionally using the binary without version suffix, to avoid the version
 # in generated files.
@@ -87,7 +87,7 @@ ENVSUBST_BIN := envsubst
 ENVSUBST := $(abspath $(TOOLS_BIN_DIR)/$(ENVSUBST_BIN)-$(ENVSUBST_VER))
 ENVSUBST_PKG := github.com/drone/envsubst/v2/cmd/envsubst
 
-GO_APIDIFF_VER := v0.4.0
+GO_APIDIFF_VER := v0.7.0
 GO_APIDIFF_BIN := go-apidiff
 GO_APIDIFF := $(abspath $(TOOLS_BIN_DIR)/$(GO_APIDIFF_BIN)-$(GO_APIDIFF_VER))
 GO_APIDIFF_PKG := github.com/joelanford/go-apidiff
