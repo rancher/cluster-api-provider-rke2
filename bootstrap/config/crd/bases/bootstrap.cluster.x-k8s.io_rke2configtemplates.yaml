@@ -322,7 +322,9 @@ spec:
                               be used for all system images.
                             type: string
                           version:
-                            description: Version specifies the rke2 version.
+                            description: Version specifies the rke2 version. This
+                              field will be deprecated in newer versions of the API
+                              and RKE2ControlPlaneSpec.Version will be used instead.
                             type: string
                         type: object
                       files:

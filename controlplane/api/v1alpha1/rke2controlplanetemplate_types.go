@@ -20,34 +20,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // RKE2ControlPlaneTemplateSpec defines the desired state of RKE2ControlPlaneTemplate.
 type RKE2ControlPlaneTemplateSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of RKE2ControlPlaneTemplate. Edit rke2controlplanetemplate_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Template RKE2ControlPlaneTemplateResource `json:"template"`
 }
 
-// RKE2ControlPlaneTemplateStatus defines the observed state of RKE2ControlPlaneTemplate.
-type RKE2ControlPlaneTemplateStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+// RKE2ControlPlaneTemplateResource contains spec for RKE2ControlPlaneTemplate.
+type RKE2ControlPlaneTemplateResource struct {
+	Spec RKE2ControlPlaneSpec `json:"spec"`
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+//+kubebuilder:resource:path=rke2controlplanetemplates,scope=Namespaced,categories=cluster-api,shortName=rke2ct
+//+kubebuilder:storageversion
 
 // RKE2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates API.
 type RKE2ControlPlaneTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RKE2ControlPlaneTemplateSpec   `json:"spec,omitempty"`
-	Status RKE2ControlPlaneTemplateStatus `json:"status,omitempty"`
+	Spec   RKE2ControlPlaneTemplateSpec `json:"spec,omitempty"`
+	Status RKE2ControlPlaneStatus       `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

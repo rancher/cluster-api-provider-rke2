@@ -28,7 +28,7 @@ import (
 
 const (
 	// RKE2ControlPlaneFinalizer allows the controller to clean up resources on delete.
-	RKE2ControlPlaneFinalizer = "rke2.controleplane.cluster.x-k8s.io"
+	RKE2ControlPlaneFinalizer = "rke2.controlplane.cluster.x-k8s.io"
 
 	// RKE2ServerConfigurationAnnotation is a machine annotation that stores the json-marshalled string of RKE2Config
 	// This annotation is used to detect any changes in RKE2Config and trigger machine rollout.
@@ -42,6 +42,18 @@ type RKE2ControlPlaneSpec struct {
 
 	// Replicas is the number of replicas for the Control Plane.
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Version defines the desired Kubernetes version.
+	// This is only a placeholder for now, and the RKE2ConfigSpec.AgentConfig.Version field should be used instead.
+	// In future iterations, this field overrides the RKE2 Version specificied in RKE2ConfigSpec.AgentConfig.Version
+	// which will be deprecated in newer versions of the API.
+	// +optional
+	Version string `json:"version"`
+
+	// MachineTemplate contains information about how machines
+	// should be shaped when creating or updating a control plane.
+	// +optional
+	MachineTemplate RKE2ControlPlaneMachineTemplate `json:"machineTemplate"`
 
 	// ServerConfig specifies configuration for the agent nodes.
 	//+optional
@@ -77,6 +89,25 @@ type RKE2ControlPlaneSpec struct {
 	// +optional
 	// +kubebuilder:default={type: "RollingUpdate", rollingUpdate: {maxSurge: 1}}
 	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
+}
+
+// RKE2ControlPlaneMachineTemplate defines the template for Machines
+// in a RKE2ControlPlane object.
+type RKE2ControlPlaneMachineTemplate struct {
+	// Standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
+	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"`
+
+	// InfrastructureRef is a required reference to a custom resource
+	// offered by an infrastructure provider.
+	InfrastructureRef corev1.ObjectReference `json:"infrastructureRef"`
+
+	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// +optional
+	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
 }
 
 // RKE2ServerConfig specifies configuration for the agent nodes.
@@ -187,6 +218,11 @@ type RKE2ControlPlaneStatus struct {
 
 	// Replicas is the number of replicas current attached to this ControlPlane Resource.
 	Replicas int32 `json:"replicas,omitempty"`
+
+	// Version represents the minimum Kubernetes version for the control plane machines
+	// in the cluster.
+	// +optional
+	Version *string `json:"version,omitempty"`
 
 	// ReadyReplicas is the number of replicas current attached to this ControlPlane Resource and that have Ready Status.
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
