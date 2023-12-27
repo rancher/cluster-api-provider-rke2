@@ -205,24 +205,24 @@ These instructions are for development purposes initially and will be changed in
 > **Why clone into the GOPATH?** There have been historic issues with code generation tools when they are run outside the go path
 
 2. Fork the [Cluster API Provider RKE2](https://github.com/rancher-sandbox/cluster-api-provider-rke2) repo
-3. Clone your new repo into the **GOPATH** (i.e. `~/go/src/github.com/myname/cluster-api-provider-rke2`)
+3. Clone your new repo into the **GOPATH** (i.e. `~/go/src/github.com/yourname/cluster-api-provider-rke2`)
 4. Ensure **Tilt** and **kind** are installed
 5. Create a `tilt-settings.json` file in the root of your forked/cloned `cluster-api` directory.
 6. Add the following contents to the file (replace "yourname" with your github account name):
 
 ```json
 {
-    "default_registry": "ghcr.io/rancher-sandox",
-    "provider_repos": ["../../github.com/rancher-sandbox/cluster-api-provider-rke2"],
+    "default_registry": "ghcr.io/yourname",
+    "provider_repos": ["../../github.com/yourname/cluster-api-provider-rke2"],
     "enable_providers": ["docker", "rke2-bootstrap", "rke2-control-plane"],
     "kustomize_substitutions": {
         "EXP_MACHINE_POOL": "true",
         "EXP_CLUSTER_RESOURCE_SET": "true"
     },
     "extra_args": {
-        "rke2-bootstrap": ["-zap-log-level=debug"],
-        "rke2-control-plane": ["-zap-log-level=debug"],
-        "core": ["-zap-log-level=debug"]
+        "rke2-bootstrap": ["--v=4"],
+        "rke2-control-plane": ["--v=4"],
+        "core": ["--v=4"]
     },
     "debug": {
         "rke2-bootstrap": {
