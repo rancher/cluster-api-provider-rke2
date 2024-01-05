@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	rke2 "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
 	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 )
