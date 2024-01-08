@@ -562,7 +562,7 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1alpha2
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: RKE2ConfigTemplate is the Schema for the RKE2configtemplates
@@ -610,11 +610,21 @@ spec:
                                   by the RKE2Config controller will be ignored, this
                                   include "write_files", "runcmd", "ntp".'
                                 type: string
+                              data:
+                                additionalProperties:
+                                  type: string
+                                description: Data allows to pass arbitrary set of
+                                  key/value pairs consistent with https://cloudinit.readthedocs.io/en/latest/reference/modules.html
+                                  to extend existing cloud-init configuration
+                                type: object
                               strict:
                                 description: Strict controls if Config should be strictly
                                   parsed. If so, warnings are treated as errors.
                                 type: boolean
                             type: object
+                            x-kubernetes-validations:
+                            - message: Only config or data could be populated at once
+                              rule: '!has(self.data) || !has(self.config)'
                           airGapped:
                             description: AirGapped is a boolean value to define if
                               the bootstrapping should be air-gapped, basically supposing

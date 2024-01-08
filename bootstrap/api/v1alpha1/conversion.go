@@ -21,7 +21,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha2"
+	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 )
 
 func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
@@ -30,7 +30,7 @@ func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
 		return fmt.Errorf("not a RKE2Config: %v", dst)
 	}
 
-	if err := Convert_v1alpha1_RKE2Config_To_v1alpha2_RKE2Config(src, dst, nil); err != nil {
+	if err := Convert_v1alpha1_RKE2Config_To_v1beta1_RKE2Config(src, dst, nil); err != nil {
 		return err
 	}
 
@@ -43,7 +43,7 @@ func (dst *RKE2Config) ConvertFrom(srcRaw conversion.Hub) error {
 		return fmt.Errorf("not a RKE2Config: %v", src)
 	}
 
-	if err := Convert_v1alpha2_RKE2Config_To_v1alpha1_RKE2Config(src, dst, nil); err != nil {
+	if err := Convert_v1beta1_RKE2Config_To_v1alpha1_RKE2Config(src, dst, nil); err != nil {
 		return err
 	}
 
@@ -56,7 +56,7 @@ func (src *RKE2ConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		return fmt.Errorf("not a RKE2ConfigTemplate: %v", dst)
 	}
 
-	if err := Convert_v1alpha1_RKE2ConfigTemplate_To_v1alpha2_RKE2ConfigTemplate(src, dst, nil); err != nil {
+	if err := Convert_v1alpha1_RKE2ConfigTemplate_To_v1beta1_RKE2ConfigTemplate(src, dst, nil); err != nil {
 		return err
 	}
 
@@ -69,7 +69,7 @@ func (dst *RKE2ConfigTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 		return fmt.Errorf("not a RKE2ConfigTemplate: %v", dst)
 	}
 
-	if err := Convert_v1alpha2_RKE2ConfigTemplate_To_v1alpha1_RKE2ConfigTemplate(src, dst, nil); err != nil {
+	if err := Convert_v1beta1_RKE2ConfigTemplate_To_v1alpha1_RKE2ConfigTemplate(src, dst, nil); err != nil {
 		return err
 	}
 

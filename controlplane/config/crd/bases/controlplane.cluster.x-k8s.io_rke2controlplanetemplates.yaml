@@ -50,7 +50,7 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1alpha2
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: RKE2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates

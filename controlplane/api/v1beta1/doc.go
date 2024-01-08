@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha2 contains a v1alpha2 api for bootstrap resources.
+// Package v1beta1 contains a v1beta1 api for controlplane resources.
 //
 // +k8s:deepcopy-gen=package
-package v1alpha2
+package v1beta1

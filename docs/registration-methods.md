@@ -11,7 +11,7 @@ The method to use is specified on the **RKEControlPlane** within the **spec**. I
 An example of using a different method:
 
 ```yaml
-apiVersion: controlplane.cluster.x-k8s.io/v1alpha2
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: RKE2ControlPlane
 metadata:
   name: test1-control-plane

@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"fmt"
 
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha2"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
@@ -29,7 +29,7 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 		return fmt.Errorf("not a RKE2ControlPlane: %v", dst)
 	}
 
-	if err := Convert_v1alpha1_RKE2ControlPlane_To_v1alpha2_RKE2ControlPlane(src, dst, nil); err != nil {
+	if err := Convert_v1alpha1_RKE2ControlPlane_To_v1beta1_RKE2ControlPlane(src, dst, nil); err != nil {
 		return err
 	}
 
@@ -42,7 +42,7 @@ func (dst *RKE2ControlPlane) ConvertFrom(srcRaw conversion.Hub) error {
 		return fmt.Errorf("not a RKE2ControlPlane: %v", src)
 	}
 
-	if err := Convert_v1alpha2_RKE2ControlPlane_To_v1alpha1_RKE2ControlPlane(src, dst, nil); err != nil {
+	if err := Convert_v1beta1_RKE2ControlPlane_To_v1alpha1_RKE2ControlPlane(src, dst, nil); err != nil {
 		return err
 	}
 

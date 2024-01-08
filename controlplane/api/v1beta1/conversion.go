@@ -1,5 +1,5 @@
 /*
-Copyright 2023 SUSE.
+Copyright 2021 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha2 contains a v1alpha2 api for controlplane resources.
-//
-// +k8s:deepcopy-gen=package
-package v1alpha2
+package v1beta1
+
+// Hub is a conversion hub for the RKE2ControlPlane resource.
+func (*RKE2ControlPlane) Hub() {}

@@ -14,7 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1beta1
 
-// Hub is a conversion hub for the RKE2ControlPlane resource.
-func (*RKE2ControlPlane) Hub() {}
+// Hub is a conversion hub for RKE2ConfigTemplate.
+func (*RKE2ConfigTemplate) Hub() {}
+
+// Hub is a conversion hub for RKE2Config.
+func (*RKE2Config) Hub() {}

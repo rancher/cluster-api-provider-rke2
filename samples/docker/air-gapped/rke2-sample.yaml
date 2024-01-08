@@ -18,7 +18,7 @@ spec:
       - 10.46.0.0/16
     serviceDomain: cluster.local
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1alpha2
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
@@ -36,7 +36,7 @@ spec:
     customHAProxyConfigTemplateRef:
       name: ${CLUSTER_NAME}-lb-config
 ---
-apiVersion: controlplane.cluster.x-k8s.io/v1alpha2
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
@@ -84,7 +84,7 @@ spec:
       clusterName: ${CLUSTER_NAME}
       bootstrap:
         configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha2
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: RKE2ConfigTemplate
           name: ${CLUSTER_NAME}-agent
           namespace: ${CABPR_NAMESPACE}
@@ -104,7 +104,7 @@ spec:
     spec: 
       customImage: rke2-ubuntu:${KUBERNETES_VERSION}-rke2r1
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1alpha2
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate
 metadata:
   namespace: ${CABPR_NAMESPACE}

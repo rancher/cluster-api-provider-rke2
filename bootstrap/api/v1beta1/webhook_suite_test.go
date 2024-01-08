@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1beta1
 
 import (
 	"context"
@@ -40,9 +40,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
-
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
 	cfg       *rest.Config
@@ -101,18 +98,18 @@ var _ = BeforeSuite(func() {
 		},
 		WebhookServer: webhook.NewServer(
 			webhook.Options{
+				Host:    webhookInstallOptions.LocalServingHost,
 				Port:    webhookInstallOptions.LocalServingPort,
 				CertDir: webhookInstallOptions.LocalServingCertDir,
-				Host:    webhookInstallOptions.LocalServingHost,
 			},
 		),
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&RKE2ControlPlane{}).SetupWebhookWithManager(mgr)
+	err = (&RKE2Config{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&RKE2ControlPlaneTemplate{}).SetupWebhookWithManager(mgr)
+	err = (&RKE2ConfigTemplate{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

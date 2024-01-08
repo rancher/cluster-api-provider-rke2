@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes Authors.
+Copyright 2023 SUSE.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,10 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
-
-// Hub is a conversion hub for RKE2ConfigTemplate.
-func (*RKE2ConfigTemplate) Hub() {}
-
-// Hub is a conversion hub for RKE2Config.
-func (*RKE2Config) Hub() {}
+// Package v1beta1 contains a v1beta1 api for bootstrap resources.
+//
+// +k8s:deepcopy-gen=package
+package v1beta1
