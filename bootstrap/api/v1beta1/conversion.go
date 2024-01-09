@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes Authors.
+Copyright 2024 SUSE LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,5 +19,11 @@ package v1beta1
 // Hub is a conversion hub for RKE2ConfigTemplate.
 func (*RKE2ConfigTemplate) Hub() {}
 
+// Hub is a conversion hub for RKE2ConfigTemplateList.
+func (*RKE2ConfigTemplateList) Hub() {}
+
 // Hub is a conversion hub for RKE2Config.
 func (*RKE2Config) Hub() {}
+
+// Hub is a conversion hub for RKE2ConfigList.
+func (*RKE2ConfigList) Hub() {}

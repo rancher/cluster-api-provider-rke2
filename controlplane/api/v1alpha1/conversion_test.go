@@ -40,4 +40,11 @@ func TestFuzzyConversion(t *testing.T) {
 		Spoke:       &RKE2ControlPlane{},
 		FuzzerFuncs: []fuzzer.FuzzerFuncs{},
 	}))
+
+	t.Run("for RKE2ControlPlaneTemplate", utilconversion.FuzzTestFunc(utilconversion.FuzzTestFuncInput{
+		Scheme:      scheme,
+		Hub:         &controlplanev1.RKE2ControlPlaneTemplate{},
+		Spoke:       &RKE2ControlPlaneTemplate{},
+		FuzzerFuncs: []fuzzer.FuzzerFuncs{},
+	}))
 }

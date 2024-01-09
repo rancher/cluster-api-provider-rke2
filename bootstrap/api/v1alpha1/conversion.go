@@ -1,5 +1,5 @@
 /*
-Copyright 2023 SUSE.
+Copyright 2024 SUSE LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,6 +50,24 @@ func (dst *RKE2Config) ConvertFrom(srcRaw conversion.Hub) error {
 	return nil
 }
 
+func (src *RKE2ConfigList) ConvertTo(dstRaw conversion.Hub) error {
+	dst, ok := dstRaw.(*bootstrapv1.RKE2ConfigList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ConfigList: %v", src)
+	}
+
+	return Convert_v1alpha1_RKE2ConfigList_To_v1beta1_RKE2ConfigList(src, dst, nil)
+}
+
+func (dst *RKE2ConfigList) ConvertFrom(srcRaw conversion.Hub) error {
+	src, ok := srcRaw.(*bootstrapv1.RKE2ConfigList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ConfigList: %v", src)
+	}
+
+	return Convert_v1beta1_RKE2ConfigList_To_v1alpha1_RKE2ConfigList(src, dst, nil)
+}
+
 func (src *RKE2ConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 	dst, ok := dstRaw.(*bootstrapv1.RKE2ConfigTemplate)
 	if !ok {
@@ -74,4 +92,22 @@ func (dst *RKE2ConfigTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 
 	return nil
+}
+
+func (src *RKE2ConfigTemplateList) ConvertTo(dstRaw conversion.Hub) error {
+	dst, ok := dstRaw.(*bootstrapv1.RKE2ConfigTemplateList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ConfigTemplateList: %v", dst)
+	}
+
+	return Convert_v1alpha1_RKE2ConfigTemplateList_To_v1beta1_RKE2ConfigTemplateList(src, dst, nil)
+}
+
+func (dst *RKE2ConfigTemplateList) ConvertFrom(srcRaw conversion.Hub) error {
+	src, ok := srcRaw.(*bootstrapv1.RKE2ConfigTemplateList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ConfigTemplateList: %v", dst)
+	}
+
+	return Convert_v1beta1_RKE2ConfigTemplateList_To_v1alpha1_RKE2ConfigTemplateList(src, dst, nil)
 }

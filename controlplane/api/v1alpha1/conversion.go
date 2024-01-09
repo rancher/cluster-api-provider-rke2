@@ -48,3 +48,81 @@ func (dst *RKE2ControlPlane) ConvertFrom(srcRaw conversion.Hub) error {
 
 	return nil
 }
+
+func (src *RKE2ControlPlaneList) ConvertTo(dstRaw conversion.Hub) error {
+	dst, ok := dstRaw.(*controlplanev1.RKE2ControlPlaneList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ControlPlaneList: %v", dst)
+	}
+
+	if err := Convert_v1alpha1_RKE2ControlPlaneList_To_v1beta1_RKE2ControlPlaneList(src, dst, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dst *RKE2ControlPlaneList) ConvertFrom(srcRaw conversion.Hub) error {
+	src, ok := srcRaw.(*controlplanev1.RKE2ControlPlaneList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ControlPlaneList: %v", src)
+	}
+
+	if err := Convert_v1beta1_RKE2ControlPlaneList_To_v1alpha1_RKE2ControlPlaneList(src, dst, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
+	dst, ok := dstRaw.(*controlplanev1.RKE2ControlPlaneTemplate)
+	if !ok {
+		return fmt.Errorf("not a RKE2ControlPlaneTemplate: %v", dst)
+	}
+
+	if err := Convert_v1alpha1_RKE2ControlPlaneTemplate_To_v1beta1_RKE2ControlPlaneTemplate(src, dst, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dst *RKE2ControlPlaneTemplate) ConvertFrom(srcRaw conversion.Hub) error {
+	src, ok := srcRaw.(*controlplanev1.RKE2ControlPlaneTemplate)
+	if !ok {
+		return fmt.Errorf("not a RKE2ControlPlaneTemplate: %v", src)
+	}
+
+	if err := Convert_v1beta1_RKE2ControlPlaneTemplate_To_v1alpha1_RKE2ControlPlaneTemplate(src, dst, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (src *RKE2ControlPlaneTemplateList) ConvertTo(dstRaw conversion.Hub) error {
+	dst, ok := dstRaw.(*controlplanev1.RKE2ControlPlaneTemplateList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ControlPlaneTemplateList: %v", dst)
+	}
+
+	if err := Convert_v1alpha1_RKE2ControlPlaneTemplateList_To_v1beta1_RKE2ControlPlaneTemplateList(src, dst, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dst *RKE2ControlPlaneTemplateList) ConvertFrom(srcRaw conversion.Hub) error {
+	src, ok := srcRaw.(*controlplanev1.RKE2ControlPlaneTemplateList)
+	if !ok {
+		return fmt.Errorf("not a RKE2ControlPlaneTemplateList: %v", src)
+	}
+
+	if err := Convert_v1beta1_RKE2ControlPlaneTemplateList_To_v1alpha1_RKE2ControlPlaneTemplateList(src, dst, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
