@@ -27,8 +27,8 @@ type RKE2ConfigTemplateSpec struct {
 	Template RKE2ConfigTemplateResource `json:"template"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // RKE2ConfigTemplate is the Schema for the RKE2configtemplates API.
 type RKE2ConfigTemplate struct {
