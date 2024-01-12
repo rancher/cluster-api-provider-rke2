@@ -334,14 +334,28 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 	conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableCondition)
 
-	token, err := r.generateAndStoreToken(ctx, scope)
+	// RKE2 server token must only be generated once, so all nodes join the cluster with the same registration token.
+	var token string
+
+	tokenName := bsutil.TokenName(scope.Cluster.Name)
+	token, err := r.generateAndStoreToken(ctx, scope, tokenName)
+
 	if err != nil {
-		scope.Logger.Error(err, "unable to generate and store an RKE2 server token")
+		if !apierrors.IsAlreadyExists(err) {
+			scope.Logger.Error(err, "unable to generate and store an RKE2 server token")
 
-		return ctrl.Result{}, err
+			return ctrl.Result{}, err
+		}
+
+		token, err = r.getRegistrationTokenFromSecretValue(ctx, tokenName, scope.Cluster.Namespace)
+		if err != nil {
+			scope.Logger.Error(err, "unable to retrieve an RKE2 server token from existing secret")
+
+			return ctrl.Result{}, err
+		}
+	} else {
+		scope.Logger.Info("RKE2 server token generated and stored in Secret!")
 	}
-
-	scope.Logger.Info("RKE2 server token generated and stored in Secret!")
 
 	configStruct, configFiles, err := rke2.GenerateInitControlPlaneConfig(
 		rke2.ServerConfigOpts{
@@ -730,8 +744,24 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	return ctrl.Result{}, nil
 }
 
+// getRegistrationTokenFromSecretValue retrieves the registration token from an existing secret's value.
+func (r *RKE2ConfigReconciler) getRegistrationTokenFromSecretValue(ctx context.Context, name, namespace string) (string, error) {
+	tokenSecret := &corev1.Secret{}
+	secretKey := types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}
+
+	err := r.Client.Get(ctx, secretKey, tokenSecret)
+	if err != nil {
+		return "", errors.Wrapf(err, "could not retrieve secret %s/%s", namespace, name)
+	}
+
+	return string(tokenSecret.Data["value"]), nil
+}
+
 // generateAndStoreToken generates a random token with 16 characters then stores it in a Secret in the API.
-func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope *Scope) (string, error) {
+func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope *Scope, name string) (string, error) {
 	token, err := bsutil.Random(defaultTokenLength)
 	if err != nil {
 		return "", err
@@ -741,7 +771,7 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      bsutil.TokenName(scope.Cluster.Name),
+			Name:      name,
 			Namespace: scope.Config.Namespace,
 			Labels: map[string]string{
 				clusterv1.ClusterNameLabel: scope.Cluster.Name,
@@ -762,7 +792,7 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 		Type: clusterv1.ClusterSecretType,
 	}
 
-	if err := r.createOrUpdateSecretFromObject(ctx, *secret, scope.Logger, "token", *scope.Config); err != nil {
+	if err := r.createSecretFromObject(ctx, *secret, scope.Logger, "token", *scope.Config); err != nil {
 		return "", err
 	}
 
@@ -804,6 +834,30 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 	scope.Config.Status.Ready = true
 	//	conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
 	return nil
+}
+
+// createSecretFromObject tries to create the given secret in the API, if that secret exists it will return an error.
+func (r *RKE2ConfigReconciler) createSecretFromObject(
+	ctx context.Context,
+	secret corev1.Secret,
+	logger logr.Logger,
+	secretType string,
+	config bootstrapv1.RKE2Config,
+) (reterr error) {
+	if err := r.Client.Create(ctx, &secret); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create %s secret for %s: %s/%s", secretType, config.Kind, config.Name, config.Namespace)
+		}
+
+		logger.Info("Secret already exists, won't update it",
+			"secret-type", secretType,
+			"secret-ref", secret.Namespace+"/"+secret.Name,
+			"RKE2Config", config.Name)
+
+		return err
+	}
+
+	return
 }
 
 // createOrUpdateSecret tries to create the given secret in the API, if that secret exists it will update it.
