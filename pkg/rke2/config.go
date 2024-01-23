@@ -92,6 +92,10 @@ type rke2ServerConfig struct {
 	DisableComponents                 []string          `json:"disable,omitempty"`
 	DisableKubeProxy                  bool              `json:"disable-kube-proxy,omitempty"`
 	DisableScheduler                  bool              `json:"disable-scheduler,omitempty"`
+	EtcdArgs                          []string          `json:"etcd-arg,omitempty"`
+	EtcdExtraEnv                      map[string]string `json:"etcd-extra-env,omitempty"`
+	EtcdExtraMounts                   map[string]string `json:"etcd-extra-mount,omitempty"`
+	EtcdImage                         string            `json:"etcd-image,omitempty"`
 	EtcdDisableSnapshots              *bool             `json:"etcd-disable-snapshots,omitempty"`
 	EtcdExposeMetrics                 bool              `json:"etcd-expose-metrics,omitempty"`
 	EtcdS3                            bool              `json:"etcd-s3,omitempty"`
@@ -357,10 +361,6 @@ type rke2AgentConfig struct {
 	CloudProviderConfig           string            `json:"cloud-provider-config,omitempty"`
 	CloudProviderName             string            `json:"cloud-provider-name,omitempty"`
 	DataDir                       string            `json:"data-dir,omitempty"`
-	EtcdArgs                      []string          `json:"etcd-arg,omitempty"`
-	EtcdExtraEnv                  map[string]string `json:"etcd-extra-env,omitempty"`
-	EtcdExtraMounts               map[string]string `json:"etcd-extra-mount,omitempty"`
-	EtcdImage                     string            `json:"etcd-image,omitempty"`
 	ImageCredentialProviderConfig string            `json:"image-credential-provider-config,omitempty"`
 	ImageCredentialProviderBinDir string            `json:"image-credential-provider-bin-dir,omitempty"`
 	KubeProxyArgs                 []string          `json:"kube-proxy-arg,omitempty"`
