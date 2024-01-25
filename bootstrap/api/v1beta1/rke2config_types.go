@@ -354,7 +354,7 @@ type Mirror struct {
 
 // RegistryConfig contains configuration used to communicate with the registry.
 type RegistryConfig struct {
-	// Auth si a reference to a Secret containing information to authenticate to the registry.
+	// Auth is a reference to a Secret containing information to authenticate to the registry.
 	// The Secret must provite a username and a password data entry.
 	//+optional
 	AuthSecret corev1.ObjectReference `json:"authSecret,omitempty"`
