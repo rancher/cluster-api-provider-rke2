@@ -49,7 +49,7 @@ This will trigger a [release GitHub action](https://github.com/rancher-sandbox/c
 
 ## Versioning
 
-Cluster API Provider RKE2 follows upstream Kubernetes [semantic versioning](https://semver.org/) specification.
+Cluster API Provider RKE2 follows [semantic versioning](https://semver.org/) specification.
 
 Example versions:
 - Pre-release: `v0.2.0-alpha.1`
@@ -57,7 +57,7 @@ Example versions:
 - Patch release: `v0.2.1`
 - Major release: `v2.0.0`
 
-With the v1 release of our codebase, we provide the following guarantees:
+With the v0 release of our codebase, we provide the following guarantees:
 
 - A (*minor*) release CAN include:
   - Introduction of new API versions, or new Kinds.
