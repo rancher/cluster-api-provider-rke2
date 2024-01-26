@@ -21,6 +21,7 @@ import (
 
 	"github.com/coreos/butane/config/common"
 	fcos "github.com/coreos/butane/config/fcos/v1_4"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -113,6 +114,25 @@ func (s *RKE2ConfigSpec) validate(pathPrefix *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 
 	allErrs = append(allErrs, s.validateIgnition(pathPrefix)...)
+	allErrs = append(allErrs, s.validateRegistries(pathPrefix)...)
+
+	return allErrs
+}
+
+func (s *RKE2ConfigSpec) validateRegistries(pathPrefix *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	for regName, regConfig := range s.PrivateRegistriesConfig.Configs {
+		if regConfig.AuthSecret == (v1.ObjectReference{}) && regConfig.TLS == (TLSConfig{}) {
+			allErrs = append(
+				allErrs,
+				field.Invalid(
+					pathPrefix.Child(fmt.Sprintf("privateRegistriesConfig.configs.%s", regName)),
+					regConfig,
+					fmt.Sprintf("need either credentials, tls settings or both for registry: %s", regName)),
+			)
+		}
+	}
 
 	return allErrs
 }
