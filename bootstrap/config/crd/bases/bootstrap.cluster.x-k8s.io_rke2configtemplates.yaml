@@ -952,7 +952,7 @@ spec:
                                 to communicate with the registry.
                               properties:
                                 authSecret:
-                                  description: Auth si a reference to a Secret containing
+                                  description: Auth is a reference to a Secret containing
                                     information to authenticate to the registry. The
                                     Secret must provite a username and a password
                                     data entry.

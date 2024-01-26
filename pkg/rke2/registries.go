@@ -17,6 +17,7 @@ package rke2
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1beta1"
@@ -45,85 +46,100 @@ func GenerateRegistries(rke2ConfigRegistry RegistryScope) (*Registry, []bootstra
 	}
 
 	for configName, regConfig := range rke2ConfigRegistry.Registry.Configs {
-		tlsSecret := corev1.Secret{}
-		authSecret := corev1.Secret{}
+		registryConfig := RegistryConfig{}
 
-		err := rke2ConfigRegistry.Client.Get(
-			rke2ConfigRegistry.Ctx,
-			types.NamespacedName{
-				Name:      regConfig.TLS.TLSConfigSecret.Name,
-				Namespace: regConfig.TLS.TLSConfigSecret.Namespace,
-			},
-			&tlsSecret,
-		)
-		if err != nil {
-			rke2ConfigRegistry.Logger.Error(err, "TLS Config Secret for the registry was not found!")
+		if regConfig.TLS != (bootstrapv1.TLSConfig{}) {
+			tlsSecret := corev1.Secret{}
 
-			return &Registry{}, []bootstrapv1.File{}, err
-		}
-
-		for _, secretEntry := range []string{"tls.crt", "tls.key", "ca.crt"} {
-			if tlsSecret.Data[secretEntry] == nil {
-				rke2ConfigRegistry.Logger.Error(err, "TLS Config Secret for the registry is missing entries!", "secret-missing-entry", secretEntry)
+			err := rke2ConfigRegistry.Client.Get(
+				rke2ConfigRegistry.Ctx,
+				types.NamespacedName{
+					Name:      regConfig.TLS.TLSConfigSecret.Name,
+					Namespace: regConfig.TLS.TLSConfigSecret.Namespace,
+				},
+				&tlsSecret,
+			)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					rke2ConfigRegistry.Logger.Error(err, "TLS Secret for the registry was not found!")
+				} else {
+					rke2ConfigRegistry.Logger.Error(err, "Error fetching TLS Secret")
+				}
 
 				return &Registry{}, []bootstrapv1.File{}, err
 			}
 
-			files = append(files, bootstrapv1.File{
-				Path:    registryCertsPath + "/" + secretEntry,
-				Content: string(tlsSecret.Data[secretEntry]),
-			})
-		}
+			for _, secretEntry := range []string{"tls.crt", "tls.key", "ca.crt"} {
+				if tlsSecret.Data[secretEntry] == nil {
+					rke2ConfigRegistry.Logger.Error(err, "TLS Secret for the registry is missing entries!", "secret-missing-entry", secretEntry)
 
-		err = rke2ConfigRegistry.Client.Get(
-			rke2ConfigRegistry.Ctx,
-			types.NamespacedName{
-				Name:      regConfig.AuthSecret.Name,
-				Namespace: regConfig.AuthSecret.Namespace,
-			},
-			&authSecret,
-		)
+					return &Registry{}, []bootstrapv1.File{}, err
+				}
 
-		if err != nil {
-			rke2ConfigRegistry.Logger.Error(err, "Auth Config Secret for the registry was not found!")
+				files = append(files, bootstrapv1.File{
+					Path:    registryCertsPath + "/" + secretEntry,
+					Content: string(tlsSecret.Data[secretEntry]),
+				})
+			}
 
-			return &Registry{}, []bootstrapv1.File{}, err
-		}
-
-		isBasicAuth := authSecret.Data["username"] != nil && authSecret.Data["password"] != nil
-		isTokenAuth := authSecret.Data["identity-token"] != nil
-
-		ok := isBasicAuth || isTokenAuth
-
-		if !ok {
-			rke2ConfigRegistry.Logger.Error(
-				err,
-				"Auth Secret for the registry is missing entries! Possible entries are: (\"username\" AND \"password\") OR \"identity-token\" ",
-				"secret-entries", bsutil.GetMapKeysAsString(authSecret.Data))
-
-			return &Registry{}, []bootstrapv1.File{}, err
-		}
-
-		authData := &AuthConfig{}
-		if isBasicAuth {
-			authData.Username = string(authSecret.Data["username"])
-			authData.Password = string(authSecret.Data["password"])
-		}
-
-		if isTokenAuth {
-			authData.IdentityToken = string(authSecret.Data["identity-token"])
-		}
-
-		registry.Configs = make(map[string]RegistryConfig)
-		registry.Configs[configName] = RegistryConfig{
-			TLS: &TLSConfig{
+			registryConfig.TLS = &TLSConfig{
 				InsecureSkipVerify: regConfig.TLS.InsecureSkipVerify,
 				CAFile:             registryCertsPath + "/" + "ca.crt",
 				CertFile:           registryCertsPath + "/" + "tls.crt",
 				KeyFile:            registryCertsPath + "/" + "tls.key",
-			},
-			Auth: authData,
+			}
 		}
+
+		if regConfig.AuthSecret != (corev1.ObjectReference{}) {
+			authSecret := corev1.Secret{}
+
+			err := rke2ConfigRegistry.Client.Get(
+				rke2ConfigRegistry.Ctx,
+				types.NamespacedName{
+					Name:      regConfig.AuthSecret.Name,
+					Namespace: regConfig.AuthSecret.Namespace,
+				},
+				&authSecret,
+			)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					rke2ConfigRegistry.Logger.Error(err, "AuthSecret for the registry was not found!")
+				} else {
+					rke2ConfigRegistry.Logger.Error(err, "Error fetching AuthSecret")
+				}
+
+				return &Registry{}, []bootstrapv1.File{}, err
+			}
+
+			isBasicAuth := authSecret.Data["username"] != nil && authSecret.Data["password"] != nil
+			isTokenAuth := authSecret.Data["identity-token"] != nil
+
+			ok := isBasicAuth || isTokenAuth
+
+			if !ok {
+				rke2ConfigRegistry.Logger.Error(
+					err,
+					"Auth Secret for the registry is missing entries! Possible entries are: (\"username\" AND \"password\") OR \"identity-token\" ",
+					"secret-entries", bsutil.GetMapKeysAsString(authSecret.Data))
+
+				return &Registry{}, []bootstrapv1.File{}, err
+			}
+
+			authData := &AuthConfig{}
+			if isBasicAuth {
+				authData.Username = string(authSecret.Data["username"])
+				authData.Password = string(authSecret.Data["password"])
+			}
+
+			if isTokenAuth {
+				authData.IdentityToken = string(authSecret.Data["identity-token"])
+			}
+
+			registryConfig.Auth = authData
+		}
+
+		registry.Configs = make(map[string]RegistryConfig)
+		registry.Configs[configName] = registryConfig
 	}
 
 	return registry, files, nil
