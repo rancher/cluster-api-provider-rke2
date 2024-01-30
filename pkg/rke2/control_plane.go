@@ -76,13 +76,17 @@ func NewControlPlane(
 
 	patchHelpers := map[string]*patch.Helper{}
 
-	for _, machine := range ownedMachines {
+	for name, machine := range ownedMachines {
 		patchHelper, err := patch.NewHelper(machine, client)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create patch helper for machine %s", machine.Name)
+			if machine.Status.NodeRef != nil {
+				name = machine.Status.NodeRef.Name
+			}
+
+			return nil, errors.Wrapf(err, "failed to create patch helper for machine %s with node %s", machine.Name, name)
 		}
 
-		patchHelpers[machine.Name] = patchHelper
+		patchHelpers[name] = patchHelper
 	}
 
 	return &ControlPlane{
@@ -305,7 +309,7 @@ func getInfraResources(ctx context.Context, cl client.Client, machines collectio
 func getRKE2Configs(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*bootstrapv1.RKE2Config, error) {
 	result := map[string]*bootstrapv1.RKE2Config{}
 
-	for _, m := range machines {
+	for name, m := range machines {
 		bootstrapRef := m.Spec.Bootstrap.ConfigRef
 		if bootstrapRef == nil {
 			continue
@@ -318,10 +322,14 @@ func getRKE2Configs(ctx context.Context, cl client.Client, machines collections.
 				continue
 			}
 
-			return nil, errors.Wrapf(err, "failed to retrieve bootstrap config for machine %q", m.Name)
+			if m.Status.NodeRef != nil {
+				name = m.Status.NodeRef.Name
+			}
+
+			return nil, errors.Wrapf(err, "failed to retrieve bootstrap config for machine %q with node %s", m.Name, name)
 		}
 
-		result[m.Name] = machineConfig
+		result[name] = machineConfig
 	}
 
 	return result, nil
@@ -346,21 +354,29 @@ func (c *ControlPlane) HasUnhealthyMachine() bool {
 func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 	errList := []error{}
 
-	for i := range c.Machines {
-		machine := c.Machines[i]
-		if helper, ok := c.machinesPatchHelpers[machine.Name]; ok {
+	for name := range c.Machines {
+		machine := c.Machines[name]
+		if helper, ok := c.machinesPatchHelpers[name]; ok {
 			if err := helper.Patch(ctx, machine, patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
 				controlplanev1.MachineAgentHealthyCondition,
 				controlplanev1.MachineEtcdMemberHealthyCondition,
 				controlplanev1.NodeMetadataUpToDate,
 			}}); err != nil {
-				errList = append(errList, errors.Wrapf(err, "failed to patch machine %s", machine.Name))
+				if machine.Status.NodeRef != nil {
+					name = machine.Status.NodeRef.Name
+				}
+
+				errList = append(errList, errors.Wrapf(err, "failed to patch machine %s with node %s", machine.Name, name))
 			}
 
 			continue
 		}
 
-		errList = append(errList, errors.Errorf("failed to get patch helper for machine %s", machine.Name))
+		if machine.Status.NodeRef != nil {
+			name = machine.Status.NodeRef.Name
+		}
+
+		errList = append(errList, errors.Errorf("failed to get patch helper for machine %s with node %s", machine.Name, name))
 	}
 
 	return kerrors.NewAggregate(errList)

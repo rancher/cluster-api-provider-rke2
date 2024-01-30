@@ -142,23 +142,35 @@ func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
 
 	for i := range w.Nodes {
 		node := w.Nodes[i]
-		if _, found := cp.Machines[node.Name]; !found {
-			continue
+		machine, found := cp.Machines[node.Name]
+
+		if !found {
+			for _, m := range cp.Machines {
+				if m.Status.NodeRef != nil && m.Status.NodeRef.Name == node.Name {
+					machine = m
+
+					break
+				}
+			}
+
+			if machine == nil {
+				continue
+			}
 		}
 
 		if helper, ok := w.nodePatchHelpers[node.Name]; ok {
 			if err := helper.Patch(ctx, node); err != nil {
 				conditions.MarkUnknown(
-					cp.Machines[node.Name],
+					machine,
 					controlplanev1.NodeMetadataUpToDate,
 					controlplanev1.NodePatchFailedReason, errors.Wrapf(err, "failed to patch node %s", node.Name).Error())
 
 				errList = append(errList, errors.Wrapf(err, "failed to patch node %s", node.Name))
 			}
 
-			if !conditions.Has(cp.Machines[node.Name], controlplanev1.NodeMetadataUpToDate) {
+			if !conditions.Has(machine, controlplanev1.NodeMetadataUpToDate) {
 				conditions.MarkTrue(
-					cp.Machines[node.Name],
+					machine,
 					controlplanev1.NodeMetadataUpToDate)
 			}
 
@@ -233,9 +245,19 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 				continue
 			}
 
-			rcpErrors = append(rcpErrors, fmt.Sprintf("Control plane node %s does not have a corresponding machine", node.Name))
+			for _, m := range controlPlane.Machines {
+				if m.Status.NodeRef != nil && m.Status.NodeRef.Name == node.Name {
+					machine = m
 
-			continue
+					break
+				}
+			}
+
+			if machine == nil {
+				rcpErrors = append(rcpErrors, fmt.Sprintf("Control plane node %s does not have a corresponding machine", node.Name))
+
+				continue
+			}
 		}
 
 		// If the machine is deleting, report all the conditions as deleting
@@ -426,7 +448,15 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 				continue
 			}
 
-			continue
+			for _, m := range controlPlane.Machines {
+				if m.Status.NodeRef != nil && m.Status.NodeRef.Name == node.Name {
+					machine = m
+				}
+			}
+
+			if machine == nil {
+				continue
+			}
 		}
 
 		// If the machine is deleting, report all the conditions as deleting
@@ -443,32 +473,36 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 // UpdateNodeMetadata is responsible for populating node metadata after
 // it is referenced from machine object.
 func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *ControlPlane) error {
-	for commonName, machine := range controlPlane.Machines {
+	for nodeName, machine := range controlPlane.Machines {
 		if machine.Spec.Bootstrap.ConfigRef == nil {
 			continue
 		}
 
-		node, nodeFound := w.Nodes[commonName]
+		if machine.Status.NodeRef != nil {
+			nodeName = machine.Status.NodeRef.Name
+		}
+
+		node, nodeFound := w.Nodes[nodeName]
 		if !nodeFound {
 			conditions.MarkUnknown(
-				controlPlane.Machines[commonName],
+				machine,
 				controlplanev1.NodeMetadataUpToDate,
 				controlplanev1.NodePatchFailedReason, "associated node not found")
 
 			continue
-		} else if name, ok := node.Annotations[clusterv1.MachineAnnotation]; !ok || name != commonName {
+		} else if name, ok := node.Annotations[clusterv1.MachineAnnotation]; !ok || name != machine.Name {
 			conditions.MarkUnknown(
-				controlPlane.Machines[commonName],
+				machine,
 				controlplanev1.NodeMetadataUpToDate,
 				controlplanev1.NodePatchFailedReason, fmt.Sprintf("node object is missing %s annotation", clusterv1.MachineAnnotation))
 
 			continue
 		}
 
-		rkeConfig, found := controlPlane.rke2Configs[commonName]
+		rkeConfig, found := controlPlane.rke2Configs[machine.Name]
 		if !found {
 			conditions.MarkUnknown(
-				controlPlane.Machines[commonName],
+				machine,
 				controlplanev1.NodeMetadataUpToDate,
 				controlplanev1.NodePatchFailedReason, "associated RKE2 config not found")
 
