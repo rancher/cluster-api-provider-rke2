@@ -147,6 +147,7 @@ type RKE2AgentConfig struct {
 	LoadBalancerPort int `json:"loadBalancerPort,omitempty"`
 
 	// Version specifies the rke2 version.
+	// This field will be deprecated in newer versions of the API and RKE2ControlPlaneSpec.Version will be used instead.
 	//+optional
 	Version string `json:"version,omitempty"`
 

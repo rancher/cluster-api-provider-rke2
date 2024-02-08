@@ -537,6 +537,11 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 
 	// If no control plane machines remain, remove the finalizer
 	if len(ownedMachines) == 0 {
+		// If the legacy finalizer is present, remove it.
+		if controllerutil.ContainsFinalizer(rcp, controlplanev1.RKE2ControlPlaneLegacyFinalizer) {
+			controllerutil.RemoveFinalizer(rcp, controlplanev1.RKE2ControlPlaneLegacyFinalizer)
+		}
+
 		controllerutil.RemoveFinalizer(rcp, controlplanev1.RKE2ControlPlaneFinalizer)
 
 		return ctrl.Result{}, nil

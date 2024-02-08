@@ -19,6 +19,9 @@ package v1alpha1
 import (
 	"fmt"
 
+	apiconversion "k8s.io/apimachinery/pkg/conversion"
+	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
+
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
@@ -28,10 +31,19 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 	if !ok {
 		return fmt.Errorf("not a RKE2ControlPlane: %v", dst)
 	}
-
 	if err := Convert_v1alpha1_RKE2ControlPlane_To_v1beta1_RKE2ControlPlane(src, dst, nil); err != nil {
 		return err
 	}
+
+	// Manually restore data.
+	restored := &controlplanev1.RKE2ControlPlane{}
+	if ok, err := utilconversion.UnmarshalData(src, restored); err != nil || !ok {
+		return err
+	}
+
+	dst.Spec.MachineTemplate = restored.Spec.MachineTemplate
+	dst.Spec.Version = restored.Spec.Version
+	dst.Status = restored.Status
 
 	return nil
 }
@@ -43,6 +55,11 @@ func (dst *RKE2ControlPlane) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 
 	if err := Convert_v1beta1_RKE2ControlPlane_To_v1alpha1_RKE2ControlPlane(src, dst, nil); err != nil {
+		return err
+	}
+
+	// Preserve Hub data on down-conversion
+	if err := utilconversion.MarshalData(src, dst); err != nil {
 		return err
 	}
 
@@ -85,6 +102,15 @@ func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		return err
 	}
 
+	// Manually restore data.
+	restored := &controlplanev1.RKE2ControlPlaneTemplate{}
+	if ok, err := utilconversion.UnmarshalData(src, restored); err != nil || !ok {
+		return err
+	}
+
+	dst.Spec.Template = restored.Spec.Template
+	dst.Status = restored.Status
+
 	return nil
 }
 
@@ -95,6 +121,11 @@ func (dst *RKE2ControlPlaneTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 
 	if err := Convert_v1beta1_RKE2ControlPlaneTemplate_To_v1alpha1_RKE2ControlPlaneTemplate(src, dst, nil); err != nil {
+		return err
+	}
+
+	// Preserve Hub data on down-conversion
+	if err := utilconversion.MarshalData(src, dst); err != nil {
 		return err
 	}
 
@@ -124,5 +155,35 @@ func (dst *RKE2ControlPlaneTemplateList) ConvertFrom(srcRaw conversion.Hub) erro
 		return err
 	}
 
+	return nil
+}
+
+func Convert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(in *controlplanev1.RKE2ControlPlaneSpec, out *RKE2ControlPlaneSpec, s apiconversion.Scope) error {
+	// Version was added in v1beta1.
+	// MachineTemplate was added in v1beta1.
+	return autoConvert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(in, out, s)
+}
+
+func Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus(in *controlplanev1.RKE2ControlPlaneStatus, out *RKE2ControlPlaneStatus, s apiconversion.Scope) error {
+	return autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus(in, out, s)
+}
+
+func Convert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(in *RKE2ControlPlaneStatus, out *controlplanev1.RKE2ControlPlaneStatus, s apiconversion.Scope) error {
+	return autoConvert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(in, out, s)
+}
+
+func Convert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(in *controlplanev1.RKE2ControlPlaneTemplateSpec, out *RKE2ControlPlaneTemplateSpec, s apiconversion.Scope) error {
+	return autoConvert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(in, out, s)
+}
+
+func Convert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(in *RKE2ControlPlaneTemplateSpec, out *controlplanev1.RKE2ControlPlaneTemplateSpec, s apiconversion.Scope) error {
+	return autoConvert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(in, out, s)
+}
+
+func Convert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneStatus(in *RKE2ControlPlaneTemplateStatus, out *controlplanev1.RKE2ControlPlaneStatus, s apiconversion.Scope) error {
+	return nil
+}
+
+func Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(in *controlplanev1.RKE2ControlPlaneStatus, out *RKE2ControlPlaneTemplateStatus, s apiconversion.Scope) error {
 	return nil
 }
