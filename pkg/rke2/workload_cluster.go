@@ -168,12 +168,6 @@ func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
 				errList = append(errList, errors.Wrapf(err, "failed to patch node %s", node.Name))
 			}
 
-			if !conditions.Has(machine, controlplanev1.NodeMetadataUpToDate) {
-				conditions.MarkTrue(
-					machine,
-					controlplanev1.NodeMetadataUpToDate)
-			}
-
 			continue
 		}
 
@@ -481,6 +475,8 @@ func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *Control
 		if machine.Status.NodeRef != nil {
 			nodeName = machine.Status.NodeRef.Name
 		}
+
+		conditions.MarkTrue(machine, controlplanev1.NodeMetadataUpToDate)
 
 		node, nodeFound := w.Nodes[nodeName]
 		if !nodeFound {
