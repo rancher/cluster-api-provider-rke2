@@ -19,15 +19,17 @@ import (
 
 var _ = Describe("Reconclie control plane conditions", func() {
 	var (
-		err          error
-		cp           *rke2.ControlPlane
-		rcp          *controlplanev1.RKE2ControlPlane
-		ns           *corev1.Namespace
-		nodeName     = "node1"
-		node         *corev1.Node
-		orphanedNode *corev1.Node
-		machine      *clusterv1.Machine
-		config       *bootstrapv1.RKE2Config
+		err            error
+		cp             *rke2.ControlPlane
+		rcp            *controlplanev1.RKE2ControlPlane
+		ns             *corev1.Namespace
+		nodeName       = "node1"
+		node           *corev1.Node
+		nodeByRef      *corev1.Node
+		orphanedNode   *corev1.Node
+		machine        *clusterv1.Machine
+		machineWithRef *clusterv1.Machine
+		config         *bootstrapv1.RKE2Config
 	)
 
 	BeforeEach(func() {
@@ -37,6 +39,17 @@ var _ = Describe("Reconclie control plane conditions", func() {
 		annotations := map[string]string{
 			"test": "true",
 		}
+
+		config = &bootstrapv1.RKE2Config{ObjectMeta: metav1.ObjectMeta{
+			Name:      "config",
+			Namespace: ns.Name,
+		}, Spec: bootstrapv1.RKE2ConfigSpec{
+			AgentConfig: bootstrapv1.RKE2AgentConfig{
+				NodeAnnotations: annotations,
+			},
+		}}
+		Expect(testEnv.Create(ctx, config)).To(Succeed())
+
 		node = &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: nodeName,
@@ -55,8 +68,75 @@ var _ = Describe("Reconclie control plane conditions", func() {
 			},
 		}
 		Expect(testEnv.Create(ctx, node.DeepCopy())).To(Succeed())
+		Eventually(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 		Expect(testEnv.Status().Update(ctx, node.DeepCopy())).To(Succeed())
-		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		nodeRefName := "ref-node"
+		machineWithRef = &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "machine-with-ref",
+				Namespace: ns.Name,
+			},
+			Spec: clusterv1.MachineSpec{
+				ClusterName: "cluster",
+				Bootstrap: clusterv1.Bootstrap{
+					ConfigRef: &corev1.ObjectReference{
+						Kind:       "RKE2Config",
+						APIVersion: bootstrapv1.GroupVersion.String(),
+						Name:       config.Name,
+						Namespace:  config.Namespace,
+					},
+				},
+				InfrastructureRef: corev1.ObjectReference{
+					Kind:       "Pod",
+					APIVersion: "v1",
+					Name:       "stub",
+					Namespace:  ns.Name,
+				},
+			},
+			Status: clusterv1.MachineStatus{
+				NodeRef: &corev1.ObjectReference{
+					Kind:       "Node",
+					APIVersion: "v1",
+					Name:       nodeRefName,
+				},
+				Conditions: clusterv1.Conditions{
+					clusterv1.Condition{
+						Type:               clusterv1.ReadyCondition,
+						Status:             corev1.ConditionTrue,
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		}
+
+		ml := clusterv1.MachineList{Items: []clusterv1.Machine{*machineWithRef.DeepCopy()}}
+		updatedMachine := machineWithRef.DeepCopy()
+		Expect(testEnv.Create(ctx, updatedMachine)).To(Succeed())
+		updatedMachine.Status = *machineWithRef.Status.DeepCopy()
+		machineWithRef = updatedMachine.DeepCopy()
+		Expect(testEnv.Status().Update(ctx, machineWithRef)).To(Succeed())
+
+		nodeByRef = &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: nodeRefName,
+				Labels: map[string]string{
+					"node-role.kubernetes.io/master": "true",
+				},
+				Annotations: map[string]string{
+					clusterv1.MachineAnnotation: machineWithRef.Name,
+				},
+			},
+			Status: corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{{
+					Type:   corev1.NodeReady,
+					Status: corev1.ConditionTrue,
+				}},
+			},
+		}
+		Expect(testEnv.Create(ctx, nodeByRef.DeepCopy())).To(Succeed())
+		Eventually(testEnv.Get(ctx, client.ObjectKeyFromObject(nodeByRef), nodeByRef)).Should(Succeed())
+		Expect(testEnv.Status().Update(ctx, nodeByRef.DeepCopy())).To(Succeed())
 
 		orphanedNode = &corev1.Node{ObjectMeta: metav1.ObjectMeta{
 			Name: "missing-machine",
@@ -65,16 +145,6 @@ var _ = Describe("Reconclie control plane conditions", func() {
 			},
 		}}
 		Expect(testEnv.Create(ctx, orphanedNode)).To(Succeed())
-
-		config = &bootstrapv1.RKE2Config{ObjectMeta: metav1.ObjectMeta{
-			Name:      "config",
-			Namespace: ns.Name,
-		}, Spec: bootstrapv1.RKE2ConfigSpec{
-			AgentConfig: bootstrapv1.RKE2AgentConfig{
-				NodeAnnotations: annotations,
-			},
-		}}
-		Expect(testEnv.Create(ctx, config)).To(Succeed())
 
 		machine = &clusterv1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
@@ -107,14 +177,20 @@ var _ = Describe("Reconclie control plane conditions", func() {
 				},
 				Conditions: clusterv1.Conditions{
 					clusterv1.Condition{
-						Type:   clusterv1.ReadyCondition,
-						Status: corev1.ConditionTrue,
+						Type:               clusterv1.ReadyCondition,
+						Status:             corev1.ConditionTrue,
+						LastTransitionTime: metav1.Now(),
 					},
 				},
 			},
 		}
-		ml := clusterv1.MachineList{Items: []clusterv1.Machine{*machine.DeepCopy()}}
-		Expect(testEnv.Create(ctx, machine.DeepCopy())).To(Succeed())
+
+		ml.Items = append(ml.Items, *machine.DeepCopy())
+		updatedMachine = machine.DeepCopy()
+		Expect(testEnv.Create(ctx, updatedMachine)).To(Succeed())
+		updatedMachine.Status = *machine.Status.DeepCopy()
+		machine = updatedMachine.DeepCopy()
+		Expect(testEnv.Status().Update(ctx, machine)).To(Succeed())
 
 		cluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -160,9 +236,13 @@ var _ = Describe("Reconclie control plane conditions", func() {
 		_, err := r.reconcileControlPlaneConditions(ctx, cp)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(machineWithRef), machineWithRef)).To(Succeed())
 		Expect(conditions.IsTrue(machine, controlplanev1.NodeMetadataUpToDate)).To(BeTrue())
+		Expect(conditions.IsTrue(machineWithRef, controlplanev1.NodeMetadataUpToDate)).To(BeTrue())
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(nodeByRef), nodeByRef)).To(Succeed())
 		Expect(node.GetAnnotations()).To(HaveKeyWithValue("test", "true"))
+		Expect(nodeByRef.GetAnnotations()).To(HaveKeyWithValue("test", "true"))
 		Expect(conditions.IsFalse(rcp, controlplanev1.ControlPlaneComponentsHealthyCondition)).To(BeTrue())
 		Expect(conditions.GetMessage(rcp, controlplanev1.ControlPlaneComponentsHealthyCondition)).To(Equal(
 			"Control plane node missing-machine does not have a corresponding machine"))
