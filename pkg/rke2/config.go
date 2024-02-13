@@ -310,12 +310,15 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv
 			})
 		}
 
-		rke2ServerConfig.EtcdSnapshotDir = opts.ServerConfig.Etcd.BackupConfig.Directory
-		rke2ServerConfig.EtcdSnapshotName = opts.ServerConfig.Etcd.BackupConfig.SnapshotName
-		rke2ServerConfig.EtcdSnapshotRetention = opts.ServerConfig.Etcd.BackupConfig.Retention
-		rke2ServerConfig.EtcdSnapshotScheduleCron = opts.ServerConfig.Etcd.BackupConfig.ScheduleCron
+		rke2ServerConfig.EtcdSnapshotDir = opts.ServerConfig.Etcd.BackupConfig.S3.Folder
 		rke2ServerConfig.EtcdS3SkipSslVerify = !opts.ServerConfig.Etcd.BackupConfig.S3.EnforceSSLVerify
+	} else {
+		rke2ServerConfig.EtcdSnapshotDir = opts.ServerConfig.Etcd.BackupConfig.Directory
 	}
+
+	rke2ServerConfig.EtcdSnapshotName = opts.ServerConfig.Etcd.BackupConfig.SnapshotName
+	rke2ServerConfig.EtcdSnapshotRetention = opts.ServerConfig.Etcd.BackupConfig.Retention
+	rke2ServerConfig.EtcdSnapshotScheduleCron = opts.ServerConfig.Etcd.BackupConfig.ScheduleCron
 
 	if opts.ServerConfig.Etcd.CustomConfig != nil {
 		rke2ServerConfig.EtcdArgs = opts.ServerConfig.Etcd.CustomConfig.ExtraArgs
