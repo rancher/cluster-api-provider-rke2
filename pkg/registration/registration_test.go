@@ -50,6 +50,10 @@ func TestNewRegistrationMethod(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "control-plane-endpoint",
+			expectError: false,
+		},
+		{
 			name:        "unknownmethod",
 			expectError: true,
 		},
@@ -113,7 +117,7 @@ func TestInternalFirstMethod(t *testing.T) {
 
 			col := collections.FromMachines(tc.machines...)
 
-			actualAddresses, err := regMethod(tc.rcp, col)
+			actualAddresses, err := regMethod(nil, tc.rcp, col)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			g.Expect(actualAddresses).To(HaveExactElements(tc.expectedAddresses))
@@ -165,7 +169,7 @@ func TestInternalOnlyMethod(t *testing.T) {
 
 			col := collections.FromMachines(tc.machines...)
 
-			actualAddresses, err := regMethod(tc.rcp, col)
+			actualAddresses, err := regMethod(nil, tc.rcp, col)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			g.Expect(actualAddresses).To(HaveExactElements(tc.expectedAddresses))
@@ -218,7 +222,7 @@ func TestExternalOnlyMethod(t *testing.T) {
 
 			col := collections.FromMachines(tc.machines...)
 
-			actualAddresses, err := regMethod(tc.rcp, col)
+			actualAddresses, err := regMethod(nil, tc.rcp, col)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			g.Expect(actualAddresses).To(HaveExactElements(tc.expectedAddresses))
@@ -267,11 +271,71 @@ func TestAddressMethod(t *testing.T) {
 
 			col := collections.FromMachines(tc.machines...)
 
-			actualAddresses, err := regMethod(tc.rcp, col)
+			actualAddresses, err := regMethod(nil, tc.rcp, col)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			expectedAddresses := []string{"100.100.100.100"}
 
+			g.Expect(actualAddresses).To(HaveExactElements(expectedAddresses))
+
+		})
+	}
+}
+
+func TestControlPlaneMethod(t *testing.T) {
+	testCases := []struct {
+		name            string
+		cluster         *clusterv1.Cluster
+		expectErr       bool
+		expectedAddress string
+	}{
+		{
+			name:            "with host and port",
+			cluster:         createCluster("test1", "server1", 9445),
+			expectErr:       false,
+			expectedAddress: "server1",
+		},
+		{
+			name:            "with host and no port",
+			cluster:         createCluster("test1", "server1", 0),
+			expectErr:       false,
+			expectedAddress: "server1",
+		},
+		{
+			name:            "with port and no host",
+			cluster:         createCluster("test1", "", 9445),
+			expectErr:       true,
+			expectedAddress: "",
+		},
+		{
+			name:            "with no port and no host",
+			cluster:         createCluster("test1", "", 0),
+			expectErr:       true,
+			expectedAddress: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			regMethod, err := registration.NewRegistrationMethod(string(controlplanev1.RegistrationMethodControlPlaneEndpoint))
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(regMethod).NotTo(BeNil())
+
+			machines := []*clusterv1.Machine{}
+			rcp := createControlPlane(string(controlplanev1.RegistrationMethodControlPlaneEndpoint), "")
+			col := collections.FromMachines(machines...)
+
+			actualAddresses, err := regMethod(tc.cluster, rcp, col)
+			if tc.expectErr {
+				g.Expect(err).To(HaveOccurred())
+				return
+			}
+
+			g.Expect(err).NotTo(HaveOccurred())
+
+			expectedAddresses := []string{tc.expectedAddress}
 			g.Expect(actualAddresses).To(HaveExactElements(expectedAddresses))
 
 		})
@@ -290,6 +354,29 @@ func createControlPlane(registrationMethod, registrationAddress string) *control
 		},
 		Status: controlplanev1.RKE2ControlPlaneStatus{},
 	}
+}
+
+func createCluster(name string, cpHost string, cpPort int) *clusterv1.Cluster {
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      name,
+			Namespace: "default",
+		},
+		Spec:   clusterv1.ClusterSpec{},
+		Status: clusterv1.ClusterStatus{},
+	}
+
+	if cpHost == "" && cpPort == 0 {
+		return cluster
+	}
+
+	cluster.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
+		Host: cpHost,
+		Port: int32(cpPort),
+	}
+
+	return cluster
+
 }
 
 func createMachine(name string, internalIPs []string, externalIPs []string) *clusterv1.Machine {

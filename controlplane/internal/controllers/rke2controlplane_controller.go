@@ -359,7 +359,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		return fmt.Errorf("getting node registration method: %w", err)
 	}
 
-	validIPAddresses, err := registrationmethod(rcp, availableCPMachines)
+	validIPAddresses, err := registrationmethod(cluster, rcp, availableCPMachines)
 	if err != nil {
 		return fmt.Errorf("getting registration addresses: %w", err)
 	}
