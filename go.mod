@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/coreos/butane v0.19.0
 	github.com/coreos/ignition/v2 v2.17.0
-	github.com/go-logr/logr v1.3.0
+	github.com/go-logr/logr v1.4.1
 	github.com/onsi/ginkgo/v2 v2.15.0
 	github.com/onsi/gomega v1.31.1
 	github.com/pkg/errors v0.9.1
