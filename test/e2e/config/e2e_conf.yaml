@@ -16,63 +16,86 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: v1.6.0
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.0/core-components.yaml
-        type: url
-        contract: v1beta1
-        files:
-          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
-        replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
+    - name: "v1.6.0"
+      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.0/core-components.yaml"
+      type: "url"
+      contract: v1beta1
+      files:
+        - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+      replacements:
+        - old: "imagePullPolicy: Always"
+          new: "imagePullPolicy: IfNotPresent"
+        - old: "--leader-elect"
+          new: "--leader-elect=false"
   - name: docker
     type: InfrastructureProvider
     versions:
-      - name: v1.6.0
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.0/infrastructure-components-development.yaml"
-        type: url
-        files:
-          - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
-          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
-        replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
-          - old: --metrics-addr=127.0.0.1:8080
-            new: --metrics-addr=:8080
-        contract: v1beta1
-
+    - name: "v1.6.0"
+      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.0/infrastructure-components-development.yaml"
+      type: "url"
+      contract: v1beta1
+      files:
+        - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
+        - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+      replacements:
+        - old: "imagePullPolicy: Always"
+          new: "imagePullPolicy: IfNotPresent"
+        - old: "--leader-elect"
+          new: "--leader-elect=false"
+        - old: --metrics-addr=127.0.0.1:8080
+          new: --metrics-addr=:8080
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-      - name: v0.2.99
-        value: "../../../controlplane/config/default"
-        contract: v1beta1
-        files:
-          - sourcePath: "../../../metadata.yaml"
-            targetName: "metadata.yaml"
-        replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
+    - name: "v0.2.3"
+      value: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/download/v0.2.3/control-plane-components.yaml"
+      type: "url"
+      contract: v1beta1
+      files:
+        - sourcePath: "../../../metadata.yaml"
+          targetName: "metadata.yaml"
+      replacements:
+        - old: "imagePullPolicy: Always"
+          new: "imagePullPolicy: IfNotPresent"
+        - old: "--leader-elect"
+          new: "--leader-elect=false"
+    - name: v0.2.99
+      value: "../../../controlplane/config/default"
+      contract: v1beta1
+      files:
+        - sourcePath: "../../../metadata.yaml"
+          targetName: "metadata.yaml"
+      replacements:
+        - old: "imagePullPolicy: Always"
+          new: "imagePullPolicy: IfNotPresent"
+        - old: "--leader-elect"
+          new: "--leader-elect=false"
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-      - name: v0.2.99
-        value: ../../../bootstrap/config/default
-        contract: v1beta1
-        files:
-          - sourcePath: "../../../metadata.yaml"
-            targetName: "metadata.yaml"
-        replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
+    - name: "v0.2.3"
+      value: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/download/v0.2.3/bootstrap-components.yaml"
+      type: "url"
+      contract: v1beta1
+      files:
+        - sourcePath: "../../../metadata.yaml"
+          targetName: "metadata.yaml"
+      replacements:
+        - old: "imagePullPolicy: Always"
+          new: "imagePullPolicy: IfNotPresent"
+        - old: "--leader-elect"
+          new: "--leader-elect=false"
+    - name: v0.2.99
+      value: ../../../bootstrap/config/default
+      contract: v1beta1
+      files:
+        - sourcePath: "../../../metadata.yaml"
+          targetName: "metadata.yaml"
+      replacements:
+        - old: "imagePullPolicy: Always"
+          new: "imagePullPolicy: IfNotPresent"
+        - old: "--leader-elect"
+          new: "--leader-elect=false"
 
 variables:
   KUBERNETES_VERSION_MANAGEMENT: "v1.28.0"
