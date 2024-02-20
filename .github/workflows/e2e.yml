@@ -1,5 +1,6 @@
 name: E2E tests
 on:
+  pull_request:
   schedule:
     - cron: '0 1 * * *'
   workflow_dispatch:
