@@ -489,10 +489,38 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 		Permissions: filePermissions,
 	}
 
+	additionalFiles := []bootstrapv1.File{}
+
+	for _, file := range scope.Config.Spec.Files {
+		if file.ContentFrom != nil {
+			scope.Logger.V(5).Info("File content is coming from a Secret, getting the content...")
+
+			fileContentSecret := &corev1.Secret{}
+
+			if err := r.Client.Get(ctx, types.NamespacedName{
+				Name:      file.ContentFrom.Secret.Name,
+				Namespace: scope.Config.Namespace,
+			}, fileContentSecret); err != nil {
+				return nil, fmt.Errorf("unable to get secret %s/%s: %w", scope.Config.Namespace, file.ContentFrom.Secret.Name, err)
+			}
+
+			fileContent := fileContentSecret.Data[file.ContentFrom.Secret.Key]
+			if fileContent == nil {
+				return nil, fmt.Errorf("file content is empty for secret %s/%s, secret key %s",
+					scope.Config.Namespace, file.ContentFrom.Secret.Name, file.ContentFrom.Secret.Key)
+			}
+
+			file.Content = string(fileContent)
+			file.ContentFrom = nil
+		}
+
+		additionalFiles = append(additionalFiles, file)
+	}
+
 	files := configFiles
 	files = append(files, registryFiles...)
 	files = append(files, initRegistriesFile)
-	files = append(files, scope.Config.Spec.Files...)
+	files = append(files, additionalFiles...)
 
 	return files, nil
 }
