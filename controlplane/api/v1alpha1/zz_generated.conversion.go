@@ -106,21 +106,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.RKE2ControlPlaneSpec)(nil), (*RKE2ControlPlaneSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(a.(*v1beta1.RKE2ControlPlaneSpec), b.(*RKE2ControlPlaneSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*RKE2ControlPlaneStatus)(nil), (*v1beta1.RKE2ControlPlaneStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(a.(*RKE2ControlPlaneStatus), b.(*v1beta1.RKE2ControlPlaneStatus), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.RKE2ControlPlaneStatus)(nil), (*RKE2ControlPlaneStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus(a.(*v1beta1.RKE2ControlPlaneStatus), b.(*RKE2ControlPlaneStatus), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*RKE2ControlPlaneTemplate)(nil), (*v1beta1.RKE2ControlPlaneTemplate)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_RKE2ControlPlaneTemplate_To_v1beta1_RKE2ControlPlaneTemplate(a.(*RKE2ControlPlaneTemplate), b.(*v1beta1.RKE2ControlPlaneTemplate), scope)
 	}); err != nil {
@@ -138,26 +123,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*v1beta1.RKE2ControlPlaneTemplateList)(nil), (*RKE2ControlPlaneTemplateList)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta1_RKE2ControlPlaneTemplateList_To_v1alpha1_RKE2ControlPlaneTemplateList(a.(*v1beta1.RKE2ControlPlaneTemplateList), b.(*RKE2ControlPlaneTemplateList), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*RKE2ControlPlaneTemplateSpec)(nil), (*v1beta1.RKE2ControlPlaneTemplateSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(a.(*RKE2ControlPlaneTemplateSpec), b.(*v1beta1.RKE2ControlPlaneTemplateSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.RKE2ControlPlaneTemplateSpec)(nil), (*RKE2ControlPlaneTemplateSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(a.(*v1beta1.RKE2ControlPlaneTemplateSpec), b.(*RKE2ControlPlaneTemplateSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*RKE2ControlPlaneTemplateStatus)(nil), (*v1beta1.RKE2ControlPlaneTemplateStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneTemplateStatus(a.(*RKE2ControlPlaneTemplateStatus), b.(*v1beta1.RKE2ControlPlaneTemplateStatus), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.RKE2ControlPlaneTemplateStatus)(nil), (*RKE2ControlPlaneTemplateStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_RKE2ControlPlaneTemplateStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(a.(*v1beta1.RKE2ControlPlaneTemplateStatus), b.(*RKE2ControlPlaneTemplateStatus), scope)
 	}); err != nil {
 		return err
 	}
@@ -188,6 +153,41 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*v1beta1.RolloutStrategy)(nil), (*RolloutStrategy)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta1_RolloutStrategy_To_v1alpha1_RolloutStrategy(a.(*v1beta1.RolloutStrategy), b.(*RolloutStrategy), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*RKE2ControlPlaneStatus)(nil), (*v1beta1.RKE2ControlPlaneStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(a.(*RKE2ControlPlaneStatus), b.(*v1beta1.RKE2ControlPlaneStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*RKE2ControlPlaneTemplateSpec)(nil), (*v1beta1.RKE2ControlPlaneTemplateSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(a.(*RKE2ControlPlaneTemplateSpec), b.(*v1beta1.RKE2ControlPlaneTemplateSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*RKE2ControlPlaneTemplateStatus)(nil), (*v1beta1.RKE2ControlPlaneStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneStatus(a.(*RKE2ControlPlaneTemplateStatus), b.(*v1beta1.RKE2ControlPlaneStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.RKE2ControlPlaneSpec)(nil), (*RKE2ControlPlaneSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(a.(*v1beta1.RKE2ControlPlaneSpec), b.(*RKE2ControlPlaneSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.RKE2ControlPlaneStatus)(nil), (*RKE2ControlPlaneStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus(a.(*v1beta1.RKE2ControlPlaneStatus), b.(*RKE2ControlPlaneStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.RKE2ControlPlaneStatus)(nil), (*RKE2ControlPlaneTemplateStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(a.(*v1beta1.RKE2ControlPlaneStatus), b.(*RKE2ControlPlaneTemplateStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.RKE2ControlPlaneTemplateSpec)(nil), (*RKE2ControlPlaneTemplateSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(a.(*v1beta1.RKE2ControlPlaneTemplateSpec), b.(*RKE2ControlPlaneTemplateSpec), scope)
 	}); err != nil {
 		return err
 	}
@@ -423,6 +423,8 @@ func autoConvert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(i
 		return err
 	}
 	out.Replicas = (*int32)(unsafe.Pointer(in.Replicas))
+	// WARNING: in.Version requires manual conversion: does not exist in peer-type
+	// WARNING: in.MachineTemplate requires manual conversion: does not exist in peer-type
 	if err := Convert_v1beta1_RKE2ServerConfig_To_v1alpha1_RKE2ServerConfig(&in.ServerConfig, &out.ServerConfig, s); err != nil {
 		return err
 	}
@@ -433,11 +435,6 @@ func autoConvert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(i
 	out.RegistrationAddress = in.RegistrationAddress
 	out.RolloutStrategy = (*RolloutStrategy)(unsafe.Pointer(in.RolloutStrategy))
 	return nil
-}
-
-// Convert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec is an autogenerated conversion function.
-func Convert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(in *v1beta1.RKE2ControlPlaneSpec, out *RKE2ControlPlaneSpec, s conversion.Scope) error {
-	return autoConvert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(in, out, s)
 }
 
 func autoConvert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(in *RKE2ControlPlaneStatus, out *v1beta1.RKE2ControlPlaneStatus, s conversion.Scope) error {
@@ -456,11 +453,6 @@ func autoConvert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStat
 	return nil
 }
 
-// Convert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus is an autogenerated conversion function.
-func Convert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(in *RKE2ControlPlaneStatus, out *v1beta1.RKE2ControlPlaneStatus, s conversion.Scope) error {
-	return autoConvert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(in, out, s)
-}
-
 func autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus(in *v1beta1.RKE2ControlPlaneStatus, out *RKE2ControlPlaneStatus, s conversion.Scope) error {
 	out.Ready = in.Ready
 	out.Initialized = in.Initialized
@@ -470,6 +462,7 @@ func autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStat
 	out.ObservedGeneration = in.ObservedGeneration
 	out.Conditions = *(*clusterapiapiv1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
 	out.Replicas = in.Replicas
+	// WARNING: in.Version requires manual conversion: does not exist in peer-type
 	out.ReadyReplicas = in.ReadyReplicas
 	out.UpdatedReplicas = in.UpdatedReplicas
 	out.UnavailableReplicas = in.UnavailableReplicas
@@ -477,17 +470,12 @@ func autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStat
 	return nil
 }
 
-// Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus is an autogenerated conversion function.
-func Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus(in *v1beta1.RKE2ControlPlaneStatus, out *RKE2ControlPlaneStatus, s conversion.Scope) error {
-	return autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStatus(in, out, s)
-}
-
 func autoConvert_v1alpha1_RKE2ControlPlaneTemplate_To_v1beta1_RKE2ControlPlaneTemplate(in *RKE2ControlPlaneTemplate, out *v1beta1.RKE2ControlPlaneTemplate, s conversion.Scope) error {
 	out.ObjectMeta = in.ObjectMeta
 	if err := Convert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
-	if err := Convert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneTemplateStatus(&in.Status, &out.Status, s); err != nil {
+	if err := Convert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneStatus(&in.Status, &out.Status, s); err != nil {
 		return err
 	}
 	return nil
@@ -503,7 +491,7 @@ func autoConvert_v1beta1_RKE2ControlPlaneTemplate_To_v1alpha1_RKE2ControlPlaneTe
 	if err := Convert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
-	if err := Convert_v1beta1_RKE2ControlPlaneTemplateStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(&in.Status, &out.Status, s); err != nil {
+	if err := Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(&in.Status, &out.Status, s); err != nil {
 		return err
 	}
 	return nil
@@ -516,7 +504,17 @@ func Convert_v1beta1_RKE2ControlPlaneTemplate_To_v1alpha1_RKE2ControlPlaneTempla
 
 func autoConvert_v1alpha1_RKE2ControlPlaneTemplateList_To_v1beta1_RKE2ControlPlaneTemplateList(in *RKE2ControlPlaneTemplateList, out *v1beta1.RKE2ControlPlaneTemplateList, s conversion.Scope) error {
 	out.ListMeta = in.ListMeta
-	out.Items = *(*[]v1beta1.RKE2ControlPlaneTemplate)(unsafe.Pointer(&in.Items))
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]v1beta1.RKE2ControlPlaneTemplate, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_RKE2ControlPlaneTemplate_To_v1beta1_RKE2ControlPlaneTemplate(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
 	return nil
 }
 
@@ -527,7 +525,17 @@ func Convert_v1alpha1_RKE2ControlPlaneTemplateList_To_v1beta1_RKE2ControlPlaneTe
 
 func autoConvert_v1beta1_RKE2ControlPlaneTemplateList_To_v1alpha1_RKE2ControlPlaneTemplateList(in *v1beta1.RKE2ControlPlaneTemplateList, out *RKE2ControlPlaneTemplateList, s conversion.Scope) error {
 	out.ListMeta = in.ListMeta
-	out.Items = *(*[]RKE2ControlPlaneTemplate)(unsafe.Pointer(&in.Items))
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]RKE2ControlPlaneTemplate, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta1_RKE2ControlPlaneTemplate_To_v1alpha1_RKE2ControlPlaneTemplate(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
 	return nil
 }
 
@@ -537,41 +545,12 @@ func Convert_v1beta1_RKE2ControlPlaneTemplateList_To_v1alpha1_RKE2ControlPlaneTe
 }
 
 func autoConvert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(in *RKE2ControlPlaneTemplateSpec, out *v1beta1.RKE2ControlPlaneTemplateSpec, s conversion.Scope) error {
-	out.Foo = in.Foo
 	return nil
-}
-
-// Convert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec is an autogenerated conversion function.
-func Convert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(in *RKE2ControlPlaneTemplateSpec, out *v1beta1.RKE2ControlPlaneTemplateSpec, s conversion.Scope) error {
-	return autoConvert_v1alpha1_RKE2ControlPlaneTemplateSpec_To_v1beta1_RKE2ControlPlaneTemplateSpec(in, out, s)
 }
 
 func autoConvert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(in *v1beta1.RKE2ControlPlaneTemplateSpec, out *RKE2ControlPlaneTemplateSpec, s conversion.Scope) error {
-	out.Foo = in.Foo
+	// WARNING: in.Template requires manual conversion: does not exist in peer-type
 	return nil
-}
-
-// Convert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec is an autogenerated conversion function.
-func Convert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(in *v1beta1.RKE2ControlPlaneTemplateSpec, out *RKE2ControlPlaneTemplateSpec, s conversion.Scope) error {
-	return autoConvert_v1beta1_RKE2ControlPlaneTemplateSpec_To_v1alpha1_RKE2ControlPlaneTemplateSpec(in, out, s)
-}
-
-func autoConvert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneTemplateStatus(in *RKE2ControlPlaneTemplateStatus, out *v1beta1.RKE2ControlPlaneTemplateStatus, s conversion.Scope) error {
-	return nil
-}
-
-// Convert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneTemplateStatus is an autogenerated conversion function.
-func Convert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneTemplateStatus(in *RKE2ControlPlaneTemplateStatus, out *v1beta1.RKE2ControlPlaneTemplateStatus, s conversion.Scope) error {
-	return autoConvert_v1alpha1_RKE2ControlPlaneTemplateStatus_To_v1beta1_RKE2ControlPlaneTemplateStatus(in, out, s)
-}
-
-func autoConvert_v1beta1_RKE2ControlPlaneTemplateStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(in *v1beta1.RKE2ControlPlaneTemplateStatus, out *RKE2ControlPlaneTemplateStatus, s conversion.Scope) error {
-	return nil
-}
-
-// Convert_v1beta1_RKE2ControlPlaneTemplateStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus is an autogenerated conversion function.
-func Convert_v1beta1_RKE2ControlPlaneTemplateStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(in *v1beta1.RKE2ControlPlaneTemplateStatus, out *RKE2ControlPlaneTemplateStatus, s conversion.Scope) error {
-	return autoConvert_v1beta1_RKE2ControlPlaneTemplateStatus_To_v1alpha1_RKE2ControlPlaneTemplateStatus(in, out, s)
 }
 
 func autoConvert_v1alpha1_RKE2ServerConfig_To_v1beta1_RKE2ServerConfig(in *RKE2ServerConfig, out *v1beta1.RKE2ServerConfig, s conversion.Scope) error {

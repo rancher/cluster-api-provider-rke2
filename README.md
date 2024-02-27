@@ -122,7 +122,7 @@ Set the following environment variables:
 - CABPR_WK_REPLICAS
 - KUBERNETES_VERSION
 
-for example :
+for example:
 
 ```bash
 export CABPR_NAMESPACE=example
@@ -196,6 +196,62 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 ```
 
 :tada: CONGRATULATIONS ! :tada: You created your first RKE2 cluster with CAPD as an infrastructure provider.
+
+### Using ClusterClass for cluster creation
+
+This provider supports using [ClusterClass](https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20210526-cluster-class-and-managed-topologies.md), a Cluster API feature that implements an extra level of abstraction on top of the existing Cluster API functionality. The `ClusterClass` object is used to define a collection of template resources (control plane and machine deployment) which are used to generate one or more clusters of the same flavor.
+
+If you are interested in leveraging this functionality, you can refer to the examples [here](./samples/docker/clusterclass/):
+- [clusterclass-quick-start.yaml](./samples/docker/clusterclass/clusterclass-quick-start.yaml): creates a sample `ClusterClass` and necessary resources.
+- [rke2-sample.yaml](./samples/docker/clusterclass/rke2-sample.yaml): creates a workload cluster using the `ClusterClass`.
+
+As with other sample templates, you will need to set a number environment variables:
+- CLUSTER_NAME
+- CABPR_CP_REPLICAS
+- CABPR_WK_REPLICAS
+- KUBERNETES_VERSION
+- KIND_IP
+
+for example:
+
+```bash
+export CLUSTER_NAME=capd-rke2-clusterclass
+export CABPR_CP_REPLICAS=3
+export CABPR_WK_REPLICAS=2
+export KUBERNETES_VERSION=v1.25.11
+export KIND_IP=192.168.20.20
+```
+
+**Remember that, since we are using Kind, the value of `KIND_IP` must be an IP address in the range of the `kind` network.**
+You can check the range Docker assigns to this network by inspecting it:
+
+```bash
+docker network inspect kind
+```
+
+The next step is to substitue the values in the YAML using the following commands:
+
+```bash
+cat clusterclass-quick-start.yaml | clusterctl generate yaml > clusterclass-example.yaml
+```
+
+At this moment, you can take some time to study the resulting YAML, then you can apply it to the management cluster:
+
+```bash
+kubectl apply -f clusterclass-example.yaml
+```
+
+This will create a new `ClusterClass` template that can be used to provision one or multiple workload clusters of the same flavor.
+To do so, you can follow the same procedure and substitute the values in the YAML for the cluster definition:
+
+```bash
+cat rke2-sample.yaml | clusterctl generate yaml > rke2-clusterclass-example.yaml
+```
+
+And then apply the resulting YAML file to create a cluster from the existing `ClusterClass`.
+```bash
+kubectl apply -f rke2-clusterclass-example.yaml
+```
 
 ## Testing the DEV main branch
 These instructions are for development purposes initially and will be changed in the future for user facing instructions.
