@@ -28,7 +28,9 @@ import (
 
 // GetRegistrationAddresses is a function type that is used to provide different implementations of
 // getting the addresses just when registering a new node into a cluster.
-type GetRegistrationAddresses func(rcp *controlplanev1.RKE2ControlPlane, cpMachines collections.Machines) ([]string, error)
+type GetRegistrationAddresses func(cluster *clusterv1.Cluster,
+	rcp *controlplanev1.RKE2ControlPlane,
+	cpMachines collections.Machines) ([]string, error)
 
 // NewRegistrationMethod returns the function for the registration addresses based on the passed method name.
 func NewRegistrationMethod(method string) (GetRegistrationAddresses, error) {
@@ -41,13 +43,15 @@ func NewRegistrationMethod(method string) (GetRegistrationAddresses, error) {
 		return registrationMethodWithFilter(filterExternalOnly), nil
 	case "address":
 		return registrationMethodAddress, nil
+	case "control-plane-endpoint":
+		return registrationMethodControlPlaneEndpoint, nil
 	default:
 		return nil, fmt.Errorf("unsupported registration method: %s", method)
 	}
 }
 
 func registrationMethodWithFilter(filter addressFilter) GetRegistrationAddresses {
-	return func(rcp *controlplanev1.RKE2ControlPlane, availableMachines collections.Machines) ([]string, error) {
+	return func(_ *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, availableMachines collections.Machines) ([]string, error) {
 		validIPAddresses := []string{}
 
 		for _, availableMachine := range availableMachines {
@@ -61,7 +65,7 @@ func registrationMethodWithFilter(filter addressFilter) GetRegistrationAddresses
 	}
 }
 
-func registrationMethodAddress(rcp *controlplanev1.RKE2ControlPlane, _ collections.Machines) ([]string, error) {
+func registrationMethodAddress(_ *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, _ collections.Machines) ([]string, error) {
 	validIPAddresses := []string{}
 
 	validIPAddresses = append(validIPAddresses, rcp.Spec.RegistrationAddress)
@@ -71,6 +75,25 @@ func registrationMethodAddress(rcp *controlplanev1.RKE2ControlPlane, _ collectio
 	}
 
 	return validIPAddresses, nil
+}
+
+func registrationMethodControlPlaneEndpoint(cluster *clusterv1.Cluster,
+	_ *controlplanev1.RKE2ControlPlane,
+	_ collections.Machines,
+) ([]string, error) {
+	validAddresses := []string{}
+
+	if cluster.Spec.ControlPlaneEndpoint.IsZero() {
+		return nil, errors.New("no control plane endpoint set")
+	}
+
+	if cluster.Spec.ControlPlaneEndpoint.Host == "" {
+		return nil, errors.New("no control plane host set")
+	}
+
+	validAddresses = append(validAddresses, cluster.Spec.ControlPlaneEndpoint.Host)
+
+	return validAddresses, nil
 }
 
 type addressFilter func(machine *clusterv1.Machine) string

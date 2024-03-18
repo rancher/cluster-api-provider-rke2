@@ -33,4 +33,7 @@ var (
 	// RegistrationMethodAddress is a registration method where an explicit address supplied at cluster creation
 	// time is used for registration. This is for use in LB or VIP scenarios.
 	RegistrationMethodAddress = RegistrationMethod("address")
+	// RegistrationMethodControlPlaneEndpoint is a registration method where the control plane endpoint from the
+	// Cluster is used for registration.
+	RegistrationMethodControlPlaneEndpoint = RegistrationMethod("control-plane-endpoint")
 )
