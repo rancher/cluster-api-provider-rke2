@@ -52,7 +52,7 @@ jobs:
       run: |
         make release RELEASE_TAG=${{ env.TAG }} 
     - name: Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         prerelease: false
         draft: true
