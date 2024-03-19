@@ -70,7 +70,7 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
 	}
 
 	bootstrapSpec := controlPlane.InitialControlPlaneConfig()
-	fd := controlPlane.NextFailureDomainForScaleUp()
+	fd := controlPlane.NextFailureDomainForScaleUp(ctx)
 
 	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
 		logger.Error(err, "Failed to create initial control plane Machine")
@@ -105,7 +105,7 @@ func (r *RKE2ControlPlaneReconciler) scaleUpControlPlane(
 
 	// Create the bootstrap configuration
 	bootstrapSpec := controlPlane.JoinControlPlaneConfig()
-	fd := controlPlane.NextFailureDomainForScaleUp()
+	fd := controlPlane.NextFailureDomainForScaleUp(ctx)
 
 	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
 		logger.Error(err, "Failed to create additional control plane Machine")
@@ -136,7 +136,7 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 	logger := controlPlane.Logger()
 
 	// Pick the Machine that we should scale down.
-	machineToDelete, err := selectMachineForScaleDown(controlPlane, outdatedMachines)
+	machineToDelete, err := selectMachineForScaleDown(ctx, controlPlane, outdatedMachines)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "failed to select machine for scale down")
 	}
@@ -247,7 +247,7 @@ func preflightCheckCondition(kind string, obj conditions.Getter, condition clust
 	return nil
 }
 
-func selectMachineForScaleDown(controlPlane *rke2.ControlPlane, outdatedMachines collections.Machines) (*clusterv1.Machine, error) {
+func selectMachineForScaleDown(ctx context.Context, controlPlane *rke2.ControlPlane, outdatedMachines collections.Machines) (*clusterv1.Machine, error) {
 	machines := controlPlane.Machines
 
 	switch {
@@ -265,7 +265,7 @@ func selectMachineForScaleDown(controlPlane *rke2.ControlPlane, outdatedMachines
 		controlPlane.Logger().V(5).Info("Inside the IsReady case", "machines", machines.Names())
 	}
 
-	return controlPlane.MachineInFailureDomainWithMostMachines(machines)
+	return controlPlane.MachineInFailureDomainWithMostMachines(ctx, machines)
 }
 
 func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
