@@ -131,11 +131,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		if err := patchHelper.Patch(ctx, scope.Config, patchOpts...); err != nil {
-			logger.Error(rerr, "Failed to patch config")
-
-			if rerr == nil {
-				rerr = err
-			}
+			rerr = kerrors.NewAggregate([]error{rerr, err})
 		}
 	}()
 

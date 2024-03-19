@@ -83,7 +83,7 @@ func NewControlPlane(
 				name = machine.Status.NodeRef.Name
 			}
 
-			return nil, errors.Wrapf(err, "failed to create patch helper for machine %s with node %s", machine.Name, name)
+			return nil, err
 		}
 
 		patchHelpers[name] = patchHelper
@@ -366,7 +366,7 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 					name = machine.Status.NodeRef.Name
 				}
 
-				errList = append(errList, errors.Wrapf(err, "failed to patch machine %s with node %s", machine.Name, name))
+				errList = append(errList, err)
 			}
 
 			continue

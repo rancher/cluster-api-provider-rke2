@@ -135,9 +135,8 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// Patch ObservedGeneration only if the reconciliation completed successfully
 		patchOpts := []patch.Option{patch.WithStatusObservedGeneration{}}
 		if err := patchHelper.Patch(ctx, rcp, patchOpts...); err != nil {
-			logger.Error(err, "Failed to patch RKE2ControlPlane to add finalizer")
 
-			return ctrl.Result{}, err
+			return ctrl.Result{}, errors.Wrapf(err, "failed to add finalizer")
 		}
 
 		return ctrl.Result{}, nil
@@ -157,7 +156,6 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		// Always attempt to Patch the RKE2ControlPlane object and status after each reconciliation.
 		if err := patchRKE2ControlPlane(ctx, patchHelper, rcp); err != nil {
-			logger.Error(err, "Failed to patch RKE2ControlPlane")
 			reterr = kerrors.NewAggregate([]error{reterr, err})
 		}
 
