@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -80,7 +80,7 @@ func NewControlPlane(
 		patchHelper, err := patch.NewHelper(machine, client)
 		if err != nil {
 			if machine.Status.NodeRef != nil {
-				name = machine.Status.NodeRef.Name
+				_ = machine.Status.NodeRef.Name
 			}
 
 			return nil, err
@@ -102,7 +102,7 @@ func NewControlPlane(
 
 // Logger returns a logger with useful context.
 func (c *ControlPlane) Logger() logr.Logger {
-	return klogr.New().WithValues("namespace", c.RCP.Namespace, "name", c.RCP.Name, "cluster-name", c.Cluster.Name)
+	return klog.Background().WithValues("namespace", c.RCP.Namespace, "name", c.RCP.Name, "cluster-name", c.Cluster.Name)
 }
 
 // FailureDomains returns a slice of failure domain objects synced from the infrastructure provider into Cluster.Status.
@@ -363,7 +363,7 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 				controlplanev1.NodeMetadataUpToDate,
 			}}); err != nil {
 				if machine.Status.NodeRef != nil {
-					name = machine.Status.NodeRef.Name
+					_ = machine.Status.NodeRef.Name
 				}
 
 				errList = append(errList, err)

@@ -247,7 +247,11 @@ func preflightCheckCondition(kind string, obj conditions.Getter, condition clust
 	return nil
 }
 
-func selectMachineForScaleDown(ctx context.Context, controlPlane *rke2.ControlPlane, outdatedMachines collections.Machines) (*clusterv1.Machine, error) {
+func selectMachineForScaleDown(
+	ctx context.Context,
+	controlPlane *rke2.ControlPlane,
+	outdatedMachines collections.Machines,
+) (*clusterv1.Machine, error) {
 	machines := controlPlane.Machines
 
 	switch {
