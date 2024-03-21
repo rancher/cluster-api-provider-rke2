@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -131,11 +131,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		if err := patchHelper.Patch(ctx, scope.Config, patchOpts...); err != nil {
-			logger.Error(rerr, "Failed to patch config")
-
-			if rerr == nil {
-				rerr = err
-			}
+			rerr = kerrors.NewAggregate([]error{rerr, err})
 		}
 	}()
 
@@ -810,7 +806,7 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 					Kind:       scope.Cluster.Kind,
 					Name:       scope.Cluster.Name,
 					UID:        scope.Cluster.UID,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 				},
 			},
 		},
@@ -843,7 +839,7 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 					Kind:       scope.Config.Kind,
 					Name:       scope.Config.Name,
 					UID:        scope.Config.UID,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 				},
 			},
 		},
@@ -858,7 +854,7 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 		return err
 	}
 
-	scope.Config.Status.DataSecretName = pointer.String(secret.Name)
+	scope.Config.Status.DataSecretName = ptr.To(secret.Name)
 	scope.Config.Status.Ready = true
 	//	conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
 	return nil

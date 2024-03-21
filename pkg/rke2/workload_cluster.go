@@ -106,7 +106,7 @@ func (w *Workload) InitWorkload(ctx context.Context, cp *ControlPlane) error {
 				controlplanev1.ControlPlaneComponentsHealthyCondition,
 				controlplanev1.ControlPlaneComponentsInspectionFailedReason, "Failed to create patch helpers for control plane nodes")
 
-			return errors.Wrapf(err, "failed to create patch helper for node %s", node.Name)
+			return err
 		}
 
 		w.nodePatchHelpers[node.Name] = patchHelper
@@ -163,9 +163,9 @@ func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
 				conditions.MarkUnknown(
 					machine,
 					controlplanev1.NodeMetadataUpToDate,
-					controlplanev1.NodePatchFailedReason, errors.Wrapf(err, "failed to patch node %s", node.Name).Error())
+					controlplanev1.NodePatchFailedReason, err.Error())
 
-				errList = append(errList, errors.Wrapf(err, "failed to patch node %s", node.Name))
+				errList = append(errList, err)
 			}
 
 			continue

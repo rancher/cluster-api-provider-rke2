@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -80,10 +80,10 @@ func NewControlPlane(
 		patchHelper, err := patch.NewHelper(machine, client)
 		if err != nil {
 			if machine.Status.NodeRef != nil {
-				name = machine.Status.NodeRef.Name
+				_ = machine.Status.NodeRef.Name
 			}
 
-			return nil, errors.Wrapf(err, "failed to create patch helper for machine %s with node %s", machine.Name, name)
+			return nil, err
 		}
 
 		patchHelpers[name] = patchHelper
@@ -102,7 +102,7 @@ func NewControlPlane(
 
 // Logger returns a logger with useful context.
 func (c *ControlPlane) Logger() logr.Logger {
-	return klogr.New().WithValues("namespace", c.RCP.Namespace, "name", c.RCP.Name, "cluster-name", c.Cluster.Name)
+	return klog.Background().WithValues("namespace", c.RCP.Namespace, "name", c.RCP.Name, "cluster-name", c.Cluster.Name)
 }
 
 // FailureDomains returns a slice of failure domain objects synced from the infrastructure provider into Cluster.Status.
@@ -135,8 +135,8 @@ func (c *ControlPlane) AsOwnerReference() *metav1.OwnerReference {
 }
 
 // MachineInFailureDomainWithMostMachines returns the first matching failure domain with machines that has the most control-plane machines on it.
-func (c *ControlPlane) MachineInFailureDomainWithMostMachines(machines collections.Machines) (*clusterv1.Machine, error) {
-	fd := c.FailureDomainWithMostMachines(machines)
+func (c *ControlPlane) MachineInFailureDomainWithMostMachines(ctx context.Context, machines collections.Machines) (*clusterv1.Machine, error) {
+	fd := c.FailureDomainWithMostMachines(ctx, machines)
 	machinesInFailureDomain := machines.Filter(collections.InFailureDomains(fd))
 	machineToMark := machinesInFailureDomain.Oldest()
 
@@ -157,7 +157,7 @@ func (c *ControlPlane) MachineWithDeleteAnnotation(machines collections.Machines
 
 // FailureDomainWithMostMachines returns a fd which exists both in machines and control-plane machines and has the most
 // control-plane machines on it.
-func (c *ControlPlane) FailureDomainWithMostMachines(machines collections.Machines) *string {
+func (c *ControlPlane) FailureDomainWithMostMachines(ctx context.Context, machines collections.Machines) *string {
 	// See if there are any Machines that are not in currently defined failure domains first.
 	notInFailureDomains := machines.Filter(
 		collections.Not(collections.InFailureDomains(c.FailureDomains().FilterControlPlane().GetIDs()...)),
@@ -169,16 +169,16 @@ func (c *ControlPlane) FailureDomainWithMostMachines(machines collections.Machin
 		return notInFailureDomains.Oldest().Spec.FailureDomain
 	}
 
-	return capifd.PickMost(c.Cluster.Status.FailureDomains.FilterControlPlane(), c.Machines, machines)
+	return capifd.PickMost(ctx, c.Cluster.Status.FailureDomains.FilterControlPlane(), c.Machines, machines)
 }
 
 // NextFailureDomainForScaleUp returns the failure domain with the fewest number of up-to-date machines.
-func (c *ControlPlane) NextFailureDomainForScaleUp() *string {
+func (c *ControlPlane) NextFailureDomainForScaleUp(ctx context.Context) *string {
 	if len(c.Cluster.Status.FailureDomains.FilterControlPlane()) == 0 {
 		return nil
 	}
 
-	return capifd.PickFewest(c.FailureDomains().FilterControlPlane(), c.UpToDateMachines())
+	return capifd.PickFewest(ctx, c.FailureDomains().FilterControlPlane(), c.UpToDateMachines())
 }
 
 // InitialControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for an initializing control plane.
@@ -363,10 +363,10 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 				controlplanev1.NodeMetadataUpToDate,
 			}}); err != nil {
 				if machine.Status.NodeRef != nil {
-					name = machine.Status.NodeRef.Name
+					_ = machine.Status.NodeRef.Name
 				}
 
-				errList = append(errList, errors.Wrapf(err, "failed to patch machine %s with node %s", machine.Name, name))
+				errList = append(errList, err)
 			}
 
 			continue
