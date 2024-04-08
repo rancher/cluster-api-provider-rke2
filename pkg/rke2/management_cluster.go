@@ -18,6 +18,13 @@ package rke2
 
 import (
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"time"
 
 	"github.com/pkg/errors"
@@ -123,18 +130,18 @@ func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclie
 }
 
 func (m *Management) getEtcdCAKeyPair(ctx context.Context, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
-	etcd := &secret.ManagedCertificate{
-		Purpose: secret.EtcdCA,
-	}
+	certificates := secret.Certificates([]secret.Certificate{&secret.ManagedCertificate{
+		Purpose: secret.EtcdServerCA,
+	}})
 
 	// Try to get the certificate via the cached ctrlclient.
-	s, err := etcd.Lookup(ctx, m.SecretCachingClient, clusterKey)
-	if err != nil || s == nil {
+	err := certificates.Lookup(ctx, m.SecretCachingClient, clusterKey)
+	if err != nil {
 		// Return error if we got an errors which is not a NotFound error.
 		return nil, errors.Wrapf(err, "failed to get secret; etcd CA bundle %s/%s", clusterKey.Namespace, secret.Name(clusterKey.Name, secret.EtcdCA))
 	}
 
-	return etcd.KeyPair, nil
+	return certificates[0].GetKeyPair(), nil
 }
 
 func (m *Management) getRemoteKeyPair(ctx context.Context, remoteClient ctrlclient.Client, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
@@ -151,4 +158,52 @@ func (m *Management) getRemoteKeyPair(ctx context.Context, remoteClient ctrlclie
 	}
 
 	return etcdCertificate.KeyPair, nil
+}
+
+func generateClientCert(caCertEncoded, caKeyEncoded []byte, clientKey *rsa.PrivateKey) (tls.Certificate, error) {
+	caCert, err := certs.DecodeCertPEM(caCertEncoded)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	caKey, err := certs.DecodePrivateKeyPEM(caKeyEncoded)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	x509Cert, err := newClientCert(caCert, clientKey, caKey)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	return tls.X509KeyPair(certs.EncodeCertPEM(x509Cert), certs.EncodePrivateKeyPEM(clientKey))
+}
+
+func newClientCert(caCert *x509.Certificate, key *rsa.PrivateKey, caKey crypto.Signer) (*x509.Certificate, error) {
+	cfg := certs.Config{
+		CommonName: "cluster-api.x-k8s.io",
+	}
+
+	now := time.Now().UTC()
+
+	tmpl := x509.Certificate{
+		SerialNumber: new(big.Int).SetInt64(0),
+		Subject: pkix.Name{
+			CommonName:   cfg.CommonName,
+			Organization: cfg.Organization,
+		},
+		NotBefore:   now.Add(time.Minute * -5),
+		NotAfter:    now.Add(secret.TenYears), // 10 years
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+
+	b, err := x509.CreateCertificate(rand.Reader, &tmpl, caCert, key.Public(), caKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create signed client certificate: %+v", tmpl)
+	}
+
+	c, err := x509.ParseCertificate(b)
+
+	return c, errors.WithStack(err)
 }

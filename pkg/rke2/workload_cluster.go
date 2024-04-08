@@ -37,6 +37,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
+	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -120,6 +121,18 @@ func (m *Management) NewWorkload(
 	clientCert, err := tls.X509KeyPair(keyPair.Cert, keyPair.Key)
 	if err != nil {
 		return nil, err
+	}
+
+	if _, err := certs.DecodePrivateKeyPEM(keyPair.Key); err == nil {
+		clientKey, err := m.Tracker.GetEtcdClientCertificateKey(ctx, clusterKey)
+		if err != nil {
+			return nil, err
+		}
+
+		clientCert, err = generateClientCert(keyPair.Cert, keyPair.Key, clientKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	caPool := x509.NewCertPool()

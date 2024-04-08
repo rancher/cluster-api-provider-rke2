@@ -46,6 +46,10 @@ const (
 	// be automatically used by RKE2 to use the pre-defined certificates instead of generating them.
 	DefaultCertificatesDir = "/var/lib/rancher/rke2/server/tls"
 
+	// DefaultETCDCertificatesDir is the default location (file path) where the provider will put the etcd certificates, this location will then
+	// be automatically used by RKE2 to use the pre-defined certificates instead of generating them.
+	DefaultETCDCertificatesDir = DefaultCertificatesDir + "/etcd"
+
 	// Kubeconfig is the secret name suffix storing the Cluster Kubeconfig.
 	Kubeconfig = Purpose("kubeconfig")
 
@@ -53,7 +57,10 @@ const (
 	KubeconfigDataName string = "value"
 
 	// EtcdCA is the secret name suffix for the Etcd CA.
-	EtcdCA Purpose = "etcd"
+	EtcdCA Purpose = "peer-etcd"
+
+	// EtcdServerCA is the secret name suffix for the Etcd CA.
+	EtcdServerCA Purpose = "etcd"
 
 	// ClusterCA is the secret name suffix for APIServer CA.
 	ClusterCA = Purpose("ca")
@@ -164,6 +171,16 @@ func NewCertificatesForInitialControlPlane() Certificates {
 			Purpose:  ClientClusterCA,
 			CertFile: filepath.Join(certificatesDir, "client-ca.crt"),
 			KeyFile:  filepath.Join(certificatesDir, "client-ca.key"),
+		},
+		&ManagedCertificate{
+			Purpose:  EtcdCA,
+			CertFile: filepath.Join(DefaultETCDCertificatesDir, "peer-ca.crt"),
+			KeyFile:  filepath.Join(DefaultETCDCertificatesDir, "peer-ca.key"),
+		},
+		&ManagedCertificate{
+			Purpose:  EtcdServerCA,
+			CertFile: filepath.Join(DefaultETCDCertificatesDir, "server-ca.crt"),
+			KeyFile:  filepath.Join(DefaultETCDCertificatesDir, "server-ca.key"),
 		},
 	}
 
@@ -419,6 +436,7 @@ func (c Certificates) AsFiles() []bootstrapv1.File {
 	clientClusterCA := c.GetByPurpose(ClientClusterCA)
 
 	etcdCA := c.GetByPurpose(EtcdCA)
+	etcdServerCA := c.GetByPurpose(EtcdServerCA)
 
 	certFiles := make([]bootstrapv1.File, 0)
 	if clusterCA != nil {
@@ -431,6 +449,10 @@ func (c Certificates) AsFiles() []bootstrapv1.File {
 
 	if etcdCA != nil {
 		certFiles = append(certFiles, etcdCA.AsFiles()...)
+	}
+
+	if etcdServerCA != nil {
+		certFiles = append(certFiles, etcdServerCA.AsFiles()...)
 	}
 
 	// these will only exist if external etcd was defined and supplied by the user

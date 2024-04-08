@@ -218,8 +218,8 @@ var _ = Describe("Workload cluster creation", func() {
 					Flavor:                   "docker",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
-					ControlPlaneMachineCount: pointer.Int64Ptr(3), //TODO: change this back to 1 when scaling is supported
+					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersionUpgradeTo),
+					ControlPlaneMachineCount: pointer.Int64Ptr(1),
 					WorkerMachineCount:       pointer.Int64Ptr(1),
 				},
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),

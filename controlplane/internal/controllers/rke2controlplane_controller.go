@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/collections"
@@ -236,10 +237,26 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 	r.controller = c
 	r.recorder = mgr.GetEventRecorderFor("rke2-control-plane-controller")
 
+	// Set up a ClusterCacheTracker and ClusterCacheReconciler to provide to controllers
+	// requiring a connection to a remote cluster
+	tracker, err := remote.NewClusterCacheTracker(
+		mgr,
+		remote.ClusterCacheTrackerOptions{
+			SecretCachingClient: r.SecretCachingClient,
+			ControllerName:      "rke2-control-plane-controller",
+			Log:                 &ctrl.Log,
+			Indexes:             []remote.Index{},
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, "unable to create cluster cache tracker")
+	}
+
 	if r.managementCluster == nil {
 		r.managementCluster = &rke2.Management{
 			Client:              r.Client,
 			SecretCachingClient: r.SecretCachingClient,
+			Tracker:             tracker,
 		}
 	}
 
