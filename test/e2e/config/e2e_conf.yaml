@@ -1,6 +1,10 @@
 managementClusterName: caprke2-e2e
 
 images:
+  - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-bootstrap:v0.2.7
+    loadBehavior: tryLoad
+  - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:v0.2.7
+    loadBehavior: tryLoad
   - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-bootstrap:dev
     loadBehavior: mustLoad
   - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:dev
@@ -36,6 +40,7 @@ providers:
       contract: v1beta1
       files:
         - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
+        - sourcePath: "../data/infrastructure/cluster-template-docker-legacy.yaml"
         - sourcePath: "../data/shared/v1beta1/metadata.yaml"
       replacements:
         - old: "imagePullPolicy: Always"
@@ -47,8 +52,8 @@ providers:
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-    - name: "v0.2.3"
-      value: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/download/v0.2.3/control-plane-components.yaml"
+    - name: "v0.2.7"
+      value: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/download/v0.2.7/control-plane-components.yaml"
       type: "url"
       contract: v1beta1
       files:
@@ -73,8 +78,8 @@ providers:
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-    - name: "v0.2.3"
-      value: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/download/v0.2.3/bootstrap-components.yaml"
+    - name: "v0.2.7"
+      value: "https://github.com/rancher-sandbox/cluster-api-provider-rke2/releases/download/v0.2.7/bootstrap-components.yaml"
       type: "url"
       contract: v1beta1
       files:

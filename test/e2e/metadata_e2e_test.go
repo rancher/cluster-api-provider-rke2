@@ -58,6 +58,9 @@ var _ = Describe("Workload cluster creation", func() {
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 
+		By("Initializing the bootstrap cluster")
+		initBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
+
 		clusterName = fmt.Sprintf("caprke2-e2e-%s-annotated", util.RandomString(6))
 
 		// Setup a Namespace where to host objects for this spec and create a watcher for the namespace events.
@@ -108,7 +111,7 @@ var _ = Describe("Workload cluster creation", func() {
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
 				Getter:       bootstrapClusterProxy.GetClient(),
-				ControlPlane: result.ControlPlane,
+				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
 			machineList := &clusterv1.MachineList{}
