@@ -37,7 +37,6 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
-	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -132,7 +131,7 @@ func (m *Management) NewWorkload(
 		return nil, err
 	}
 
-	if _, err := certs.DecodePrivateKeyPEM(etcdKeyPair.Key); err == nil {
+	if !strings.Contains(string(etcdKeyPair.Key), "EC PRIVATE KEY") {
 		clientKey, err := m.Tracker.GetEtcdClientCertificateKey(ctx, clusterKey)
 		if err != nil {
 			return nil, err

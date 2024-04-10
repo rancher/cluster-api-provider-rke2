@@ -20,7 +20,11 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math/rand"
+	"net"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -406,7 +410,7 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 		}
 
 		return true, nil
-	}, intervals...).Should(BeTrue(), framework.PrettyPrint(input.ControlPlane)+"\n"+framework.PrettyPrint(input.LegacyControlPlane))
+	}, intervals...).Should(BeTrue(), framework.PrettyPrint(input.ControlPlane))
 }
 
 func setDefaults(input *ApplyClusterTemplateAndWaitInput) {
@@ -427,4 +431,38 @@ func setDefaults(input *ApplyClusterTemplateAndWaitInput) {
 			}
 		}
 	}
+}
+
+type networks []network
+
+type network struct {
+	IPAM ipaminfo `json:"IPAM"`
+}
+
+type ipaminfo struct {
+	Config []ipamnetworkconfig `json:"Config"`
+}
+
+type ipamnetworkconfig struct {
+	Subnet string `json:"Subnet"`
+}
+
+func randRange(min, max int) int {
+	return rand.Intn(max-min) + min
+}
+
+func randomIp() string {
+	data, err := exec.Command("docker", "network", "inspect", "kind").CombinedOutput()
+	Expect(err).ToNot(HaveOccurred())
+
+	networks := networks{}
+	err = json.Unmarshal(data, &networks)
+	Expect(err).ToNot(HaveOccurred())
+
+	ip, ipnet, err := net.ParseCIDR(networks[0].IPAM.Config[0].Subnet)
+	Expect(err).ToNot(HaveOccurred())
+	ip = ip.Mask(ipnet.Mask)
+	ip[3] += byte(randRange(25, 254))
+
+	return ip.String()
 }
