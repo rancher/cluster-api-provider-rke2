@@ -246,10 +246,21 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 			ControllerName:      "rke2-control-plane-controller",
 			Log:                 &ctrl.Log,
 			Indexes:             []remote.Index{},
+			ClientUncachedObjects: []client.Object{
+				&corev1.ConfigMap{},
+				&corev1.Secret{},
+			},
 		},
 	)
 	if err != nil {
 		return errors.Wrap(err, "unable to create cluster cache tracker")
+	}
+
+	if err := (&remote.ClusterCacheReconciler{
+		Client:  mgr.GetClient(),
+		Tracker: tracker,
+	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
+		return errors.Wrap(err, "unable to create controller")
 	}
 
 	if r.managementCluster == nil {
@@ -552,10 +563,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 // GetWorkloadCluster builds a cluster object.
 // The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
 func (r *RKE2ControlPlaneReconciler) GetWorkloadCluster(ctx context.Context, controlPlane *rke2.ControlPlane) (rke2.WorkloadCluster, error) {
-	if r.workloadCluster != nil {
-		return r.workloadCluster, nil
-	}
-
 	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, client.ObjectKeyFromObject(controlPlane.Cluster))
 	if err != nil {
 		return nil, err
@@ -573,7 +580,7 @@ func (r *RKE2ControlPlaneReconciler) GetWorkloadCluster(ctx context.Context, con
 func (r *RKE2ControlPlaneReconciler) reconcileEtcdMembers(ctx context.Context, controlPlane *rke2.ControlPlane) error {
 	log := ctrl.LoggerFrom(ctx)
 
-	// If there is no KCP-owned control-plane machines, then control-plane has not been initialized yet.
+	// If there is no RKE-owned control-plane machines, then control-plane has not been initialized yet.
 	if controlPlane.Machines.Len() == 0 {
 		return nil
 	}

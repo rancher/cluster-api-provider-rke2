@@ -24,6 +24,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -129,29 +130,35 @@ func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclie
 	return m.NewWorkload(ctx, c, restConfig, clusterKey)
 }
 
-func (m *Management) getEtcdCAKeyPair(ctx context.Context, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
+func (m *Management) getEtcdCAKeyPair(ctx context.Context, cl ctrlclient.Reader, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
 	certificates := secret.Certificates{&secret.ManagedCertificate{
-		Purpose: secret.EtcdServerCA,
+		Purpose:  secret.EtcdServerCA,
+		External: true,
 	}}
+	secretName := secret.Name(clusterKey.Name, secret.EtcdServerCA)
 
 	// Try to get the certificate via the cached ctrlclient.
-	err := certificates.Lookup(ctx, m.SecretCachingClient, clusterKey)
-	if err != nil {
+	if err := certificates.Lookup(ctx, cl, clusterKey); err != nil {
 		// Return error if we got an errors which is not a NotFound error.
-		return nil, errors.Wrapf(err, "failed to get secret CA bungle; etcd CA bundle %s/%s", clusterKey.Namespace, secret.Name(clusterKey.Name, secret.EtcdServerCA))
+		return nil, errors.Wrapf(err, "failed to get secret CA bungle; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
 	}
 
-	s := certificates[0].AsSecret(clusterKey, metav1.OwnerReference{})
-	if err := m.SecretCachingClient.Get(ctx, ctrlclient.ObjectKeyFromObject(s), s); err != nil {
-		return nil, errors.Wrapf(err, "failed to get secret; etcd CA bundle %s/%s", clusterKey.Namespace, secret.Name(clusterKey.Name, secret.EtcdServerCA))
+	var keypair *certs.KeyPair
+
+	if s, err := certificates[0].Lookup(ctx, cl, clusterKey); err != nil {
+		return nil, errors.Wrapf(err, "failed to get secret; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
+	} else if s == nil {
+		log.FromContext(ctx).Info("Secret is empty, skipping etcd client creation")
+
+		return keypair, nil
+	} else if s.Labels != nil && s.Labels[secret.ExternalPurposeLabel] == string(secret.EtcdServerCA) {
+		return certificates[0].GetKeyPair(), nil
 	}
 
-	// External certificate needs to be fetched, to sync the content
-	if s.Labels == nil || s.Labels[secret.ExternalSecretPurposeLabel] != string(secret.EtcdServerCA) {
-		return nil, nil
-	}
+	// External certificate needs to be fetched otherwise, to sync the content
+	log.FromContext(ctx).Info("Local secret is not up-to-date, skipping etcd client creation")
 
-	return certificates[0].GetKeyPair(), nil
+	return keypair, nil
 }
 
 func (m *Management) getRemoteKeyPair(ctx context.Context, remoteClient ctrlclient.Client, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {

@@ -83,9 +83,9 @@ const (
 	// TenYears is the duration of one year.
 	TenYears = time.Hour * 24 * 365 * 10
 
-	// ExternalSecretPurposeLabel is a label set on external secrets, uniquely identifying their belonging
-	// to external source and used for a specified purpose
-	ExternalSecretPurposeLabel = "cluster.x-k8s.io/purpose"
+	// ExternalPurposeLabel is a label set on external secrets, uniquely identifying their belonging
+	// to external source and used for a specified purpose.
+	ExternalPurposeLabel = "cluster.x-k8s.io/purpose"
 )
 
 // Purpose is the name to append to the secret generated for a cluster.
@@ -600,7 +600,8 @@ func generateServiceAccountKeys() (*certs.KeyPair, error) {
 
 func asExternalSecret(data map[string][]byte, purpose Purpose, clusterName types.NamespacedName, owner metav1.OwnerReference) *corev1.Secret {
 	secret := asSecret(data, purpose, clusterName, owner)
-	secret.Labels[ExternalSecretPurposeLabel] = string(purpose)
+	secret.Labels[ExternalPurposeLabel] = string(purpose)
+
 	return secret
 }
 

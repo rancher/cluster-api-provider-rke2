@@ -376,15 +376,15 @@ GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
 GINKGO_ARGS ?=
 GINKGO_TIMEOUT ?= 2h
-GINKGO_POLL_PROGRESS_AFTER ?= 10m
-GINKGO_POLL_PROGRESS_INTERVAL ?= 1m
+GINKGO_POLL_PROGRESS_AFTER ?= 25m
+GINKGO_POLL_PROGRESS_INTERVAL ?= 2m
 ARTIFACTS ?= $(ROOT_DIR)/_artifacts
 SKIP_CLEANUP ?= false
 SKIP_CREATE_MGMT_CLUSTER ?= false
 
 .PHONY: test-e2e-run
-test-e2e-run: $(GINKGO) $(KUSTOMIZE) e2e-image inotify-check ## Run the end-to-end tests
-	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" time $(GINKGO) -v --trace -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
+test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image inotify-check ## Run the end-to-end tests
+	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" time $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
 	--tags=e2e --focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
 		-e2e.artifacts-folder="$(ARTIFACTS)" \

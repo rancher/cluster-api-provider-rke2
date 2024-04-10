@@ -33,7 +33,7 @@ runcmd:
   - '/opt/rke2-cis-script.sh'{{ end }}
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
-  - 'mkdir /run/cluster-api' 
+  - 'mkdir -p /run/cluster-api'
   - '{{ .SentinelFileCommand }}'
 {{- template "commands" .PostRKE2Commands }}
 {{ .AdditionalCloudInit -}}

@@ -103,14 +103,23 @@ func (m *Management) NewWorkload(
 	restConfig.Timeout = remoteEtcdTimeout
 
 	// Retrieves the etcd CA key Pair
-	keyPair, err := m.getEtcdCAKeyPair(ctx, clusterKey)
+	etcdKeyPair, err := m.getEtcdCAKeyPair(ctx, m.SecretCachingClient, clusterKey)
 	if ctrlclient.IgnoreNotFound(err) != nil {
 		return nil, err
-	} else if apierrors.IsNotFound(err) || keyPair == nil {
-		keyPair, err = m.getRemoteKeyPair(ctx, cl, clusterKey)
+	} else if apierrors.IsNotFound(err) {
+		etcdKeyPair, err = m.getEtcdCAKeyPair(ctx, m.Client, clusterKey)
 		if ctrlclient.IgnoreNotFound(err) != nil {
 			return nil, err
-		} else if keyPair == nil {
+		}
+	}
+
+	if apierrors.IsNotFound(err) || etcdKeyPair == nil {
+		log.FromContext(ctx).Info("Collecting etcd key pair from remote")
+
+		etcdKeyPair, err = m.getRemoteKeyPair(ctx, cl, clusterKey)
+		if ctrlclient.IgnoreNotFound(err) != nil {
+			return nil, err
+		} else if apierrors.IsNotFound(err) {
 			log.FromContext(ctx).Info("Cluster does not provide etcd certificates for creating child etcd ctrlclient." +
 				"Please scale up the CP nodes by one to bootstrap the etcd secret content.")
 
@@ -118,25 +127,25 @@ func (m *Management) NewWorkload(
 		}
 	}
 
-	clientCert, err := tls.X509KeyPair(keyPair.Cert, keyPair.Key)
+	clientCert, err := tls.X509KeyPair(etcdKeyPair.Cert, etcdKeyPair.Key)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := certs.DecodePrivateKeyPEM(keyPair.Key); err == nil {
+	if _, err := certs.DecodePrivateKeyPEM(etcdKeyPair.Key); err == nil {
 		clientKey, err := m.Tracker.GetEtcdClientCertificateKey(ctx, clusterKey)
 		if err != nil {
 			return nil, err
 		}
 
-		clientCert, err = generateClientCert(keyPair.Cert, keyPair.Key, clientKey)
+		clientCert, err = generateClientCert(etcdKeyPair.Cert, etcdKeyPair.Key, clientKey)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	caPool := x509.NewCertPool()
-	caPool.AppendCertsFromPEM(keyPair.Cert)
+	caPool.AppendCertsFromPEM(etcdKeyPair.Cert)
 	tlsConfig := &tls.Config{
 		RootCAs:      caPool,
 		Certificates: []tls.Certificate{clientCert},
