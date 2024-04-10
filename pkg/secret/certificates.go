@@ -82,6 +82,10 @@ const (
 
 	// TenYears is the duration of one year.
 	TenYears = time.Hour * 24 * 365 * 10
+
+	// ExternalSecretPurposeLabel is a label set on external secrets, uniquely identifying their belonging
+	// to external source and used for a specified purpose
+	ExternalSecretPurposeLabel = "cluster.x-k8s.io/purpose"
 )
 
 // Purpose is the name to append to the secret generated for a cluster.
@@ -104,6 +108,7 @@ type Certificate interface {
 	Generate() error
 	IsGenerated() bool
 	IsExternal() bool
+	SaveGenerated(ctx context.Context, cl client.Client, key client.ObjectKey, owner metav1.OwnerReference) error
 	AsSecret(clusterName client.ObjectKey, owner metav1.OwnerReference) *corev1.Secret
 	AsFiles() []bootstrapv1.File
 }
@@ -115,6 +120,21 @@ type ManagedCertificate struct {
 	Purpose           Purpose
 	KeyPair           *certs.KeyPair
 	CertFile, KeyFile string
+}
+
+// SaveGenerated implements Certificate.
+func (c *ManagedCertificate) SaveGenerated(ctx context.Context, cl client.Client, key types.NamespacedName, owner metav1.OwnerReference) error {
+	s := c.AsSecret(key, owner)
+
+	if err := cl.Get(ctx, client.ObjectKeyFromObject(s), &corev1.Secret{}); apierrors.IsNotFound(err) {
+		if err := cl.Create(ctx, s); client.IgnoreAlreadyExists(err) != nil {
+			return errors.WithStack(err)
+		}
+	} else if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 // Lookup implements certificate lookup.
@@ -146,6 +166,29 @@ type ExternalCertificate struct {
 	Purpose   Purpose
 	Generated bool
 	KeyPair   *certs.KeyPair
+}
+
+// SaveGenerated implements Certificate.
+func (c *ExternalCertificate) SaveGenerated(ctx context.Context, cl client.Client, key types.NamespacedName, owner metav1.OwnerReference) error {
+	s := c.AsSecret(key, owner)
+
+	if err := cl.Get(ctx, client.ObjectKeyFromObject(s), s); apierrors.IsNotFound(err) {
+		if err := cl.Create(ctx, c.AsSecret(key, owner)); client.IgnoreAlreadyExists(err) != nil {
+			return errors.WithStack(err)
+		}
+	} else if err != nil {
+		return errors.WithStack(err)
+	}
+
+	source := c.AsSecret(key, owner)
+	s.Data = source.Data
+	s.Labels = source.Labels
+
+	if err := cl.Update(ctx, s); client.IgnoreAlreadyExists(err) != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 var (
@@ -298,7 +341,7 @@ func (*ExternalCertificate) AsFiles() []bootstrapv1.File {
 
 // AsSecret implements Certificate.
 func (c *ExternalCertificate) AsSecret(clusterName types.NamespacedName, owner metav1.OwnerReference) *corev1.Secret {
-	s := asSecret(map[string][]byte{
+	s := asExternalSecret(map[string][]byte{
 		TLSKeyDataName: c.KeyPair.Key,
 		TLSCrtDataName: c.KeyPair.Cert,
 	}, c.GetPurpose(), clusterName, owner)
@@ -353,12 +396,7 @@ func (c Certificates) Generate() error {
 // SaveGenerated will save any certificates that have been generated as Kubernetes secrets.
 func (c Certificates) SaveGenerated(ctx context.Context, ctrlclient client.Client, clusterName client.ObjectKey, owner metav1.OwnerReference) error {
 	for _, certificate := range c {
-		s := certificate.AsSecret(clusterName, owner)
-		if err := ctrlclient.Get(ctx, client.ObjectKeyFromObject(s), &corev1.Secret{}); apierrors.IsNotFound(err) {
-			if err := ctrlclient.Create(ctx, s); client.IgnoreAlreadyExists(err) != nil {
-				return errors.WithStack(err)
-			}
-		} else if err != nil {
+		if err := certificate.SaveGenerated(ctx, ctrlclient, clusterName, owner); err != nil {
 			return errors.WithStack(err)
 		}
 	}
@@ -558,6 +596,12 @@ func generateServiceAccountKeys() (*certs.KeyPair, error) {
 		Cert: saPub,
 		Key:  certs.EncodePrivateKeyPEM(saCreds),
 	}, nil
+}
+
+func asExternalSecret(data map[string][]byte, purpose Purpose, clusterName types.NamespacedName, owner metav1.OwnerReference) *corev1.Secret {
+	secret := asSecret(data, purpose, clusterName, owner)
+	secret.Labels[ExternalSecretPurposeLabel] = string(purpose)
+	return secret
 }
 
 func asSecret(data map[string][]byte, purpose Purpose, clusterName types.NamespacedName, _ metav1.OwnerReference) *corev1.Secret {

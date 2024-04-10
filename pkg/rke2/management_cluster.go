@@ -130,15 +130,25 @@ func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclie
 }
 
 func (m *Management) getEtcdCAKeyPair(ctx context.Context, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
-	certificates := secret.Certificates([]secret.Certificate{&secret.ManagedCertificate{
+	certificates := secret.Certificates{&secret.ManagedCertificate{
 		Purpose: secret.EtcdServerCA,
-	}})
+	}}
 
 	// Try to get the certificate via the cached ctrlclient.
 	err := certificates.Lookup(ctx, m.SecretCachingClient, clusterKey)
 	if err != nil {
 		// Return error if we got an errors which is not a NotFound error.
-		return nil, errors.Wrapf(err, "failed to get secret; etcd CA bundle %s/%s", clusterKey.Namespace, secret.Name(clusterKey.Name, secret.EtcdCA))
+		return nil, errors.Wrapf(err, "failed to get secret CA bungle; etcd CA bundle %s/%s", clusterKey.Namespace, secret.Name(clusterKey.Name, secret.EtcdServerCA))
+	}
+
+	s := certificates[0].AsSecret(clusterKey, metav1.OwnerReference{})
+	if err := m.SecretCachingClient.Get(ctx, ctrlclient.ObjectKeyFromObject(s), s); err != nil {
+		return nil, errors.Wrapf(err, "failed to get secret; etcd CA bundle %s/%s", clusterKey.Namespace, secret.Name(clusterKey.Name, secret.EtcdServerCA))
+	}
+
+	// External certificate needs to be fetched, to sync the content
+	if s.Labels == nil || s.Labels[secret.ExternalSecretPurposeLabel] != string(secret.EtcdServerCA) {
+		return nil, nil
 	}
 
 	return certificates[0].GetKeyPair(), nil
@@ -147,7 +157,7 @@ func (m *Management) getEtcdCAKeyPair(ctx context.Context, clusterKey ctrlclient
 func (m *Management) getRemoteKeyPair(ctx context.Context, remoteClient ctrlclient.Client, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
 	etcdCertificate := &secret.ExternalCertificate{
 		Reader:  remoteClient,
-		Purpose: secret.EtcdCA,
+		Purpose: secret.EtcdServerCA,
 	}
 	externalCertificates := secret.Certificates{etcdCertificate}
 
@@ -157,7 +167,7 @@ func (m *Management) getRemoteKeyPair(ctx context.Context, remoteClient ctrlclie
 		return nil, err
 	}
 
-	return etcdCertificate.KeyPair, nil
+	return etcdCertificate.GetKeyPair(), nil
 }
 
 func generateClientCert(caCertEncoded, caKeyEncoded []byte, clientKey *rsa.PrivateKey) (tls.Certificate, error) {

@@ -37,6 +37,11 @@ func (w *Workload) ReconcileEtcdMembers(ctx context.Context, nodeNames []string,
 	allRemovedMembers := []string{}
 	allErrs := []error{}
 
+	// Return early for clusters without an etcd certificate secret
+	if w.etcdClientGenerator == nil {
+		return allRemovedMembers, nil
+	}
+
 	for _, nodeName := range nodeNames {
 		removedMembers, errs := w.reconcileEtcdMember(ctx, nodeNames, nodeName, version)
 		allRemovedMembers = append(allRemovedMembers, removedMembers...)
