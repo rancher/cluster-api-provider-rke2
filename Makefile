@@ -48,6 +48,8 @@ E2E_DATA_DIR ?= $(ROOT_DIR)/test/e2e/data
 E2E_CONF_FILE ?= $(ROOT_DIR)/test/e2e/config/e2e_conf.yaml
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
+export KREW_ROOT := $(abspath $(TOOLS_BIN_DIR))
+export PATH := $(KREW_ROOT)/bin:$(PATH)
 
 # Set --output-base for conversion-gen if we are not within GOPATH
 ifneq ($(abspath $(ROOT_DIR)),$(shell go env GOPATH)/src/github.com/rancher-sandbox/cluster-api-provider-rke2)
@@ -362,6 +364,12 @@ kind-cluster: ## Create a new kind cluster designed for development with Tilt
 .PHONY: tilt-up
 tilt-up: kind-cluster ## Start tilt and build kind cluster if needed.
 	tilt up
+
+.PHONY: kubectl
+kubectl: # Download kubectl cli into tools bin folder
+	hack/ensure-kubectl.sh \
+		-b $(TOOLS_BIN_DIR) \
+		$(KUBECTL_VERSION)
 
 ## --------------------------------------
 ## E2E

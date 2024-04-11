@@ -76,6 +76,9 @@ var _ = Describe("Workload cluster creation", func() {
 	})
 
 	AfterEach(func() {
+		err := CollectArtifacts(ctx, bootstrapClusterProxy.GetKubeconfigPath(), filepath.Join(artifactFolder, bootstrapClusterProxy.GetName(), clusterName+specName))
+		Expect(err).ToNot(HaveOccurred())
+
 		cleanInput := cleanupInput{
 			SpecName:          specName,
 			Cluster:           result.Cluster,

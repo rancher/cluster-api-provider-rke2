@@ -19,6 +19,7 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -431,6 +432,32 @@ func setDefaults(input *ApplyClusterTemplateAndWaitInput) {
 			}
 		}
 	}
+}
+
+var secrets = []string{}
+
+func CollectArtifacts(ctx context.Context, kubeconfigPath, name string, args ...string) error {
+	if kubeconfigPath == "" {
+		return fmt.Errorf("Unable to collect artifacts: kubeconfig path is empty")
+	}
+
+	aargs := append([]string{"crust-gather", "collect", "--kubeconfig", kubeconfigPath, "-v", "ERROR", "-f", name}, args...)
+	for _, secret := range secrets {
+		aargs = append(aargs, "-s", secret)
+	}
+
+	cmd := exec.Command("kubectl", aargs...)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.WaitDelay = time.Minute
+
+	fmt.Printf("Running kubectl %s\n", strings.Join(aargs, " "))
+	err := cmd.Run()
+	fmt.Printf("stderr:\n%s\n", string(stderr.Bytes()))
+	fmt.Printf("stdout:\n%s\n", string(stdout.Bytes()))
+	return err
 }
 
 type networks []network
