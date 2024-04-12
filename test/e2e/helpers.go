@@ -21,12 +21,8 @@ package e2e
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"math/rand"
-	"net"
 	"os/exec"
-	"sort"
 	"strings"
 	"time"
 
@@ -34,7 +30,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
@@ -164,58 +159,27 @@ func DiscoveryAndWaitForMachineDeployments(ctx context.Context, input framework.
 		ClusterName: input.Cluster.Name,
 		Namespace:   input.Cluster.Namespace,
 	})
-	for _, deployment := range machineDeployments {
-		WaitForMachineDeploymentNodesToExist(ctx, framework.WaitForMachineDeploymentNodesToExistInput{
-			Lister:            input.Lister,
-			Cluster:           input.Cluster,
-			MachineDeployment: deployment,
-		}, intervals...)
 
+	for _, deployment := range machineDeployments {
 		framework.AssertMachineDeploymentFailureDomains(ctx, framework.AssertMachineDeploymentFailureDomainsInput{
 			Lister:            input.Lister,
 			Cluster:           input.Cluster,
 			MachineDeployment: deployment,
 		})
 	}
-	return machineDeployments
-}
 
-// WaitForMachineDeploymentNodesToExist waits until all nodes associated with a machine deployment exist.
-func WaitForMachineDeploymentNodesToExist(ctx context.Context, input framework.WaitForMachineDeploymentNodesToExistInput, intervals ...interface{}) {
-	Expect(ctx).NotTo(BeNil(), "ctx is required for WaitForMachineDeploymentNodesToExist")
-	Expect(input.Lister).ToNot(BeNil(), "Invalid argument. input.Lister can't be nil when calling WaitForMachineDeploymentNodesToExist")
-	Expect(input.MachineDeployment).ToNot(BeNil(), "Invalid argument. input.MachineDeployment can't be nil when calling WaitForMachineDeploymentNodesToExist")
-
-	By("Waiting for the workload nodes to exist")
 	Eventually(func(g Gomega) {
-		selectorMap, err := metav1.LabelSelectorAsMap(&input.MachineDeployment.Spec.Selector)
-		g.Expect(err).ToNot(HaveOccurred())
-		ms := &clusterv1.MachineSetList{}
-		err = input.Lister.List(ctx, ms, client.InNamespace(input.Cluster.Namespace), client.MatchingLabels(selectorMap))
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(ms.Items).NotTo(BeEmpty())
-		machineSet := ms.Items[0]
-		sort.Slice(ms.Items, func(i, j int) bool {
-			return ms.Items[j].CreationTimestamp.After(ms.Items[i].CreationTimestamp.Time)
+		machineDeployments := framework.GetMachineDeploymentsByCluster(ctx, framework.GetMachineDeploymentsByClusterInput{
+			Lister:      input.Lister,
+			ClusterName: input.Cluster.Name,
+			Namespace:   input.Cluster.Namespace,
 		})
-		for _, ms := range ms.Items {
-			if *machineSet.Spec.Replicas == *input.MachineDeployment.Spec.Replicas {
-				machineSet = ms
-			}
+		for _, deployment := range machineDeployments {
+			g.Expect(*deployment.Spec.Replicas).To(BeEquivalentTo(deployment.Status.ReadyReplicas))
 		}
-		selectorMap, err = metav1.LabelSelectorAsMap(&machineSet.Spec.Selector)
-		g.Expect(err).ToNot(HaveOccurred())
-		machines := &clusterv1.MachineList{}
-		err = input.Lister.List(ctx, machines, client.InNamespace(machineSet.Namespace), client.MatchingLabels(selectorMap))
-		g.Expect(err).ToNot(HaveOccurred())
-		count := 0
-		for _, machine := range machines.Items {
-			if machine.Status.NodeRef != nil {
-				count++
-			}
-		}
-		g.Expect(count).To(Equal(int(*input.MachineDeployment.Spec.Replicas)))
-	}, intervals...).Should(Succeed(), "Timed out waiting for %d nodes to be created for MachineDeployment %s", int(*input.MachineDeployment.Spec.Replicas), klog.KObj(input.MachineDeployment))
+	}, intervals...).Should(Succeed())
+
+	return machineDeployments
 }
 
 func SetControllerVersionAndWait(ctx context.Context, proxy framework.ClusterProxy, version string) {
@@ -525,38 +489,4 @@ func CollectArtifacts(ctx context.Context, kubeconfigPath, name string, args ...
 	fmt.Printf("stderr:\n%s\n", string(stderr.Bytes()))
 	fmt.Printf("stdout:\n%s\n", string(stdout.Bytes()))
 	return err
-}
-
-type networks []network
-
-type network struct {
-	IPAM ipaminfo `json:"IPAM"`
-}
-
-type ipaminfo struct {
-	Config []ipamnetworkconfig `json:"Config"`
-}
-
-type ipamnetworkconfig struct {
-	Subnet string `json:"Subnet"`
-}
-
-func randRange(min, max int) int {
-	return rand.Intn(max-min) + min
-}
-
-func randomIp() string {
-	data, err := exec.Command("docker", "network", "inspect", "kind").CombinedOutput()
-	Expect(err).ToNot(HaveOccurred())
-
-	networks := networks{}
-	err = json.Unmarshal(data, &networks)
-	Expect(err).ToNot(HaveOccurred())
-
-	ip, ipnet, err := net.ParseCIDR(networks[0].IPAM.Config[0].Subnet)
-	Expect(err).ToNot(HaveOccurred())
-	ip = ip.Mask(ipnet.Mask)
-	ip[3] += byte(randRange(25, 254))
-
-	return ip.String()
 }

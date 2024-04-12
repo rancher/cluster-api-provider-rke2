@@ -48,7 +48,6 @@ var _ = Describe("Workload cluster creation", func() {
 		result              *ApplyClusterTemplateAndWaitResult
 		clusterName         string
 		clusterctlLogFolder string
-		registrationIP      string
 	)
 
 	BeforeEach(func() {
@@ -58,8 +57,6 @@ var _ = Describe("Workload cluster creation", func() {
 		Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
-
-		registrationIP = randomIp()
 
 		By("Initializing the bootstrap cluster")
 		initBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
@@ -110,9 +107,6 @@ var _ = Describe("Workload cluster creation", func() {
 					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
 					ControlPlaneMachineCount: ptr.To(int64(1)),
 					WorkerMachineCount:       ptr.To(int64(1)),
-					ClusterctlVariables: map[string]string{
-						"REGISTRATION_VIP": registrationIP,
-					},
 				},
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
