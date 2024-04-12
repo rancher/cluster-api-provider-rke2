@@ -117,10 +117,6 @@ spec:
   nodeDrainTimeout: 30s
   registrationMethod: "address"
   registrationAddress: "${REGISTRATION_VIP}"
-  rolloutStrategy:
-    type: "RollingUpdate"
-    rollingUpdate:
-      maxSurge: 3
   preRKE2Commands:
   - mkdir -p /var/lib/rancher/rke2/server/manifests/ && ctr images pull ghcr.io/kube-vip/kube-vip:v0.6.0 && ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:v0.6.0 vip /kube-vip manifest daemonset --arp --interface $(ip -4 -j route list default | jq -r .[0].dev) --address ${REGISTRATION_VIP} --controlplane --leaderElection --taint --services --inCluster | tee /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
   files:

@@ -26,6 +26,7 @@ import (
 	"math/rand"
 	"net"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
@@ -140,7 +142,7 @@ func ApplyClusterTemplateAndWait(ctx context.Context, input ApplyClusterTemplate
 	input.WaitForControlPlaneInitialized(ctx, input, result)
 
 	Byf("Waiting for the machine deployments to be provisioned")
-	result.MachineDeployments = framework.DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
+	result.MachineDeployments = DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
 		Lister:  input.ClusterProxy.GetClient(),
 		Cluster: result.Cluster,
 	}, input.WaitForMachineDeployments...)
@@ -149,6 +151,71 @@ func ApplyClusterTemplateAndWait(ctx context.Context, input ApplyClusterTemplate
 		By("Calling PostMachinesProvisioned")
 		input.PostMachinesProvisioned()
 	}
+}
+
+// DiscoveryAndWaitForMachineDeployments discovers the MachineDeployments existing in a cluster and waits for them to be ready (all the machine provisioned).
+func DiscoveryAndWaitForMachineDeployments(ctx context.Context, input framework.DiscoveryAndWaitForMachineDeploymentsInput, intervals ...interface{}) []*clusterv1.MachineDeployment {
+	Expect(ctx).NotTo(BeNil(), "ctx is required for DiscoveryAndWaitForMachineDeployments")
+	Expect(input.Lister).ToNot(BeNil(), "Invalid argument. input.Lister can't be nil when calling DiscoveryAndWaitForMachineDeployments")
+	Expect(input.Cluster).ToNot(BeNil(), "Invalid argument. input.Cluster can't be nil when calling DiscoveryAndWaitForMachineDeployments")
+
+	machineDeployments := framework.GetMachineDeploymentsByCluster(ctx, framework.GetMachineDeploymentsByClusterInput{
+		Lister:      input.Lister,
+		ClusterName: input.Cluster.Name,
+		Namespace:   input.Cluster.Namespace,
+	})
+	for _, deployment := range machineDeployments {
+		WaitForMachineDeploymentNodesToExist(ctx, framework.WaitForMachineDeploymentNodesToExistInput{
+			Lister:            input.Lister,
+			Cluster:           input.Cluster,
+			MachineDeployment: deployment,
+		}, intervals...)
+
+		framework.AssertMachineDeploymentFailureDomains(ctx, framework.AssertMachineDeploymentFailureDomainsInput{
+			Lister:            input.Lister,
+			Cluster:           input.Cluster,
+			MachineDeployment: deployment,
+		})
+	}
+	return machineDeployments
+}
+
+// WaitForMachineDeploymentNodesToExist waits until all nodes associated with a machine deployment exist.
+func WaitForMachineDeploymentNodesToExist(ctx context.Context, input framework.WaitForMachineDeploymentNodesToExistInput, intervals ...interface{}) {
+	Expect(ctx).NotTo(BeNil(), "ctx is required for WaitForMachineDeploymentNodesToExist")
+	Expect(input.Lister).ToNot(BeNil(), "Invalid argument. input.Lister can't be nil when calling WaitForMachineDeploymentNodesToExist")
+	Expect(input.MachineDeployment).ToNot(BeNil(), "Invalid argument. input.MachineDeployment can't be nil when calling WaitForMachineDeploymentNodesToExist")
+
+	By("Waiting for the workload nodes to exist")
+	Eventually(func(g Gomega) {
+		selectorMap, err := metav1.LabelSelectorAsMap(&input.MachineDeployment.Spec.Selector)
+		g.Expect(err).ToNot(HaveOccurred())
+		ms := &clusterv1.MachineSetList{}
+		err = input.Lister.List(ctx, ms, client.InNamespace(input.Cluster.Namespace), client.MatchingLabels(selectorMap))
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(ms.Items).NotTo(BeEmpty())
+		machineSet := ms.Items[0]
+		sort.Slice(ms.Items, func(i, j int) bool {
+			return ms.Items[j].CreationTimestamp.After(ms.Items[i].CreationTimestamp.Time)
+		})
+		for _, ms := range ms.Items {
+			if *machineSet.Spec.Replicas == *input.MachineDeployment.Spec.Replicas {
+				machineSet = ms
+			}
+		}
+		selectorMap, err = metav1.LabelSelectorAsMap(&machineSet.Spec.Selector)
+		g.Expect(err).ToNot(HaveOccurred())
+		machines := &clusterv1.MachineList{}
+		err = input.Lister.List(ctx, machines, client.InNamespace(machineSet.Namespace), client.MatchingLabels(selectorMap))
+		g.Expect(err).ToNot(HaveOccurred())
+		count := 0
+		for _, machine := range machines.Items {
+			if machine.Status.NodeRef != nil {
+				count++
+			}
+		}
+		g.Expect(count).To(Equal(int(*input.MachineDeployment.Spec.Replicas)))
+	}, intervals...).Should(Succeed(), "Timed out waiting for %d nodes to be created for MachineDeployment %s", int(*input.MachineDeployment.Spec.Replicas), klog.KObj(input.MachineDeployment))
 }
 
 func SetControllerVersionAndWait(ctx context.Context, proxy framework.ClusterProxy, version string) {
