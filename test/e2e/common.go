@@ -29,6 +29,8 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -61,6 +63,57 @@ func setupSpecNamespace(ctx context.Context, specName string, clusterProxy frame
 	})
 
 	return namespace, cancelWatches
+}
+
+func cleanupInstallation(ctx context.Context, clusterctlLogFolder, clusterctlConfigPath string, proxy framework.ClusterProxy) func() {
+	return func() {
+		By("Removing existing installations")
+		clusterctl.Delete(ctx, clusterctl.DeleteInput{
+			LogFolder:            clusterctlLogFolder,
+			ClusterctlConfigPath: clusterctlConfigPath,
+			KubeconfigPath:       proxy.GetKubeconfigPath(),
+		})
+
+		crd := &apiextensionsv1.CustomResourceDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rke2controlplanes.controlplane.cluster.x-k8s.io",
+			},
+		}
+		Expect(proxy.GetClient().Delete(ctx, crd)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(proxy.GetClient().Delete(ctx, crd)).ToNot(Succeed())
+		}).Should(Succeed())
+
+		crd = &apiextensionsv1.CustomResourceDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rke2configs.bootstrap.cluster.x-k8s.io",
+			},
+		}
+		Expect(proxy.GetClient().Delete(ctx, crd)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(proxy.GetClient().Delete(ctx, crd)).ToNot(Succeed())
+		}).Should(Succeed())
+
+		crd = &apiextensionsv1.CustomResourceDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rke2configtemplates.bootstrap.cluster.x-k8s.io",
+			},
+		}
+		Expect(proxy.GetClient().Delete(ctx, crd)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(proxy.GetClient().Delete(ctx, crd)).ToNot(Succeed())
+		}).Should(Succeed())
+
+		crd = &apiextensionsv1.CustomResourceDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rke2controlplanetemplates.controlplane.cluster.x-k8s.io",
+			},
+		}
+		Expect(proxy.GetClient().Delete(ctx, crd)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(proxy.GetClient().Delete(ctx, crd)).ToNot(Succeed())
+		}).Should(Succeed())
+	}
 }
 
 type cleanupInput struct {

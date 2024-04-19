@@ -18,16 +18,27 @@ package rke2
 
 import (
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"time"
 
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/controllers/remote"
+	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
+
+	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
 )
 
 const (
@@ -45,7 +56,9 @@ type ManagementCluster interface {
 
 // Management holds operations on the management cluster.
 type Management struct {
-	Client ctrlclient.Reader
+	Client              ctrlclient.Client
+	SecretCachingClient ctrlclient.Reader
+	Tracker             *remote.ClusterCacheTracker
 }
 
 // RemoteClusterConnectionError represents a failure to connect to a remote cluster.
@@ -113,5 +126,100 @@ func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclie
 		return nil, &RemoteClusterConnectionError{Name: clusterKey.String(), Err: err}
 	}
 
-	return NewWorkload(c), nil
+	return m.NewWorkload(ctx, c, restConfig, clusterKey)
+}
+
+func (m *Management) getEtcdCAKeyPair(ctx context.Context, cl ctrlclient.Reader, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
+	certificates := secret.Certificates{&secret.ManagedCertificate{
+		Purpose:  secret.EtcdServerCA,
+		External: true,
+	}}
+	secretName := secret.Name(clusterKey.Name, secret.EtcdServerCA)
+
+	// Try to get the certificate via the cached ctrlclient.
+	if err := certificates.Lookup(ctx, cl, clusterKey); err != nil {
+		// Return error if we got an errors which is not a NotFound error.
+		return nil, errors.Wrapf(err, "failed to get secret CA bungle; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
+	}
+
+	var keypair *certs.KeyPair
+
+	if s, err := certificates[0].Lookup(ctx, cl, clusterKey); err != nil {
+		return nil, errors.Wrapf(err, "failed to get secret; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
+	} else if s == nil {
+		log.FromContext(ctx).Info("Secret is empty, skipping etcd client creation")
+
+		return keypair, nil
+	} else if s.Labels != nil && s.Labels[secret.ExternalPurposeLabel] == string(secret.EtcdServerCA) {
+		return certificates[0].GetKeyPair(), nil
+	}
+
+	// External certificate needs to be fetched otherwise, to sync the content
+	log.FromContext(ctx).Info("Local secret is not up-to-date, skipping etcd client creation")
+
+	return keypair, nil
+}
+
+func (m *Management) getRemoteKeyPair(ctx context.Context, remoteClient ctrlclient.Client, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
+	etcdCertificate := &secret.ExternalCertificate{
+		Reader:  remoteClient,
+		Purpose: secret.EtcdServerCA,
+	}
+	externalCertificates := secret.Certificates{etcdCertificate}
+
+	if err := externalCertificates.LookupOrGenerate(ctx, m.Client, clusterKey, metav1.OwnerReference{}); err != nil {
+		log.FromContext(ctx).Error(err, "unable to lookup or create cluster certificates")
+
+		return nil, err
+	}
+
+	return etcdCertificate.GetKeyPair(), nil
+}
+
+func generateClientCert(caCertEncoded, caKeyEncoded []byte, clientKey *rsa.PrivateKey) (tls.Certificate, error) {
+	caCert, err := certs.DecodeCertPEM(caCertEncoded)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	caKey, err := certs.DecodePrivateKeyPEM(caKeyEncoded)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	x509Cert, err := newClientCert(caCert, clientKey, caKey)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	return tls.X509KeyPair(certs.EncodeCertPEM(x509Cert), certs.EncodePrivateKeyPEM(clientKey))
+}
+
+func newClientCert(caCert *x509.Certificate, key *rsa.PrivateKey, caKey crypto.Signer) (*x509.Certificate, error) {
+	cfg := certs.Config{
+		CommonName: "cluster-api.x-k8s.io",
+	}
+
+	now := time.Now().UTC()
+
+	tmpl := x509.Certificate{
+		SerialNumber: new(big.Int).SetInt64(0),
+		Subject: pkix.Name{
+			CommonName:   cfg.CommonName,
+			Organization: cfg.Organization,
+		},
+		NotBefore:   now.Add(time.Minute * -5),
+		NotAfter:    now.Add(secret.TenYears), // 10 years
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+
+	b, err := x509.CreateCertificate(rand.Reader, &tmpl, caCert, key.Public(), caKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create signed client certificate: %+v", tmpl)
+	}
+
+	c, err := x509.ParseCertificate(b)
+
+	return c, errors.WithStack(err)
 }

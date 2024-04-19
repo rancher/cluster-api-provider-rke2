@@ -48,6 +48,8 @@ E2E_DATA_DIR ?= $(ROOT_DIR)/test/e2e/data
 E2E_CONF_FILE ?= $(ROOT_DIR)/test/e2e/config/e2e_conf.yaml
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
+export KREW_ROOT := $(abspath $(TOOLS_BIN_DIR))
+export PATH := $(KREW_ROOT)/bin:$(PATH)
 
 # Set --output-base for conversion-gen if we are not within GOPATH
 ifneq ($(abspath $(ROOT_DIR)),$(shell go env GOPATH)/src/github.com/rancher-sandbox/cluster-api-provider-rke2)
@@ -99,7 +101,7 @@ GOLANGCI_LINT_VER := v1.55.1
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN))
 
-GINKGO_VER := v2.14.0
+GINKGO_VER := v2.16.0
 GINKGO_BIN := ginkgo
 GINKGO := $(abspath $(TOOLS_BIN_DIR)/$(GINKGO_BIN)-$(GINKGO_VER))
 GINKGO_PKG := github.com/onsi/ginkgo/v2/ginkgo
@@ -363,6 +365,12 @@ kind-cluster: ## Create a new kind cluster designed for development with Tilt
 tilt-up: kind-cluster ## Start tilt and build kind cluster if needed.
 	tilt up
 
+.PHONY: kubectl
+kubectl: # Download kubectl cli into tools bin folder
+	hack/ensure-kubectl.sh \
+		-b $(TOOLS_BIN_DIR) \
+		$(KUBECTL_VERSION)
+
 ## --------------------------------------
 ## E2E
 ## --------------------------------------
@@ -376,15 +384,15 @@ GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
 GINKGO_ARGS ?=
 GINKGO_TIMEOUT ?= 2h
-GINKGO_POLL_PROGRESS_AFTER ?= 10m
-GINKGO_POLL_PROGRESS_INTERVAL ?= 1m
+GINKGO_POLL_PROGRESS_AFTER ?= 25m
+GINKGO_POLL_PROGRESS_INTERVAL ?= 2m
 ARTIFACTS ?= $(ROOT_DIR)/_artifacts
 SKIP_CLEANUP ?= false
 SKIP_CREATE_MGMT_CLUSTER ?= false
 
 .PHONY: test-e2e-run
-test-e2e-run: $(GINKGO) $(KUSTOMIZE) e2e-image inotify-check ## Run the end-to-end tests
-	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" time $(GINKGO) -v --trace -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
+test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image inotify-check ## Run the end-to-end tests
+	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" time $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
 	--tags=e2e --focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
 		-e2e.artifacts-folder="$(ARTIFACTS)" \

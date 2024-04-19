@@ -29,7 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -58,6 +58,9 @@ var _ = Describe("Workload cluster creation", func() {
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 
+		By("Initializing the bootstrap cluster")
+		initBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
+
 		clusterName = fmt.Sprintf("caprke2-e2e-%s-annotated", util.RandomString(6))
 
 		// Setup a Namespace where to host objects for this spec and create a watcher for the namespace events.
@@ -70,15 +73,19 @@ var _ = Describe("Workload cluster creation", func() {
 	})
 
 	AfterEach(func() {
+		err := CollectArtifacts(ctx, bootstrapClusterProxy.GetKubeconfigPath(), filepath.Join(artifactFolder, bootstrapClusterProxy.GetName(), clusterName+specName))
+		Expect(err).ToNot(HaveOccurred())
+
 		cleanInput := cleanupInput{
-			SpecName:        specName,
-			Cluster:         result.Cluster,
-			ClusterProxy:    bootstrapClusterProxy,
-			Namespace:       namespace,
-			CancelWatches:   cancelWatches,
-			IntervalsGetter: e2eConfig.GetIntervals,
-			SkipCleanup:     skipCleanup,
-			ArtifactFolder:  artifactFolder,
+			SpecName:          specName,
+			Cluster:           result.Cluster,
+			ClusterProxy:      bootstrapClusterProxy,
+			Namespace:         namespace,
+			CancelWatches:     cancelWatches,
+			IntervalsGetter:   e2eConfig.GetIntervals,
+			SkipCleanup:       skipCleanup,
+			ArtifactFolder:    artifactFolder,
+			AdditionalCleanup: cleanupInstallation(ctx, clusterctlLogFolder, clusterctlConfigPath, bootstrapClusterProxy),
 		}
 
 		dumpSpecResourcesAndCleanup(ctx, cleanInput)
@@ -98,8 +105,8 @@ var _ = Describe("Workload cluster creation", func() {
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
 					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
-					ControlPlaneMachineCount: pointer.Int64Ptr(1),
-					WorkerMachineCount:       pointer.Int64Ptr(1),
+					ControlPlaneMachineCount: ptr.To(int64(1)),
+					WorkerMachineCount:       ptr.To(int64(1)),
 				},
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
@@ -108,7 +115,7 @@ var _ = Describe("Workload cluster creation", func() {
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
 				Getter:       bootstrapClusterProxy.GetClient(),
-				ControlPlane: result.ControlPlane,
+				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
 			machineList := &clusterv1.MachineList{}

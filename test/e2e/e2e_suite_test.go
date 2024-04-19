@@ -34,6 +34,7 @@ import (
 	"k8s.io/klog/v2"
 
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	controlplanev1alpha1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -130,9 +131,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	By("Setting up the bootstrap cluster")
 	bootstrapClusterProvider, bootstrapClusterProxy = setupBootstrapCluster(e2eConfig, scheme, useExistingCluster)
 
-	By("Initializing the bootstrap cluster")
-	initBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
-
 	return []byte(
 		strings.Join([]string{
 			artifactFolder,
@@ -176,6 +174,7 @@ func initScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	framework.TryAddDefaultSchemes(scheme)
 	Expect(controlplanev1.AddToScheme(scheme)).To(Succeed())
+	Expect(controlplanev1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(bootstrapv1.AddToScheme(scheme)).To(Succeed())
 	Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
 	Expect(clusterv1exp.AddToScheme(scheme)).To(Succeed())
@@ -244,6 +243,19 @@ func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
 		BootstrapProviders:        []string{"rke2-bootstrap"},
 		ControlPlaneProviders:     []string{"rke2-control-plane"},
+		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
+	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
+}
+
+func initLegacyBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
+	clusterctl.InitManagementClusterAndWatchControllerLogs(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
+		ClusterProxy:              bootstrapClusterProxy,
+		ClusterctlConfigPath:      clusterctlConfig,
+		InfrastructureProviders:   config.InfrastructureProviders(),
+		IPAMProviders:             config.IPAMProviders(),
+		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
+		BootstrapProviders:        []string{"rke2-bootstrap:v0.2.7"},
+		ControlPlaneProviders:     []string{"rke2-control-plane:v0.2.7"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
 }
