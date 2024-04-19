@@ -108,7 +108,7 @@ storage:
       contents:
         inline: |
           #!/bin/bash
-          set -e
+          set -euo pipefail
           {{ range .PreRKE2Commands }}
           {{ . | Indent 10 }}
           {{- end }}
