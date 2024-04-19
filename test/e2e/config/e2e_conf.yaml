@@ -9,19 +9,19 @@ images:
     loadBehavior: mustLoad
   - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
-  - name: quay.io/jetstack/cert-manager-cainjector:v1.13.2
+  - name: quay.io/jetstack/cert-manager-cainjector:v1.14.4
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-webhook:v1.13.2
+  - name: quay.io/jetstack/cert-manager-webhook:v1.14.4
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-controller:v1.13.2
+  - name: quay.io/jetstack/cert-manager-controller:v1.14.4
     loadBehavior: tryLoad
 
 providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-    - name: "v1.7.0-beta.0"
-      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.0-beta.0/core-components.yaml"
+    - name: "v1.7.0"
+      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.0/core-components.yaml"
       type: "url"
       contract: v1beta1
       files:
@@ -34,8 +34,8 @@ providers:
   - name: docker
     type: InfrastructureProvider
     versions:
-    - name: "v1.7.0-beta.0"
-      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.0-beta.0/infrastructure-components-development.yaml"
+    - name: "v1.7.0"
+      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.0/infrastructure-components-development.yaml"
       type: "url"
       contract: v1beta1
       files:
