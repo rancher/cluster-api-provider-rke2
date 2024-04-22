@@ -148,6 +148,7 @@ type RKE2AgentConfig struct {
 
 	// Version specifies the rke2 version.
 	// This field will be deprecated in newer versions of the API and RKE2ControlPlaneSpec.Version will be used instead.
+	// +kubebuilder:validation:Pattern="v(\\d\\.\\d{2}\\.\\d)\\+rke2r\\d"
 	//+optional
 	Version string `json:"version,omitempty"`
 

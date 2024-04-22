@@ -368,6 +368,7 @@ spec:
                             description: |-
                               Version specifies the rke2 version.
                               This field will be deprecated in newer versions of the API and RKE2ControlPlaneSpec.Version will be used instead.
+                            pattern: v(\d\.\d{2}\.\d)\+rke2r\d
                             type: string
                         type: object
                       files:
@@ -1300,9 +1301,8 @@ spec:
                       version:
                         description: |-
                           Version defines the desired Kubernetes version.
-                          This is only a placeholder for now, and the RKE2ConfigSpec.AgentConfig.Version field should be used instead.
-                          In future iterations, this field overrides the RKE2 Version specificied in RKE2ConfigSpec.AgentConfig.Version
-                          which will be deprecated in newer versions of the API.
+                          This field takes precedence over RKE2ConfigSpec.AgentConfig.Version (which is deprecated).
+                        pattern: v(\d\.\d{2}\.\d)\+rke2r\d
                         type: string
                     required:
                     - infrastructureRef
