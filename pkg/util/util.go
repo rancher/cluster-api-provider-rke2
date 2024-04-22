@@ -128,6 +128,15 @@ func Rke2ToKubeVersion(rk2Version string) (kubeVersion string, err error) {
 	return kubeVersion, nil
 }
 
+// IsRKE2Version checks if a string is an RKE2 version.
+func IsRKE2Version(rke2Version string) bool {
+	regexStr := "v(\\d\\.\\d{2}\\.\\d)\\+rke2r\\d"
+
+	regex, _ := regexp.Compile(regexStr)
+
+	return regex.MatchString(rke2Version)
+}
+
 // AppendIfNotPresent appends a string to a slice only if the value does not already exist.
 func AppendIfNotPresent(origSlice []string, strItem string) (resultSlice []string) {
 	present := false

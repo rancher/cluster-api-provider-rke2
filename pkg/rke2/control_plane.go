@@ -116,7 +116,9 @@ func (c *ControlPlane) FailureDomains() clusterv1.FailureDomains {
 
 // Version returns the RKE2ControlPlane's version.
 func (c *ControlPlane) Version() *string {
-	return &c.RCP.Spec.AgentConfig.Version
+	version := c.RCP.GetDesiredVersion()
+
+	return &version
 }
 
 // InfrastructureRef returns the RKE2ControlPlane's infrastructure template.

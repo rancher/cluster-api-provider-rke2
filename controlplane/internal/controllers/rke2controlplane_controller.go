@@ -609,9 +609,9 @@ func (r *RKE2ControlPlaneReconciler) reconcileEtcdMembers(ctx context.Context, c
 		return errors.Wrap(err, "cannot get remote client to workload cluster")
 	}
 
-	parsedVersion, err := semver.ParseTolerant(controlPlane.RCP.Spec.AgentConfig.Version)
+	parsedVersion, err := semver.ParseTolerant(controlPlane.RCP.GetDesiredVersion())
 	if err != nil {
-		return errors.Wrapf(err, "failed to parse kubernetes version %q", controlPlane.RCP.Spec.AgentConfig.Version)
+		return errors.Wrapf(err, "failed to parse kubernetes version %q", controlPlane.RCP.GetDesiredVersion())
 	}
 
 	removedMembers, err := workloadCluster.ReconcileEtcdMembers(ctx, nodeNames, parsedVersion)

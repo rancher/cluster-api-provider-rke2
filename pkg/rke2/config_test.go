@@ -295,8 +295,8 @@ var _ = Describe("RKE2 Agent Config", func() {
 					ExtraEnv:      map[string]string{"testenv": "testenv"},
 					ExtraMounts:   map[string]string{"testmount": "testmount"},
 				},
-				Version: "v1.25.2",
 			},
+			Version: "v1.25.2",
 		}
 	})
 

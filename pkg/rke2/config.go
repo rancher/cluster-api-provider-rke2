@@ -155,6 +155,7 @@ type ServerConfigOpts struct {
 	AgentConfig          bootstrapv1.RKE2AgentConfig
 	Ctx                  context.Context
 	Client               client.Client
+	Version              string
 }
 
 func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) { // nolint:gocyclo
@@ -403,6 +404,7 @@ type AgentConfigOpts struct {
 	Client                 client.Client
 	CloudProviderName      string
 	CloudProviderConfigMap *corev1.ObjectReference
+	Version                string
 }
 
 func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
@@ -411,8 +413,8 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 	rke2AgentConfig.ContainerRuntimeEndpoint = opts.AgentConfig.ContainerRuntimeEndpoint
 
 	if opts.AgentConfig.CISProfile != "" {
-		if !bsutil.ProfileCompliant(opts.AgentConfig.CISProfile, opts.AgentConfig.Version) {
-			return nil, nil, fmt.Errorf("profile %q is not supported for version %q", opts.AgentConfig.CISProfile, opts.AgentConfig.Version)
+		if !bsutil.ProfileCompliant(opts.AgentConfig.CISProfile, opts.Version) {
+			return nil, nil, fmt.Errorf("profile %q is not supported for version %q", opts.AgentConfig.CISProfile, opts.Version)
 		}
 
 		files = append(files, bootstrapv1.File{
@@ -550,6 +552,7 @@ func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*rke2ServerConfig, [
 		Client:      opts.Client,
 		Ctx:         opts.Ctx,
 		Token:       opts.Token,
+		Version:     opts.Version,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
@@ -581,6 +584,7 @@ func GenerateJoinControlPlaneConfig(opts ServerConfigOpts) (*rke2ServerConfig, [
 		Ctx:         opts.Ctx,
 		ServerURL:   opts.ServerURL,
 		Token:       opts.Token,
+		Version:     opts.Version,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)

@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -42,7 +41,6 @@ import (
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	rke2 "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
-	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
 )
 
 func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
@@ -413,14 +411,11 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 	bootstrapRef *corev1.ObjectReference,
 	failureDomain *string,
 ) error {
-	newVersion, err := bsutil.Rke2ToKubeVersion(rcp.Spec.AgentConfig.Version)
-	if err != nil {
-		return fmt.Errorf("failed to convert rke2 version to kubernetes version: %w", err)
-	}
-
 	logger := log.FromContext(ctx)
 
-	logger.Info("Version checking...", "rke2-version", rcp.Spec.AgentConfig.Version, "machine-version: ", newVersion)
+	rke2Version := rcp.GetDesiredVersion()
+
+	logger.Info("Version checking...", "rke2-version", rke2Version)
 
 	machine := &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
@@ -433,7 +428,7 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 		},
 		Spec: clusterv1.MachineSpec{
 			ClusterName:       cluster.Name,
-			Version:           &newVersion,
+			Version:           &rke2Version,
 			InfrastructureRef: *infraRef,
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
