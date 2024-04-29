@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/blang/semver/v4 v4.0.0
-	github.com/coreos/butane v0.19.0
+	github.com/coreos/butane v0.20.0
 	github.com/coreos/ignition/v2 v2.18.0
 	github.com/go-logr/logr v1.4.1
 	github.com/onsi/ginkgo/v2 v2.17.1
