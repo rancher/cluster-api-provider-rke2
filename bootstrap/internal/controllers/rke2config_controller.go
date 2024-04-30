@@ -279,11 +279,7 @@ type Scope struct {
 }
 
 func (s *Scope) getDesiredVersion() string {
-	if s.Machine.Spec.Version != nil && bsutil.IsRKE2Version(*s.Machine.Spec.Version) {
-		return *s.Machine.Spec.Version
-	}
-
-	return s.Config.Spec.AgentConfig.Version
+	return *s.Machine.Spec.Version
 }
 
 // SetupWithManager sets up the controller with the Manager.

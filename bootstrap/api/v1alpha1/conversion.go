@@ -21,6 +21,8 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
+	apiconversion "k8s.io/apimachinery/pkg/conversion"
+
 	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 )
 
@@ -110,4 +112,9 @@ func (dst *RKE2ConfigTemplateList) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 
 	return Convert_v1beta1_RKE2ConfigTemplateList_To_v1alpha1_RKE2ConfigTemplateList(src, dst, nil)
+}
+
+func Convert_v1alpha1_RKE2AgentConfig_To_v1beta1_RKE2AgentConfig(in *RKE2AgentConfig, out *bootstrapv1.RKE2AgentConfig, s apiconversion.Scope) error {
+	// We have to invoke conversion manually because of the removed RKE2Config.Spec.Version field.
+	return autoConvert_v1alpha1_RKE2AgentConfig_To_v1beta1_RKE2AgentConfig(in, out, s)
 }

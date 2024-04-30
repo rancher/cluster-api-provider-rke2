@@ -17,8 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"regexp"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -440,18 +438,5 @@ func (r *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
 
 // GetDesiredVersion returns the desired version of the RKE2ControlPlane using Spec.Version field as a default field.
 func (r *RKE2ControlPlane) GetDesiredVersion() string {
-	if r.Spec.Version != "" && isRKE2Version(r.Spec.Version) {
-		return r.Spec.Version
-	}
-
-	return r.Spec.AgentConfig.Version
-}
-
-// isRKE2Version checks if a string is an RKE2 version.
-func isRKE2Version(rke2Version string) bool {
-	regexStr := "v(\\d\\.\\d{2}\\.\\d)\\+rke2r\\d"
-
-	regex, _ := regexp.Compile(regexStr)
-
-	return regex.MatchString(rke2Version)
+	return r.Spec.Version
 }

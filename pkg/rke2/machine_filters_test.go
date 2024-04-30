@@ -26,6 +26,7 @@ var rcp = controlplanev1.RKE2ControlPlane{
 		Namespace: "example",
 	},
 	Spec: controlplanev1.RKE2ControlPlaneSpec{
+		Version: rke2MachineVersion,
 		ServerConfig: controlplanev1.RKE2ServerConfig{
 			CNI:               "calico",
 			CloudProviderName: "aws",
@@ -33,7 +34,6 @@ var rcp = controlplanev1.RKE2ControlPlane{
 		},
 		RKE2ConfigSpec: bootstrapv1.RKE2ConfigSpec{
 			AgentConfig: bootstrapv1.RKE2AgentConfig{
-				Version:    rke2MachineVersion,
 				NodeLabels: []string{"hello=world"},
 			},
 		},
@@ -81,7 +81,6 @@ var _ = Describe("matchAgentConfig", func() {
 				},
 				Spec: bootstrapv1.RKE2ConfigSpec{
 					AgentConfig: bootstrapv1.RKE2AgentConfig{
-						Version:    rke2MachineVersion,
 						NodeLabels: []string{"hello=world"},
 					},
 				},
