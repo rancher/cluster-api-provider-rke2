@@ -60,12 +60,11 @@ metadata:
   name: ${CLUSTER_NAME}-control-plane
   namespace: ${CLUSTER_NAMESPACE}
 spec:
-  version: ${RKE2_VERSION}  # This field has no effect for now, but is required to constuct the image name
+  version: ${RKE2_VERSION}
   preRKE2Commands:
   - sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/1.0/meta-data/hostname)
   agentConfig:
     airGapped: true
-    version: ${RKE2_VERSION}
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
     kind: AWSMachineTemplate
@@ -150,7 +149,6 @@ spec:
     spec:
       agentConfig:
         airGapped: true
-        version: ${RKE2_VERSION}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSClusterControllerIdentity

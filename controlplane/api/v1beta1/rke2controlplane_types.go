@@ -78,7 +78,6 @@ type RKE2ControlPlaneSpec struct {
 
 	// RegistrationMethod is the method to use for registering nodes into the RKE2 cluster.
 	// +kubebuilder:validation:Enum=internal-first;internal-only-ips;external-only-ips;address;control-plane-endpoint
-	// +kubebuilder:default=internal-first
 	// +optional
 	RegistrationMethod RegistrationMethod `json:"registrationMethod"`
 
@@ -88,9 +87,7 @@ type RKE2ControlPlaneSpec struct {
 	RegistrationAddress string `json:"registrationAddress,omitempty"`
 
 	// The RolloutStrategy to use to replace control plane machines with new ones.
-	// +optional
-	// +kubebuilder:default={type: "RollingUpdate", rollingUpdate: {maxSurge: 1}}
-	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
+	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy"`
 }
 
 // RKE2ControlPlaneMachineTemplate defines the template for Machines

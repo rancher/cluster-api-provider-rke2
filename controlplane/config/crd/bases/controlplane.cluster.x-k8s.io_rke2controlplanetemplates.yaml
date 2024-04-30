@@ -767,7 +767,6 @@ spec:
                           the registration type is "address". Its for scenarios where a load-balancer or VIP is used.
                         type: string
                       registrationMethod:
-                        default: internal-first
                         description: RegistrationMethod is the method to use for registering
                           nodes into the RKE2 cluster.
                         enum:
@@ -783,10 +782,6 @@ spec:
                         format: int32
                         type: integer
                       rolloutStrategy:
-                        default:
-                          rollingUpdate:
-                            maxSurge: 1
-                          type: RollingUpdate
                         description: The RolloutStrategy to use to replace control
                           plane machines with new ones.
                         properties:
@@ -1300,6 +1295,7 @@ spec:
                         type: string
                     required:
                     - infrastructureRef
+                    - rolloutStrategy
                     type: object
                 required:
                 - spec

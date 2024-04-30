@@ -103,7 +103,7 @@ spec:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
         kind: AWSMachineTemplate
         name: ${CLUSTER_NAME}-md-0
-      version: ${KUBERNETES_VERSION}
+      version: ${KUBERNETES_VERSION}+rke2r1
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSMachineTemplate
@@ -132,7 +132,6 @@ spec:
       - sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/1.0/meta-data/hostname)
       agentConfig:
         format: ignition
-        version: ${KUBERNETES_VERSION}+rke2r1
 ---
 apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
