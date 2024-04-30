@@ -14,6 +14,12 @@ import (
 	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
 )
 
+var (
+	k8sMachineVersion  = "v1.24.6"
+	rke2MachineVersion = "v1.24.6+rke2r1"
+	regionEuCentral1   = "eu-central-1"
+)
+
 var rcp = controlplanev1.RKE2ControlPlane{
 	ObjectMeta: v1.ObjectMeta{
 		Name:      "rke2-cluster-control-plane",
@@ -27,17 +33,12 @@ var rcp = controlplanev1.RKE2ControlPlane{
 		},
 		RKE2ConfigSpec: bootstrapv1.RKE2ConfigSpec{
 			AgentConfig: bootstrapv1.RKE2AgentConfig{
-				Version:    "v1.24.6+rke2r1",
+				Version:    rke2MachineVersion,
 				NodeLabels: []string{"hello=world"},
 			},
 		},
 	},
 }
-
-var (
-	machineVersion   = "v1.24.6"
-	regionEuCentral1 = "eu-central-1"
-)
 
 var machine = clusterv1.Machine{
 	ObjectMeta: v1.ObjectMeta{
@@ -49,7 +50,7 @@ var machine = clusterv1.Machine{
 	},
 	Spec: clusterv1.MachineSpec{
 		ClusterName:   "rke2-cluster",
-		Version:       &machineVersion,
+		Version:       &k8sMachineVersion,
 		FailureDomain: &regionEuCentral1,
 		Bootstrap: clusterv1.Bootstrap{
 			ConfigRef: &corev1.ObjectReference{
@@ -80,7 +81,7 @@ var _ = Describe("matchAgentConfig", func() {
 				},
 				Spec: bootstrapv1.RKE2ConfigSpec{
 					AgentConfig: bootstrapv1.RKE2AgentConfig{
-						Version:    "v1.24.6+rke2r1",
+						Version:    rke2MachineVersion,
 						NodeLabels: []string{"hello=world"},
 					},
 				},
@@ -99,7 +100,15 @@ var _ = Describe("matchAgentConfig", func() {
 var _ = Describe("matching Kubernetes Version", func() {
 	It("should match version", func() {
 		machineCollection := collections.FromMachines(&machine)
-		matches := machineCollection.AnyFilter(matchesKubernetesVersion(rcp.Spec.AgentConfig.Version))
+		matches := machineCollection.AnyFilter(matchesKubernetesOrRKE2Version(rcp.GetDesiredVersion()))
 		Expect(len(matches)).To(Equal(1))
+	})
+
+	It("should match when RKE2 version is set on the machine", func() {
+		machine.Spec.Version = &rke2MachineVersion
+		machineCollection := collections.FromMachines(&machine)
+		matches := machineCollection.AnyFilter(matchesKubernetesOrRKE2Version(rcp.GetDesiredVersion()))
+		Expect(len(matches)).To(Equal(1))
+		machine.Spec.Version = &k8sMachineVersion
 	})
 })

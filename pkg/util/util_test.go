@@ -26,3 +26,16 @@ var _ = Describe(("Testing GetMapKeysAsString"), func() {
 		Expect(keysValid).To(BeTrue())
 	})
 })
+
+var _ = Describe("Testing IsRKE2Version", func() {
+	k8sVersion := "1.24.6"
+	rke2Version := "v1.24.6+rke2r1"
+
+	It("Should return true if string is RKE2 version", func() {
+		Expect(IsRKE2Version(rke2Version)).To(BeTrue())
+	})
+
+	It("Should return false if string is not RKE2 version", func() {
+		Expect(IsRKE2Version(k8sVersion)).To(BeFalse())
+	})
+})

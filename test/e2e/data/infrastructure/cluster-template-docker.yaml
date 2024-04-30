@@ -99,8 +99,8 @@ metadata:
   name: ${CLUSTER_NAME}-control-plane
 spec: 
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  version: ${KUBERNETES_VERSION}+rke2r1
   agentConfig:
-    version: ${KUBERNETES_VERSION}+rke2r1
     nodeAnnotations:
       test: "true"
   serverConfig:
@@ -135,7 +135,7 @@ spec:
       cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
   template:
     spec:
-      version: ${KUBERNETES_VERSION}
+      version: ${KUBERNETES_VERSION}+rke2r1
       clusterName: ${CLUSTER_NAME}
       bootstrap:
         configRef:
@@ -165,6 +165,5 @@ spec:
   template:
     spec:
       agentConfig:
-        version: ${KUBERNETES_VERSION}+rke2r1
         nodeAnnotations:
           test: "true"

@@ -278,6 +278,14 @@ type Scope struct {
 	ControlPlane         *controlplanev1.RKE2ControlPlane
 }
 
+func (s *Scope) getDesiredVersion() string {
+	if s.Machine.Spec.Version != nil && bsutil.IsRKE2Version(*s.Machine.Spec.Version) {
+		return *s.Machine.Spec.Version
+	}
+
+	return s.Config.Spec.AgentConfig.Version
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.RKE2InitLock == nil {
@@ -363,6 +371,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
 			Client:               r.Client,
+			Version:              scope.getDesiredVersion(),
 		})
 	if err != nil {
 		return ctrl.Result{}, err
@@ -417,7 +426,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 			ConfigFile:              initConfigFile,
-			RKE2Version:             scope.Config.Spec.AgentConfig.Version,
+			RKE2Version:             scope.getDesiredVersion(),
 			WriteFiles:              files,
 			NTPServers:              ntpServers,
 			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
@@ -567,6 +576,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
 			Client:               r.Client,
+			Version:              scope.getDesiredVersion(),
 		},
 	)
 	if err != nil {
@@ -627,7 +637,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			PreRKE2Commands:     scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:    scope.Config.Spec.PostRKE2Commands,
 			ConfigFile:          initConfigFile,
-			RKE2Version:         scope.Config.Spec.AgentConfig.Version,
+			RKE2Version:         scope.getDesiredVersion(),
 			WriteFiles:          files,
 			NTPServers:          ntpServers,
 			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
@@ -700,6 +710,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 			Client:                 r.Client,
 			CloudProviderName:      scope.ControlPlane.Spec.ServerConfig.CloudProviderName,
 			CloudProviderConfigMap: scope.ControlPlane.Spec.ServerConfig.CloudProviderConfigMap,
+			Version:                scope.getDesiredVersion(),
 		})
 	if err != nil {
 		return ctrl.Result{}, err
@@ -738,7 +749,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
 		PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 		ConfigFile:              wkJoinConfigFile,
-		RKE2Version:             scope.Config.Spec.AgentConfig.Version,
+		RKE2Version:             scope.getDesiredVersion(),
 		WriteFiles:              files,
 		NTPServers:              ntpServers,
 		AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,

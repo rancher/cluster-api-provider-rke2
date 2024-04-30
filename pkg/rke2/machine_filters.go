@@ -22,7 +22,7 @@ func matchesRCPConfiguration(
 	rcp *controlplanev1.RKE2ControlPlane,
 ) func(machine *clusterv1.Machine) bool {
 	return collections.And(
-		matchesKubernetesVersion(rcp.Spec.AgentConfig.Version),
+		matchesKubernetesOrRKE2Version(rcp.GetDesiredVersion()),
 		matchesRKE2BootstrapConfig(machineConfigs, rcp),
 		matchesTemplateClonedFrom(infraConfigs, rcp),
 	)
@@ -119,8 +119,8 @@ func matchesTemplateClonedFrom(infraConfigs map[string]*unstructured.Unstructure
 	}
 }
 
-// matchesKubernetesVersion returns a filter to find all machines that match a given Kubernetes version.
-func matchesKubernetesVersion(kubernetesVersion string) func(*clusterv1.Machine) bool {
+// matchesKubernetesVersion returns a filter to find all machines that match a given Kubernetes or RKE2 version.
+func matchesKubernetesOrRKE2Version(rke2Version string) func(*clusterv1.Machine) bool {
 	return func(machine *clusterv1.Machine) bool {
 		if machine == nil {
 			return false
@@ -130,7 +130,11 @@ func matchesKubernetesVersion(kubernetesVersion string) func(*clusterv1.Machine)
 			return false
 		}
 
-		rcpKubeVersion, err := bsutil.Rke2ToKubeVersion(kubernetesVersion)
+		if bsutil.IsRKE2Version(*machine.Spec.Version) {
+			return bsutil.CompareVersions(*machine.Spec.Version, rke2Version)
+		}
+
+		rcpKubeVersion, err := bsutil.Rke2ToKubeVersion(rke2Version)
 		if err != nil {
 			return true
 		}

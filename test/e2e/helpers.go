@@ -33,14 +33,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
+	controlplanev1alpha1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	controlplanev1alpha1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
 // NOTE: the code in this file is largely copied from the cluster-api test framework with
@@ -436,7 +436,12 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 		}
 
 		for _, machine := range machineList.Items {
-			if machine.Spec.Version != nil && *machine.Spec.Version != input.VersionAfterUpgrade {
+			expectedVersion := input.VersionAfterUpgrade
+			if bsutil.IsRKE2Version(*machine.Spec.Version) {
+				expectedVersion = input.VersionAfterUpgrade + "+rke2r1"
+			}
+
+			if machine.Spec.Version != nil && *machine.Spec.Version != expectedVersion {
 				return false, nil
 			}
 		}
