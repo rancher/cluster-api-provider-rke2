@@ -276,8 +276,12 @@ func (w *Workload) ClusterStatus(ctx context.Context) ClusterStatus {
 		Namespace: metav1.NamespaceSystem,
 	}
 	err := w.Client.Get(ctx, key, &corev1.Secret{})
-
 	// In case of error we do assume the control plane is not initialized yet.
+	if err != nil {
+		logger := log.FromContext(ctx)
+		logger.Info("Control Plane does not seem to be initialized yet.", "reason", err.Error())
+	}
+
 	status.HasRKE2ServingSecret = err == nil
 
 	return status
