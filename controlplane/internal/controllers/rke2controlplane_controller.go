@@ -369,7 +369,16 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	rcp.Status.ReadyReplicas = int32(len(readyMachines))
 	rcp.Status.UnavailableReplicas = replicas - rcp.Status.ReadyReplicas
 
-	if rcp.Status.ReadyReplicas > 0 {
+	workloadCluster, err := r.getWorkloadCluster(ctx, util.ObjectKey(cluster))
+	if err != nil {
+		logger.Error(err, "Failed to get remote client for workload cluster", "cluster key", util.ObjectKey(cluster))
+
+		return fmt.Errorf("getting workload cluster: %w", err)
+	}
+
+	status := workloadCluster.ClusterStatus(ctx)
+
+	if status.HasRKE2ServingSecret {
 		rcp.Status.Initialized = true
 	}
 
@@ -790,11 +799,11 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 		return ctrl.Result{}, nil
 	}
 
-	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, util.ObjectKey(controlPlane.Cluster))
+	workloadCluster, err := r.getWorkloadCluster(ctx, util.ObjectKey(controlPlane.Cluster))
 	if err != nil {
-		logger.Error(err, "Unable to get Workload cluster")
+		logger.Error(err, "Failed to get remote client for workload cluster", "cluster key", util.ObjectKey(controlPlane.Cluster))
 
-		return ctrl.Result{}, errors.Wrap(err, "cannot get remote client to workload cluster")
+		return ctrl.Result{}, fmt.Errorf("getting workload cluster: %w", err)
 	}
 
 	defer func() {
@@ -842,11 +851,11 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		return ctrl.Result{}, nil
 	}
 
-	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, util.ObjectKey(cluster))
+	workloadCluster, err := r.getWorkloadCluster(ctx, util.ObjectKey(cluster))
 	if err != nil {
-		logger.Error(err, "failed to get remote client for workload cluster", "cluster key", util.ObjectKey(cluster))
+		logger.Error(err, "Failed to get remote client for workload cluster", "cluster key", util.ObjectKey(cluster))
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("getting workload cluster: %w", err)
 	}
 
 	if err := workloadCluster.InitWorkload(ctx, controlPlane); err != nil {
@@ -891,4 +900,15 @@ func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(ctx context.Conte
 
 		return nil
 	}
+}
+
+// getWorkloadCluster gets a cluster object.
+// The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
+func (r *RKE2ControlPlaneReconciler) getWorkloadCluster(ctx context.Context, clusterKey types.NamespacedName) (rke2.WorkloadCluster, error) {
+	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, clusterKey)
+	if err != nil {
+		return nil, fmt.Errorf("getting remote client for workload cluster: %w", err)
+	}
+
+	return workloadCluster, nil
 }
