@@ -105,6 +105,7 @@ type BaseUserData struct {
 	RKE2Version             string
 	SentinelFileCommand     string
 	AirGapped               bool
+	AirGappedChecksum       string
 	NTPServers              []string
 	CISEnabled              bool
 	AdditionalCloudInit     string

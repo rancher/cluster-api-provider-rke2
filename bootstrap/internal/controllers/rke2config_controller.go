@@ -418,6 +418,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
 			AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
+			AirGappedChecksum:       scope.Config.Spec.AgentConfig.AirGappedChecksum,
 			CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
 			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
@@ -629,6 +630,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
 			AirGapped:           scope.Config.Spec.AgentConfig.AirGapped,
+			AirGappedChecksum:   scope.Config.Spec.AgentConfig.AirGappedChecksum,
 			CISEnabled:          scope.Config.Spec.AgentConfig.CISProfile != "",
 			PreRKE2Commands:     scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:    scope.Config.Spec.PostRKE2Commands,
@@ -742,6 +744,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	wkInput := &cloudinit.BaseUserData{
 		PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
 		AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
+		AirGappedChecksum:       scope.Config.Spec.AgentConfig.AirGappedChecksum,
 		CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
 		PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 		ConfigFile:              wkJoinConfigFile,

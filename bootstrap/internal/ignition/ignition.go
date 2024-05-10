@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	airGappedChecksumCommand     = "[[ $(sha256sum /opt/rke2-artifacts/sha256sum*.txt | awk '{print $1}') == %[1]s ]] || exit 1"
 	airGappedControlPlaneCommand = "INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts sh /opt/install.sh"
 	controlPlaneCommand          = "curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s sh -s - server"
 	airGappedWorkerCommand       = "INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE=\"agent\" sh /opt/install.sh"
@@ -160,7 +161,9 @@ func getRKE2Commands(baseUserData *cloudinit.BaseUserData, command, airgappedCom
 
 	rke2Commands := []string{}
 
-	if baseUserData.AirGapped {
+	if baseUserData.AirGapped && baseUserData.AirGappedChecksum != "" {
+		rke2Commands = append(rke2Commands, fmt.Sprintf(airGappedChecksumCommand, baseUserData.AirGappedChecksum), airgappedCommand)
+	} else if baseUserData.AirGapped {
 		rke2Commands = append(rke2Commands, airgappedCommand)
 	} else {
 		rke2Commands = append(rke2Commands, fmt.Sprintf(command, baseUserData.RKE2Version))
