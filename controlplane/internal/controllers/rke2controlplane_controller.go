@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -865,7 +866,13 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 	switch rcp.Spec.RolloutStrategy.Type {
 	case controlplanev1.RollingUpdateStrategyType:
 		// RolloutStrategy is currently defaulted and validated to be RollingUpdate.
-		maxNodes := *rcp.Spec.Replicas + int32(rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge.IntValue())
+		// Defaulted to 1 if not specified
+		maxSurge := intstr.FromInt(1)
+		if rcp.Spec.RolloutStrategy.RollingUpdate != nil && rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge != nil {
+			maxSurge = *rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge
+		}
+
+		maxNodes := *rcp.Spec.Replicas + int32(maxSurge.IntValue())
 		if int32(controlPlane.Machines.Len()) < maxNodes {
 			// scaleUpControlPlane ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
 			return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)

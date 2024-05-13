@@ -17,8 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"regexp"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -80,7 +78,6 @@ type RKE2ControlPlaneSpec struct {
 
 	// RegistrationMethod is the method to use for registering nodes into the RKE2 cluster.
 	// +kubebuilder:validation:Enum=internal-first;internal-only-ips;external-only-ips;address;control-plane-endpoint
-	// +kubebuilder:default=internal-first
 	// +optional
 	RegistrationMethod RegistrationMethod `json:"registrationMethod"`
 
@@ -90,9 +87,7 @@ type RKE2ControlPlaneSpec struct {
 	RegistrationAddress string `json:"registrationAddress,omitempty"`
 
 	// The RolloutStrategy to use to replace control plane machines with new ones.
-	// +optional
-	// +kubebuilder:default={type: "RollingUpdate", rollingUpdate: {maxSurge: 1}}
-	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
+	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy"`
 }
 
 // RKE2ControlPlaneMachineTemplate defines the template for Machines
@@ -440,18 +435,5 @@ func (r *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
 
 // GetDesiredVersion returns the desired version of the RKE2ControlPlane using Spec.Version field as a default field.
 func (r *RKE2ControlPlane) GetDesiredVersion() string {
-	if r.Spec.Version != "" && isRKE2Version(r.Spec.Version) {
-		return r.Spec.Version
-	}
-
-	return r.Spec.AgentConfig.Version
-}
-
-// isRKE2Version checks if a string is an RKE2 version.
-func isRKE2Version(rke2Version string) bool {
-	regexStr := "v(\\d\\.\\d{2}\\.\\d)\\+rke2r\\d"
-
-	regex, _ := regexp.Compile(regexStr)
-
-	return regex.MatchString(rke2Version)
+	return r.Spec.Version
 }
