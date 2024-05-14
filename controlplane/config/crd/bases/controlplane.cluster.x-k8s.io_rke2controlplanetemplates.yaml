@@ -123,6 +123,12 @@ spec:
                               AirGapped is a boolean value to define if the bootstrapping should be air-gapped,
                               basically supposing that online container registries and RKE2 install scripts are not reachable.
                             type: boolean
+                          airGappedChecksum:
+                            description: |-
+                              AirGappedChecksum is a string value with a sha256sum checksum to compare with checksum
+                              of existing sha256sum-<arch>.txt file for packages already available on the machine
+                              before performing air-gapped installation.
+                            type: string
                           cisProfile:
                             description: CISProfile activates CIS compliance of RKE2
                               for a certain profile

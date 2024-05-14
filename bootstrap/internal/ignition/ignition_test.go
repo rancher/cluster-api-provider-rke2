@@ -219,6 +219,15 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 		Expect(commands).To(ContainElements(airGappedControlPlaneCommand, serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
+	It("should return slice of control plane commands with air gapped and checksum verify", func() {
+		baseUserData.AirGapped = true
+		baseUserData.AirGappedChecksum = "abcd"
+		commands, err := getControlPlaneRKE2Commands(baseUserData)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(commands).To(HaveLen(10))
+		Expect(commands).To(ContainElements(fmt.Sprintf(airGappedChecksumCommand, "abcd"), airGappedControlPlaneCommand, serverDeployCommands[0], serverDeployCommands[1]))
+	})
+
 	It("should return error if base userdata is nil", func() {
 		baseUserData = nil
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
@@ -257,6 +266,15 @@ var _ = Describe("getWorkerRKE2Commands", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(commands).To(HaveLen(8))
 		Expect(commands).To(ContainElements(airGappedWorkerCommand, workerDeployCommands[0], workerDeployCommands[1]))
+	})
+
+	It("should return slice of worker commands with air gapped and checksum verify", func() {
+		baseUserData.AirGapped = true
+		baseUserData.AirGappedChecksum = "abcd"
+		commands, err := getWorkerRKE2Commands(baseUserData)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(commands).To(HaveLen(9))
+		Expect(commands).To(ContainElements(fmt.Sprintf(airGappedChecksumCommand, "abcd"), workerDeployCommands[0], workerDeployCommands[1]))
 	})
 
 	It("should return error if base userdata is nil", func() {

@@ -150,6 +150,12 @@ type RKE2AgentConfig struct {
 	// basically supposing that online container registries and RKE2 install scripts are not reachable.
 	AirGapped bool `json:"airGapped,omitempty"`
 
+	// AirGappedChecksum is a string value with a sha256sum checksum to compare with checksum
+	// of existing sha256sum-<arch>.txt file for packages already available on the machine
+	// before performing air-gapped installation.
+	//+optional
+	AirGappedChecksum string `json:"airGappedChecksum,omitempty"`
+
 	// Format specifies the output format of the bootstrap data. Defaults to cloud-config.
 	// +optional
 	Format Format `json:"format,omitempty"`

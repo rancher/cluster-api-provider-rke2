@@ -46,6 +46,11 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 	if restored.Spec.Version != "" {
 		dst.Spec.Version = restored.Spec.Version
 	}
+
+	if restored.Spec.AgentConfig.AirGappedChecksum != "" {
+		dst.Spec.AgentConfig.AirGappedChecksum = restored.Spec.AgentConfig.AirGappedChecksum
+	}
+
 	dst.Spec.MachineTemplate = restored.Spec.MachineTemplate
 	dst.Status = restored.Status
 
@@ -112,6 +117,10 @@ func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
 	restored := &controlplanev1.RKE2ControlPlaneTemplate{}
 	if ok, err := utilconversion.UnmarshalData(src, restored); err != nil || !ok {
 		return err
+	}
+
+	if restored.Spec.Template.Spec.AgentConfig.AirGappedChecksum != "" {
+		dst.Spec.Template.Spec.AgentConfig.AirGappedChecksum = restored.Spec.Template.Spec.AgentConfig.AirGappedChecksum
 	}
 
 	dst.Spec.Template = restored.Spec.Template
