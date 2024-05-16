@@ -32,6 +32,7 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	kubeyaml "sigs.k8s.io/yaml"
 
@@ -290,7 +291,63 @@ func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&bootstrapv1.RKE2Config{}).
+		Watches(
+			&clusterv1.Machine{},
+			handler.EnqueueRequestsFromMapFunc(r.MachineToBootstrapMapFunc),
+		).
+		Watches(
+			&clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(r.ClusterToRKE2Configs),
+		).
 		Complete(r)
+}
+
+// MachineToBootstrapMapFunc is a handler.ToRequestsFunc to be used to enqueue
+// request for reconciliation of RKE2Config.
+func (r *RKE2ConfigReconciler) MachineToBootstrapMapFunc(_ context.Context, o client.Object) []ctrl.Request {
+	m, ok := o.(*clusterv1.Machine)
+	if !ok {
+		panic(fmt.Sprintf("Expected a Machine but got a %T", o))
+	}
+
+	result := []ctrl.Request{}
+
+	if m.Spec.Bootstrap.ConfigRef != nil && m.Spec.Bootstrap.ConfigRef.GroupVersionKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config") {
+		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Bootstrap.ConfigRef.Name}
+		result = append(result, ctrl.Request{NamespacedName: name})
+	}
+
+	return result
+}
+
+// ClusterToRKE2Configs is a handler.ToRequestsFunc to be used to enqueue
+// requests for reconciliation of RKE2Configs.
+func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o client.Object) []ctrl.Request {
+	result := []ctrl.Request{}
+
+	c, ok := o.(*clusterv1.Cluster)
+	if !ok {
+		panic(fmt.Sprintf("Expected a Cluster but got a %T", o))
+	}
+
+	selectors := []client.ListOption{
+		client.InNamespace(c.Namespace),
+		client.MatchingLabels{
+			clusterv1.ClusterNameLabel: c.Name,
+		},
+	}
+
+	machineList := &clusterv1.MachineList{}
+	if err := r.Client.List(ctx, machineList, selectors...); err != nil {
+		return nil
+	}
+
+	for _, m := range machineList.Items {
+		m := m
+		result = append(result, r.MachineToBootstrapMapFunc(ctx, &m)...)
+	}
+
+	return result
 }
 
 // handleClusterNotInitialized handles the first control plane node.

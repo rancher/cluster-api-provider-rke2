@@ -94,6 +94,54 @@ var _ = Describe("matchAgentConfig", func() {
 		Expect(matches.Oldest().Name).To(Equal("machine-test"))
 	},
 	)
+
+	It("shouldn't match Agent Config and different preBootstrapCommands", func() {
+		machineConfigs := map[string]*bootstrapv1.RKE2Config{
+			"someMachine": {},
+			"machine-test": {
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "rke2-config-example",
+					Namespace: "example",
+				},
+				Spec: bootstrapv1.RKE2ConfigSpec{
+					AgentConfig: bootstrapv1.RKE2AgentConfig{
+						NodeLabels: []string{"hello=world"},
+					},
+					PreRKE2Commands: []string{"test"},
+				},
+			},
+		}
+		machineCollection := collections.FromMachines(&machine)
+		Expect(len(machineCollection)).To(Equal(1))
+		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(machineConfigs, &rcp))
+
+		Expect(len(matches)).To(Equal(0))
+	},
+	)
+
+	It("shouldn't match Agent Config and different postBootstrapCommands", func() {
+		machineConfigs := map[string]*bootstrapv1.RKE2Config{
+			"someMachine": {},
+			"machine-test": {
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "rke2-config-example",
+					Namespace: "example",
+				},
+				Spec: bootstrapv1.RKE2ConfigSpec{
+					AgentConfig: bootstrapv1.RKE2AgentConfig{
+						NodeLabels: []string{"hello=world"},
+					},
+					PostRKE2Commands: []string{"test"},
+				},
+			},
+		}
+		machineCollection := collections.FromMachines(&machine)
+		Expect(len(machineCollection)).To(Equal(1))
+		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(machineConfigs, &rcp))
+
+		Expect(len(matches)).To(Equal(0))
+	},
+	)
 })
 
 var _ = Describe("matching Kubernetes Version", func() {

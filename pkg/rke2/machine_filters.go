@@ -55,7 +55,7 @@ func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Confi
 		}
 
 		// Check if RCP AgentConfig and machineBootstrapConfig matches
-		return reflect.DeepEqual(machineConfig.Spec.AgentConfig, rcp.Spec.AgentConfig)
+		return reflect.DeepEqual(machineConfig.Spec, rcp.Spec.RKE2ConfigSpec)
 	}
 }
 
