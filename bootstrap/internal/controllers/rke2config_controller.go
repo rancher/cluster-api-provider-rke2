@@ -151,14 +151,10 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		scope.Config.Status.Ready = true
 		scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
 		conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
-
-		return ctrl.Result{}, nil
 	}
 	// Status is ready means a config has been generated.
 	if scope.Config.Status.Ready {
 		// In any other case just return as the config is already generated and need not be generated again.
-		conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
-
 		return ctrl.Result{}, nil
 	}
 
@@ -210,7 +206,7 @@ func (r *RKE2ConfigReconciler) prepareScope(
 
 		logger.Error(err, "", "rke2-config-namespaced-name", req.NamespacedName)
 
-		return nil, ctrl.Result{Requeue: true}, err
+		return nil, ctrl.Result{}, err
 	}
 
 	machine, err := util.GetOwnerMachine(ctx, r.Client, config.ObjectMeta)
@@ -642,10 +638,6 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		},
 	}
 
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
 	var userData []byte
 
 	switch scope.Config.Spec.AgentConfig.Format {
@@ -866,7 +858,9 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 
 	scope.Config.Status.DataSecretName = ptr.To(secret.Name)
 	scope.Config.Status.Ready = true
-	//	conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+
+	conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+
 	return nil
 }
 

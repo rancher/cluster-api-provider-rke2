@@ -100,7 +100,7 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, err
 		}
 
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	// Fetch the Cluster.
@@ -145,7 +145,7 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, errors.Wrapf(err, "failed to add finalizer")
 		}
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	defer func() {
@@ -742,7 +742,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 	configSecret, err := secret.GetFromNamespacedName(ctx, r.Client, clusterName, secret.Kubeconfig)
 
 	switch {
-	case apierrors.IsNotFound(errors.Cause(err)):
+	case apierrors.IsNotFound(err):
 		createErr := kubeconfig.CreateSecretWithOwner(
 			ctx,
 			r.Client,
