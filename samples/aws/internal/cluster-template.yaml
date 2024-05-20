@@ -43,13 +43,19 @@ spec:
         - port: 9345
           protocol: "TCP"
       ingressRules:
-        - description: "RKE2 Control Plane"
-          protocol: "tcp"
-          fromPort: 9345
-          toPort: 9345
-          sourceSecurityGroupRoles:
-            - node
-            - controlplane
+      - description: RKE2 Control Plane
+        fromPort: 9345
+        protocol: tcp
+        sourceSecurityGroupRoles:
+        - node
+        - controlplane
+        toPort: 9345
+      - description: Kubernetes API
+        fromPort: 6443
+        protocol: tcp
+        toPort: 6443
+        cidrBlocks: 
+        - "0.0.0.0/0"
   region: ${AWS_REGION}
   sshKeyName: ${AWS_SSH_KEY_NAME}
 
