@@ -22,9 +22,7 @@ Before creating a workload clusters, it is required to build an AMI for the RKE2
 
 The `internal` folder contains cluster templates to deploy an RKE2 cluster on AWS using the internal cloud provider (is DEPRECATED in favor of the external one), and the `external` folder contains the cluster templates to deploy a cluster with the external cloud provider.
 
-**Note**: `external` template is currently outdated.
-
-We will use the `internal` one for this guide.
+We will use the `internal` one for this guide, however the same steps apply for the `external` example.
 
 You will need to set the following environment variables:
 
