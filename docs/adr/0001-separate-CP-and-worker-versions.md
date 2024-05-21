@@ -6,7 +6,7 @@
 
 # 1. Separate Control Plane and Worker Versions
 
-- Status: proposed
+- Status: accepted
 - Date: 2024-05-20
 - Authors: @Danil-Grigorev
 - Deciders: @alexander-demicev @furkatgofurov7 @salasberryfin @mjura @yiannistri
