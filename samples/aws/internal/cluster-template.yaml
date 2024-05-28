@@ -84,6 +84,11 @@ spec:
       backupConfig:
         retention: "10"
         scheduleCron: "*/15 * * * *"
+  registrationMethod: "internal-first"
+  rolloutStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: 1
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSMachineTemplate
