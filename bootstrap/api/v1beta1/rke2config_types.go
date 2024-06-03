@@ -398,5 +398,5 @@ type ComponentConfig struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&RKE2Config{}, &RKE2ConfigList{})
+	objectTypes = append(objectTypes, &RKE2Config{}, &RKE2ConfigList{})
 }
