@@ -101,7 +101,7 @@ GOLANGCI_LINT_VER := v1.55.1
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN))
 
-GINKGO_VER := v2.16.0
+GINKGO_VER := v2.17.1
 GINKGO_BIN := ginkgo
 GINKGO := $(abspath $(TOOLS_BIN_DIR)/$(GINKGO_BIN)-$(GINKGO_VER))
 GINKGO_PKG := github.com/onsi/ginkgo/v2/ginkgo
@@ -158,6 +158,7 @@ generate-manifests: $(addprefix generate-manifests-,$(ALL_GENERATE_MODULES)) ## 
 generate-manifests-rke2-bootstrap: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc. for rke2 bootstrap provider
 	$(MAKE) clean-generated-yaml SRC_DIRS="./bootstrap/config/crd/bases"
 	$(CONTROLLER_GEN) \
+		paths=./bootstrap \
 		paths=./bootstrap/api/... \
 		paths=./bootstrap/internal/controllers/... \
 		crd:crdVersions=v1 \
@@ -171,6 +172,7 @@ generate-manifests-rke2-bootstrap: $(CONTROLLER_GEN) ## Generate manifests e.g. 
 generate-manifests-rke2-control-plane: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc. for RKE2 control plane provider
 	$(MAKE) clean-generated-yaml SRC_DIRS="./controlplane/config/crd/bases"
 	$(CONTROLLER_GEN) \
+		paths=./controlplane \
 		paths=./controlplane/api/... \
 		paths=./controlplane/internal/controllers/... \
 		paths=./controlplane/internal/webhooks/... \

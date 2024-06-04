@@ -420,7 +420,7 @@ const (
 )
 
 func init() { //nolint:gochecknoinits
-	SchemeBuilder.Register(&RKE2ControlPlane{}, &RKE2ControlPlaneList{})
+	objectTypes = append(objectTypes, &RKE2ControlPlane{}, &RKE2ControlPlaneList{})
 }
 
 // GetConditions returns the list of conditions for a RKE2ControlPlane object.
