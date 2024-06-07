@@ -42,7 +42,8 @@ var (
 			"--kubeconfig /etc/rancher/rke2/rke2.yaml |" +
 			" kubectl apply -f- --kubeconfig /etc/rancher/rke2/rke2.yaml",
 		"restorecon /etc/systemd/system/rke2-server.service",
-		"mkdir -p /run/cluster-api && echo success > /run/cluster-api/bootstrap-success.complete",
+		"mkdir -p /run/cluster-api /etc/cluster-api",
+		"echo success | tee /run/cluster-api/bootstrap-success.complete /etc/cluster-api/bootstrap-success.complete > /dev/null",
 		"setenforce 1",
 	}
 
@@ -52,7 +53,8 @@ var (
 		"systemctl enable rke2-agent.service",
 		"systemctl start rke2-agent.service",
 		"restorecon /etc/systemd/system/rke2-agent.service",
-		"mkdir -p /run/cluster-api && echo success > /run/cluster-api/bootstrap-success.complete",
+		"mkdir -p /run/cluster-api /etc/cluster-api",
+		"echo success | tee /run/cluster-api/bootstrap-success.complete /etc/cluster-api/bootstrap-success.complete > /dev/null",
 		"setenforce 1",
 	}
 )

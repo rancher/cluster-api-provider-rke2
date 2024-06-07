@@ -186,7 +186,7 @@ func loadE2EConfig(configPath string) *clusterctl.E2EConfig {
 	// TODO: This is commented out as it assumes kubeadm and errors if its not there
 	// Remove localLoadE2EConfig and use the line below when this issue is resolved:
 	// https://github.com/kubernetes-sigs/cluster-api/issues/3983
-	//config := clusterctl.LoadE2EConfig(ctx, clusterctl.LoadE2EConfigInput{ConfigPath: configPath})
+	// config := clusterctl.LoadE2EConfig(ctx, clusterctl.LoadE2EConfigInput{ConfigPath: configPath})
 	config := localLoadE2EConfig(configPath)
 	Expect(config).ToNot(BeNil(), "Failed to load E2E config from %s", configPath)
 

@@ -27,9 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var (
-	ctx = ctrl.SetupSignalHandler()
-)
+var ctx = ctrl.SetupSignalHandler()
 
 func TestEtcdMembers_WithErrors(t *testing.T) {
 	g := NewWithT(t)

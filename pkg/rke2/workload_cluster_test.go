@@ -78,7 +78,8 @@ var _ = Describe("Node metadata propagation", func() {
 					Name:       "stub",
 					Namespace:  ns.Name,
 				},
-			}}
+			},
+		}
 
 		machineDifferentNode = &clusterv1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
@@ -101,7 +102,8 @@ var _ = Describe("Node metadata propagation", func() {
 					Name:       "stub",
 					Namespace:  ns.Name,
 				},
-			}}
+			},
+		}
 
 		machineNodeRefStatus = clusterv1.MachineStatus{
 			NodeRef: &corev1.ObjectReference{
@@ -365,7 +367,6 @@ var _ = Describe("Node metadata propagation", func() {
 			clusterv1.MachineAnnotation: machineDifferentNode.Name,
 		}))
 	})
-
 })
 
 var _ = Describe("Cloud-init fields validation", func() {
@@ -429,7 +430,8 @@ var _ = Describe("ClusterStatus validation", func() {
 					Type:   corev1.NodeReady,
 					Status: corev1.ConditionTrue,
 				}},
-			}}
+			},
+		}
 
 		node2 = &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
@@ -446,7 +448,8 @@ var _ = Describe("ClusterStatus validation", func() {
 					Type:   corev1.NodeReady,
 					Status: corev1.ConditionFalse,
 				}},
-			}}
+			},
+		}
 
 		servingSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
