@@ -419,7 +419,6 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 		totalMachineCount = *input.ControlPlane.Spec.Replicas
 	} else {
 		totalMachineCount = *input.LegacyControlPlane.Spec.Replicas
-
 	}
 	for _, md := range input.MachineDeployments {
 		totalMachineCount += *md.Spec.Replicas

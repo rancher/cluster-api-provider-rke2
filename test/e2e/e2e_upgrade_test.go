@@ -211,7 +211,6 @@ var _ = Describe("Workload cluster creation", func() {
 				Getter:       bootstrapClusterProxy.GetClient(),
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
-
 		})
 	})
 })

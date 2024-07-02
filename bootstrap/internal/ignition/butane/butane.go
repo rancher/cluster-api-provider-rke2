@@ -54,7 +54,7 @@ systemd:
         Description=rke2-install
         Wants=network-online.target
         After=network-online.target network.target
-        ConditionPathExists=!/run/cluster-api/bootstrap-success.complete
+        ConditionPathExists=!/etc/cluster-api/bootstrap-success.complete
         [Service]
         User=root
         # To not restart the unit when it exits, as it is expected.
@@ -105,6 +105,7 @@ storage:
     {{- end }}
     - path: /etc/rke2-install.sh
       mode: 0700
+      overwrite: true
       contents:
         inline: |
           #!/bin/bash
