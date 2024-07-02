@@ -2446,7 +2446,7 @@ spec:
                 description: |-
                   Version defines the desired Kubernetes version.
                   This field takes precedence over RKE2ConfigSpec.AgentConfig.Version (which is deprecated).
-                pattern: (v\d\.\d{2}\.\d\+rke2r\d)|^$
+                pattern: (v\d\.\d{2}\.\d+\+rke2r\d)|^$
                 type: string
             required:
             - infrastructureRef
