@@ -54,10 +54,10 @@ type AuthConfig struct {
 
 // TLSConfig contains the CA/Cert/Key used for a registry.
 type TLSConfig struct {
-	CAFile             string `json:"ca_file"              toml:"ca_file"              yaml:"ca_file"`
-	CertFile           string `json:"cert_file"            toml:"cert_file"            yaml:"cert_file"`
-	KeyFile            string `json:"key_file"             toml:"key_file"             yaml:"key_file"`
-	InsecureSkipVerify bool   `json:"insecure_skip_verify" toml:"insecure_skip_verify" yaml:"insecure_skip_verify"`
+	CAFile             string `json:"ca_file,omitempty"              toml:"ca_file"              yaml:"ca_file,omitempty"`
+	CertFile           string `json:"cert_file,omitempty"            toml:"cert_file"            yaml:"cert_file,omitempty"`
+	KeyFile            string `json:"key_file,omitempty"             toml:"key_file"             yaml:"key_file,omitempty"`
+	InsecureSkipVerify bool   `json:"insecure_skip_verify,omitempty" toml:"insecure_skip_verify" yaml:"insecure_skip_verify,omitempty"`
 }
 
 // Registry is registry settings including mirrors, TLS, and credentials.
