@@ -52,7 +52,7 @@ export KREW_ROOT := $(abspath $(TOOLS_BIN_DIR))
 export PATH := $(KREW_ROOT)/bin:$(PATH)
 
 # Set --output-base for conversion-gen if we are not within GOPATH
-ifneq ($(abspath $(ROOT_DIR)),$(shell go env GOPATH)/src/github.com/rancher-sandbox/cluster-api-provider-rke2)
+ifneq ($(abspath $(ROOT_DIR)),$(shell go env GOPATH)/src/github.com/rancher/cluster-api-provider-rke2)
 	CONVERSION_GEN_OUTPUT_BASE_CAPRKE2 := --output-base=$(ROOT_DIR)/$(CAPRKE2_DIR)
 	CONVERSION_GEN_OUTPUT_BASE_CAPBPR := --output-base=$(ROOT_DIR)/$(CAPBPR_DIR)
 else
@@ -115,7 +115,7 @@ TAG ?= dev
 ARCH ?= $(shell go env GOARCH)
 ALL_ARCH = amd64 arm arm64 ppc64le s390x
 REGISTRY ?= ghcr.io
-ORG ?= rancher-sandbox
+ORG ?= rancher
 CONTROLLER_IMAGE_NAME := cluster-api-provider-rke2
 BOOTSTRAP_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-bootstrap
 CONTROLPLANE_IMAGE_NAME = $(CONTROLLER_IMAGE_NAME)-controlplane
@@ -500,7 +500,7 @@ release-manifests: $(RELEASE_DIR) $(KUSTOMIZE) ## Build the manifests to publish
 .PHONY: release-notes
 release-notes: $(RELEASE_DIR) $(GH)
 	if [ -n "${PRE_RELEASE}" ]; then \
-	echo ":rotating_light: This is a RELEASE CANDIDATE. Use it only for testing purposes. If you find any bugs, file an [issue](https://github.com/rancher-sandbox/cluster-api-provider-rke2/issues/new)." > $(RELEASE_DIR)/CHANGELOG.md; \
+	echo ":rotating_light: This is a RELEASE CANDIDATE. Use it only for testing purposes. If you find any bugs, file an [issue](https://github.com/rancher/cluster-api-provider-rke2/issues/new)." > $(RELEASE_DIR)/CHANGELOG.md; \
 	else \
 	$(GH) api repos/$(ORG)/$(GH_REPO_NAME)/releases/generate-notes -F tag_name=$(VERSION) -F previous_tag_name=$(PREVIOUS_VERSION) --jq '.body' > $(RELEASE_DIR)/CHANGELOG.md; \
 	fi
