@@ -5,9 +5,9 @@ images:
     loadBehavior: tryLoad
   - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:v0.4.0
     loadBehavior: tryLoad
-  - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-bootstrap:dev
+  - name: ghcr.io/rancher/cluster-api-provider-rke2-bootstrap:dev
     loadBehavior: mustLoad
-  - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:dev
+  - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
   - name: quay.io/jetstack/cert-manager-cainjector:v1.14.4
     loadBehavior: tryLoad
