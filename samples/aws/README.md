@@ -2,7 +2,7 @@
 This README focuses on using the RKE2 provider with the AWS Infrastructure provider.
 
 ## Setting up the Management Cluster
-Make sure your set up a Management Cluster to use with Cluster API, example [here in the main README](https://github.com/rancher-sandbox/cluster-api-provider-rke2#management-cluster).
+Make sure your set up a Management Cluster to use with Cluster API, example [here in the main README](https://github.com/rancher/cluster-api-provider-rke2#management-cluster).
 
 ## Deploying the Cluster API AWS Infrastructure Provider
 
@@ -42,7 +42,7 @@ export AWS_AMI_ID="ami-id"
 Now, we can generate the YAML files from the templates using `clusterctl generate yaml` command:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher-sandbox/cluster-api-provider-rke2/blob/main/samples/aws/internal/cluster-template.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/samples/aws/internal/cluster-template.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
 ```
 
 After examining the result YAML file, you can apply to the management cluster using :
@@ -100,6 +100,6 @@ export AWS_S3_BUCKET_NAME=<YOUR_AWS_S3_BUCKET_NAME>
 Now you can generate manifests from the cluster template:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher-sandbox/cluster-api-provider-rke2/blob/main/samples/aws/ignition-external/cluster-template-aws-ignition-external-cloud-provider.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/samples/aws/ignition-external/cluster-template-aws-ignition-external-cloud-provider.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
 ```
 

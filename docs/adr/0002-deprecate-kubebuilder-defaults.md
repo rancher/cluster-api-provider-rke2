@@ -26,7 +26,7 @@ Enforcing default values for fields in CRD definitions can cause problem with th
 ## Decision
 <!-- What is the decision that has been made -->
 
-Kubebuilder defaulting annotations were [deprecated in CAPRKE2 API](https://github.com/rancher-sandbox/cluster-api-provider-rke2/commit/86025754c0993e6e0d549110cc7f38687ac420e3). As a result of this deprecation
+Kubebuilder defaulting annotations were [deprecated in CAPRKE2 API](https://github.com/rancher/cluster-api-provider-rke2/commit/86025754c0993e6e0d549110cc7f38687ac420e3). As a result of this deprecation
 CRD definitions don't include default values for some fields.
 
 ## Consequences

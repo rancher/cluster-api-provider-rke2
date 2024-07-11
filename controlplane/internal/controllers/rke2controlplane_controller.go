@@ -48,11 +48,11 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1beta1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/kubeconfig"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/registration"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/kubeconfig"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
 )
 
 const (
