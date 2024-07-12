@@ -36,6 +36,6 @@ and the `RKE2ControlPlane` version fields. Existing `AgentConfig` version will b
 
 `AgentConfig` version is removed, so the `RKE2ControlPlane` and `MachineDeployment` should declare valid versions, following `RKE2` naming [pattern](https://github.com/rancher/rke2/releases).
 
-For users affected by the [#315](https://github.com/rancher-sandbox/cluster-api-provider-rke2/issues/315) this will require 2 step process:
+For users affected by the [#315](https://github.com/rancher/cluster-api-provider-rke2/issues/315) this will require 2 step process:
 1. Check that version defined in `MachineDeployment` matches rke2 releases: [https://github.com/rancher/rke2/releases](https://github.com/rancher/rke2/releases)
 2. Force re-rollout of all worker nodes to the version currently set in `MachineDeployment` or upgrade workers to the new version.

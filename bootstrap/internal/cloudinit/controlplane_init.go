@@ -19,7 +19,7 @@ package cloudinit
 import (
 	"fmt"
 
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
 )
 
 //nolint:lll

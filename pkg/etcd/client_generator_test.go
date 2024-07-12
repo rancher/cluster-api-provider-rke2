@@ -24,7 +24,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/etcd/fake"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd/fake"
 
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
