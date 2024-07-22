@@ -241,8 +241,8 @@ func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *
 		InfrastructureProviders:   config.InfrastructureProviders(),
 		IPAMProviders:             config.IPAMProviders(),
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
-		BootstrapProviders:        []string{"rke2-bootstrap:v0.4.0"},
-		ControlPlaneProviders:     []string{"rke2-control-plane:v0.4.0"},
+		BootstrapProviders:        []string{"rke2-bootstrap:v0.5.0"},
+		ControlPlaneProviders:     []string{"rke2-control-plane:v0.5.0"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
 }
@@ -254,8 +254,8 @@ func initLegacyBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, co
 		InfrastructureProviders:   config.InfrastructureProviders(),
 		IPAMProviders:             config.IPAMProviders(),
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
-		BootstrapProviders:        []string{"rke2-bootstrap:v0.2.7"},
-		ControlPlaneProviders:     []string{"rke2-control-plane:v0.2.7"},
+		BootstrapProviders:        []string{"rke2-bootstrap:v0.3.0"},
+		ControlPlaneProviders:     []string{"rke2-control-plane:v0.3.0"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
 }
