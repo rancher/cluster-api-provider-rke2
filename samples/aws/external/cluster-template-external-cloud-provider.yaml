@@ -3,7 +3,7 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
   labels:
     ccm: external
     csi: external
@@ -25,7 +25,7 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSCluster
 metadata:
   name: ${CLUSTER_NAME}
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   bastion:
     enabled: true
@@ -67,7 +67,7 @@ apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   version: ${RKE2_VERSION}
   preRKE2Commands:
@@ -79,7 +79,7 @@ spec:
     kind: AWSMachineTemplate
     name: ${CLUSTER_NAME}-control-plane
   nodeDrainTimeout: 2m
-  replicas: 3
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   serverConfig:
     cloudProviderName: external
     cni: calico
@@ -97,7 +97,7 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSMachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-control-plane
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   template:
     spec:
@@ -113,10 +113,10 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
   name: ${CLUSTER_NAME}-md-0
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   clusterName: ${CLUSTER_NAME}
-  replicas: ${CABPR_WK_REPLICAS}
+  replicas: ${WORKER_MACHINE_COUNT}
   selector:
     matchLabels:
       cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
@@ -141,7 +141,7 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSMachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   template:
     spec:
@@ -157,7 +157,7 @@ apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec: 
   template:
     spec:
@@ -168,7 +168,7 @@ apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
 metadata:
   name: crs-ccm
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   clusterSelector:
     matchLabels:
@@ -182,7 +182,7 @@ apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
 metadata:
   name: crs-csi
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   clusterSelector:
     matchLabels:
@@ -372,7 +372,7 @@ metadata:
   labels:
     type: generated
   name: cloud-controller-manager-addon
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 ---
 apiVersion: v1
 data:
@@ -1018,14 +1018,14 @@ metadata:
   labels:
     type: generated
   name: aws-ebs-csi-driver-addon
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSClusterControllerIdentity
 metadata:
   name: default
-  namespace: ${CLUSTER_NAMESPACE}
+  namespace: ${NAMESPACE}
 spec:
   allowedNamespaces:
     list:
-    - ${CLUSTER_NAMESPACE}
+    - ${NAMESPACE}

@@ -27,10 +27,8 @@ We will use the `internal` one for this guide, however the same steps apply for 
 You will need to set the following environment variables:
 
 ```bash
-export CLUSTER_NAMESPACE="cluster-namespace"
-export CLUSTER_NAME="cluster-name"
-export CABPR_CP_REPLICAS=3
-export CABPR_WK_REPLICAS=1
+export CONTROL_PLANE_MACHINE_COUNT=3
+export WORKER_MACHINE_COUNT=1
 export RKE2_VERSION=v1.26.0+rke2r1
 export AWS_NODE_MACHINE_TYPE=t3a.large
 export AWS_CONTROL_PLANE_MACHINE_TYPE=t3a.large 
