@@ -52,6 +52,8 @@ jobs:
       run: |
         make release RELEASE_TAG=${{ env.TAG }}
     - name: Release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release upload ${{ env.TAG }} out/metadata.yaml
         gh release upload ${{ env.TAG }} out/bootstrap-components.yaml
