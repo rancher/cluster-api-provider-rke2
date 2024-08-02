@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"context"
-	"fmt"
 	"go/build"
 	"os"
 	"path"
@@ -89,7 +88,7 @@ func (t *TestEnvironment) Cleanup(ctx context.Context, objs ...client.Object) er
 func (t *TestEnvironment) CreateNamespace(ctx context.Context, generateName string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", generateName),
+			GenerateName: generateName + "-",
 			Labels: map[string]string{
 				"testenv/original-name": generateName,
 			},
@@ -186,7 +185,7 @@ func getFilePathToCAPICRDs(root string) string {
 
 	gopath := envOr("GOPATH", build.Default.GOPATH)
 
-	return filepath.Join(gopath, "pkg", "mod", "sigs.k8s.io", fmt.Sprintf("cluster-api@v%s", clusterAPIVersion), "config", "crd", "bases")
+	return filepath.Join(gopath, "pkg", "mod", "sigs.k8s.io", "cluster-api@v"+clusterAPIVersion, "config", "crd", "bases")
 }
 
 func envOr(envKey, defaultValue string) string {

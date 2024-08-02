@@ -127,9 +127,9 @@ func (s *RKE2ConfigSpec) validateRegistries(pathPrefix *field.Path) field.ErrorL
 			allErrs = append(
 				allErrs,
 				field.Invalid(
-					pathPrefix.Child(fmt.Sprintf("privateRegistriesConfig.configs.%s", regName)),
+					pathPrefix.Child("privateRegistriesConfig.configs."+regName),
 					regConfig,
-					fmt.Sprintf("need either credentials, tls settings or both for registry: %s", regName)),
+					"need either credentials, tls settings or both for registry: "+regName),
 			)
 		}
 	}

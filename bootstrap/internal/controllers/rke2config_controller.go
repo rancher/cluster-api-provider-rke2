@@ -175,10 +175,12 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// It's a worker join
 	// GetTheControlPlane for the worker
 	wkControlPlane := controlplanev1.RKE2ControlPlane{}
-	err = r.Client.Get(ctx, types.NamespacedName{
-		Namespace: scope.Cluster.Spec.ControlPlaneRef.Namespace,
-		Name:      scope.Cluster.Spec.ControlPlaneRef.Name,
-	}, &wkControlPlane)
+	err = r.Client.Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: scope.Cluster.Spec.ControlPlaneRef.Namespace,
+			Name:      scope.Cluster.Spec.ControlPlaneRef.Name,
+		}, &wkControlPlane)
 
 	if err != nil {
 		scope.Logger.Info("Unable to find control plane object for owning Cluster", "error", err)
@@ -257,7 +259,7 @@ func (r *RKE2ConfigReconciler) prepareScope(
 	if annotations.IsPaused(cluster, config) {
 		logger.Info("Reconciliation is paused for this object")
 
-		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, fmt.Errorf("reconciliation is paused for this object")
+		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, errors.New("reconciliation is paused for this object")
 	}
 
 	scope.Cluster = cluster
@@ -982,10 +984,11 @@ func generateFilesFromManifestConfig(
 
 	manifestSec := &corev1.ConfigMap{}
 
-	err = cl.Get(ctx, types.NamespacedName{
-		Namespace: manifestConfigMap.Namespace,
-		Name:      manifestConfigMap.Name,
-	}, manifestSec)
+	err = cl.Get(
+		ctx, types.NamespacedName{
+			Namespace: manifestConfigMap.Namespace,
+			Name:      manifestConfigMap.Name,
+		}, manifestSec)
 
 	if err != nil {
 		return

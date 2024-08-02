@@ -51,7 +51,7 @@ func NewRegistrationMethod(method string) (GetRegistrationAddresses, error) {
 }
 
 func registrationMethodWithFilter(filter addressFilter) GetRegistrationAddresses {
-	return func(_ *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, availableMachines collections.Machines) ([]string, error) {
+	return func(_ *clusterv1.Cluster, _ *controlplanev1.RKE2ControlPlane, availableMachines collections.Machines) ([]string, error) {
 		validIPAddresses := []string{}
 
 		for _, availableMachine := range availableMachines {

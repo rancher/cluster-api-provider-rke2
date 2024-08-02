@@ -293,6 +293,7 @@ var _ = Describe("Node metadata propagation", func() {
 	It("should set the node annotations for an arbitrary node reference", func() {
 		node.SetAnnotations(map[string]string{
 			clusterv1.MachineAnnotation: machineDifferentNode.Name,
+			"test":                      "true",
 		})
 		Expect(testEnv.Create(ctx, node)).To(Succeed())
 		Expect(testEnv.Create(ctx, config)).To(Succeed())
