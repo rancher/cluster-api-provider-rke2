@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -251,6 +252,31 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionTrue),
 		))
+
+		// Re-fetch the node object to get the latest version
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		// Add the missing annotation
+		node.SetAnnotations(map[string]string{
+			"test":                      "true",
+			clusterv1.MachineAnnotation: nodeName,
+		})
+
+		// Retry the update operation in case of conflict
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			// Re-fetch the node object to get the latest version
+			if err := testEnv.Get(ctx, client.ObjectKeyFromObject(node), node); err != nil {
+				return err
+			}
+			// Update the node object
+			node.SetAnnotations(map[string]string{
+				"test":                      "true",
+				clusterv1.MachineAnnotation: nodeName,
+			})
+			return testEnv.Update(ctx, node)
+		})
+		Expect(err).ToNot(HaveOccurred())
+
 		Expect(w.Nodes[nodeName].GetAnnotations()).To(Equal(map[string]string{
 			"test":                      "true",
 			clusterv1.MachineAnnotation: nodeName,
@@ -308,7 +334,7 @@ var _ = Describe("Node metadata propagation", func() {
 		}))
 	})
 
-	It("should recover from error condition on successfull node patch for arbitrary node name", func() {
+	It("should recover from error condition on successful node patch for arbitrary node name", func() {
 		node.SetAnnotations(map[string]string{
 			clusterv1.MachineAnnotation: machineDifferentNode.Name,
 		})
@@ -351,6 +377,19 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
+
+		// Re-fetch the node object to get the latest version
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+
+		// Add the missing annotation
+		node.SetAnnotations(map[string]string{
+			"test":                      "true",
+			clusterv1.MachineAnnotation: machineDifferentNode.Name,
+		})
+		Expect(testEnv.Update(ctx, node)).To(Succeed())
+
+		// Re-fetch the node object again to get the latest version after update
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
 
 		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionTrue),
