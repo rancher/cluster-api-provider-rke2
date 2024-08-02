@@ -234,6 +234,8 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme,
 	return clusterProvider, clusterProxy
 }
 
+// initBootstrapCluster initializes a bootstrap cluster with the latest minor version.
+// Make sure to update the version in the providers list to the latest minor version.
 func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
 	clusterctl.InitManagementClusterAndWatchControllerLogs(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:              bootstrapClusterProxy,
@@ -247,7 +249,9 @@ func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
 }
 
-func initLegacyBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
+// initUpgradableBootstrapCluster initializes a bootstrap cluster with the latest minor version N-2 and used to perform an upgrade to the latest version.
+// Make sure to update the version in the providers list to the latest minor version N-2.
+func initUpgradableBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
 	clusterctl.InitManagementClusterAndWatchControllerLogs(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:              bootstrapClusterProxy,
 		ClusterctlConfigPath:      clusterctlConfig,
@@ -256,6 +260,20 @@ func initLegacyBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, co
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
 		BootstrapProviders:        []string{"rke2-bootstrap:v0.3.0"},
 		ControlPlaneProviders:     []string{"rke2-control-plane:v0.3.0"},
+		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
+	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
+}
+
+// initLegacyBootstrapCluster initializes a bootstrap cluster with the legacy version v0.2.7 and only used to perform an upgrade to the v0.3.0 version.
+func initLegacyBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
+	clusterctl.InitManagementClusterAndWatchControllerLogs(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
+		ClusterProxy:              bootstrapClusterProxy,
+		ClusterctlConfigPath:      clusterctlConfig,
+		InfrastructureProviders:   config.InfrastructureProviders(),
+		IPAMProviders:             config.IPAMProviders(),
+		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
+		BootstrapProviders:        []string{"rke2-bootstrap:v0.2.7"},
+		ControlPlaneProviders:     []string{"rke2-control-plane:v0.2.7"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
 }
