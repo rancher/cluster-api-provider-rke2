@@ -29,7 +29,7 @@ You will need to set the following environment variables:
 ```bash
 export CONTROL_PLANE_MACHINE_COUNT=3
 export WORKER_MACHINE_COUNT=1
-export RKE2_VERSION=v1.26.0+rke2r1
+export RKE2_VERSION=v1.30.2+rke2r1
 export AWS_NODE_MACHINE_TYPE=t3a.large
 export AWS_CONTROL_PLANE_MACHINE_TYPE=t3a.large 
 export AWS_SSH_KEY_NAME="aws-ssh-key"

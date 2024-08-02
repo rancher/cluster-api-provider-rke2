@@ -123,12 +123,17 @@ var _ = Describe("e2e workload cluster creation", func() {
 				LogFolder:             clusterctlLogFolder,
 			}, e2eConfig.GetIntervals(specName, "wait-controllers")...)
 
+			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
+				Getter:       bootstrapClusterProxy.GetClient(),
+				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
+			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
+
 			By("Upgrading to current latest minor version N boostrap/controlplane provider version")
 			clusterctl.UpgradeManagementClusterAndWait(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:          bootstrapClusterProxy,
 				ClusterctlConfigPath:  clusterctlConfigPath,
-				BootstrapProviders:    []string{"rke2-bootstrap:v0.5.99"},
-				ControlPlaneProviders: []string{"rke2-control-plane:v0.5.99"},
+				BootstrapProviders:    []string{"rke2-bootstrap:v0.5.0"},
+				ControlPlaneProviders: []string{"rke2-control-plane:v0.5.0"},
 				LogFolder:             clusterctlLogFolder,
 			}, e2eConfig.GetIntervals(specName, "wait-controllers")...)
 
