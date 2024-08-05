@@ -26,6 +26,10 @@ jobs:
           sudo docker image prune --all --force || true
           sudo swapoff -a || true
           sudo rm -f /mnt/swapfile || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf "/usr/local/share/boost" || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
           free -h
       - name: Checkout code
         uses: actions/checkout@v4
