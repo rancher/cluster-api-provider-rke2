@@ -55,6 +55,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        gh release create ${{ env.TAG }} --draft --generate-notes
         gh release upload ${{ env.TAG }} out/metadata.yaml
         gh release upload ${{ env.TAG }} out/bootstrap-components.yaml
         gh release upload ${{ env.TAG }} out/control-plane-components.yaml
