@@ -100,7 +100,7 @@ metadata:
 spec: 
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   version: ${KUBERNETES_VERSION}+rke2r1
-  registrationMethod: internal-first
+  registrationMethod: control-plane-endpoint
   rolloutStrategy:
     type: "RollingUpdate"
     rollingUpdate:
