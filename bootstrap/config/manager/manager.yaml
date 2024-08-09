@@ -41,6 +41,14 @@ spec:
           httpGet:
             path: /healthz
             port: healthz
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          runAsUser: 65532
+          runAsGroup: 65532
       terminationGracePeriodSeconds: 10
       serviceAccountName: manager
       tolerations:
@@ -48,3 +56,7 @@ spec:
           key: node-role.kubernetes.io/master
         - effect: NoSchedule
           key: node-role.kubernetes.io/control-plane
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
