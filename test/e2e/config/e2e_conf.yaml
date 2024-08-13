@@ -40,7 +40,6 @@ providers:
       contract: v1beta1
       files:
         - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
-        - sourcePath: "../data/infrastructure/cluster-template-docker-legacy.yaml"
         - sourcePath: "../data/shared/v1beta1/metadata.yaml"
       replacements:
         - old: "imagePullPolicy: Always"
@@ -52,30 +51,6 @@ providers:
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-    - name: "v0.2.7"
-      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.2.7/control-plane-components.yaml"
-      type: "url"
-      contract: v1beta1
-      files:
-        - sourcePath: "../../../metadata.yaml"
-          targetName: "metadata.yaml"
-      replacements:
-        - old: "imagePullPolicy: Always"
-          new: "imagePullPolicy: IfNotPresent"
-        - old: "--leader-elect"
-          new: "--leader-elect=false"
-    - name: "v0.3.0"
-      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.3.0/control-plane-components.yaml"
-      type: "url"
-      contract: v1beta1
-      files:
-        - sourcePath: "../../../metadata.yaml"
-          targetName: "metadata.yaml"
-      replacements:
-        - old: "imagePullPolicy: Always"
-          new: "imagePullPolicy: IfNotPresent"
-        - old: "--leader-elect"
-          new: "--leader-elect=false"
     - name: "v0.4.0"
       value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.4.0/control-plane-components.yaml"
       type: "url"
@@ -114,30 +89,6 @@ providers:
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-    - name: "v0.2.7"
-      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.2.7/bootstrap-components.yaml"
-      type: "url"
-      contract: v1beta1
-      files:
-        - sourcePath: "../../../metadata.yaml"
-          targetName: "metadata.yaml"
-      replacements:
-        - old: "imagePullPolicy: Always"
-          new: "imagePullPolicy: IfNotPresent"
-        - old: "--leader-elect"
-          new: "--leader-elect=false"
-    - name: "v0.3.0"
-      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.3.0/bootstrap-components.yaml"
-      type: "url"
-      contract: v1beta1
-      files:
-        - sourcePath: "../../../metadata.yaml"
-          targetName: "metadata.yaml"
-      replacements:
-        - old: "imagePullPolicy: Always"
-          new: "imagePullPolicy: IfNotPresent"
-        - old: "--leader-elect"
-          new: "--leader-elect=false"
     - name: "v0.4.0"
       value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.4.0/bootstrap-components.yaml"
       type: "url"

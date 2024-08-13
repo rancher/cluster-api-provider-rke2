@@ -29,11 +29,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	controlplanev1alpha1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -60,7 +58,6 @@ type ApplyClusterTemplateAndWaitInput struct {
 	WaitForControlPlaneIntervals   []interface{}
 	WaitForMachineDeployments      []interface{}
 	Args                           []string // extra args to be used during `kubectl apply`
-	Legacy                         bool     // using v1alpha1 crds version or not
 	PreWaitForCluster              func()
 	PostMachinesProvisioned        func()
 	WaitForControlPlaneInitialized Waiter
@@ -74,7 +71,6 @@ type ApplyClusterTemplateAndWaitResult struct {
 	ClusterClass       *clusterv1.ClusterClass
 	Cluster            *clusterv1.Cluster
 	ControlPlane       *controlplanev1.RKE2ControlPlane
-	LegacyControlPlane *controlplanev1alpha1.RKE2ControlPlane
 	MachineDeployments []*clusterv1.MachineDeployment
 }
 
@@ -182,38 +178,6 @@ func DiscoveryAndWaitForMachineDeployments(ctx context.Context, input framework.
 	return machineDeployments
 }
 
-func SetControllerVersionAndWait(ctx context.Context, proxy framework.ClusterProxy, version string) {
-	cp := &v1.Deployment{}
-	Expect(proxy.GetClient().Get(ctx, types.NamespacedName{
-		Name:      "rke2-control-plane-controller-manager",
-		Namespace: "rke2-control-plane-system",
-	}, cp)).ToNot(HaveOccurred())
-	cpImage := strings.Split(cp.Spec.Template.Spec.Containers[0].Image, ":")
-	cp.Spec.Template.Spec.Containers[0].Image = cpImage[0] + ":" + version
-	Expect(proxy.GetClient().Update(ctx, cp)).ToNot(HaveOccurred())
-	Eventually(func(g Gomega) {
-		g.Expect(proxy.GetClient().Get(ctx, client.ObjectKeyFromObject(cp), cp)).To(Succeed())
-		g.Expect(cp.Status.ReadyReplicas).To(Equal(*cp.Spec.Replicas))
-		g.Expect(cp.Status.ReadyReplicas).To(Equal(cp.Status.UpdatedReplicas))
-		g.Expect(cp.Status.ReadyReplicas).To(Equal(cp.Status.AvailableReplicas))
-	}).Should(Succeed())
-
-	bs := &v1.Deployment{}
-	Expect(proxy.GetClient().Get(ctx, types.NamespacedName{
-		Name:      "rke2-bootstrap-controller-manager",
-		Namespace: "rke2-bootstrap-system",
-	}, bs)).ToNot(HaveOccurred())
-	bsImage := strings.Split(bs.Spec.Template.Spec.Containers[0].Image, ":")
-	bs.Spec.Template.Spec.Containers[0].Image = bsImage[0] + ":" + version
-	Expect(proxy.GetClient().Update(ctx, bs)).ToNot(HaveOccurred())
-	Eventually(func(g Gomega) {
-		g.Expect(proxy.GetClient().Get(ctx, client.ObjectKeyFromObject(bs), bs)).To(Succeed())
-		g.Expect(bs.Status.ReadyReplicas).To(Equal(*bs.Spec.Replicas))
-		g.Expect(bs.Status.ReadyReplicas).To(Equal(bs.Status.UpdatedReplicas))
-		g.Expect(bs.Status.ReadyReplicas).To(Equal(bs.Status.AvailableReplicas))
-	}).Should(Succeed())
-}
-
 // DiscoveryAndWaitForRKE2ControlPlaneInitializedInput is the input type for DiscoveryAndWaitForRKE2ControlPlaneInitialized.
 type DiscoveryAndWaitForRKE2ControlPlaneInitializedInput struct {
 	Lister  framework.Lister
@@ -231,27 +195,6 @@ func DiscoveryAndWaitForRKE2ControlPlaneInitialized(ctx context.Context, input D
 	var controlPlane *controlplanev1.RKE2ControlPlane
 	Eventually(func(g Gomega) {
 		controlPlane = GetRKE2ControlPlaneByCluster(ctx, GetRKE2ControlPlaneByClusterInput{
-			Lister:      input.Lister,
-			ClusterName: input.Cluster.Name,
-			Namespace:   input.Cluster.Namespace,
-		})
-		g.Expect(controlPlane).ToNot(BeNil())
-	}, "10s", "1s").Should(Succeed(), "Couldn't get the control plane for the cluster %s", klog.KObj(input.Cluster))
-
-	return controlPlane
-}
-
-// DiscoveryAndWaitForLegacyRKE2ControlPlaneInitialized discovers the RKE2 object attached to a cluster and waits for it to be initialized.
-func DiscoveryAndWaitForLegacyRKE2ControlPlaneInitialized(ctx context.Context, input DiscoveryAndWaitForRKE2ControlPlaneInitializedInput, intervals ...interface{}) *controlplanev1alpha1.RKE2ControlPlane {
-	Expect(ctx).NotTo(BeNil(), "ctx is required for DiscoveryAndWaitForRKE2ControlPlaneInitialized")
-	Expect(input.Lister).ToNot(BeNil(), "Invalid argument. input.Lister can't be nil when calling DiscoveryAndWaitForRKE2ControlPlaneInitialized")
-	Expect(input.Cluster).ToNot(BeNil(), "Invalid argument. input.Cluster can't be nil when calling DiscoveryAndWaitForRKE2ControlPlaneInitialized")
-
-	By("Getting legacy RKE2ControlPlane control plane")
-
-	var controlPlane *controlplanev1alpha1.RKE2ControlPlane
-	Eventually(func(g Gomega) {
-		controlPlane = GetLegacyRKE2ControlPlaneByCluster(ctx, GetRKE2ControlPlaneByClusterInput{
 			Lister:      input.Lister,
 			ClusterName: input.Cluster.Name,
 			Namespace:   input.Cluster.Namespace,
@@ -289,71 +232,16 @@ func GetRKE2ControlPlaneByCluster(ctx context.Context, input GetRKE2ControlPlane
 	return nil
 }
 
-// GetLegacyRKE2ControlPlaneByCluster returns the RKE2ControlPlane objects for a cluster.
-func GetLegacyRKE2ControlPlaneByCluster(ctx context.Context, input GetRKE2ControlPlaneByClusterInput) *controlplanev1alpha1.RKE2ControlPlane {
-	opts := []client.ListOption{
-		client.InNamespace(input.Namespace),
-		client.MatchingLabels{
-			clusterv1.ClusterNameLabel: input.ClusterName,
-		},
-	}
-
-	controlPlaneList := &controlplanev1alpha1.RKE2ControlPlaneList{}
-	Eventually(func() error {
-		return input.Lister.List(ctx, controlPlaneList, opts...)
-	}, retryableOperationTimeout, retryableOperationInterval).Should(Succeed(), "Failed to list RKE2ControlPlane object for Cluster %s", klog.KRef(input.Namespace, input.ClusterName))
-	Expect(len(controlPlaneList.Items)).ToNot(BeNumerically(">", 1), "Cluster %s should not have more than 1 RKE2ControlPlane object", klog.KRef(input.Namespace, input.ClusterName))
-	if len(controlPlaneList.Items) == 1 {
-		return &controlPlaneList.Items[0]
-	}
-	return nil
-}
-
 // WaitForControlPlaneToBeReadyInput is the input for WaitForControlPlaneToBeReady.
 type WaitForControlPlaneToBeReadyInput struct {
-	Getter             framework.Getter
-	ControlPlane       types.NamespacedName
-	LegacyControlPlane *controlplanev1alpha1.RKE2ControlPlane
+	Getter       framework.Getter
+	ControlPlane types.NamespacedName
 }
 
 // WaitForControlPlaneToBeReady will wait for a control plane to be ready.
 func WaitForControlPlaneToBeReady(ctx context.Context, input WaitForControlPlaneToBeReadyInput, intervals ...interface{}) {
 	By("Waiting for the control plane to be ready")
 	controlplane := &controlplanev1.RKE2ControlPlane{}
-	Eventually(func() (bool, error) {
-		key := client.ObjectKey{
-			Namespace: input.ControlPlane.Namespace,
-			Name:      input.ControlPlane.Name,
-		}
-		if err := input.Getter.Get(ctx, key, controlplane); err != nil {
-			return false, errors.Wrapf(err, "failed to get RKE2 control plane")
-		}
-
-		desiredReplicas := controlplane.Spec.Replicas
-		statusReplicas := controlplane.Status.Replicas
-		updatedReplicas := controlplane.Status.UpdatedReplicas
-		readyReplicas := controlplane.Status.ReadyReplicas
-		unavailableReplicas := controlplane.Status.UnavailableReplicas
-
-		// Control plane is still rolling out (and thus not ready) if:
-		// * .spec.replicas, .status.replicas, .status.updatedReplicas,
-		//   .status.readyReplicas are not equal and
-		// * unavailableReplicas > 0
-		if statusReplicas != *desiredReplicas ||
-			updatedReplicas != *desiredReplicas ||
-			readyReplicas != *desiredReplicas ||
-			unavailableReplicas > 0 {
-			return false, nil
-		}
-
-		return true, nil
-	}, intervals...).Should(BeTrue(), framework.PrettyPrint(controlplane)+"\n")
-}
-
-// WaitForLegacyControlPlaneToBeReady will wait for a control plane to be ready.
-func WaitForLegacyControlPlaneToBeReady(ctx context.Context, input WaitForControlPlaneToBeReadyInput, intervals ...interface{}) {
-	By("Waiting for the control plane to be ready")
-	controlplane := &controlplanev1alpha1.RKE2ControlPlane{}
 	Eventually(func() (bool, error) {
 		key := client.ObjectKey{
 			Namespace: input.ControlPlane.Namespace,
@@ -405,7 +293,6 @@ func WaitForMachineConditions(ctx context.Context, input WaitForMachineCondition
 type WaitForClusterToUpgradeInput struct {
 	Lister              framework.Lister
 	ControlPlane        *controlplanev1.RKE2ControlPlane
-	LegacyControlPlane  *controlplanev1alpha1.RKE2ControlPlane
 	MachineDeployments  []*clusterv1.MachineDeployment
 	VersionAfterUpgrade string
 }
@@ -415,11 +302,8 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 	By("Waiting for machines to update")
 
 	var totalMachineCount int32
-	if input.ControlPlane != nil {
-		totalMachineCount = *input.ControlPlane.Spec.Replicas
-	} else {
-		totalMachineCount = *input.LegacyControlPlane.Spec.Replicas
-	}
+	totalMachineCount = *input.ControlPlane.Spec.Replicas
+
 	for _, md := range input.MachineDeployments {
 		totalMachineCount += *md.Spec.Replicas
 	}
@@ -451,20 +335,11 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 
 func setDefaults(input *ApplyClusterTemplateAndWaitInput) {
 	if input.WaitForControlPlaneInitialized == nil {
-		if !input.Legacy {
-			input.WaitForControlPlaneInitialized = func(ctx context.Context, input ApplyClusterTemplateAndWaitInput, result *ApplyClusterTemplateAndWaitResult) {
-				result.ControlPlane = DiscoveryAndWaitForRKE2ControlPlaneInitialized(ctx, DiscoveryAndWaitForRKE2ControlPlaneInitializedInput{
-					Lister:  input.ClusterProxy.GetClient(),
-					Cluster: result.Cluster,
-				}, input.WaitForControlPlaneIntervals...)
-			}
-		} else {
-			input.WaitForControlPlaneInitialized = func(ctx context.Context, input ApplyClusterTemplateAndWaitInput, result *ApplyClusterTemplateAndWaitResult) {
-				result.LegacyControlPlane = DiscoveryAndWaitForLegacyRKE2ControlPlaneInitialized(ctx, DiscoveryAndWaitForRKE2ControlPlaneInitializedInput{
-					Lister:  input.ClusterProxy.GetClient(),
-					Cluster: result.Cluster,
-				}, input.WaitForControlPlaneIntervals...)
-			}
+		input.WaitForControlPlaneInitialized = func(ctx context.Context, input ApplyClusterTemplateAndWaitInput, result *ApplyClusterTemplateAndWaitResult) {
+			result.ControlPlane = DiscoveryAndWaitForRKE2ControlPlaneInitialized(ctx, DiscoveryAndWaitForRKE2ControlPlaneInitializedInput{
+				Lister:  input.ClusterProxy.GetClient(),
+				Cluster: result.Cluster,
+			}, input.WaitForControlPlaneIntervals...)
 		}
 	}
 }
