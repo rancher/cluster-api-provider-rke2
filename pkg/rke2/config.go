@@ -55,6 +55,7 @@ fi
 
 YUM_BASED_PARAM_FILE_FOUND=false
 TAR_BASED_PARAM_FILE_FOUND=false
+INSTALLER_BASED_PARAM_FILE_FOUND=false
 
 # Using RKE2 generated kernel parameters
 if [ -f /usr/share/rke2/rke2-cis-sysctl.conf ]; then
@@ -67,7 +68,12 @@ if [ -f /usr/local/share/rke2/rke2-cis-sysctl.conf ]; then
 		cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/90-rke2-cis.conf
 fi
 
-if [ "$YUM_BASED_PARAM_FILE_FOUND" = false ] && [ "$TAR_BASED_PARAM_FILE_FOUND" = false ]; then
+if [ -f /opt/rke2/share/rke2/rke2-cis-sysctl.conf ]; then
+		INSTALLER_BASED_PARAM_FILE_FOUND=true
+		cp -f /opt/rke2/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/90-rke2-cis.conf
+fi
+
+if [ "$YUM_BASED_PARAM_FILE_FOUND" = false ] && [ "$TAR_BASED_PARAM_FILE_FOUND" = false ] && [ "$INSTALLER_BASED_PARAM_FILE_FOUND" = false ]; then
 		echo "No kernel parameters file found"
 		exit 1
 fi
