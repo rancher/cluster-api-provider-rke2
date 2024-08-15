@@ -46,5 +46,5 @@ const (
 	DefaultFileMode = "0644"
 
 	// FileModeRootExecutable is the mode of the files created by the controller when the owner is root.
-	FileModeRootExecutable = "700"
+	FileModeRootExecutable = "0700"
 )
