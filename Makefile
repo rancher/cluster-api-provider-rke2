@@ -394,7 +394,7 @@ SKIP_CREATE_MGMT_CLUSTER ?= false
 
 .PHONY: test-e2e-run
 test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image inotify-check ## Run the end-to-end tests
-	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" time $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
+	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
 	--tags=e2e --focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
 		-e2e.artifacts-folder="$(ARTIFACTS)" \
