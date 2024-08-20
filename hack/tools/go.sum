@@ -1,0 +1,4 @@
+sigs.k8s.io/cluster-api/hack/tools v0.0.0-20240820112706-3abe3058a6a8 h1:L+YRo/LbSJ+Rc6vMIz007sEkAvY5QW1kptl8StmIxNc=
+sigs.k8s.io/cluster-api/hack/tools v0.0.0-20240820112706-3abe3058a6a8/go.mod h1:xZhAF40RPQKqNbmpLg81sxibOAz/Y17bgmdJxZszN7w=
+sigs.k8s.io/kubebuilder/docs/book/utils v0.0.0-20211028165026-57688c578b5d h1:KLiQzLW3RZJR19+j4pw2h5iioyAyqCkDBEAFdnGa3N8=
+sigs.k8s.io/kubebuilder/docs/book/utils v0.0.0-20211028165026-57688c578b5d/go.mod h1:NRdZafr4zSCseLQggdvIMXa7umxf+Q+PJzrj3wFwiGE=
