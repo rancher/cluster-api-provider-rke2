@@ -95,6 +95,7 @@ storage:
       {{ if ne .Permissions "" -}}
       mode: {{ .Permissions }}
       {{ end -}}
+      overwrite: true
       contents:
         {{ if eq .Encoding "base64" -}}
         inline: !!binary |
