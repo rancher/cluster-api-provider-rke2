@@ -38,9 +38,8 @@ import (
 // The rke2-install.service unit is enabled and is executed only once during the boot process to run the /etc/rke2-install.sh script.
 // This script installs and deploys RKE2, and performs pre and post-installation commands.
 // The ntpd.service unit is enabled only if NTP servers are specified.
-// The second section defines storage files for the system. It creates a file at /etc/rke2-install.sh. If CISEnabled is set to true,
-// it runs an additional CIS script to enforce system security standards. If NTP servers are specified,
-// it creates an NTP configuration file at /etc/ntp.conf.
+// The second section defines storage files for the system. It creates a file at /etc/rke2-install.sh.
+// If NTP servers are specified, it creates an NTP configuration file at /etc/ntp.conf.
 const (
 	butaneTemplate = `
 variant: fcos
@@ -113,10 +112,6 @@ storage:
           {{ range .PreRKE2Commands }}
           {{ . | Indent 10 }}
           {{- end }}
-
-		  {{- if .CISEnabled }}
-  		  /opt/rke2-cis-script.sh
-		  {{ end }}
 
           {{ range .DeployRKE2Commands }}
           {{ . | Indent 10 }}

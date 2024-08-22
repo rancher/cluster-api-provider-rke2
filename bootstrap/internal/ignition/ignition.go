@@ -29,6 +29,7 @@ const (
 	controlPlaneCommand          = "curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s sh -s - server"
 	airGappedWorkerCommand       = "INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE=\"agent\" sh /opt/install.sh"
 	workerCommand                = "curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s INSTALL_RKE2_TYPE=\"agent\" sh -s -"
+	cisPreparationCommand        = "/opt/rke2-cis-script.sh"
 )
 
 var (
@@ -169,6 +170,11 @@ func getRKE2Commands(baseUserData *cloudinit.BaseUserData, command, airgappedCom
 		rke2Commands = append(rke2Commands, airgappedCommand)
 	} else {
 		rke2Commands = append(rke2Commands, fmt.Sprintf(command, baseUserData.RKE2Version))
+	}
+
+	// If CISEnabled is set to true we run an additional script for CIS mode pre-requisite config
+	if baseUserData.CISEnabled {
+		rke2Commands = append(rke2Commands, cisPreparationCommand)
 	}
 
 	rke2Commands = append(rke2Commands, systemdServices...)
