@@ -33,7 +33,6 @@ import (
 	"k8s.io/klog/v2"
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
-	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -319,11 +318,7 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 		}
 
 		for _, machine := range machineList.Items {
-			expectedVersion := input.VersionAfterUpgrade
-			if bsutil.IsRKE2Version(*machine.Spec.Version) {
-				expectedVersion = input.VersionAfterUpgrade + "+rke2r1"
-			}
-
+			expectedVersion := input.VersionAfterUpgrade + "+rke2r1"
 			if machine.Spec.Version != nil && *machine.Spec.Version != expectedVersion {
 				return false, nil
 			}
