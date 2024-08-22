@@ -159,3 +159,8 @@ require (
 	sigs.k8s.io/kind v0.22.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
+
+replace (
+	sigs.k8s.io/cluster-api => github.com/alexander-demicev/cluster-api v1.99.99
+	sigs.k8s.io/cluster-api/test => github.com/alexander-demicev/cluster-api/test v1.99.99
+)

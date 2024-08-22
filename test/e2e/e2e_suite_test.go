@@ -151,7 +151,20 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	kubeconfigPath := parts[3]
 
 	e2eConfig = loadE2EConfig(configPath)
-	bootstrapClusterProxy = framework.NewClusterProxy("bootstrap", kubeconfigPath, initScheme(), framework.WithMachineLogCollector(framework.DockerLogCollector{}))
+	bootstrapClusterProxy = framework.NewClusterProxy("bootstrap", kubeconfigPath, initScheme(), framework.WithMachineLogCollector(framework.DockerLogCollector{
+		AdditionalLogs: []framework.AdditionalLogs{
+			{
+				OutputFileName: "rke2-server.log",
+				Command:        "journalctl",
+				Args:           []string{"--no-pager", "--output=short-precise", "-u", "rke2-server"},
+			},
+			{
+				OutputFileName: "rke2-agent.log",
+				Command:        "journalctl",
+				Args:           []string{"--no-pager", "--output=short-precise", "-u", "rke2-agent"},
+			},
+		},
+	}))
 })
 
 // Using a SynchronizedAfterSuite for controlling how to delete resources shared across ParallelNodes (~ginkgo threads).
