@@ -66,6 +66,13 @@ systemd:
       enabled: true
     {{- end }}
 storage:
+  filesystems:
+    - path: /opt
+      device: "/dev/disk/by-partlabel/p.lxroot"
+      format: btrfs
+      wipe_filesystem: false
+      mount_options:
+       - "subvol=/@/opt"
   files:
     - path: /etc/ssh/sshd_config
       mode: 0600
