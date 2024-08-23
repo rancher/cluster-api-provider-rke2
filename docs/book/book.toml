@@ -1,0 +1,9 @@
+[book]
+authors = ["The Cluster API Provider RKE2 Maintainers"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Kubernetes Cluster API Provider RKE2"
+
+[preprocessor.embed]
+command = "./util-embed.sh"
