@@ -18,10 +18,17 @@ package ignition
 
 import (
 	"fmt"
+	"compress/gzip"
+	"bytes"
+	"io/ioutil"
+	"encoding/base64"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	ignition "github.com/coreos/ignition/v2/config/v3_3"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
@@ -75,24 +82,64 @@ var _ = Describe("NewJoinWorker", func() {
 	})
 
 	It("should return ignition data for worker", func() {
-		ignition, err := NewJoinWorker(input)
+		ignitionJson, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(ignition).ToNot(BeNil())
+		Expect(ignitionJson).ToNot(BeNil())
+
+		ign, reports, err := ignition.Parse(ignitionJson)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(reports.IsFatal()).To(BeFalse())
+
+		Expect(ign.Storage.Files).To(HaveLen(4))
+		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config"))
+		Expect(ign.Storage.Files[1].Path).To(Equal("/test/file"))
+		Expect(ign.Storage.Files[2].Path).To(Equal("/test/config"))
+		Expect(ign.Storage.Files[3].Path).To(Equal("/etc/rke2-install.sh"))
 	})
 
 	It("should return error if input is nil", func() {
 		input = nil
-		ignition, err := NewJoinWorker(input)
+		ignitionJson, err := NewJoinWorker(input)
 		Expect(err).To(HaveOccurred())
-		Expect(ignition).To(BeNil())
+		Expect(ignitionJson).To(BeNil())
 	})
 
 	It("should return error if base userdata is nil", func() {
 		input.BaseUserData = nil
-		ignition, err := NewJoinWorker(input)
+		ignitionJson, err := NewJoinWorker(input)
 		Expect(err).To(HaveOccurred())
-		Expect(ignition).To(BeNil())
+		Expect(ignitionJson).To(BeNil())
 	})
+
+	It("should add preparation script with CISEnabled", func() {
+		input.CISEnabled = true
+		ignitionJson, err := NewJoinWorker(input)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ignitionJson).ToNot(BeNil())
+
+		ign, reports, err := ignition.Parse(ignitionJson)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(reports.IsFatal()).To(BeFalse())
+
+		Expect(ign.Storage.Files).To(HaveLen(4))
+		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config"))
+		Expect(ign.Storage.Files[1].Path).To(Equal("/test/file"))
+		Expect(ign.Storage.Files[2].Path).To(Equal("/test/config"))
+		Expect(ign.Storage.Files[3].Path).To(Equal("/etc/rke2-install.sh"))
+
+		// Check rke2-install.sh contains the call to rke2-cis-script.sh
+		// The ignition file contents is gzipped and base64 encoded, so unpack it first
+		scriptContentsEnc := strings.Split(*ign.Storage.Files[3].Contents.Source, ",")[1]
+		scriptContentsGzip, err := base64.StdEncoding.DecodeString(scriptContentsEnc)
+		Expect(err).ToNot(HaveOccurred())
+		reader := bytes.NewReader(scriptContentsGzip)
+		gzreader, err := gzip.NewReader(reader);
+		Expect(err).ToNot(HaveOccurred())
+		scriptContents, err := ioutil.ReadAll(gzreader)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(scriptContents).To(ContainSubstring("/opt/rke2-cis-script.sh"))
+	})
+
 })
 
 var _ = Describe("NewJoinControlPlane", func() {
@@ -125,23 +172,23 @@ var _ = Describe("NewJoinControlPlane", func() {
 	})
 
 	It("should return ignition data for control plane", func() {
-		ignition, err := NewJoinControlPlane(input)
+		ignitionJson, err := NewJoinControlPlane(input)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(ignition).ToNot(BeNil())
+		Expect(ignitionJson).ToNot(BeNil())
 	})
 
 	It("should return error if input is nil", func() {
 		input = nil
-		ignition, err := NewJoinControlPlane(input)
+		ignitionJson, err := NewJoinControlPlane(input)
 		Expect(err).To(HaveOccurred())
-		Expect(ignition).To(BeNil())
+		Expect(ignitionJson).To(BeNil())
 	})
 
 	It("should return error if control plane input is nil", func() {
 		input.ControlPlaneInput = nil
-		ignition, err := NewJoinControlPlane(input)
+		ignitionJson, err := NewJoinControlPlane(input)
 		Expect(err).To(HaveOccurred())
-		Expect(ignition).To(BeNil())
+		Expect(ignitionJson).To(BeNil())
 	})
 })
 
@@ -175,23 +222,23 @@ var _ = Describe("NewInitControlPlane", func() {
 	})
 
 	It("should return ignition data for control plane", func() {
-		ignition, err := NewInitControlPlane(input)
+		ignitionJson, err := NewInitControlPlane(input)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(ignition).ToNot(BeNil())
+		Expect(ignitionJson).ToNot(BeNil())
 	})
 
 	It("should return error if input is nil", func() {
 		input = nil
-		ignition, err := NewInitControlPlane(input)
+		ignitionJson, err := NewInitControlPlane(input)
 		Expect(err).To(HaveOccurred())
-		Expect(ignition).To(BeNil())
+		Expect(ignitionJson).To(BeNil())
 	})
 
 	It("should return error if control plane input is nil", func() {
 		input.ControlPlaneInput = nil
-		ignition, err := NewInitControlPlane(input)
+		ignitionJson, err := NewInitControlPlane(input)
 		Expect(err).To(HaveOccurred())
-		Expect(ignition).To(BeNil())
+		Expect(ignitionJson).To(BeNil())
 	})
 })
 
