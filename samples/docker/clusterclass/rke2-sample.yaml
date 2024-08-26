@@ -15,13 +15,16 @@ spec:
       - 10.46.0.0/16
   topology:
     class: rke2-class
+    version: ${KUBERNETES_VERSION}+rke2r1
     controlPlane:
       metadata: {}
       replicas: ${CABPR_CP_REPLICAS}
-    version: ${KUBERNETES_VERSION}+rke2r1
     workers:
       machineDeployments:
       - class: default-worker
         name: md-0
         replicas: ${CABPR_WK_REPLICAS}
+    variables:
+      - name: dockerKindImage
+        value: kindest/node:${KUBERNETES_VERSION}
 
