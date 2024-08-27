@@ -77,9 +77,9 @@ type RKE2ControlPlaneSpec struct {
 	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
 
 	// RegistrationMethod is the method to use for registering nodes into the RKE2 cluster.
-	// +kubebuilder:validation:Enum=internal-first;internal-only-ips;external-only-ips;address;control-plane-endpoint
+	// +kubebuilder:validation:Enum=internal-first;internal-only-ips;external-only-ips;address;control-plane-endpoint;""
 	// +optional
-	RegistrationMethod RegistrationMethod `json:"registrationMethod"`
+	RegistrationMethod RegistrationMethod `json:"registrationMethod,omitempty"`
 
 	// RegistrationAddress is an explicit address to use when registering a node. This is required if
 	// the registration type is "address". Its for scenarios where a load-balancer or VIP is used.

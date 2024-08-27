@@ -85,9 +85,10 @@ func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) (admission.Warning
 	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)...)
 	allErrs = append(allErrs, r.validateCNI()...)
 
-	if r.Spec.RegistrationMethod != oldControlplane.Spec.RegistrationMethod {
+	oldSet := oldControlplane.Spec.RegistrationMethod != ""
+	if oldSet && r.Spec.RegistrationMethod != oldControlplane.Spec.RegistrationMethod {
 		allErrs = append(allErrs,
-			field.Invalid(field.NewPath("spec", "registrationMethod"), r.Spec.RegistrationMethod, "field is immutable"),
+			field.Invalid(field.NewPath("spec", "registrationMethod"), r.Spec.RegistrationMethod, "field value is immutable once set"),
 		)
 	}
 

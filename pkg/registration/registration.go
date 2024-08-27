@@ -43,7 +43,7 @@ func NewRegistrationMethod(method string) (GetRegistrationAddresses, error) {
 		return registrationMethodWithFilter(filterExternalOnly), nil
 	case "address":
 		return registrationMethodAddress, nil
-	case "control-plane-endpoint":
+	case "control-plane-endpoint", "":
 		return registrationMethodControlPlaneEndpoint, nil
 	default:
 		return nil, fmt.Errorf("unsupported registration method: %s", method)
