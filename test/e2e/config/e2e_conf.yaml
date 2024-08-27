@@ -1,10 +1,6 @@
 managementClusterName: caprke2-e2e
 
 images:
-  - name: ghcr.io/rancher/cluster-api-provider-rke2-bootstrap:v0.5.0
-    loadBehavior: tryLoad
-  - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:v0.5.0
-    loadBehavior: tryLoad
   - name: ghcr.io/rancher/cluster-api-provider-rke2-bootstrap:dev
     loadBehavior: mustLoad
   - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:dev
@@ -75,7 +71,7 @@ providers:
           new: "imagePullPolicy: IfNotPresent"
         - old: "--leader-elect"
           new: "--leader-elect=false"
-    - name: v0.5.99
+    - name: v0.6.99
       value: "../../../controlplane/config/default"
       contract: v1beta1
       files:
@@ -113,7 +109,7 @@ providers:
           new: "imagePullPolicy: IfNotPresent"
         - old: "--leader-elect"
           new: "--leader-elect=false"
-    - name: v0.5.99
+    - name: v0.6.99
       value: ../../../bootstrap/config/default
       contract: v1beta1
       files:
