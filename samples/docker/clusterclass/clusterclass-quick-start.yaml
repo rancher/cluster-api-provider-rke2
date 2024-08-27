@@ -32,19 +32,40 @@ spec:
             apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
             kind: DockerMachineTemplate
             name: rke2-class-default-worker-machinetemplate
-    machinePools:
-    - class: default-worker
-      template:
-        bootstrap:
-          ref:
-            apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-            kind: RKE2ConfigTemplate
-            name: rke2-class-default-worker-bootstraptemplate
-        infrastructure:
-          ref:
-            apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-            kind: DockerMachinePoolTemplate
-            name: rke2-class-default-worker-machinepooltemplate
+  variables:
+    - name: dockerKindImage
+      required: true
+      schema:
+        openAPIV3Schema:
+          type: string
+          default: kindest/node:v1.28.12
+  patches:
+    - name: controlPlaneDockerKindImage 
+      definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+          kind: DockerMachineTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/customImage
+            valueFrom:
+              variable: dockerKindImage
+    - name: workerDockerKindImage
+      definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+          kind: DockerMachineTemplate
+          matchResources:
+            machineDeploymentClass:
+              names:
+              - default-worker
+        jsonPatches:
+        - op: add
+          path: "/spec/template/spec/customImage"
+          valueFrom:
+            variable: dockerKindImage
 ---
 apiVersion: v1
 data:
@@ -129,8 +150,6 @@ metadata:
 spec:
   template:
     spec:
-      agentConfig:
-        version: ${KUBERNETES_VERSION}+rke2r1
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: DockerMachineTemplate
@@ -140,54 +159,11 @@ spec:
         disableComponents:
           kubernetesComponents: [ "cloudController"]
       nodeDrainTimeout: 2m
+      registrationMethod: "control-plane-endpoint"
       rolloutStrategy:
         type: "RollingUpdate"
         rollingUpdate:
           maxSurge: 1
-      registrationMethod: "address"
-      registrationAddress: "${KIND_IP}"
-      preRKE2Commands:
-      - mkdir -p /var/lib/rancher/rke2/server/manifests/ && ctr images pull ghcr.io/kube-vip/kube-vip:v0.6.0
-        && ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:v0.6.0 vip /kube-vip
-        manifest daemonset --arp --interface $(ip -4 -j route list default | jq -r
-        .[0].dev) --address "${KIND_IP}" --controlplane --leaderElection --taint
-        --services --inCluster | tee /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
-      files:
-      - path: /var/lib/rancher/rke2/server/manifests/kube-vip-rbac.yaml
-        content: |
-          apiVersion: v1
-          kind: ServiceAccount
-          metadata:
-            name: kube-vip
-            namespace: kube-system
-          ---
-          apiVersion: rbac.authorization.k8s.io/v1
-          kind: ClusterRole
-          metadata:
-            annotations:
-              rbac.authorization.kubernetes.io/autoupdate: "true"
-            name: system:kube-vip-role
-          rules:
-            - apiGroups: [""]
-              resources: ["services", "services/status", "nodes", "endpoints"]
-              verbs: ["list","get","watch", "update"]
-            - apiGroups: ["coordination.k8s.io"]
-              resources: ["leases"]
-              verbs: ["list", "get", "watch", "update", "create"]
-          ---
-          kind: ClusterRoleBinding
-          apiVersion: rbac.authorization.k8s.io/v1
-          metadata:
-            name: system:kube-vip-binding
-          roleRef:
-            apiGroup: rbac.authorization.k8s.io
-            kind: ClusterRole
-            name: system:kube-vip-role
-          subjects:
-          - kind: ServiceAccount
-            name: kube-vip
-            namespace: kube-system
-        owner: root:root
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
@@ -196,6 +172,7 @@ metadata:
 spec:
   template:
     spec:
+      customImage: kindest/node:v1.28.0 # will be replaced by the patch
       extraMounts:
       - containerPath: "/var/run/docker.sock"
         hostPath: "/var/run/docker.sock"
@@ -208,19 +185,11 @@ metadata:
 spec:
   template:
     spec:
+      customImage: kindest/node:v1.28.0 # will be replaced by the patch
       extraMounts:
       - containerPath: "/var/run/docker.sock"
         hostPath: "/var/run/docker.sock"
       bootstrapTimeout: 10m
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: DockerMachinePoolTemplate
-metadata:
-  name: rke2-class-default-worker-machinepooltemplate
-spec:
-  template:
-    spec:
-      template: {}
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate
@@ -228,6 +197,4 @@ metadata:
   name: rke2-class-default-worker-bootstraptemplate
 spec:
   template:
-    spec: 
-      agentConfig:
-        version: ${KUBERNETES_VERSION}+rke2r1
+    spec: {} 
