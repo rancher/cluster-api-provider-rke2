@@ -159,7 +159,6 @@ spec:
         disableComponents:
           kubernetesComponents: [ "cloudController"]
       nodeDrainTimeout: 2m
-      registrationMethod: "control-plane-endpoint"
       rolloutStrategy:
         type: "RollingUpdate"
         rollingUpdate:

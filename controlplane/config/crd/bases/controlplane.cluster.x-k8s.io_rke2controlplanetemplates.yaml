@@ -782,6 +782,7 @@ spec:
                         - external-only-ips
                         - address
                         - control-plane-endpoint
+                        - ""
                         type: string
                       replicas:
                         description: Replicas is the number of replicas for the Control

@@ -136,7 +136,6 @@ spec:
       backupConfig:
         retention: "10"
         scheduleCron: "*/15 * * * *"
-  registrationMethod: control-plane-endpoint
   rolloutStrategy:
     type: "RollingUpdate"
     rollingUpdate:

@@ -54,6 +54,10 @@ func TestNewRegistrationMethod(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "",
+			expectError: false,
+		},
+		{
 			name:        "unknownmethod",
 			expectError: true,
 		},
