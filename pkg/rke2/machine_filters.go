@@ -35,7 +35,7 @@ func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Confi
 			return true
 		}
 
-		// Check if RCP and machine RKE2Config matche, if not return
+		// Check if RCP and machine RKE2Config matches, if not return
 		if match := matchServerConfig(rcp, machine); !match {
 			return false
 		}
@@ -52,6 +52,42 @@ func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Confi
 			// Return true here because failing to get KubeadmConfig should not be considered as unmatching.
 			// This is a safety precaution to avoid rolling out machines if the client or the api-server is misbehaving.
 			return true
+		}
+
+		if _, ok := machineConfig.Annotations["cluster-api.cattle.io/turtles-system-agent"]; ok {
+			files := []bootstrapv1.File{}
+
+			for _, file := range machineConfig.Spec.Files {
+				switch file.Path {
+				case "/etc/rancher/agent/connect-info-config.json", "/opt/system-agent-install.sh",
+					"/etc/rancher/agent/config.yaml": // Filter out files that are injected by the Rancher Turtles webhook
+					continue
+				}
+
+				files = append(files, file)
+			}
+
+			if len(files) == 0 {
+				machineConfig.Spec.Files = nil // Set to nil because rcp.Spec.RKE2ConfigSpec.Files will be nil if no files are present
+			} else {
+				machineConfig.Spec.Files = files
+			}
+
+			cmds := []string{}
+
+			for _, cmd := range machineConfig.Spec.PostRKE2Commands { // Filter out commands that are injected by the Rancher Turtles webhook
+				if cmd == "sudo sh /opt/system-agent-install.sh" {
+					continue
+				}
+
+				cmds = append(cmds, cmd)
+			}
+
+			if len(cmds) == 0 {
+				machineConfig.Spec.PostRKE2Commands = nil // Set to nil because rcp.Spec.RKE2ConfigSpec.PostRKE2Commands will be nil if no commands are present
+			} else {
+				machineConfig.Spec.PostRKE2Commands = cmds
+			}
 		}
 
 		// Check if RCP AgentConfig and machineBootstrapConfig matches
