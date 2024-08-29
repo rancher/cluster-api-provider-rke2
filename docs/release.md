@@ -2,8 +2,8 @@
 
 ## Release Cadence
 
-- CAPRKE2 minor versions (v0.**2**.0 versus v0.**1**.0) are released every 3-4 months.
-- CAPRKE2 patch versions (v0.2.**2** versus v0.2.**1**) are released as often as weekly or once a month. 
+- CAPRKE2 minor versions (v0.**2**.0 versus v0.**1**.0) are released every 1-2 months.
+- CAPRKE2 patch versions (v0.2.**2** versus v0.2.**1**) are released as often as weekly or bi-weekly. 
 
 ## Release Process
 
@@ -45,7 +45,7 @@ git tag -s -a ${RELEASE_TAG} -m ${RELEASE_TAG}
 git push upstream ${RELEASE_TAG}
 ```
 
-This will trigger a [release GitHub action](https://github.com/rancher/cluster-api-provider-rke2/blob/main/.github/workflows/release.yml) that creates a release with RKE2 provider components.
+This will trigger a [release GitHub action](https://github.com/rancher/cluster-api-provider-rke2/actions/workflows/release.yml) that creates a release with RKE2 provider components.
 
 ## Tasks
 
