@@ -19,6 +19,7 @@ package rke2
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -197,13 +198,13 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 	if opts.Cluster.Spec.ClusterNetwork != nil &&
 		opts.Cluster.Spec.ClusterNetwork.Pods != nil &&
 		len(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks) > 0 {
-		rke2ServerConfig.ClusterCIDR = opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks[0]
+		rke2ServerConfig.ClusterCIDR = strings.Join(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks, ",")
 	}
 
 	if opts.Cluster.Spec.ClusterNetwork != nil &&
 		opts.Cluster.Spec.ClusterNetwork.Services != nil &&
 		len(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks) > 0 {
-		rke2ServerConfig.ServiceCIDR = opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks[0]
+		rke2ServerConfig.ServiceCIDR = strings.Join(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks, ",")
 	}
 
 	rke2ServerConfig.BindAddress = opts.ServerConfig.BindAddress
