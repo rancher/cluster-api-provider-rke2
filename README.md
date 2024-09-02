@@ -12,12 +12,10 @@ Cluster API Provider RKE2 is a combination of 2 provider types, a __Cluster API 
 
 ------
 
-## Getting Started
-Follow our [getting started guide](./docs/book/src/getting-started.md) to start creating RKE2 clusters with CAPI.  
+Please see our [book](https://rancher.github.io/cluster-api-provider-rke2/) for in-depth documentation.
 
-## Developer Guide
-Check our [developer guide](./docs/book/src/developers/development.md) for instructions on how to setup your dev environment in order to contribute to this project.
+------
 
-## Get in contact
-You can get in contact with us via the [#capbr](https://rancher-users.slack.com/archives/C046X0CDKCH) channel on the [Rancher Users Slack](https://slack.rancher.io/).
+## How to contribute?
 
+See our [contributor guide](https://rancher.github.io/cluster-api-provider-rke2/03_developer/00.html) for more details on how to get involved.
