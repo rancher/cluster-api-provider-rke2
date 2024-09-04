@@ -6,6 +6,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/coreos/butane v0.19.0
 	github.com/coreos/ignition/v2 v2.18.0
+	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46
 	github.com/go-logr/logr v1.4.2
 	github.com/google/gofuzz v1.2.0
 	github.com/onsi/ginkgo/v2 v2.20.1
@@ -56,7 +57,6 @@ require (
 	github.com/docker/docker v25.0.6+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.0 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect

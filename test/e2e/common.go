@@ -45,6 +45,8 @@ const (
 	KubernetesVersionUpgradeTo      = "KUBERNETES_VERSION_UPGRADE_TO"
 	CPMachineTemplateUpgradeTo      = "CONTROL_PLANE_MACHINE_TEMPLATE_UPGRADE_TO"
 	WorkersMachineTemplateUpgradeTo = "WORKERS_MACHINE_TEMPLATE_UPGRADE_TO"
+	ControlPlaneMachineCount        = "CONTROL_PLANE_MACHINE_COUNT"
+	WorkerMachineCount              = "WORKER_MACHINE_COUNT"
 	IPFamily                        = "IP_FAMILY"
 	KindImageVersion                = "KIND_IMAGE_VERSION"
 )

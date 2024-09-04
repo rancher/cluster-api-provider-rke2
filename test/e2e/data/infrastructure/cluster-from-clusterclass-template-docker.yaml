@@ -1,0 +1,29 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: "${CLUSTER_NAME}"
+  namespace: "${NAMESPACE}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 10.45.0.0/16
+    serviceDomain: cluster.local
+    services:
+      cidrBlocks:
+      - 10.46.0.0/16
+  topology:
+    class: "${CLASS_NAME}"
+    version: ${KUBERNETES_VERSION}+rke2r1
+    controlPlane:
+      metadata: {}
+      replicas: ${CABPR_CP_REPLICAS}
+    workers:
+      machineDeployments:
+      - class: default-worker
+        name: md-0
+        replicas: ${CABPR_WK_REPLICAS}
+    variables:
+      - name: dockerKindImage
+        value: kindest/node:${KIND_IMAGE_VERSION}
