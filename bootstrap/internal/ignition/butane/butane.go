@@ -34,12 +34,12 @@ import (
 )
 
 // The template contains configurations for two main sections: systemd units and storage files.
-// The first section defines two systemd units: rke2-install.service and ntpd.service.
+// The first section defines two systemd units: rke2-install.service and chronyd.service.
 // The rke2-install.service unit is enabled and is executed only once during the boot process to run the /etc/rke2-install.sh script.
 // This script installs and deploys RKE2, and performs pre and post-installation commands.
-// The ntpd.service unit is enabled only if NTP servers are specified.
+// The chronyd.service unit is enabled only if NTP servers are specified.
 // The second section defines storage files for the system. It creates a file at /etc/rke2-install.sh.
-// If NTP servers are specified, it creates an NTP configuration file at /etc/ntp.conf.
+// If NTP servers are specified, it creates an NTP configuration file at /etc/chrony.conf.
 const (
 	butaneTemplate = `
 variant: fcos
@@ -62,7 +62,7 @@ systemd:
         [Install]
         WantedBy=multi-user.target
     {{- if .NTPServers }}
-    - name: ntpd.service
+    - name: chronyd.service
       enabled: true
     {{- end }}
 storage:
@@ -129,28 +129,22 @@ storage:
           {{ . | Indent 10 }}
           {{- end }}
     {{- if .NTPServers }}
-    - path: /etc/ntp.conf
+    - path: /etc/chrony.conf
       mode: 0644
+      overwrite: true
       contents:
         inline: |
-          # Common pool
+          # Configured by RKE2 CAPI bootstrap provider
           {{- range  .NTPServers }}
           server {{ . }}
           {{- end }}
-
-          # Warning: Using default NTP settings will leave your NTP
-          # server accessible to all hosts on the Internet.
-
-          # If you want to deny all machines (including your own)
-          # from accessing the NTP server, uncomment:
-          #restrict default ignore
-
-          # Default configuration:
-          # - Allow only time queries, at a limited rate, sending KoD when in excess.
-          # - Allow all local queries (IPv4, IPv6)
-          restrict default nomodify nopeer noquery notrap limited kod
-          restrict 127.0.0.1
-          restrict [::1]
+          driftfile /var/lib/chrony/drift
+          makestep 1.0 3
+          rtcsync
+          ntsdumpdir /var/lib/chrony
+          logdir /var/log/chrony
+          include /etc/chrony.d/*.conf
+          sourcedir /run/chrony-dhcp
     {{- end }}
 `
 )
