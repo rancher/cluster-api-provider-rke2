@@ -151,20 +151,6 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 		return ctrl.Result{}, errors.New("failed to pick control plane Machine to delete")
 	}
 
-	// If etcd leadership is on machine that is about to be deleted, move it to the newest member available.
-	etcdLeaderCandidate := controlPlane.Machines.Newest()
-	if err := r.workloadCluster.ForwardEtcdLeadership(ctx, machineToDelete, etcdLeaderCandidate); err != nil {
-		logger.Error(err, "Failed to move leadership to candidate machine", "candidate", etcdLeaderCandidate.Name)
-
-		return ctrl.Result{}, err
-	}
-
-	if err := r.workloadCluster.RemoveEtcdMemberForMachine(ctx, machineToDelete); err != nil {
-		logger.Error(err, "Failed to remove etcd member for machine")
-
-		return ctrl.Result{}, err
-	}
-
 	logger = logger.WithValues("machine", machineToDelete)
 	if err := r.Client.Delete(ctx, machineToDelete); err != nil && !apierrors.IsNotFound(err) {
 		logger.Error(err, "Failed to delete control plane machine")
