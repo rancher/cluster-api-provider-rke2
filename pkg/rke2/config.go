@@ -83,7 +83,8 @@ sysctl -p /etc/sysctl.d/90-rke2-cis.conf
 `
 )
 
-type rke2ServerConfig struct {
+// ServerConfig is a struct that contains the information needed to generate a RKE2 server config.
+type ServerConfig struct {
 	AdvertiseAddress                  string            `json:"advertise-address,omitempty"`
 	AuditPolicyFile                   string            `json:"audit-policy-file,omitempty"`
 	BindAddress                       string            `json:"bind-address,omitempty"`
@@ -164,8 +165,8 @@ type ServerConfigOpts struct {
 	Version              string
 }
 
-func newRKE2ServerConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) { // nolint:gocyclo
-	rke2ServerConfig := &rke2ServerConfig{}
+func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.File, error) { // nolint:gocyclo
+	rke2ServerConfig := &ServerConfig{}
 	files := []bootstrapv1.File{}
 	rke2ServerConfig.AdvertiseAddress = opts.ServerConfig.AdvertiseAddress
 
@@ -543,7 +544,7 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 }
 
 // GenerateInitControlPlaneConfig generates the rke2 server and agent config for the init control plane node.
-func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.File, error) {
 	if opts.Token == "" {
 		return nil, nil, fmt.Errorf("token is required")
 	}
@@ -570,7 +571,7 @@ func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*rke2ServerConfig, [
 }
 
 // GenerateJoinControlPlaneConfig generates the rke2 agent config for joining a control plane node.
-func GenerateJoinControlPlaneConfig(opts ServerConfigOpts) (*rke2ServerConfig, []bootstrapv1.File, error) {
+func GenerateJoinControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.File, error) {
 	if opts.ServerURL == "" {
 		return nil, nil, fmt.Errorf("server url is required")
 	}
