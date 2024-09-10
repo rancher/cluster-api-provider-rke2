@@ -550,6 +550,21 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	desiredReplicas := int(*rcp.Spec.Replicas)
 
 	switch {
+	case numMachines == desiredReplicas:
+		nonDeleteingMachines := controlPlane.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
+		for _, machine := range nonDeleteingMachines {
+			annotaions := machine.GetAnnotations()
+
+			if _, found := annotaions[controlplanev1.PreTerminateHookCleanupAnnotation]; !found {
+				annotaions[controlplanev1.PreTerminateHookCleanupAnnotation] = ""
+				machine.SetAnnotations(annotaions)
+			}
+		}
+
+		// Patch machine annoations
+		if err := controlPlane.PatchMachines(ctx); err != nil {
+			return ctrl.Result{}, err
+		}
 	// We are creating the first replica
 	case numMachines < desiredReplicas && numMachines == 0:
 		// Create new Machine w/ init
@@ -945,7 +960,7 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 	}
 
 	// Return early if there are other pre-terminate hooks for the Machine.
-	// The KCP pre-terminate hook should be the one executed last, so that kubelet
+	// The CAPRKE2 pre-terminate hook should be the one executed last, so that kubelet
 	// is still working while other pre-terminate hooks are run.
 	// Note: This is done only for Kubernetes >= v1.31 to reduce the blast radius of this check.
 	if version.Compare(parsedVersion, semver.MustParse("1.31.0"), version.WithoutPreReleases()) >= 0 {
@@ -967,7 +982,8 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 	if controlPlane.Machines.Len() > 1 {
 		workloadCluster, err := r.GetWorkloadCluster(ctx, controlPlane)
 		if err != nil {
-			return ctrl.Result{}, errors.Wrapf(err, "failed to remove etcd member for deleting Machine %s: failed to create client to workload cluster", klog.KObj(deletingMachine))
+			return ctrl.Result{}, errors.Wrapf(err,
+				"failed to remove etcd member for deleting Machine %s: failed to create client to workload cluster", klog.KObj(deletingMachine))
 		}
 
 		// Note: In regular deletion cases (remediation, scale down) the leader should have been already moved.
@@ -994,7 +1010,9 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Waiting for Machines to be deleted", "machines", strings.Join(controlPlane.Machines.Filter(collections.HasDeletionTimestamp).Names(), ", "))
+	log.Info("Waiting for Machines to be deleted", "machines",
+		strings.Join(controlPlane.Machines.Filter(collections.HasDeletionTimestamp).Names(), ", "))
+
 	return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 }
 
@@ -1004,6 +1022,7 @@ func machineHasOtherPreTerminateHooks(machine *clusterv1.Machine) bool {
 			return true
 		}
 	}
+
 	return false
 }
 

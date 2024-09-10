@@ -280,7 +280,9 @@ func (c *ControlPlane) SortedByDeletionTimestamp(s collections.Machines) []*clus
 	for _, value := range s {
 		res = append(res, value)
 	}
+
 	sort.Sort(res)
+
 	return res
 }
 
@@ -422,5 +424,6 @@ func (o machinesByDeletionTimestamp) Less(i, j int) bool {
 	if o[i].DeletionTimestamp.Equal(o[j].DeletionTimestamp) {
 		return o[i].Name < o[j].Name
 	}
+
 	return o[i].DeletionTimestamp.Before(o[j].DeletionTimestamp)
 }
