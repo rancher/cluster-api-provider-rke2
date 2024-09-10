@@ -161,7 +161,6 @@ spec:
         cni: calico
         disableComponents:
           kubernetesComponents: [ "cloudController"]
-      nodeDrainTimeout: 2m
       rolloutStrategy:
         type: "RollingUpdate"
         rollingUpdate:

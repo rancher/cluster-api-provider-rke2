@@ -29,7 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -151,6 +153,17 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 		return ctrl.Result{}, errors.New("failed to pick control plane Machine to delete")
 	}
 
+	// During RKE2 deletion we don't care about forwarding etcd leadership or removing etcd members.
+	// So we are removing the pre-terminate hook.
+	// This is important because when deleting RKE2 we will delete all members of etcd and it's not possible
+	// to forward etcd leadership without any member left after we went through the Machine deletion.
+	// Also in this case the reconcileDelete code of the Machine controller won't execute Node drain
+	// and wait for volume detach.
+	if err := r.removePreTerminateHookAnnotationFromMachine(ctx, machineToDelete); err != nil {
+
+		return ctrl.Result{}, err
+	}
+
 	// If etcd leadership is on machine that is about to be deleted, move it to the newest member available.
 	etcdLeaderCandidate := controlPlane.Machines.Newest()
 	if err := r.workloadCluster.ForwardEtcdLeadership(ctx, machineToDelete, etcdLeaderCandidate); err != nil {
@@ -159,11 +172,7 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 		return ctrl.Result{}, err
 	}
 
-	if err := r.workloadCluster.RemoveEtcdMemberForMachine(ctx, machineToDelete); err != nil {
-		logger.Error(err, "Failed to remove etcd member for machine")
-
-		return ctrl.Result{}, err
-	}
+	// NOTE: etcd member removal will be performed by the kcp-cleanup hook after machine completes drain & all volumes are detached.
 
 	logger = logger.WithValues("machine", machineToDelete)
 	if err := r.Client.Delete(ctx, machineToDelete); err != nil && !apierrors.IsNotFound(err) {
@@ -176,6 +185,18 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 
 	// Requeue the control plane, in case there are additional operations to perform
 	return ctrl.Result{Requeue: true}, nil
+}
+
+func (r *RKE2ControlPlaneReconciler) removePreTerminateHookAnnotationFromMachine(ctx context.Context, machine *clusterv1.Machine) error {
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Removing pre-terminate hook from control plane Machine")
+
+	machineOriginal := machine.DeepCopy()
+	delete(machine.Annotations, controlplanev1.PreTerminateHookCleanupAnnotation)
+	if err := r.Client.Patch(ctx, machine, client.MergeFrom(machineOriginal)); err != nil {
+		return errors.Wrapf(err, "failed to remove pre-terminate hook from control plane Machine %s", klog.KObj(machine))
+	}
+	return nil
 }
 
 // preflightChecks checks if the control plane is stable before proceeding with a scale up/scale down operation,
@@ -447,7 +468,10 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 		return errors.Wrap(err, "failed to marshal cluster configuration")
 	}
 
-	machine.SetAnnotations(map[string]string{controlplanev1.RKE2ServerConfigurationAnnotation: string(serverConfig)})
+	machine.SetAnnotations(map[string]string{
+		controlplanev1.RKE2ServerConfigurationAnnotation: string(serverConfig),
+		controlplanev1.PreTerminateHookCleanupAnnotation: "",
+	})
 
 	if err := r.Client.Create(ctx, machine); err != nil {
 		return errors.Wrap(err, "failed to create machine")
