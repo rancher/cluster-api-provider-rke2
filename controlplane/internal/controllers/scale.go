@@ -153,26 +153,29 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 		return ctrl.Result{}, errors.New("failed to pick control plane Machine to delete")
 	}
 
-	// During RKE2 deletion we don't care about forwarding etcd leadership or removing etcd members.
-	// So we are removing the pre-terminate hook.
-	// This is important because when deleting RKE2 we will delete all members of etcd and it's not possible
-	// to forward etcd leadership without any member left after we went through the Machine deletion.
-	// Also in this case the reconcileDelete code of the Machine controller won't execute Node drain
-	// and wait for volume detach.
-	if err := r.removePreTerminateHookAnnotationFromMachine(ctx, machineToDelete); err != nil {
-
-		return ctrl.Result{}, err
-	}
-
 	// If etcd leadership is on machine that is about to be deleted, move it to the newest member available.
 	etcdLeaderCandidate := controlPlane.Machines.Newest()
+	// Removing last memember of CP machines
+	if etcdLeaderCandidate == nil || !etcdLeaderCandidate.DeletionTimestamp.IsZero() {
+		// During complete RKE2 deletion we don't care about forwarding etcd leadership or removing etcd members.
+		// So we are removing the pre-terminate hook.
+		// This is important because when deleting RKE2 we will delete all members of etcd and it's not possible
+		// to forward etcd leadership without any member left after we went through the Machine deletion.
+		// Also in this case the reconcileDelete code of the Machine controller won't execute Node drain
+		// and wait for volume detach.
+		if err := r.removePreTerminateHookAnnotationFromMachine(ctx, machineToDelete); err != nil {
+
+			return ctrl.Result{}, err
+		}
+	}
+
 	if err := r.workloadCluster.ForwardEtcdLeadership(ctx, machineToDelete, etcdLeaderCandidate); err != nil {
 		logger.Error(err, "Failed to move leadership to candidate machine", "candidate", etcdLeaderCandidate.Name)
 
 		return ctrl.Result{}, err
 	}
 
-	// NOTE: etcd member removal will be performed by the kcp-cleanup hook after machine completes drain & all volumes are detached.
+	// NOTE: etcd member removal will be performed by the rke2-cleanup hook after machine completes drain & all volumes are detached.
 
 	logger = logger.WithValues("machine", machineToDelete)
 	if err := r.Client.Delete(ctx, machineToDelete); err != nil && !apierrors.IsNotFound(err) {
