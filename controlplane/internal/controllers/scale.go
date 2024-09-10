@@ -164,7 +164,6 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 		// Also in this case the reconcileDelete code of the Machine controller won't execute Node drain
 		// and wait for volume detach.
 		if err := r.removePreTerminateHookAnnotationFromMachine(ctx, machineToDelete); err != nil {
-
 			return ctrl.Result{}, err
 		}
 	}
@@ -196,9 +195,11 @@ func (r *RKE2ControlPlaneReconciler) removePreTerminateHookAnnotationFromMachine
 
 	machineOriginal := machine.DeepCopy()
 	delete(machine.Annotations, controlplanev1.PreTerminateHookCleanupAnnotation)
+
 	if err := r.Client.Patch(ctx, machine, client.MergeFrom(machineOriginal)); err != nil {
 		return errors.Wrapf(err, "failed to remove pre-terminate hook from control plane Machine %s", klog.KObj(machine))
 	}
+
 	return nil
 }
 
