@@ -720,13 +720,30 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 	}
 
 	// Delete control plane machines in parallel
-	machinesToDelete := ownedMachines.Filter(collections.Not(collections.HasDeletionTimestamp))
+	machinesToDelete := ownedMachines
 
 	var errs []error
 
 	for i := range machinesToDelete {
 		m := machinesToDelete[i]
 		logger := logger.WithValues("machine", m)
+
+		// During RKE2CP deletion we don't care about forwarding etcd leadership or removing etcd members.
+		// So we are removing the pre-terminate hook.
+		// This is important because when deleting KCP we will delete all members of etcd and it's not possible
+		// to forward etcd leadership without any member left after we went through the Machine deletion.
+		// Also in this case the reconcileDelete code of the Machine controller won't execute Node drain
+		// and wait for volume detach.
+		if err := r.removePreTerminateHookAnnotationFromMachine(ctx, m); err != nil {
+			errs = append(errs, err)
+
+			continue
+		}
+
+		if !m.DeletionTimestamp.IsZero() {
+			// Nothing to do, Machine already has deletionTimestamp set.
+			continue
+		}
 
 		if err := r.Client.Delete(ctx, machinesToDelete[i]); err != nil && !apierrors.IsNotFound(err) {
 			logger.Error(err, "Failed to cleanup owned machine")
@@ -741,6 +758,8 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 
 		return ctrl.Result{}, err
 	}
+
+	logger.Info("Waiting for control plane Machines to not exist anymore")
 
 	conditions.MarkFalse(rcp, controlplanev1.ResizedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
 
