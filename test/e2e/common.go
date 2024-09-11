@@ -32,9 +32,11 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/cmd/clusterctl/client/config"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 )
 
@@ -55,16 +57,11 @@ func Byf(format string, a ...interface{}) {
 	By(fmt.Sprintf(format, a...))
 }
 
-func setupSpecNamespace(ctx context.Context, specName string, clusterProxy framework.ClusterProxy, artifactFolder string) (*corev1.Namespace, context.CancelFunc) {
+func setupSpecNamespace(ctx context.Context, specName string, clusterProxy framework.ClusterProxy, _ string) (*corev1.Namespace, context.CancelFunc) {
 	Byf("Creating a namespace for hosting the %q test spec", specName)
-	namespace, cancelWatches := framework.CreateNamespaceAndWatchEvents(ctx, framework.CreateNamespaceAndWatchEventsInput{
-		Creator:   clusterProxy.GetClient(),
-		ClientSet: clusterProxy.GetClientSet(),
-		Name:      fmt.Sprintf("%s-%s", specName, util.RandomString(6)),
-		LogFolder: filepath.Join(artifactFolder, "clusters", clusterProxy.GetName()),
-	})
 
-	return namespace, cancelWatches
+	_, cancelWatches := context.WithCancel(ctx)
+	return framework.CreateNamespace(ctx, framework.CreateNamespaceInput{Creator: clusterProxy.GetClient(), Name: fmt.Sprintf("%s-%s", specName, util.RandomString(6))}, "40s", "10s"), cancelWatches
 }
 
 func cleanupInstallation(ctx context.Context, clusterctlLogFolder, clusterctlConfigPath string, proxy framework.ClusterProxy) func() {
@@ -190,4 +187,104 @@ func localLoadE2EConfig(configPath string) *clusterctl.E2EConfig {
 	// Expect(config.Validate()).To(Succeed(), "The e2e test config file is not valid")
 
 	return config
+}
+
+// UpgradeManagementCluster upgrades provider a management cluster using clusterctl, and waits for the cluster to be ready.
+func UpgradeManagementCluster(ctx context.Context, input clusterctl.UpgradeManagementClusterAndWaitInput) {
+	Expect(ctx).NotTo(BeNil(), "ctx is required for UpgradeManagementCluster")
+	Expect(input.ClusterProxy).ToNot(BeNil(), "Invalid argument. input.ClusterProxy can't be nil when calling UpgradeManagementCluster")
+	Expect(input.ClusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. input.ClusterctlConfigPath must be an existing file when calling UpgradeManagementCluster")
+
+	// Check if the user want a custom upgrade
+	isCustomUpgrade := input.CoreProvider != "" ||
+		len(input.BootstrapProviders) > 0 ||
+		len(input.ControlPlaneProviders) > 0 ||
+		len(input.InfrastructureProviders) > 0 ||
+		len(input.IPAMProviders) > 0 ||
+		len(input.RuntimeExtensionProviders) > 0 ||
+		len(input.AddonProviders) > 0
+
+	Expect((input.Contract != "" && !isCustomUpgrade) || (input.Contract == "" && isCustomUpgrade)).To(BeTrue(), `Invalid argument. Either the input.Contract parameter or at least one of the following providers has to be set:
+		input.CoreProvider, input.BootstrapProviders, input.ControlPlaneProviders, input.InfrastructureProviders, input.IPAMProviders, input.RuntimeExtensionProviders, input.AddonProviders`)
+
+	Expect(os.MkdirAll(input.LogFolder, 0750)).To(Succeed(), "Invalid argument. input.LogFolder can't be created for UpgradeManagementClusterAndWait")
+
+	upgradeInput := clusterctl.UpgradeInput{
+		ClusterctlConfigPath:      input.ClusterctlConfigPath,
+		ClusterctlVariables:       input.ClusterctlVariables,
+		ClusterName:               input.ClusterProxy.GetName(),
+		KubeconfigPath:            input.ClusterProxy.GetKubeconfigPath(),
+		Contract:                  input.Contract,
+		CoreProvider:              input.CoreProvider,
+		BootstrapProviders:        input.BootstrapProviders,
+		ControlPlaneProviders:     input.ControlPlaneProviders,
+		InfrastructureProviders:   input.InfrastructureProviders,
+		IPAMProviders:             input.IPAMProviders,
+		RuntimeExtensionProviders: input.RuntimeExtensionProviders,
+		AddonProviders:            input.AddonProviders,
+		LogFolder:                 input.LogFolder,
+	}
+
+	clusterctl.Upgrade(ctx, upgradeInput)
+
+	// We have to skip collecting metrics, as it causes failures in CI
+}
+
+// InitManagementCluster initializes a management using clusterctl.
+func InitManagementCluster(ctx context.Context, input clusterctl.InitManagementClusterAndWatchControllerLogsInput, intervals ...interface{}) {
+	Expect(ctx).NotTo(BeNil(), "ctx is required for InitManagementCluster")
+	Expect(input.ClusterProxy).ToNot(BeNil(), "Invalid argument. input.ClusterProxy can't be nil when calling InitManagementCluster")
+	Expect(input.ClusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. input.ClusterctlConfigPath must be an existing file when calling InitManagementCluster")
+	Expect(input.InfrastructureProviders).ToNot(BeEmpty(), "Invalid argument. input.InfrastructureProviders can't be empty when calling InitManagementCluster")
+	Expect(os.MkdirAll(input.LogFolder, 0750)).To(Succeed(), "Invalid argument. input.LogFolder can't be created for InitManagementCluster")
+
+	logger := log.FromContext(ctx)
+
+	if input.CoreProvider == "" {
+		input.CoreProvider = config.ClusterAPIProviderName
+	}
+	if len(input.BootstrapProviders) == 0 {
+		input.BootstrapProviders = []string{config.KubeadmBootstrapProviderName}
+	}
+	if len(input.ControlPlaneProviders) == 0 {
+		input.ControlPlaneProviders = []string{config.KubeadmControlPlaneProviderName}
+	}
+
+	client := input.ClusterProxy.GetClient()
+	controllersDeployments := framework.GetControllerDeployments(ctx, framework.GetControllerDeploymentsInput{
+		Lister: client,
+	})
+	if len(controllersDeployments) == 0 {
+		initInput := clusterctl.InitInput{
+			// pass reference to the management cluster hosting this test
+			KubeconfigPath: input.ClusterProxy.GetKubeconfigPath(),
+			// pass the clusterctl config file that points to the local provider repository created for this test
+			ClusterctlConfigPath: input.ClusterctlConfigPath,
+			// setup the desired list of providers for a single-tenant management cluster
+			CoreProvider:              input.CoreProvider,
+			BootstrapProviders:        input.BootstrapProviders,
+			ControlPlaneProviders:     input.ControlPlaneProviders,
+			InfrastructureProviders:   input.InfrastructureProviders,
+			IPAMProviders:             input.IPAMProviders,
+			RuntimeExtensionProviders: input.RuntimeExtensionProviders,
+			AddonProviders:            input.AddonProviders,
+			// setup clusterctl logs folder
+			LogFolder: input.LogFolder,
+		}
+
+		clusterctl.Init(ctx, initInput)
+	}
+
+	logger.Info("Waiting for provider controllers to be running")
+
+	controllersDeployments = framework.GetControllerDeployments(ctx, framework.GetControllerDeploymentsInput{
+		Lister: client,
+	})
+	Expect(controllersDeployments).ToNot(BeEmpty(), "The list of controller deployments should not be empty")
+	for _, deployment := range controllersDeployments {
+		framework.WaitForDeploymentsAvailable(ctx, framework.WaitForDeploymentsAvailableInput{
+			Getter:     client,
+			Deployment: deployment,
+		}, intervals...)
+	}
 }

@@ -151,7 +151,7 @@ var _ = Describe("Workload cluster creation", func() {
 			}, result)
 
 			WaitForClusterToUpgrade(ctx, WaitForClusterToUpgradeInput{
-				Lister:              bootstrapClusterProxy.GetClient(),
+				Reader:              bootstrapClusterProxy.GetClient(),
 				ControlPlane:        result.ControlPlane,
 				MachineDeployments:  result.MachineDeployments,
 				VersionAfterUpgrade: e2eConfig.GetVariable(KubernetesVersionUpgradeTo),

@@ -115,13 +115,13 @@ var _ = Describe("Workload cluster creation", func() {
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
 			By("Upgrading to latest boostrap/controlplane provider version")
-			clusterctl.UpgradeManagementClusterAndWait(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
+			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:          bootstrapClusterProxy,
 				ClusterctlConfigPath:  clusterctlConfigPath,
 				BootstrapProviders:    []string{"rke2-bootstrap:v0.7.99"},
 				ControlPlaneProviders: []string{"rke2-control-plane:v0.7.99"},
 				LogFolder:             clusterctlLogFolder,
-			}, e2eConfig.GetIntervals(specName, "wait-controllers")...)
+			})
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
 				Getter:       bootstrapClusterProxy.GetClient(),
@@ -174,7 +174,7 @@ var _ = Describe("Workload cluster creation", func() {
 			}, result)
 
 			WaitForClusterToUpgrade(ctx, WaitForClusterToUpgradeInput{
-				Lister:              bootstrapClusterProxy.GetClient(),
+				Reader:              bootstrapClusterProxy.GetClient(),
 				ControlPlane:        result.ControlPlane,
 				MachineDeployments:  result.MachineDeployments,
 				VersionAfterUpgrade: e2eConfig.GetVariable(KubernetesVersionUpgradeTo),

@@ -29,7 +29,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
@@ -138,14 +137,6 @@ func ApplyClusterTemplateAndWait(ctx context.Context, input ApplyClusterTemplate
 	})
 	Expect(workloadClusterTemplate).ToNot(BeNil(), "Failed to get the cluster template")
 
-	// Ensure we have a Cluster for dump and cleanup steps in AfterEach even if ApplyClusterTemplateAndWait fails.
-	result.Cluster = &clusterv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      input.ConfigCluster.ClusterName,
-			Namespace: input.ConfigCluster.Namespace,
-		},
-	}
-
 	ApplyCustomClusterTemplateAndWait(ctx, ApplyCustomClusterTemplateAndWaitInput{
 		ClusterProxy:                 input.ClusterProxy,
 		CustomTemplateYAML:           workloadClusterTemplate,
@@ -174,19 +165,10 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 
 	Byf("Creating the workload cluster with name %q from the provided yaml", input.ClusterName)
 
-	// Ensure we have a Cluster for dump and cleanup steps in AfterEach even if ApplyClusterTemplateAndWait fails.
-	result.Cluster = &clusterv1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      input.ClusterName,
-			Namespace: input.Namespace,
-		},
-	}
-
 	Byf("Applying the cluster template yaml of cluster %s", klog.KRef(input.Namespace, input.ClusterName))
 	Eventually(func() error {
 		return input.ClusterProxy.Apply(ctx, input.CustomTemplateYAML, input.Args...)
-		// return input.ClusterProxy.CreateOrUpdate(ctx, input.CustomTemplateYAML, input.CreateOrUpdateOpts...)
-	}, 1*time.Minute).Should(Succeed(), "Failed to apply the cluster template")
+	}, input.WaitForClusterIntervals...).Should(Succeed(), "Failed to apply the cluster template")
 
 	// Once we applied the cluster template we can run PreWaitForCluster.
 	// Note: This can e.g. be used to verify the BeforeClusterCreate lifecycle hook is executed
@@ -218,7 +200,7 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 	input.WaitForControlPlaneMachinesReady(ctx, input, result)
 
 	Byf("Waiting for the machine deployments of cluster %s to be provisioned", klog.KRef(input.Namespace, input.ClusterName))
-	result.MachineDeployments = framework.DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
+	result.MachineDeployments = DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
 		Lister:  input.ClusterProxy.GetClient(),
 		Cluster: result.Cluster,
 	}, input.WaitForMachineDeployments...)
@@ -285,7 +267,7 @@ func DiscoveryAndWaitForRKE2ControlPlaneInitialized(ctx context.Context, input D
 			Namespace:   input.Cluster.Namespace,
 		})
 		g.Expect(controlPlane).ToNot(BeNil())
-	}, "10s", "1s").Should(Succeed(), "Couldn't get the control plane for the cluster %s", klog.KObj(input.Cluster))
+	}, "2m", "1s").Should(Succeed(), "Couldn't get the control plane for the cluster %s", klog.KObj(input.Cluster))
 
 	return controlPlane
 }
@@ -445,7 +427,7 @@ func WaitForMachineConditions(ctx context.Context, input WaitForMachineCondition
 
 // WaitForClusterToUpgradeInput is the input for WaitForClusterToUpgrade.
 type WaitForClusterToUpgradeInput struct {
-	Lister              framework.Lister
+	Reader              framework.GetLister
 	ControlPlane        *controlplanev1.RKE2ControlPlane
 	MachineDeployments  []*clusterv1.MachineDeployment
 	VersionAfterUpgrade string
@@ -455,32 +437,52 @@ type WaitForClusterToUpgradeInput struct {
 func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeInput, intervals ...interface{}) {
 	By("Waiting for machines to update")
 
-	var totalMachineCount int32
-	totalMachineCount = *input.ControlPlane.Spec.Replicas
-
-	for _, md := range input.MachineDeployments {
-		totalMachineCount += *md.Spec.Replicas
-	}
-
-	Eventually(func() (bool, error) {
-		machineList := &clusterv1.MachineList{}
-		if err := input.Lister.List(ctx, machineList); err != nil {
-			return false, fmt.Errorf("failed to list machines: %w", err)
+	Eventually(func() error {
+		cp := input.ControlPlane.DeepCopy()
+		if err := input.Reader.Get(ctx, client.ObjectKeyFromObject(input.ControlPlane), cp); err != nil {
+			return fmt.Errorf("failed to get control plane: %w", err)
 		}
 
-		if len(machineList.Items) != int(totalMachineCount) { // not all replicas are created
-			return false, nil
+		updatedDeployments := []*clusterv1.MachineDeployment{}
+		for _, md := range input.MachineDeployments {
+			copy := &clusterv1.MachineDeployment{}
+			if err := input.Reader.Get(ctx, client.ObjectKeyFromObject(md), copy); client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to get updated machine deployment: %w", err)
+			}
+
+			updatedDeployments = append(updatedDeployments, copy)
+		}
+
+		machineList := &clusterv1.MachineList{}
+		if err := input.Reader.List(ctx, machineList); err != nil {
+			return fmt.Errorf("failed to list machines: %w", err)
 		}
 
 		for _, machine := range machineList.Items {
 			expectedVersion := input.VersionAfterUpgrade + "+rke2r1"
-			if machine.Spec.Version != nil && *machine.Spec.Version != expectedVersion {
-				return false, nil
+			if machine.Spec.Version == nil || *machine.Spec.Version != expectedVersion {
+				return fmt.Errorf("Expected machine version to match %s, got %v", expectedVersion, machine.Spec.Version)
 			}
 		}
 
-		return true, nil
-	}, intervals...).Should(BeTrue(), framework.PrettyPrint(input.ControlPlane))
+		ready := cp.Status.ReadyReplicas == cp.Status.Replicas
+		if !ready {
+			return fmt.Errorf("Control plane is not ready: %d ready from %d", cp.Status.ReadyReplicas, cp.Status.Replicas)
+		}
+
+		expected := cp.Spec.Replicas != nil && *cp.Spec.Replicas == cp.Status.Replicas
+		if !expected {
+			return fmt.Errorf("Control plane is not scaled: %d replicas from %d", cp.Spec.Replicas, cp.Status.Replicas)
+		}
+
+		for _, md := range updatedDeployments {
+			if md.Spec.Replicas == nil || *md.Spec.Replicas != md.Status.ReadyReplicas {
+				return fmt.Errorf("Not all machine deployments are updated yet expected %v!=%d", md.Spec.Replicas, md.Status.ReadyReplicas)
+			}
+		}
+
+		return nil
+	}, intervals...).Should(Succeed())
 }
 
 // setDefaults sets the default values for ApplyCustomClusterTemplateAndWaitInput if not set.
