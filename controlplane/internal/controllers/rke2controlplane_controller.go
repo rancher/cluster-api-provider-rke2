@@ -550,21 +550,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	desiredReplicas := int(*rcp.Spec.Replicas)
 
 	switch {
-	case numMachines == desiredReplicas:
-		nonDeleteingMachines := controlPlane.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
-		for _, machine := range nonDeleteingMachines {
-			annotaions := machine.GetAnnotations()
-
-			if _, found := annotaions[controlplanev1.PreTerminateHookCleanupAnnotation]; !found {
-				annotaions[controlplanev1.PreTerminateHookCleanupAnnotation] = ""
-				machine.SetAnnotations(annotaions)
-			}
-		}
-
-		// Patch machine annoations
-		if err := controlPlane.PatchMachines(ctx); err != nil {
-			return ctrl.Result{}, err
-		}
 	// We are creating the first replica
 	case numMachines < desiredReplicas && numMachines == 0:
 		// Create new Machine w/ init
@@ -730,7 +715,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 
 		// During RKE2CP deletion we don't care about forwarding etcd leadership or removing etcd members.
 		// So we are removing the pre-terminate hook.
-		// This is important because when deleting KCP we will delete all members of etcd and it's not possible
+		// This is important because when deleting RKE2CP we will delete all members of etcd and it's not possible
 		// to forward etcd leadership without any member left after we went through the Machine deletion.
 		// Also in this case the reconcileDelete code of the Machine controller won't execute Node drain
 		// and wait for volume detach.
@@ -951,6 +936,23 @@ func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(ctx context.Conte
 }
 
 func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Context, controlPlane *rke2.ControlPlane) (ctrl.Result, error) {
+	// Ensure that every active machine has the drain hook set
+	patchHookAnnotation := false
+
+	for _, machine := range controlPlane.Machines.Filter(collections.ActiveMachines) {
+		if _, exists := machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation]; !exists {
+			machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation] = ""
+			patchHookAnnotation = true
+		}
+	}
+
+	if patchHookAnnotation {
+		// Patch machine annoations
+		if err := controlPlane.PatchMachines(ctx); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	if !controlPlane.HasDeletingMachine() {
 		return ctrl.Result{}, nil
 	}
@@ -1018,8 +1020,6 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 		}
 
 		// Note: Removing the etcd member will lead to the etcd and the kube-apiserver Pod on the Machine shutting down.
-		// If ControlPlaneKubeletLocalMode is used, the kubelet is communicating with the local apiserver and thus now
-		// won't be able to see any updates to e.g. Pods anymore.
 		if err := workloadCluster.RemoveEtcdMemberForMachine(ctx, deletingMachine); err != nil {
 			return ctrl.Result{}, errors.Wrapf(err, "failed to remove etcd member for deleting Machine %s", klog.KObj(deletingMachine))
 		}
