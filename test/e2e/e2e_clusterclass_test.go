@@ -102,7 +102,9 @@ var _ = Describe("Workload cluster creation", func() {
 				}
 			})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(bootstrapClusterProxy.Apply(ctx, []byte(clusterClassConfig))).To(Succeed(), "Failed to apply ClusterClass definition")
+			Eventually(func() error {
+				return bootstrapClusterProxy.Apply(ctx, []byte(clusterClassConfig))
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...).Should(Succeed(), "Failed to apply ClusterClass definition")
 
 			By("Create a Docker Cluster from topology")
 
