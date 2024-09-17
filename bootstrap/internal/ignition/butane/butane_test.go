@@ -115,14 +115,14 @@ var _ = Describe("Render", func() {
 
 		Expect(ign.Storage.Files[3].Path).To(Equal("/etc/rke2-install.sh"))
 
-		Expect(ign.Storage.Files[4].Path).To(Equal("/etc/ntp.conf"))
+		Expect(ign.Storage.Files[4].Path).To(Equal("/etc/chrony.conf"))
 
 		Expect(ign.Systemd.Units).To(HaveLen(3))
 		Expect(ign.Systemd.Units[0].Name).To(Equal("rke2-install.service"))
 		Expect(ign.Systemd.Units[0].Contents).To(Equal(pointer.String("[Unit]\nDescription=rke2-install\nWants=network-online.target\nAfter=network-online.target network.target\nConditionPathExists=!/etc/cluster-api/bootstrap-success.complete\n[Service]\nUser=root\n# To not restart the unit when it exits, as it is expected.\nType=oneshot\nExecStart=/etc/rke2-install.sh\n[Install]\nWantedBy=multi-user.target\n")))
 		Expect(ign.Systemd.Units[0].Enabled).To(Equal(pointer.Bool(true)))
 
-		Expect(ign.Systemd.Units[1].Name).To(Equal("ntpd.service"))
+		Expect(ign.Systemd.Units[1].Name).To(Equal("chronyd.service"))
 		Expect(ign.Systemd.Units[1].Enabled).To(Equal(pointer.Bool(true)))
 
 		Expect(ign.Systemd.Units[2].Name).To(Equal("test.service"))
