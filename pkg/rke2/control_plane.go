@@ -18,6 +18,7 @@ package rke2
 
 import (
 	"context"
+	"sort"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -268,6 +269,23 @@ func (c *ControlPlane) HasDeletingMachine() bool {
 	return len(c.Machines.Filter(collections.HasDeletionTimestamp)) > 0
 }
 
+// DeletingMachines returns machines in the control plane that are in the process of being deleted.
+func (c *ControlPlane) DeletingMachines() collections.Machines {
+	return c.Machines.Filter(collections.HasDeletionTimestamp)
+}
+
+// SortedByDeletionTimestamp returns the machines sorted by deletion timestamp.
+func (c *ControlPlane) SortedByDeletionTimestamp(s collections.Machines) []*clusterv1.Machine {
+	res := make(machinesByDeletionTimestamp, 0, len(s))
+	for _, value := range s {
+		res = append(res, value)
+	}
+
+	sort.Sort(res)
+
+	return res
+}
+
 // MachinesNeedingRollout return a list of machines that need to be rolled out.
 func (c *ControlPlane) MachinesNeedingRollout() collections.Machines {
 	// Ignore machines to be deleted.
@@ -382,4 +400,30 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 	}
 
 	return kerrors.NewAggregate(errList)
+}
+
+// machinesByDeletionTimestamp sorts a list of Machines by deletion timestamp, using their names as a tie breaker.
+// Machines without DeletionTimestamp go after machines with this field set.
+type machinesByDeletionTimestamp []*clusterv1.Machine
+
+func (o machinesByDeletionTimestamp) Len() int      { return len(o) }
+func (o machinesByDeletionTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o machinesByDeletionTimestamp) Less(i, j int) bool {
+	if o[i].DeletionTimestamp == nil && o[j].DeletionTimestamp == nil {
+		return o[i].Name < o[j].Name
+	}
+
+	if o[i].DeletionTimestamp == nil {
+		return false
+	}
+
+	if o[j].DeletionTimestamp == nil {
+		return true
+	}
+
+	if o[i].DeletionTimestamp.Equal(o[j].DeletionTimestamp) {
+		return o[i].Name < o[j].Name
+	}
+
+	return o[i].DeletionTimestamp.Before(o[j].DeletionTimestamp)
 }

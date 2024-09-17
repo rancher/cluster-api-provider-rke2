@@ -29,7 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -159,11 +161,7 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 		return ctrl.Result{}, err
 	}
 
-	if err := r.workloadCluster.RemoveEtcdMemberForMachine(ctx, machineToDelete); err != nil {
-		logger.Error(err, "Failed to remove etcd member for machine")
-
-		return ctrl.Result{}, err
-	}
+	// NOTE: etcd member removal will be performed by the rke2-cleanup hook after machine completes drain & all volumes are detached.
 
 	logger = logger.WithValues("machine", machineToDelete)
 	if err := r.Client.Delete(ctx, machineToDelete); err != nil && !apierrors.IsNotFound(err) {
@@ -176,6 +174,25 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 
 	// Requeue the control plane, in case there are additional operations to perform
 	return ctrl.Result{Requeue: true}, nil
+}
+
+func (r *RKE2ControlPlaneReconciler) removePreTerminateHookAnnotationFromMachine(ctx context.Context, machine *clusterv1.Machine) error {
+	if _, exists := machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation]; !exists {
+		// Nothing to do, the annotation is not set (anymore) on the Machine
+		return nil
+	}
+
+	log := ctrl.LoggerFrom(ctx)
+	log.Info("Removing pre-terminate hook from control plane Machine")
+
+	machineOriginal := machine.DeepCopy()
+	delete(machine.Annotations, controlplanev1.PreTerminateHookCleanupAnnotation)
+
+	if err := r.Client.Patch(ctx, machine, client.MergeFrom(machineOriginal)); err != nil {
+		return errors.Wrapf(err, "failed to remove pre-terminate hook from control plane Machine %s", klog.KObj(machine))
+	}
+
+	return nil
 }
 
 // preflightChecks checks if the control plane is stable before proceeding with a scale up/scale down operation,
@@ -447,7 +464,10 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 		return errors.Wrap(err, "failed to marshal cluster configuration")
 	}
 
-	machine.SetAnnotations(map[string]string{controlplanev1.RKE2ServerConfigurationAnnotation: string(serverConfig)})
+	machine.SetAnnotations(map[string]string{
+		controlplanev1.RKE2ServerConfigurationAnnotation: string(serverConfig),
+		controlplanev1.PreTerminateHookCleanupAnnotation: "",
+	})
 
 	if err := r.Client.Create(ctx, machine); err != nil {
 		return errors.Wrap(err, "failed to create machine")
