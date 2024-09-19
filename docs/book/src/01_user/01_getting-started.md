@@ -193,9 +193,9 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 This provider supports using [ClusterClass](https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20210526-cluster-class-and-managed-topologies.md), a Cluster API feature that implements an extra level of abstraction on top of the existing Cluster API functionality. The `ClusterClass` object is used to define a collection of template resources (control plane and machine deployment) which are used to generate one or more clusters of the same flavor.
 
-If you are interested in leveraging this functionality, you can refer to the examples [here](./samples/docker/clusterclass/):
-- [clusterclass-quick-start.yaml](./samples/docker/clusterclass/clusterclass-quick-start.yaml): creates a sample `ClusterClass` and necessary resources.
-- [rke2-sample.yaml](./samples/docker/clusterclass/rke2-sample.yaml): creates a workload cluster using the `ClusterClass`.
+If you are interested in leveraging this functionality, you can refer to the examples [here](https://github.com/rancher/cluster-api-provider-rke2/tree/main/samples/docker/clusterclass):
+- [clusterclass-quick-start.yaml](https://github.com/rancher/cluster-api-provider-rke2/blob/main/samples/docker/clusterclass/clusterclass-quick-start.yaml): creates a sample `ClusterClass` and necessary resources.
+- [rke2-sample.yaml](https://github.com/rancher/cluster-api-provider-rke2/blob/main/samples/docker/clusterclass/rke2-sample.yaml): creates a workload cluster using the `ClusterClass`.
 
 As with other sample templates, you will need to set a number environment variables:
 - CLUSTER_NAME
