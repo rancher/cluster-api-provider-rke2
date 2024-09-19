@@ -49,7 +49,6 @@ import (
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
-	"sigs.k8s.io/cluster-api/util/version"
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/kubeconfig"
@@ -975,19 +974,11 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 	log = log.WithValues("Machine", klog.KObj(deletingMachine))
 	ctx = ctrl.LoggerInto(ctx, log)
 
-	parsedVersion, err := semver.ParseTolerant(controlPlane.RCP.Spec.Version)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to parse Kubernetes version %q", controlPlane.RCP.Spec.Version)
-	}
-
 	// Return early if there are other pre-terminate hooks for the Machine.
 	// The CAPRKE2 pre-terminate hook should be the one executed last, so that kubelet
 	// is still working while other pre-terminate hooks are run.
-	// Note: This is done only for Kubernetes >= v1.31 to reduce the blast radius of this check.
-	if version.Compare(parsedVersion, semver.MustParse("1.31.0"), version.WithoutPreReleases()) >= 0 {
-		if machineHasOtherPreTerminateHooks(deletingMachine) {
-			return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
-		}
+	if machineHasOtherPreTerminateHooks(deletingMachine) {
+		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
 
 	// Return early because the Machine controller is not yet waiting for the pre-terminate hook.
