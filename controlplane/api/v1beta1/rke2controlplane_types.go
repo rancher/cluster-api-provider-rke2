@@ -420,8 +420,9 @@ const (
 
 	// PreTerminateHookCleanupAnnotation is the annotation RKE2 sets on Machines to ensure it can later remove the
 	// etcd member right before Machine termination (i.e. before InfraMachine deletion).
-	// Note: Starting with Kubernetes v1.31 this hook will wait for all other pre-terminate hooks to finish to
-	// ensure it runs last (thus ensuring that kubelet is still working while other pre-terminate hooks run).
+	// For RKE2 we need wait for all other pre-terminate hooks to finish to
+	// ensure it runs last (thus ensuring that kubelet is still working while other pre-terminate hooks run
+	// as it uses kubelet local mode).
 	PreTerminateHookCleanupAnnotation = clusterv1.PreTerminateDeleteHookAnnotationPrefix + "/rke2-cleanup"
 )
 
