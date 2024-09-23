@@ -47,7 +47,11 @@ git push upstream ${RELEASE_TAG}
 
 This will trigger a [release GitHub action](https://github.com/rancher/cluster-api-provider-rke2/actions/workflows/release.yml) that creates a release with RKE2 provider components.
 
-## Tasks
+4. Mark release as ready.
+
+Published releases are initially marked as `draft`. If the published version is supposed to be `latest`, mark it so on the release [page](https://github.com/rancher/cluster-api-provider-rke2/releases/), while editing the release. Please note that we are using [semantic versioning](#versioning) while choosing `latest` version.
+
+5. Perform mandatory [post-release activities](#prepare-main-branch-for-development-of-the-new-release), which will ensure contract `metadata.yaml` file is [up-to-date](#2-add-future-version-to-metadatayaml-for-example-if-v05-was-just-released-we-add-v06-to-the-list-of-releaseseries) in case of a future `minor/major` version change.
 
 ### Prepare main branch for development of the new release
 
