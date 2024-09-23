@@ -138,13 +138,14 @@ kubectl apply -f rke2-docker-example.yaml
 and see the following output:
 ```
 namespace/example created
-cluster.cluster.x-k8s.io/rke2-test created
-dockercluster.infrastructure.cluster.x-k8s.io/rke2-test created
-rke2controlplane.controlplane.cluster.x-k8s.io/rke2-test-control-plane created
+cluster.cluster.x-k8s.io/capd-rke2-test created
+dockercluster.infrastructure.cluster.x-k8s.io/capd-rke2-test created
+rke2controlplane.controlplane.cluster.x-k8s.io/capd-rke2-test-control-plane created
 dockermachinetemplate.infrastructure.cluster.x-k8s.io/controlplane created
 machinedeployment.cluster.x-k8s.io/worker-md-0 created
 dockermachinetemplate.infrastructure.cluster.x-k8s.io/worker created
-rke2configtemplate.bootstrap.cluster.x-k8s.io/rke2-test-agent created
+rke2configtemplate.bootstrap.cluster.x-k8s.io/capd-rke2-test-agent created
+configmap/capd-rke2-test-lb-config created
 ```
 
 ## Checking the workload cluster
