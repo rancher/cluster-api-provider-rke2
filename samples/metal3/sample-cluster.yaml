@@ -274,7 +274,6 @@ spec:
       preRKE2Commands:
         - sleep 30 # fix to give OS time to become ready
       agentConfig:
-        version: ${KUBERNETES_VERSION}+rke2r1
         kubelet:
           extraArgs:
             - provider-id=metal3://{{ ds.meta_data.uuid }}
