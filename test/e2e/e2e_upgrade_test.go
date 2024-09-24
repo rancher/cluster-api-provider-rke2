@@ -85,8 +85,8 @@ var _ = Describe("Workload cluster creation", func() {
 	})
 
 	Context("Creating a single control-plane cluster", func() {
-		It("Should create a cluster with v0.6.0 and perform upgrade to latest version", func() {
-			By("Installing v0.6.0 boostrap/controlplane provider version")
+		It("Should create a cluster with v0.7.0 and perform upgrade to latest version", func() {
+			By("Installing v0.7.0 boostrap/controlplane provider version")
 			initUpgradableBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
 			By("Initializing the cluster")
@@ -114,12 +114,12 @@ var _ = Describe("Workload cluster creation", func() {
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
-			By("Upgrading to latest boostrap/controlplane provider version")
+			By("Upgrading to next boostrap/controlplane provider version")
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:          bootstrapClusterProxy,
 				ClusterctlConfigPath:  clusterctlConfigPath,
-				BootstrapProviders:    []string{"rke2-bootstrap:v0.7.99"},
-				ControlPlaneProviders: []string{"rke2-control-plane:v0.7.99"},
+				BootstrapProviders:    []string{"rke2-bootstrap:v0.8.99"},
+				ControlPlaneProviders: []string{"rke2-control-plane:v0.8.99"},
 				LogFolder:             clusterctlLogFolder,
 			})
 
