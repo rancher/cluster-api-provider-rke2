@@ -249,8 +249,8 @@ func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
 }
 
-// initUpgradableBootstrapCluster initializes a bootstrap cluster with the latest minor version N-1 and used to perform an upgrade to the latest version.
-// Make sure to update the version in the providers list to the latest minor version N-1.
+// initUpgradableBootstrapCluster initializes a bootstrap cluster with the latest minor version and used to perform an upgrade to the next version.
+// Make sure to update the version in the providers list to the latest minor version.
 func initUpgradableBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
 	InitManagementCluster(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:              bootstrapClusterProxy,
@@ -258,8 +258,8 @@ func initUpgradableBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy
 		InfrastructureProviders:   config.InfrastructureProviders(),
 		IPAMProviders:             config.IPAMProviders(),
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
-		BootstrapProviders:        []string{"rke2-bootstrap:v0.6.0"},
-		ControlPlaneProviders:     []string{"rke2-control-plane:v0.6.0"},
+		BootstrapProviders:        []string{"rke2-bootstrap:v0.7.0"},
+		ControlPlaneProviders:     []string{"rke2-control-plane:v0.7.0"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 		DisableMetricsCollection:  true,
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
