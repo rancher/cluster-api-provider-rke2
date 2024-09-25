@@ -76,7 +76,7 @@ func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Confi
 			cmds := []string{}
 
 			for _, cmd := range machineConfig.Spec.PostRKE2Commands { // Filter out commands that are injected by the Rancher Turtles webhook
-				if cmd == "sudo sh /opt/system-agent-install.sh" {
+				if cmd == "sh /opt/system-agent-install.sh" {
 					continue
 				}
 
