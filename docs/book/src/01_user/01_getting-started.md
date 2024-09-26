@@ -144,6 +144,7 @@ kubectl apply -f rke2-docker-example.yaml
 and see the following output:
 
 ```
+namespace/example created
 cluster.cluster.x-k8s.io/capd-rke2-test created
 dockercluster.infrastructure.cluster.x-k8s.io/capd-rke2-test created
 rke2controlplane.controlplane.cluster.x-k8s.io/capd-rke2-test-control-plane created

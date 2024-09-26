@@ -49,9 +49,7 @@ spec:
     type: "RollingUpdate"
     rollingUpdate:
       maxSurge: 1
-  agentConfig:
-    nodeAnnotations:
-      test: "true"
+  agentConfig: {}
   serverConfig:
     disableComponents:
       kubernetesComponents:
@@ -60,7 +58,7 @@ spec:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: DockerMachineTemplate
     name: controlplane
-  nodeDrainTimeout: 30s
+  nodeDrainTimeout: 2m
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
@@ -119,9 +117,7 @@ metadata:
 spec: 
   template:
     spec:
-      agentConfig:
-        nodeAnnotations:
-          test: "true"
+      agentConfig: {}
 ---
 apiVersion: v1
 kind: ConfigMap
