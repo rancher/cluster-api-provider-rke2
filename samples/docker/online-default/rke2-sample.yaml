@@ -43,10 +43,17 @@ metadata:
   namespace: ${CABPR_NAMESPACE}
 spec: 
   replicas: ${CABPR_CP_REPLICAS}
-  agentConfig:
-    version: ${KUBERNETES_VERSION}+rke2r1
+  version: ${KUBERNETES_VERSION}+rke2r1
+  registrationMethod: control-plane-endpoint
+  rolloutStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: 1
+  agentConfig: {}
   serverConfig:
-    cni: calico
+    disableComponents:
+      kubernetesComponents:
+      - cloudController
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: DockerMachineTemplate
@@ -60,7 +67,9 @@ metadata:
   namespace: ${CABPR_NAMESPACE}
 spec:
   template:
-    spec: {} 
+    spec:
+      customImage: kindest/node:${KIND_IMAGE_VERSION}
+      bootstrapTimeout: 15m
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -96,7 +105,9 @@ metadata:
   namespace: ${CABPR_NAMESPACE}
 spec:
   template:
-    spec: {} 
+    spec:
+      customImage: kindest/node:${KIND_IMAGE_VERSION}
+      bootstrapTimeout: 15m
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate

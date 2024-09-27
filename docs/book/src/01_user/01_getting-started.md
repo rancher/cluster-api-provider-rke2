@@ -53,8 +53,10 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 No additional steps are required and you can install the RKE2 provider with **clusterctl** directly:
 
 ```bash
-clusterctl init --bootstrap rke2 --control-plane rke2 --infrastructure docker
+clusterctl init --core cluster-api:v1.7.6 --bootstrap rke2:v0.7.0 --control-plane rke2:v0.7.0 --infrastructure docker:v1.7.6
 ```
+
+Next, you can proceed to [creating a workload cluster](#create-a-workload-cluster).
 
 ### CAPI < v1.6.0
 
@@ -106,13 +108,14 @@ You can now create your first workload cluster by running the following:
 
 There are some sample cluster templates available under the `samples` folder. This section assumes you are using CAPI v1.6.0 or higher.
 
-For this `Getting Started` section, we will be using the `docker` samples available under `samples/docker/oneline-default` folder. This folder contains a YAML template file called `rke2-sample.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
+For this `Getting Started` section, we will be using the `docker` samples available under `samples/docker/online-default` folder. This folder contains a YAML template file called `rke2-sample.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
 Set the following environment variables:
 - CABPR_NAMESPACE
 - CLUSTER_NAME
 - CABPR_CP_REPLICAS
 - CABPR_WK_REPLICAS
 - KUBERNETES_VERSION
+- KIND_IMAGE_VERSION
 
 for example:
 
@@ -121,12 +124,14 @@ export CABPR_NAMESPACE=example
 export CLUSTER_NAME=capd-rke2-test
 export CABPR_CP_REPLICAS=3
 export CABPR_WK_REPLICAS=2
-export KUBERNETES_VERSION=v1.24.6 
+export KUBERNETES_VERSION=v1.27.3
+export KIND_IMAGE_VERSION=v1.27.3
 ```
 
 The next step is to substitue the values in the YAML using the following commands:
 
 ```bash
+cd samples/docker/online-default
 cat rke2-sample.yaml | clusterctl generate yaml > rke2-docker-example.yaml
 ```
 
@@ -135,16 +140,19 @@ At this moment, you can take some time to study the resulting YAML, then you can
 ```bash
 kubectl apply -f rke2-docker-example.yaml
 ```
+
 and see the following output:
+
 ```
 namespace/example created
-cluster.cluster.x-k8s.io/rke2-test created
-dockercluster.infrastructure.cluster.x-k8s.io/rke2-test created
-rke2controlplane.controlplane.cluster.x-k8s.io/rke2-test-control-plane created
+cluster.cluster.x-k8s.io/capd-rke2-test created
+dockercluster.infrastructure.cluster.x-k8s.io/capd-rke2-test created
+rke2controlplane.controlplane.cluster.x-k8s.io/capd-rke2-test-control-plane created
 dockermachinetemplate.infrastructure.cluster.x-k8s.io/controlplane created
 machinedeployment.cluster.x-k8s.io/worker-md-0 created
 dockermachinetemplate.infrastructure.cluster.x-k8s.io/worker created
-rke2configtemplate.bootstrap.cluster.x-k8s.io/rke2-test-agent created
+rke2configtemplate.bootstrap.cluster.x-k8s.io/capd-rke2-test-agent created
+configmap/capd-rke2-test-lb-config created
 ```
 
 ## Checking the workload cluster
@@ -156,38 +164,51 @@ kubectl get machine -n example
 ```
 
 and you should see output similar to the following:
+
 ```
-NAME                                 CLUSTER          NODENAME                                      PROVIDERID                                               PHASE     AGE     VERSION
-capd-rke2-test-control-plane-4njnd   capd-rke2-test   capd-rke2-test-control-plane-4njnd            docker:////capd-rke2-test-control-plane-4njnd            Running   5m18s   v1.24.6
-capd-rke2-test-control-plane-rccsk   capd-rke2-test   capd-rke2-test-control-plane-rccsk            docker:////capd-rke2-test-control-plane-rccsk            Running   3m1s    v1.24.6
-capd-rke2-test-control-plane-v5g8v   capd-rke2-test   capd-rke2-test-control-plane-v5g8v            docker:////capd-rke2-test-control-plane-v5g8v            Running   8m4s    v1.24.6
-worker-md-0-6d4944f5b6-k5xxw         capd-rke2-test   capd-rke2-test-worker-md-0-6d4944f5b6-k5xxw   docker:////capd-rke2-test-worker-md-0-6d4944f5b6-k5xxw   Running   8m6s    v1.24.6
-worker-md-0-6d4944f5b6-qjbjh         capd-rke2-test   capd-rke2-test-worker-md-0-6d4944f5b6-qjbjh   docker:////capd-rke2-test-worker-md-0-6d4944f5b6-qjbjh   Running   8m6s    v1.24.6
+NAME                                 CLUSTER          NODENAME                                 PROVIDERID                                          PHASE     AGE   VERSION
+capd-rke2-test-control-plane-9fw9t   capd-rke2-test   capd-rke2-test-control-plane-9fw9t       docker:////capd-rke2-test-control-plane-9fw9t       Running   35m   v1.27.3+rke2r1
+capd-rke2-test-control-plane-m2sdk   capd-rke2-test   capd-rke2-test-control-plane-m2sdk       docker:////capd-rke2-test-control-plane-m2sdk       Running   12m   v1.27.3+rke2r1
+capd-rke2-test-control-plane-zk2xb   capd-rke2-test   capd-rke2-test-control-plane-zk2xb       docker:////capd-rke2-test-control-plane-zk2xb       Running   27m   v1.27.3+rke2r1
+worker-md-0-fhxrw-crn5g              capd-rke2-test   capd-rke2-test-worker-md-0-fhxrw-crn5g   docker:////capd-rke2-test-worker-md-0-fhxrw-crn5g   Running   36m   v1.27.3+rke2r1
+worker-md-0-fhxrw-qsk7n              capd-rke2-test   capd-rke2-test-worker-md-0-fhxrw-qsk7n   docker:////capd-rke2-test-worker-md-0-fhxrw-qsk7n   Running   36m   v1.27.3+rke2r1
 ```
 
-You can now get the kubeconfig file for the workload cluster using :
+## Accessing the workload cluster
+
+Once cluster is fully provisioned, you can check its status with:
 
 ```bash
-clusterctl get kubeconfig capd-rke2-test -n example > ~/capd-rke2-test-kubeconfig.yaml
-export KUBECONFIG=~/capd-rke2-test-kubeconfig.yaml
-``` 
+kubectl get cluster -n example
+```
 
-and query the newly created cluster using:
+and see an output similar to this:
+
+```
+NAMESPACE   NAME             CLUSTERCLASS   PHASE         AGE   VERSION
+example     capd-rke2-test                  Provisioned   31m
+```
+
+You can also get an “at glance” view of the cluster and its resources by running:
 
 ```bash
-kubectl cluster-info
+clusterctl describe cluster capd-rke2-test -n example
 ```
 
-and see output like this:
+This should output similar to this:
 
 ```
-Kubernetes control plane is running at https://172.18.0.5:6443
-CoreDNS is running at https://172.18.0.5:6443/api/v1/namespaces/kube-system/services/rke2-coredns-rke2-coredns:udp-53/proxy
-
-To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+NAME                                                            READY  SEVERITY  REASON  SINCE  MESSAGE                                                                         
+Cluster/capd-rke2-test                                          True                     2m56s                                                                                   
+├─ClusterInfrastructure - DockerCluster/capd-rke2-test          True                     31m                                                                                     
+├─ControlPlane - RKE2ControlPlane/capd-rke2-test-control-plane  True                     2m56s                                                                                   
+│ └─3 Machines...                                               True                     28m    See capd-rke2-test-control-plane-9fw9t, capd-rke2-test-control-plane-m2sdk, ...  
+└─Workers                                                                                                                                                                        
+  └─MachineDeployment/worker-md-0                               True                     15m                                                                                     
+    └─2 Machines...                                             True                     25m    See worker-md-0-fhxrw-crn5g, worker-md-0-fhxrw-qsk7n
 ```
 
-:tada: CONGRATULATIONS ! :tada: You created your first RKE2 cluster with CAPD as an infrastructure provider.
+🎉 CONGRATULATIONS! 🎉 You created your first RKE2 cluster with CAPD as an infrastructure provider.
 
 ## Using ClusterClass for cluster creation
 
