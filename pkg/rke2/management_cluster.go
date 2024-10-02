@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -150,30 +149,9 @@ func (m *Management) getEtcdCAKeyPair(ctx context.Context, cl ctrlclient.Reader,
 		log.FromContext(ctx).Info("Secret is empty, skipping etcd client creation")
 
 		return keypair, nil
-	} else if s.Labels != nil && s.Labels[secret.ExternalPurposeLabel] == string(secret.EtcdServerCA) {
-		return certificates[0].GetKeyPair(), nil
 	}
 
-	// External certificate needs to be fetched otherwise, to sync the content
-	log.FromContext(ctx).Info("Local secret is not up-to-date, skipping etcd client creation")
-
-	return keypair, nil
-}
-
-func (m *Management) getRemoteKeyPair(ctx context.Context, remoteClient ctrlclient.Client, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
-	etcdCertificate := &secret.ExternalCertificate{
-		Reader:  remoteClient,
-		Purpose: secret.EtcdServerCA,
-	}
-	externalCertificates := secret.Certificates{etcdCertificate}
-
-	if err := externalCertificates.LookupOrGenerate(ctx, m.Client, clusterKey, metav1.OwnerReference{}); err != nil {
-		log.FromContext(ctx).Error(err, "unable to lookup or create cluster certificates")
-
-		return nil, err
-	}
-
-	return etcdCertificate.GetKeyPair(), nil
+	return certificates[0].GetKeyPair(), nil
 }
 
 func generateClientCert(caCertEncoded, caKeyEncoded []byte, clientKey *rsa.PrivateKey) (tls.Certificate, error) {

@@ -82,10 +82,6 @@ const (
 
 	// TenYears is the duration of one year.
 	TenYears = time.Hour * 24 * 365 * 10
-
-	// ExternalPurposeLabel is a label set on external secrets, uniquely identifying their belonging
-	// to external source and used for a specified purpose.
-	ExternalPurposeLabel = "cluster.x-k8s.io/purpose"
 )
 
 // Purpose is the name to append to the secret generated for a cluster.
@@ -160,41 +156,9 @@ func (c *ManagedCertificate) Lookup(ctx context.Context, ctrlclient client.Reade
 	return s, nil
 }
 
-// ExternalCertificate represents a single certificate CA.
-type ExternalCertificate struct {
-	client.Reader
-	Purpose   Purpose
-	Generated bool
-	KeyPair   *certs.KeyPair
-}
-
-// SaveGenerated implements Certificate.
-func (c *ExternalCertificate) SaveGenerated(ctx context.Context, cl client.Client, key types.NamespacedName, owner metav1.OwnerReference) error {
-	s := c.AsSecret(key, owner)
-
-	if err := cl.Get(ctx, client.ObjectKeyFromObject(s), s); apierrors.IsNotFound(err) {
-		if err := cl.Create(ctx, c.AsSecret(key, owner)); client.IgnoreAlreadyExists(err) != nil {
-			return errors.WithStack(err)
-		}
-	} else if err != nil {
-		return errors.WithStack(err)
-	}
-
-	source := c.AsSecret(key, owner)
-	s.Data = source.Data
-	s.Labels = source.Labels
-
-	if err := cl.Update(ctx, s); client.IgnoreAlreadyExists(err) != nil {
-		return errors.WithStack(err)
-	}
-
-	return nil
-}
-
 var (
 	_ CertificatesGenerator = &Certificates{}
 	_ Certificate           = &ManagedCertificate{}
-	_ Certificate           = &ExternalCertificate{}
 )
 
 // Certificates are the certificates necessary to bootstrap a cluster.
@@ -309,74 +273,6 @@ func (c *ManagedCertificate) IsGenerated() bool {
 // IsExternal returns true for extenally managed cerificates.
 func (c *ManagedCertificate) IsExternal() bool {
 	return c.External
-}
-
-// Lookup implements certificate lookup for external source.
-func (c *ExternalCertificate) Lookup(ctx context.Context, _ client.Reader, _ client.ObjectKey) (*corev1.Secret, error) {
-	s := &corev1.Secret{}
-	key := client.ObjectKey{
-		Name:      Name("cluster", c.GetPurpose()),
-		Namespace: metav1.NamespaceSystem,
-	}
-
-	if err := c.Get(ctx, key, s); err != nil {
-		if apierrors.IsNotFound(err) {
-			if c.IsExternal() {
-				return nil, errors.WithMessage(err, "external certificate not found")
-			}
-
-			return nil, nil //nolint:nilnil
-		}
-
-		return nil, errors.WithStack(err)
-	}
-
-	return s, nil
-}
-
-// AsFiles for external certificate is a no-op, due to being externally managed.
-func (*ExternalCertificate) AsFiles() []bootstrapv1.File {
-	return []bootstrapv1.File{}
-}
-
-// AsSecret implements Certificate.
-func (c *ExternalCertificate) AsSecret(clusterName types.NamespacedName, owner metav1.OwnerReference) *corev1.Secret {
-	s := asExternalSecret(map[string][]byte{
-		TLSKeyDataName: c.KeyPair.Key,
-		TLSCrtDataName: c.KeyPair.Cert,
-	}, c.GetPurpose(), clusterName, owner)
-
-	return s
-}
-
-// Generate implements key pair collection from external source.
-func (c *ExternalCertificate) Generate() error {
-	return nil
-}
-
-// GetKeyPair implements key pair retriever for ExternalCertificate.
-func (c *ExternalCertificate) GetKeyPair() *certs.KeyPair {
-	return c.KeyPair
-}
-
-// GetPurpose implements purpose check for ExternalCertificate.
-func (c *ExternalCertificate) GetPurpose() Purpose {
-	return c.Purpose
-}
-
-// IsExternal represents extenally managed scenario for ExternalCertificate so is always true.
-func (*ExternalCertificate) IsExternal() bool {
-	return true
-}
-
-// IsGenerated is always false for externally managed certificate.
-func (c *ExternalCertificate) IsGenerated() bool {
-	return true
-}
-
-// SetKeyPair sets ExternalCertificate key pair.
-func (c *ExternalCertificate) SetKeyPair(keyPair *certs.KeyPair) {
-	c.KeyPair = keyPair
 }
 
 // Generate will generate any certificates that do not have KeyPair data.
@@ -596,13 +492,6 @@ func generateServiceAccountKeys() (*certs.KeyPair, error) {
 		Cert: saPub,
 		Key:  certs.EncodePrivateKeyPEM(saCreds),
 	}, nil
-}
-
-func asExternalSecret(data map[string][]byte, purpose Purpose, clusterName types.NamespacedName, owner metav1.OwnerReference) *corev1.Secret {
-	secret := asSecret(data, purpose, clusterName, owner)
-	secret.Labels[ExternalPurposeLabel] = string(purpose)
-
-	return secret
 }
 
 func asSecret(data map[string][]byte, purpose Purpose, clusterName types.NamespacedName, _ metav1.OwnerReference) *corev1.Secret {
