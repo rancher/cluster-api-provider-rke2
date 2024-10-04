@@ -369,6 +369,10 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	}()
 
 	certificates := secret.NewCertificatesForInitialControlPlane()
+	if _, found := scope.ControlPlane.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
+		certificates = secret.NewCertificatesForLegacyControlPlane()
+	}
+
 	if err := certificates.LookupOrGenerate(
 		ctx,
 		r.Client,
