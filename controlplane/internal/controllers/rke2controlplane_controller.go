@@ -439,6 +439,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	}
 
 	certificates := secret.NewCertificatesForInitialControlPlane()
+	if _, found := rcp.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
+		certificates = secret.NewCertificatesForLegacyControlPlane()
+	}
+
 	controllerRef := metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane"))
 
 	if err := certificates.LookupOrGenerate(ctx, r.Client, util.ObjectKey(cluster), *controllerRef); err != nil {
@@ -546,6 +550,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 
 	// If we've made it this far, we can assume that all ownedMachines are up to date
 	numMachines := len(ownedMachines)
+
 	desiredReplicas := int(*rcp.Spec.Replicas)
 
 	switch {
