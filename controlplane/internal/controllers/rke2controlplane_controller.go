@@ -606,6 +606,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileEtcdMembers(ctx context.Context, c
 		return nil
 	}
 
+	if _, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
+		log.Info("Etcd membership disabled, found controlplane.cluster.x-k8s.io/legacy annotation")
+
+		return nil
+	}
+
 	// Collect all the node names.
 	nodeNames := []string{}
 
@@ -997,6 +1003,10 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 	// If we have more than 1 Machine and etcd is managed we forward etcd leadership and remove the member
 	// to keep the etcd cluster healthy.
 	if controlPlane.Machines.Len() > 1 {
+		if _, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
+			return ctrl.Result{}, nil
+		}
+
 		workloadCluster, err := r.GetWorkloadCluster(ctx, controlPlane)
 		if err != nil {
 			return ctrl.Result{}, errors.Wrapf(err,
