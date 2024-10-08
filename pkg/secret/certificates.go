@@ -194,6 +194,26 @@ func NewCertificatesForInitialControlPlane() Certificates {
 	return certificates
 }
 
+// NewCertificatesForLegacyControlPlane returns a list of certificates configured for a control plane node, excluding etcd certificates set.
+func NewCertificatesForLegacyControlPlane() Certificates {
+	certificatesDir := DefaultCertificatesDir
+
+	certificates := Certificates{
+		&ManagedCertificate{
+			Purpose:  ClusterCA,
+			CertFile: filepath.Join(certificatesDir, "server-ca.crt"),
+			KeyFile:  filepath.Join(certificatesDir, "server-ca.key"),
+		},
+		&ManagedCertificate{
+			Purpose:  ClientClusterCA,
+			CertFile: filepath.Join(certificatesDir, "client-ca.crt"),
+			KeyFile:  filepath.Join(certificatesDir, "client-ca.key"),
+		},
+	}
+
+	return certificates
+}
+
 // GetByPurpose returns a certificate by the given name.
 // This could be removed if we use a map instead of a slice to hold certificates, however other code becomes more complex.
 func (c Certificates) GetByPurpose(purpose Purpose) Certificate {

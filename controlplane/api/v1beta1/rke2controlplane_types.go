@@ -36,6 +36,10 @@ const (
 	// RKE2ServerConfigurationAnnotation is a machine annotation that stores the json-marshalled string of RKE2Config
 	// This annotation is used to detect any changes in RKE2Config and trigger machine rollout.
 	RKE2ServerConfigurationAnnotation = "controlplane.cluster.x-k8s.io/rke2-server-configuration"
+
+	// LegacyRKE2ControlPlane is a controlplane annotation that marks the CP as legacy. This CP will not provide
+	// etcd certificate management or etcd membership management.
+	LegacyRKE2ControlPlane = "controlplane.cluster.x-k8s.io/legacy"
 )
 
 // RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane.
