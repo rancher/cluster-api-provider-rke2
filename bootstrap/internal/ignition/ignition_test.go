@@ -17,11 +17,11 @@ limitations under the License.
 package ignition
 
 import (
-	"fmt"
-	"compress/gzip"
 	"bytes"
-	"io/ioutil"
+	"compress/gzip"
 	"encoding/base64"
+	"fmt"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -133,7 +133,7 @@ var _ = Describe("NewJoinWorker", func() {
 		scriptContentsGzip, err := base64.StdEncoding.DecodeString(scriptContentsEnc)
 		Expect(err).ToNot(HaveOccurred())
 		reader := bytes.NewReader(scriptContentsGzip)
-		gzreader, err := gzip.NewReader(reader);
+		gzreader, err := gzip.NewReader(reader)
 		Expect(err).ToNot(HaveOccurred())
 		scriptContents, err := ioutil.ReadAll(gzreader)
 		Expect(err).ToNot(HaveOccurred())
@@ -254,7 +254,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 	It("should return slice of control plane commands", func() {
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(10))
+		Expect(commands).To(HaveLen(9))
 		Expect(commands).To(ContainElements(fmt.Sprintf(controlPlaneCommand, baseUserData.RKE2Version), serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
@@ -262,7 +262,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 		baseUserData.AirGapped = true
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(10))
+		Expect(commands).To(HaveLen(9))
 		Expect(commands).To(ContainElements(airGappedControlPlaneCommand, serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
@@ -271,7 +271,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 		baseUserData.AirGappedChecksum = "abcd"
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(11))
+		Expect(commands).To(HaveLen(10))
 		Expect(commands).To(ContainElements(fmt.Sprintf(airGappedChecksumCommand, "abcd"), airGappedControlPlaneCommand, serverDeployCommands[0], serverDeployCommands[1]))
 	})
 

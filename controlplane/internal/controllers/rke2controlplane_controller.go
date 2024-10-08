@@ -439,6 +439,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	}
 
 	certificates := secret.NewCertificatesForInitialControlPlane()
+	if _, found := rcp.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
+		certificates = secret.NewCertificatesForLegacyControlPlane()
+	}
+
 	controllerRef := metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane"))
 
 	if err := certificates.LookupOrGenerate(ctx, r.Client, util.ObjectKey(cluster), *controllerRef); err != nil {
@@ -546,6 +550,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 
 	// If we've made it this far, we can assume that all ownedMachines are up to date
 	numMachines := len(ownedMachines)
+
 	desiredReplicas := int(*rcp.Spec.Replicas)
 
 	switch {
@@ -598,6 +603,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileEtcdMembers(ctx context.Context, c
 
 	// If there is no RKE-owned control-plane machines, then control-plane has not been initialized yet.
 	if controlPlane.Machines.Len() == 0 {
+		return nil
+	}
+
+	if _, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
+		log.Info("Etcd membership disabled, found controlplane.cluster.x-k8s.io/legacy annotation")
+
 		return nil
 	}
 
@@ -992,6 +1003,10 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 	// If we have more than 1 Machine and etcd is managed we forward etcd leadership and remove the member
 	// to keep the etcd cluster healthy.
 	if controlPlane.Machines.Len() > 1 {
+		if _, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
+			return ctrl.Result{}, nil
+		}
+
 		workloadCluster, err := r.GetWorkloadCluster(ctx, controlPlane)
 		if err != nil {
 			return ctrl.Result{}, errors.Wrapf(err,

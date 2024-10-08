@@ -38,10 +38,6 @@ var (
 		"setenforce 0",
 		"systemctl enable rke2-server.service",
 		"systemctl start rke2-server.service",
-		"/var/lib/rancher/rke2/bin/kubectl create secret tls cluster-etcd -o yaml --dry-run=client -n kube-system " +
-			"--cert=/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt --key=/var/lib/rancher/rke2/server/tls/etcd/server-ca.key " +
-			"--kubeconfig /etc/rancher/rke2/rke2.yaml |" +
-			" /var/lib/rancher/rke2/bin/kubectl apply -f- --kubeconfig /etc/rancher/rke2/rke2.yaml",
 		"restorecon /etc/systemd/system/rke2-server.service",
 		"mkdir -p /run/cluster-api /etc/cluster-api",
 		"echo success | tee /run/cluster-api/bootstrap-success.complete /etc/cluster-api/bootstrap-success.complete > /dev/null",

@@ -115,17 +115,9 @@ func (m *Management) NewWorkload(
 	}
 
 	if apierrors.IsNotFound(err) || etcdKeyPair == nil {
-		log.FromContext(ctx).Info("Collecting etcd key pair from remote")
+		log.FromContext(ctx).Info("Cluster does not provide etcd certificates for creating child etcd ctrlclient.")
 
-		etcdKeyPair, err = m.getRemoteKeyPair(ctx, cl, clusterKey)
-		if ctrlclient.IgnoreNotFound(err) != nil {
-			return nil, err
-		} else if apierrors.IsNotFound(err) {
-			log.FromContext(ctx).Info("Cluster does not provide etcd certificates for creating child etcd ctrlclient." +
-				"Please scale up the CP nodes by one to bootstrap the etcd secret content.")
-
-			return workload, nil
-		}
+		return workload, nil
 	}
 
 	clientCert, err := tls.X509KeyPair(etcdKeyPair.Cert, etcdKeyPair.Key)
