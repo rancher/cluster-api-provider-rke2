@@ -1000,13 +1000,12 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 
 	// The following will execute and remove the pre-terminate hook from the Machine.
 
+	// Skip leader change for legacy CP
+	_, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]
+
 	// If we have more than 1 Machine and etcd is managed we forward etcd leadership and remove the member
 	// to keep the etcd cluster healthy.
-	if controlPlane.Machines.Len() > 1 {
-		if _, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
-			return ctrl.Result{}, nil
-		}
-
+	if controlPlane.Machines.Len() > 1 && !found {
 		workloadCluster, err := r.GetWorkloadCluster(ctx, controlPlane)
 		if err != nil {
 			return ctrl.Result{}, errors.Wrapf(err,
