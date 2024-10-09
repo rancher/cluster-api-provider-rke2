@@ -40,8 +40,8 @@ jobs:
       uses: rancher-eio/read-vault-secrets@main
       with:
         secrets: |
-          secret/data/github/repo/${{ github.repository }}/registry/prime/rancher/cluster-api-controller/credentials username | DOCKER_USERNAME ;
-          secret/data/github/repo/${{ github.repository }}/registry/prime/rancher/cluster-api-controller/credentials password | DOCKER_PASSWORD
+          secret/data/github/repo/clusterapi-forks/registry/prime/rancher/cluster-api-controller/credentials username | DOCKER_USERNAME ;
+          secret/data/github/repo/clusterapi-forks/registry/prime/rancher/cluster-api-controller/credentials password | DOCKER_PASSWORD
     - name: Docker login to registry
       uses: docker/login-action@v3
       with:
