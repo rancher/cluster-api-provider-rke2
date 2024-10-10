@@ -386,6 +386,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	logger := log.FromContext(ctx)
 	logger.Info("Reconcile RKE2 Control Plane")
 
+	if rcp.Annotations == nil {
+		rcp.Annotations = map[string]string{}
+	}
+
+	rcp.Annotations[controlplanev1.LegacyRKE2ControlPlane] = ""
+
 	// Wait for the cluster infrastructure to be ready before creating machines
 	if !cluster.Status.InfrastructureReady {
 		logger.Info("Cluster infrastructure is not ready yet")
@@ -526,6 +532,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 	rcp *controlplanev1.RKE2ControlPlane,
 ) (res ctrl.Result, err error) {
 	logger := log.FromContext(ctx)
+
+	if rcp.Annotations == nil {
+		rcp.Annotations = map[string]string{}
+	}
+
+	rcp.Annotations[controlplanev1.LegacyRKE2ControlPlane] = ""
 
 	// Gets all machines, not just control plane machines.
 	allMachines, err := r.managementCluster.GetMachinesForCluster(ctx, util.ObjectKey(cluster))
