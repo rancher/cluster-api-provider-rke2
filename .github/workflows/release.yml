@@ -7,7 +7,7 @@ on:
 
 env:
   TAG: ${{ github.ref_name }}
-  GHCR_REGISTRY: ghcr.io
+  REGISTRY: ghcr.io
 
 jobs:
   build:
@@ -15,8 +15,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      actions: read
-      id-token: write
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -26,32 +24,16 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '=1.21.8'
-    - name: Docker login ghcr.io
+    - name: Docker login
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.GHCR_REGISTRY }}
+        registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build docker image for ghcr.io
+    - name: Build docker image
       run: make docker-build-all TAG=${{ env.TAG }}
-    - name: Push docker image to ghcr.io
-      run: make docker-push-all TAG=${{ env.TAG }} PROD_REGISTRY=${{ env.GHCR_REGISTRY }}
-    - name: Read prime registry secrets
-      uses: rancher-eio/read-vault-secrets@main
-      with:
-        secrets: |
-          secret/data/github/repo/${{ inputs.github_repository_for_docker }}/registry/prime/rancher/cluster-api-controller/credentials username | DOCKER_USERNAME;
-          secret/data/github/repo/${{ inputs.github_repository_for_docker }}/registry/prime/rancher/cluster-api-controller/credentials password | DOCKER_PASSWORD;
-    - name: Docker login to registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ vars.PRIME_REGISTRY }}
-        username: ${{ env.DOCKER_USERNAME }}
-        password: ${{ env.DOCKER_PASSWORD }}
-    - name: Build docker image for prime registry
-      run: make docker-build-all TAG=${{ env.TAG }}
-    - name: Push docker image to prime registry
-      run: make docker-push-all TAG=${{ env.TAG }} PROD_REGISTRY=${{ vars.PRIME_REGISTRY }}
+    - name: Push docker image
+      run: make docker-push-all TAG=${{ env.TAG }} PROD_REGISTRY=${{ env.REGISTRY }}
   release:
     runs-on: ubuntu-latest
     permissions:
