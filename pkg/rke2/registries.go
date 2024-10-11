@@ -20,8 +20,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 )
 
 const (

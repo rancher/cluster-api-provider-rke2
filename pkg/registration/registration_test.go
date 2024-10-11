@@ -25,8 +25,8 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
 
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/registration"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
 )
 
 func TestNewRegistrationMethod(t *testing.T) {

@@ -9,9 +9,9 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 )
 
 // matchesRCPConfiguration returns a filter to find all machines that matches with RCP config and do not require any rollout.

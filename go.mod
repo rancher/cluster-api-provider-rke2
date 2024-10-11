@@ -1,4 +1,4 @@
-module github.com/rancher-sandbox/cluster-api-provider-rke2
+module github.com/rancher/cluster-api-provider-rke2
 
 go 1.19
 

@@ -41,15 +41,15 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/ignition"
-	controlplanev1 "github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/consts"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/locking"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/rke2"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/secret"
-	bsutil "github.com/rancher-sandbox/cluster-api-provider-rke2/pkg/util"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
+	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1alpha1"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/locking"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
+	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 )
 
 const (

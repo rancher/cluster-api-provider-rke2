@@ -271,11 +271,11 @@ managers: $(addprefix manager-,$(ALL_MANAGERS)) ## Run all manager-* targets
 
 .PHONY: manager-rke2-bootstrap
 manager-rke2-bootstrap: ## Build the rke2 bootstrap manager binary into the ./bin folder
-	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/rke2-bootstrap-manager github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/rke2-bootstrap-manager github.com/rancher/cluster-api-provider-rke2/bootstrap
 
 .PHONY: manager-rke2-control-plane
 manager-rke2-control-plane: ## Build the rke2 control plane manager binary into the ./bin folder
-	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/rke2-control-plane-manager github.com/rancher-sandbox/cluster-api-provider-rke2/controlplane
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/rke2-control-plane-manager github.com/rancher/cluster-api-provider-rke2/controlplane
 
 .PHONY: docker-pull-prerequisites
 docker-pull-prerequisites:
