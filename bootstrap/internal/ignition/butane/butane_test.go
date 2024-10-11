@@ -27,8 +27,8 @@ import (
 
 	"k8s.io/utils/pointer"
 
-	bootstrapv1 "github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	"github.com/rancher-sandbox/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 )
 
 func TestButane(t *testing.T) {

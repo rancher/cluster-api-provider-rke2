@@ -1,9 +1,9 @@
 managementClusterName: caprke2-e2e
 
 images:
-  - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-bootstrap:dev
+  - name: ghcr.io/rancher/cluster-api-provider-rke2-bootstrap:dev
     loadBehavior: mustLoad
-  - name: ghcr.io/rancher-sandbox/cluster-api-provider-rke2-controlplane:dev
+  - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
   - name: quay.io/jetstack/cert-manager-cainjector:v1.13.2
     loadBehavior: tryLoad
