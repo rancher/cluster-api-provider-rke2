@@ -22,8 +22,8 @@ import (
 	apiconversion "k8s.io/apimachinery/pkg/conversion"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 
-	bootstrapv1beta1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	bootstrapv1alpha1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
+	bootstrapv1beta1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
@@ -51,6 +51,10 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 
 	if restored.Spec.AgentConfig.AirGappedChecksum != "" {
 		dst.Spec.AgentConfig.AirGappedChecksum = restored.Spec.AgentConfig.AirGappedChecksum
+	}
+
+	if restored.Spec.AgentConfig.PodSecurityAdmissionConfigFile != "" {
+		dst.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
 	dst.Spec.MachineTemplate = restored.Spec.MachineTemplate
@@ -123,6 +127,10 @@ func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
 
 	if restored.Spec.Template.Spec.AgentConfig.AirGappedChecksum != "" {
 		dst.Spec.Template.Spec.AgentConfig.AirGappedChecksum = restored.Spec.Template.Spec.AgentConfig.AirGappedChecksum
+	}
+
+	if restored.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile != "" {
+		dst.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
 	dst.Spec.Template = restored.Spec.Template
@@ -206,9 +214,9 @@ func Convert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneTemplate
 }
 
 func Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in *bootstrapv1beta1.RKE2ConfigSpec, out *bootstrapv1alpha1.RKE2ConfigSpec, s apiconversion.Scope) error {
-        return bootstrapv1alpha1.Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in, out, s)
+	return bootstrapv1alpha1.Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in, out, s)
 }
 
 func Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in *bootstrapv1alpha1.RKE2ConfigSpec, out *bootstrapv1beta1.RKE2ConfigSpec, s apiconversion.Scope) error {
-        return bootstrapv1alpha1.Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in, out, s)
+	return bootstrapv1alpha1.Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in, out, s)
 }

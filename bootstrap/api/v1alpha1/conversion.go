@@ -47,6 +47,10 @@ func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.AgentConfig.AirGappedChecksum = restored.Spec.AgentConfig.AirGappedChecksum
 	}
 
+	if restored.Spec.AgentConfig.PodSecurityAdmissionConfigFile != "" {
+		dst.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.AgentConfig.PodSecurityAdmissionConfigFile
+	}
+
 	return nil
 }
 
@@ -100,6 +104,10 @@ func (src *RKE2ConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 
 	if restored.Spec.Template.Spec.AgentConfig.AirGappedChecksum != "" {
 		dst.Spec.Template.Spec.AgentConfig.AirGappedChecksum = restored.Spec.Template.Spec.AgentConfig.AirGappedChecksum
+	}
+
+	if restored.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile != "" {
+		dst.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
 	return nil

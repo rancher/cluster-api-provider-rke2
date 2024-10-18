@@ -368,34 +368,34 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 }
 
 type rke2AgentConfig struct {
-	ContainerRuntimeEndpoint      string            `json:"container-runtime-endpoint,omitempty"`
-	CloudProviderConfig           string            `json:"cloud-provider-config,omitempty"`
-	CloudProviderName             string            `json:"cloud-provider-name,omitempty"`
-	DataDir                       string            `json:"data-dir,omitempty"`
-	ImageCredentialProviderConfig string            `json:"image-credential-provider-config,omitempty"`
-	ImageCredentialProviderBinDir string            `json:"image-credential-provider-bin-dir,omitempty"`
-	KubeProxyArgs                 []string          `json:"kube-proxy-arg,omitempty"`
-	KubeProxyExtraEnv             map[string]string `json:"kube-proxy-extra-env,omitempty"`
-	KubeProxyExtraMounts          map[string]string `json:"kube-proxy-extra-mount,omitempty"`
-	KubeProxyImage                string            `json:"kube-proxy-image,omitempty"`
-	KubeletArgs                   []string          `json:"kubelet-arg,omitempty"`
-	KubeletPath                   string            `json:"kubelet-path,omitempty"`
-	LbServerPort                  int               `json:"lb-server-port,omitempty"`
-	NodeLabels                    []string          `json:"node-label,omitempty"`
-	NodeTaints                    []string          `json:"node-taint,omitempty"`
-	Profile                       string            `json:"profile,omitempty"`
-	ProtectKernelDefaults         bool              `json:"protect-kernel-defaults,omitempty"`
-	ResolvConf                    string            `json:"resolv-conf,omitempty"`
-	RuntimeImage                  string            `json:"runtime-image,omitempty"`
-	Selinux                       bool              `json:"selinux,omitempty"`
-	Server                        string            `json:"server,omitempty"`
-	Snapshotter                   string            `json:"snapshotter,omitempty"`
-	Token                         string            `json:"token,omitempty"`
+	ContainerRuntimeEndpoint       string            `json:"container-runtime-endpoint,omitempty"`
+	CloudProviderConfig            string            `json:"cloud-provider-config,omitempty"`
+	CloudProviderName              string            `json:"cloud-provider-name,omitempty"`
+	DataDir                        string            `json:"data-dir,omitempty"`
+	ImageCredentialProviderConfig  string            `json:"image-credential-provider-config,omitempty"`
+	ImageCredentialProviderBinDir  string            `json:"image-credential-provider-bin-dir,omitempty"`
+	KubeProxyArgs                  []string          `json:"kube-proxy-arg,omitempty"`
+	KubeProxyExtraEnv              map[string]string `json:"kube-proxy-extra-env,omitempty"`
+	KubeProxyExtraMounts           map[string]string `json:"kube-proxy-extra-mount,omitempty"`
+	KubeProxyImage                 string            `json:"kube-proxy-image,omitempty"`
+	KubeletArgs                    []string          `json:"kubelet-arg,omitempty"`
+	KubeletPath                    string            `json:"kubelet-path,omitempty"`
+	LbServerPort                   int               `json:"lb-server-port,omitempty"`
+	NodeLabels                     []string          `json:"node-label,omitempty"`
+	NodeTaints                     []string          `json:"node-taint,omitempty"`
+	Profile                        string            `json:"profile,omitempty"`
+	ProtectKernelDefaults          bool              `json:"protect-kernel-defaults,omitempty"`
+	PodSecurityAdmissionConfigFile string            `json:"pod-security-admission-config-file,omitempty"` // new flag, not present in the RKE2 docs yet
+	ResolvConf                     string            `json:"resolv-conf,omitempty"`
+	RuntimeImage                   string            `json:"runtime-image,omitempty"`
+	Selinux                        bool              `json:"selinux,omitempty"`
+	Server                         string            `json:"server,omitempty"`
+	Snapshotter                    string            `json:"snapshotter,omitempty"`
+	Token                          string            `json:"token,omitempty"`
 
 	// We don't expose these in the API
-	PauseImage                     string `json:"pause-image,omitempty"`
-	PodSecurityAdmissionConfigFile string `json:"pod-security-admission-config-file,omitempty"` // new flag, not present in the RKE2 docs yet
-	PrivateRegistry                string `json:"private-registry,omitempty"`
+	PauseImage      string `json:"pause-image,omitempty"`
+	PrivateRegistry string `json:"private-registry,omitempty"`
 
 	NodeExternalIp string `json:"node-external-ip,omitempty"`
 	NodeIp         string `json:"node-ip,omitempty"`
@@ -501,6 +501,7 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 	rke2AgentConfig.NodeLabels = opts.AgentConfig.NodeLabels
 	rke2AgentConfig.NodeTaints = opts.AgentConfig.NodeTaints
 	rke2AgentConfig.ProtectKernelDefaults = opts.AgentConfig.ProtectKernelDefaults
+	rke2AgentConfig.PodSecurityAdmissionConfigFile = opts.AgentConfig.PodSecurityAdmissionConfigFile
 
 	if opts.AgentConfig.ResolvConf != nil {
 		resolvConfCM := &corev1.ConfigMap{}

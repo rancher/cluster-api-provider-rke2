@@ -106,6 +106,11 @@ type RKE2AgentConfig struct {
 	//+optional
 	CISProfile CISProfile `json:"cisProfile,omitempty"`
 
+	// PodSecurityPolicyConfigFile contains the path to the PodSecurityPolicy configuration file. The file can be passed through
+	// spec.Files field.
+	//+optional
+	PodSecurityAdmissionConfigFile string `json:"podSecurityAdmissionConfigFile,omitempty"`
+
 	// ResolvConf is a reference to a ConfigMap containing resolv.conf content for the node.
 	//+optional
 	ResolvConf *corev1.ObjectReference `json:"resolvConf,omitempty"`
