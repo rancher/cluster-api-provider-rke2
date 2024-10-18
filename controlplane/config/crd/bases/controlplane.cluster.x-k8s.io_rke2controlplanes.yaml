@@ -1479,6 +1479,11 @@ spec:
                           type: string
                         type: array
                     type: object
+                  podSecurityAdmissionConfigFile:
+                    description: |-
+                      PodSecurityPolicyConfigFile contains the path to the PodSecurityPolicy configuration file. The file can be passed through
+                      spec.Files field.
+                    type: string
                   protectKernelDefaults:
                     description: |-
                       ProtectKernelDefaults defines Kernel tuning behavior. If true, error if kernel tunables are different than kubelet defaults.
