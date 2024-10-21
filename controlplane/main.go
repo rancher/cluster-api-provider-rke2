@@ -20,19 +20,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -48,6 +46,7 @@ import (
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/controllers"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
+	"github.com/rancher/cluster-api-provider-rke2/version"
 )
 
 var (
@@ -55,20 +54,21 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 
 	// flags.
-	enableLeaderElection        bool
-	leaderElectionLeaseDuration time.Duration
-	leaderElectionRenewDeadline time.Duration
-	leaderElectionRetryPeriod   time.Duration
-	watchFilterValue            string
-	profilerAddress             string
-	concurrencyNumber           int
-	syncPeriod                  time.Duration
-	watchNamespace              string
-	webhookPort                 int
-	webhookCertDir              string
-	healthAddr                  string
-
-	diagnosticsOptions = flags.DiagnosticsOptions{}
+	enableLeaderElection           bool
+	leaderElectionLeaseDuration    time.Duration
+	leaderElectionRenewDeadline    time.Duration
+	leaderElectionRetryPeriod      time.Duration
+	watchFilterValue               string
+	profilerAddress                string
+	concurrencyNumber              int
+	syncPeriod                     time.Duration
+	clusterCacheTrackerClientQPS   float32
+	clusterCacheTrackerClientBurst int
+	watchNamespace                 string
+	webhookPort                    int
+	webhookCertDir                 string
+	healthAddr                     string
+	managerOptions                 = flags.ManagerOptions{}
 )
 
 func init() {
@@ -108,6 +108,12 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&syncPeriod, "sync-period", consts.DefaultSyncPeriod,
 		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
 
+	fs.Float32Var(&clusterCacheTrackerClientQPS, "clustercachetracker-client-qps", 20,
+		"Maximum queries per second from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
+
+	fs.IntVar(&clusterCacheTrackerClientBurst, "clustercachetracker-client-burst", 30,
+		"Maximum number of queries that should be allowed in one burst from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
+
 	fs.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.") //nolint:lll
 
@@ -119,7 +125,7 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&healthAddr, "health-addr", ":9440",
 		"The address the health endpoint binds to.")
 
-	flags.AddDiagnosticsOptions(fs, &diagnosticsOptions)
+	flags.AddManagerOptions(fs, &managerOptions)
 }
 
 // Add RBAC for the authorized diagnostics endpoint.
@@ -134,7 +140,13 @@ func main() {
 
 	ctrl.SetLogger(klog.Background())
 
-	diagnosticsOpts := flags.GetDiagnosticsOptions(diagnosticsOptions)
+	restConfig := ctrl.GetConfigOrDie()
+
+	tlsOptions, metricsOptions, err := flags.GetManagerOptions(managerOptions)
+	if err != nil {
+		setupLog.Error(err, "Unable to start manager: invalid flags")
+		os.Exit(1)
+	}
 
 	var watchNamespaces map[string]cache.Config
 
@@ -145,23 +157,16 @@ func main() {
 		}
 	}
 
-	if profilerAddress != "" {
-		klog.Infof("Profiler listening for requests at %s", profilerAddress)
-
-		go func() {
-			klog.Info(http.ListenAndServe(profilerAddress, nil))
-		}()
-	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:           scheme,
-		LeaderElection:   enableLeaderElection,
-		LeaderElectionID: "rke2-controlplane-manager-leader-election-capi",
-		PprofBindAddress: profilerAddress,
-		LeaseDuration:    &leaderElectionLeaseDuration,
-		RenewDeadline:    &leaderElectionRenewDeadline,
-		RetryPeriod:      &leaderElectionRetryPeriod,
-		Metrics:          diagnosticsOpts,
+	ctrlOptions := ctrl.Options{
+		Scheme:                 scheme,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "rke2-controlplane-manager-leader-election-capi",
+		PprofBindAddress:       profilerAddress,
+		LeaseDuration:          &leaderElectionLeaseDuration,
+		RenewDeadline:          &leaderElectionRenewDeadline,
+		RetryPeriod:            &leaderElectionRetryPeriod,
+		HealthProbeBindAddress: healthAddr,
+		Metrics:                *metricsOptions,
 		Cache: cache.Options{
 			DefaultNamespaces: watchNamespaces,
 			SyncPeriod:        &syncPeriod,
@@ -178,33 +183,27 @@ func main() {
 			webhook.Options{
 				Port:    webhookPort,
 				CertDir: webhookCertDir,
+				TLSOpts: tlsOptions,
 			},
 		),
-		HealthProbeBindAddress: healthAddr,
-	})
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, ctrlOptions)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	// Setup the context that's going to be used in controllers and for the manager.
 	ctx := ctrl.SetupSignalHandler()
 
 	setupChecks(mgr)
-	setupReconcilers(ctx, mgr)
 	setupWebhooks(mgr)
-	//+kubebuilder:scaffold:builder
+	setupReconcilers(ctx, mgr)
 
-	setupLog.Info("starting manager")
+	setupLog.Info("Starting manager", "version", version.Get().String())
 
 	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
-
-	//+kubebuilder:scaffold:builder
-	setupLog.Info("starting manager")
-
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
@@ -237,6 +236,7 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 	if err := (&controllers.RKE2ControlPlaneReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
+		WatchFilterValue:    watchFilterValue,
 		SecretCachingClient: secretCachingClient,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RKE2ControlPlane")

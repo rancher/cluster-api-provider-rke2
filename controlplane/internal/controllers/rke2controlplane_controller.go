@@ -74,6 +74,9 @@ type RKE2ControlPlaneReconciler struct {
 
 	SecretCachingClient client.Client
 
+	// WatchFilterValue is the label value used to filter events prior to reconciliation.
+	WatchFilterValue string
+
 	managementClusterUncached rke2.ManagementCluster
 	managementCluster         rke2.ManagementCluster
 	recorder                  record.EventRecorder
@@ -230,8 +233,9 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 	}
 
 	err = c.Watch(
-		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
-		handler.EnqueueRequestsFromMapFunc(r.ClusterToRKE2ControlPlane(ctx)),
+		source.Kind[client.Object](mgr.GetCache(), &clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc((r.ClusterToRKE2ControlPlane(ctx))),
+		),
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed adding Watch for Clusters to controller manager")

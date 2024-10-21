@@ -62,6 +62,7 @@ spec:
           privileged: false
           runAsUser: 65532
           runAsGroup: 65532
+        terminationMessagePolicy: FallbackToLogsOnError
         # TODO(user): Configure the resources accordingly based on the project requirements.
         # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
         resources:

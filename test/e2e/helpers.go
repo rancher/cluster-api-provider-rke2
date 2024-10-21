@@ -56,7 +56,7 @@ type ApplyClusterTemplateAndWaitInput struct {
 	WaitForClusterIntervals      []interface{}
 	WaitForControlPlaneIntervals []interface{}
 	WaitForMachineDeployments    []interface{}
-	Args                         []string // extra args to be used during `kubectl apply`
+	CreateOrUpdateOpts           []framework.CreateOrUpdateOption // options to be passed to CreateOrUpdate function config
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
 	ControlPlaneWaiters
@@ -72,7 +72,7 @@ type ApplyCustomClusterTemplateAndWaitInput struct {
 	WaitForClusterIntervals      []interface{}
 	WaitForControlPlaneIntervals []interface{}
 	WaitForMachineDeployments    []interface{}
-	Args                         []string // extra args to be used during `kubectl apply`
+	CreateOrUpdateOpts           []framework.CreateOrUpdateOption // options to be passed to CreateOrUpdate function config
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
 	ControlPlaneWaiters
@@ -167,7 +167,7 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 
 	Byf("Applying the cluster template yaml of cluster %s", klog.KRef(input.Namespace, input.ClusterName))
 	Eventually(func() error {
-		return input.ClusterProxy.Apply(ctx, input.CustomTemplateYAML, input.Args...)
+		return input.ClusterProxy.CreateOrUpdate(ctx, input.CustomTemplateYAML, input.CreateOrUpdateOpts...)
 	}, input.WaitForClusterIntervals...).Should(Succeed(), "Failed to apply the cluster template")
 
 	// Once we applied the cluster template we can run PreWaitForCluster.
