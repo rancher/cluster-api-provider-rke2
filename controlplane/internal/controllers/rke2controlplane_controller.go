@@ -43,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/collections"
@@ -74,8 +73,11 @@ type RKE2ControlPlaneReconciler struct {
 
 	SecretCachingClient client.Client
 
+	// WatchFilterValue is the label value used to filter events prior to reconciliation.
+	WatchFilterValue string
+
 	managementClusterUncached rke2.ManagementCluster
-	managementCluster         rke2.ManagementCluster
+	ManagementCluster         rke2.ManagementCluster
 	recorder                  record.EventRecorder
 	controller                controller.Controller
 	workloadCluster           rke2.WorkloadCluster
@@ -230,8 +232,9 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 	}
 
 	err = c.Watch(
-		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
-		handler.EnqueueRequestsFromMapFunc(r.ClusterToRKE2ControlPlane(ctx)),
+		source.Kind[client.Object](mgr.GetCache(), &clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc((r.ClusterToRKE2ControlPlane(ctx))),
+		),
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed adding Watch for Clusters to controller manager")
@@ -239,40 +242,6 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 
 	r.controller = c
 	r.recorder = mgr.GetEventRecorderFor("rke2-control-plane-controller")
-
-	// Set up a ClusterCacheTracker and ClusterCacheReconciler to provide to controllers
-	// requiring a connection to a remote cluster
-	tracker, err := remote.NewClusterCacheTracker(
-		mgr,
-		remote.ClusterCacheTrackerOptions{
-			SecretCachingClient: r.SecretCachingClient,
-			ControllerName:      "rke2-control-plane-controller",
-			Log:                 &ctrl.Log,
-			Indexes:             []remote.Index{},
-			ClientUncachedObjects: []client.Object{
-				&corev1.ConfigMap{},
-				&corev1.Secret{},
-			},
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, "unable to create cluster cache tracker")
-	}
-
-	if err := (&remote.ClusterCacheReconciler{
-		Client:  mgr.GetClient(),
-		Tracker: tracker,
-	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
-		return errors.Wrap(err, "unable to create controller")
-	}
-
-	if r.managementCluster == nil {
-		r.managementCluster = &rke2.Management{
-			Client:              r.Client,
-			SecretCachingClient: r.SecretCachingClient,
-			Tracker:             tracker,
-		}
-	}
 
 	if r.managementClusterUncached == nil {
 		r.managementClusterUncached = &rke2.Management{Client: mgr.GetClient()}
@@ -284,7 +253,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster) error {
 	logger := log.FromContext(ctx)
 
-	ownedMachines, err := r.managementCluster.GetMachinesForCluster(
+	ownedMachines, err := r.ManagementCluster.GetMachinesForCluster(
 		ctx,
 		util.ObjectKey(cluster),
 		collections.OwnedMachines(rcp))
@@ -584,7 +553,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 // GetWorkloadCluster builds a cluster object.
 // The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
 func (r *RKE2ControlPlaneReconciler) GetWorkloadCluster(ctx context.Context, controlPlane *rke2.ControlPlane) (rke2.WorkloadCluster, error) {
-	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, client.ObjectKeyFromObject(controlPlane.Cluster))
+	workloadCluster, err := r.ManagementCluster.GetWorkloadCluster(ctx, client.ObjectKeyFromObject(controlPlane.Cluster))
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +629,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 	logger := log.FromContext(ctx)
 
 	// Gets all machines, not just control plane machines.
-	allMachines, err := r.managementCluster.GetMachinesForCluster(ctx, util.ObjectKey(cluster))
+	allMachines, err := r.ManagementCluster.GetMachinesForCluster(ctx, util.ObjectKey(cluster))
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -1053,7 +1022,7 @@ func machineHasOtherPreTerminateHooks(machine *clusterv1.Machine) bool {
 // getWorkloadCluster gets a cluster object.
 // The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
 func (r *RKE2ControlPlaneReconciler) getWorkloadCluster(ctx context.Context, clusterKey types.NamespacedName) (rke2.WorkloadCluster, error) {
-	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, clusterKey)
+	workloadCluster, err := r.ManagementCluster.GetWorkloadCluster(ctx, clusterKey)
 	if err != nil {
 		return nil, fmt.Errorf("getting remote client for workload cluster: %w", err)
 	}

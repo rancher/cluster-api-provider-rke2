@@ -17,15 +17,16 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +40,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util/flags"
+	"sigs.k8s.io/cluster-api/webhooks"
 
 	bootstrapv1alpha1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
@@ -47,27 +50,31 @@ import (
 	controlplanev1alpha1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
+	"github.com/rancher/cluster-api-provider-rke2/version"
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme         = runtime.NewScheme()
+	setupLog       = ctrl.Log.WithName("setup")
+	controllerName = "rke2-bootstrap-controller"
 
 	// flags.
-	enableLeaderElection        bool
-	leaderElectionLeaseDuration time.Duration
-	leaderElectionRenewDeadline time.Duration
-	leaderElectionRetryPeriod   time.Duration
-	watchFilterValue            string
-	profilerAddress             string
-	concurrencyNumber           int
-	syncPeriod                  time.Duration
-	watchNamespace              string
-	webhookPort                 int
-	webhookCertDir              string
-	healthAddr                  string
-
-	diagnosticsOptions = flags.DiagnosticsOptions{}
+	enableLeaderElection           bool
+	leaderElectionLeaseDuration    time.Duration
+	leaderElectionRenewDeadline    time.Duration
+	leaderElectionRetryPeriod      time.Duration
+	watchFilterValue               string
+	profilerAddress                string
+	concurrencyNumber              int
+	clusterCacheTrackerConcurrency int
+	syncPeriod                     time.Duration
+	clusterCacheTrackerClientQPS   float32
+	clusterCacheTrackerClientBurst int
+	watchNamespace                 string
+	webhookPort                    int
+	webhookCertDir                 string
+	healthAddr                     string
+	managerOptions                 = flags.ManagerOptions{}
 )
 
 func init() {
@@ -105,8 +112,17 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&concurrencyNumber, "concurrency", 1,
 		"Number of core resources to process simultaneously")
 
+	fs.IntVar(&clusterCacheTrackerConcurrency, "clustercachetracker-concurrency", 10,
+		"Number of clusters to process simultaneously")
+
 	fs.DurationVar(&syncPeriod, "sync-period", consts.DefaultSyncPeriod,
 		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
+
+	fs.Float32Var(&clusterCacheTrackerClientQPS, "clustercachetracker-client-qps", 20,
+		"Maximum queries per second from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
+
+	fs.IntVar(&clusterCacheTrackerClientBurst, "clustercachetracker-client-burst", 30,
+		"Maximum number of queries that should be allowed in one burst from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
 
 	fs.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.") //nolint:lll
@@ -119,7 +135,7 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&healthAddr, "health-addr", ":9440",
 		"The address the health endpoint binds to.")
 
-	flags.AddDiagnosticsOptions(fs, &diagnosticsOptions)
+	flags.AddManagerOptions(fs, &managerOptions)
 }
 
 // Add RBAC for the authorized diagnostics endpoint.
@@ -133,7 +149,13 @@ func main() {
 
 	ctrl.SetLogger(klog.Background())
 
-	diagnosticsOpts := flags.GetDiagnosticsOptions(diagnosticsOptions)
+	restConfig := ctrl.GetConfigOrDie()
+
+	tlsOptions, metricsOptions, err := flags.GetManagerOptions(managerOptions)
+	if err != nil {
+		setupLog.Error(err, "Unable to start manager: invalid flags")
+		os.Exit(1)
+	}
 
 	var watchNamespaces map[string]cache.Config
 
@@ -144,23 +166,16 @@ func main() {
 		}
 	}
 
-	if profilerAddress != "" {
-		klog.Infof("Profiler listening for requests at %s", profilerAddress)
-
-		go func() {
-			klog.Info(http.ListenAndServe(profilerAddress, nil))
-		}()
-	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:           scheme,
-		LeaderElection:   enableLeaderElection,
-		LeaderElectionID: "rke2-bootstrap-manager-leader-election-capi",
-		PprofBindAddress: profilerAddress,
-		LeaseDuration:    &leaderElectionLeaseDuration,
-		RenewDeadline:    &leaderElectionRenewDeadline,
-		RetryPeriod:      &leaderElectionRetryPeriod,
-		Metrics:          diagnosticsOpts,
+	ctrlOptions := ctrl.Options{
+		Scheme:                 scheme,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "rke2-bootstrap-manager-leader-election-capi",
+		PprofBindAddress:       profilerAddress,
+		LeaseDuration:          &leaderElectionLeaseDuration,
+		RenewDeadline:          &leaderElectionRenewDeadline,
+		RetryPeriod:            &leaderElectionRetryPeriod,
+		HealthProbeBindAddress: healthAddr,
+		Metrics:                *metricsOptions,
 		Cache: cache.Options{
 			DefaultNamespaces: watchNamespaces,
 			SyncPeriod:        &syncPeriod,
@@ -177,23 +192,26 @@ func main() {
 			webhook.Options{
 				Port:    webhookPort,
 				CertDir: webhookCertDir,
+				TLSOpts: tlsOptions,
 			},
 		),
-		HealthProbeBindAddress: healthAddr,
-	})
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, ctrlOptions)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+
 	setupChecks(mgr)
-	setupReconcilers(mgr)
-	setupWebhooks(mgr)
-	//+kubebuilder:scaffold:builder
+	tracker := setupReconcilers(ctx, mgr, watchNamespaces, &syncPeriod)
+	setupWebhooks(mgr, tracker)
 
-	setupLog.Info("starting manager")
+	setupLog.Info("Starting manager", "version", version.Get().String())
 
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
@@ -211,7 +229,7 @@ func setupChecks(mgr ctrl.Manager) {
 	}
 }
 
-func setupReconcilers(mgr ctrl.Manager) {
+func setupReconcilers(ctx context.Context, mgr ctrl.Manager, watchNamespaces map[string]cache.Config, syncPeriod *time.Duration) webhooks.ClusterCacheTrackerReader {
 	if err := (&controllers.RKE2ConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -219,9 +237,43 @@ func setupReconcilers(mgr ctrl.Manager) {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2Config")
 		os.Exit(1)
 	}
+
+	// Set up a ClusterCacheTracker and ClusterCacheReconciler to provide to controllers
+	// requiring a connection to a remote cluster
+	tracker, err := remote.NewClusterCacheTracker(
+		mgr,
+		remote.ClusterCacheTrackerOptions{
+			ControllerName: controllerName,
+			Log:            &ctrl.Log,
+			Indexes:        []remote.Index{},
+			ClientUncachedObjects: []client.Object{
+				&corev1.ConfigMap{},
+				&corev1.Secret{},
+			},
+			ClientQPS:   clusterCacheTrackerClientQPS,
+			ClientBurst: clusterCacheTrackerClientBurst,
+		},
+	)
+
+	if err != nil {
+		setupLog.Error(err, "Unable to create cluster cache tracker")
+		os.Exit(1)
+	}
+
+	if err := (&remote.ClusterCacheReconciler{
+		Client:           mgr.GetClient(),
+		Tracker:          tracker,
+		WatchFilterValue: watchFilterValue,
+	}).SetupWithManager(ctx, mgr, concurrency(clusterCacheTrackerConcurrency)); err != nil {
+		setupLog.Error(err, "Unable to create controller", "controller", "ClusterCacheReconciler")
+		os.Exit(1)
+	}
+
+	return tracker
+
 }
 
-func setupWebhooks(mgr ctrl.Manager) {
+func setupWebhooks(mgr ctrl.Manager, tracker webhooks.ClusterCacheTrackerReader) {
 	if err := (&bootstrapv1.RKE2Config{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2Config")
 		os.Exit(1)
@@ -231,4 +283,8 @@ func setupWebhooks(mgr ctrl.Manager) {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ConfigTemplate")
 		os.Exit(1)
 	}
+}
+
+func concurrency(c int) controller.Options {
+	return controller.Options{MaxConcurrentReconciles: c}
 }
