@@ -418,6 +418,7 @@ func autoConvert_v1beta1_RKE2AgentConfig_To_v1alpha1_RKE2AgentConfig(in *v1beta1
 	out.ContainerRuntimeEndpoint = in.ContainerRuntimeEndpoint
 	out.Snapshotter = in.Snapshotter
 	out.CISProfile = CISProfile(in.CISProfile)
+	// WARNING: in.PodSecurityAdmissionConfigFile requires manual conversion: does not exist in peer-type
 	out.ResolvConf = (*v1.ObjectReference)(unsafe.Pointer(in.ResolvConf))
 	out.ProtectKernelDefaults = in.ProtectKernelDefaults
 	out.SystemDefaultRegistry = in.SystemDefaultRegistry
