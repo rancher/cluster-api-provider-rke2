@@ -6,6 +6,7 @@
 - [Topics](./02_topics/00.md)
     - [Air-gapped installation](./02_topics/01_air-gapped-installation.md)
     - [Node registration methods](./02_topics/02_node-registration-methods.md)
+    - [CIS and PSA](./02_topics/03_cis-psa.md)
 - [Developer Guide](./03_developer/00.md)
     - [Development](./03_developer/01_development.md)
     - [Releasing](./03_developer/02_releasing.md)
