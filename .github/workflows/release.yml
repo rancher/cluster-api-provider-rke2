@@ -35,7 +35,7 @@ jobs:
     - name: Build docker image for ghcr.io
       run: make docker-build-all TAG=${{ env.TAG }}
     - name: Push docker image to ghcr.io
-      run: make docker-push-all TAG=${{ env.TAG }} PROD_REGISTRY=${{ env.GHCR_REGISTRY }}
+      run: make docker-push-all TAG=${{ env.TAG }} REGISTRY=${{ env.GHCR_REGISTRY }}
     - name: Read prime registry secrets
       uses: rancher-eio/read-vault-secrets@main
       with:
@@ -52,7 +52,7 @@ jobs:
     - name: Build docker image for prime registry
       run: make docker-build-all TAG=${{ env.TAG }}
     - name: Push docker image to prime registry
-      run: make docker-push-all TAG=${{ env.TAG }} PROD_REGISTRY=${{ env.PRIME-REGISTRY-REGISTRY }}
+      run: make docker-push-all TAG=${{ env.TAG }} REGISTRY=${{ env.PRIME-REGISTRY-REGISTRY }}
   release:
     runs-on: ubuntu-latest
     permissions:
@@ -69,7 +69,7 @@ jobs:
         go-version: '=1.21.8'
     - name: Update manifests
       run: |
-        make release RELEASE_TAG=${{ env.TAG }}
+        make release RELEASE_TAG=${{ env.TAG }} REGISTRY=${{ env.GHCR_REGISTRY }}
     - name: Release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
