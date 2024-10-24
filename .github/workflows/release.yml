@@ -32,10 +32,8 @@ jobs:
         registry: ${{ env.GHCR_REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build docker image for ghcr.io
-      run: make docker-build-all TAG=${{ env.TAG }}
-    - name: Push docker image to ghcr.io
-      run: make docker-push-all TAG=${{ env.TAG }} REGISTRY=${{ env.GHCR_REGISTRY }}
+    - name: Build and push docker image to ghcr.io
+      run: make docker-build-and-push TAG=${{ env.TAG }} REGISTRY=${{ env.GHCR_REGISTRY }}
     - name: Read prime registry secrets
       uses: rancher-eio/read-vault-secrets@main
       with:
@@ -49,10 +47,8 @@ jobs:
         registry: ${{ env.PRIME-REGISTRY-REGISTRY }}
         username: ${{ env.PRIME-REGISTRY-USERNAME }}
         password: ${{ env.PRIME-REGISTRY-PASSWORD }}
-    - name: Build docker image for prime registry
-      run: make docker-build-all TAG=${{ env.TAG }}
-    - name: Push docker image to prime registry
-      run: make docker-push-all TAG=${{ env.TAG }} REGISTRY=${{ env.PRIME-REGISTRY-REGISTRY }}
+    - name: Build and push docker image to prime registry
+      run: make docker-build-and-push TAG=${{ env.TAG }} REGISTRY=${{ env.PRIME-REGISTRY-REGISTRY }}
   release:
     runs-on: ubuntu-latest
     permissions:

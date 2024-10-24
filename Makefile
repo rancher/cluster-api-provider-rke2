@@ -13,7 +13,7 @@ SHELL = /usr/bin/env bash -o pipefail
 #
 # Go.
 #
-GO_VERSION ?= 1.21.0
+GO_VERSION ?= 1.22.0
 GO_CONTAINER_IMAGE ?= docker.io/library/golang:$(GO_VERSION)
 
 # Use GOPROXY environment variable if set
@@ -114,6 +114,8 @@ GH := $(abspath $(TOOLS_BIN_DIR)/$(GH_BIN))
 TAG ?= dev
 ARCH ?= $(shell go env GOARCH)
 ALL_ARCH = amd64 arm arm64 ppc64le s390x
+TARGET_PLATFORMS := linux/amd64,linux/arm64,linux/arm,linux/ppc64le,linux/s390x
+MACHINE := cluster-api-provider-rke2
 REGISTRY ?= ghcr.io
 ORG ?= rancher
 CONTROLLER_IMAGE_NAME := cluster-api-provider-rke2
@@ -121,6 +123,7 @@ BOOTSTRAP_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-bootstrap
 CONTROLPLANE_IMAGE_NAME = $(CONTROLLER_IMAGE_NAME)-controlplane
 BOOTSTRAP_IMG ?= $(REGISTRY)/$(ORG)/$(BOOTSTRAP_IMAGE_NAME)
 CONTROLPLANE_IMG ?= $(REGISTRY)/$(ORG)/$(CONTROLPLANE_IMAGE_NAME)
+IID_FILE ?= $(shell mktemp)
 
 # Repo
 GH_ORG_NAME ?= $ORG
@@ -290,6 +293,10 @@ verify-gen: generate  ## Verify go generated files are up to date
 
 ##@ build:
 
+buildx-machine:
+	@docker buildx inspect $(MACHINE) || \
+		docker buildx create --name=$(MACHINE) --platform=$(TARGET_PLATFORMS)
+
 ALL_MANAGERS = rke2-bootstrap rke2-control-plane
 
 .PHONY: managers
@@ -309,28 +316,34 @@ docker-pull-prerequisites:
 	docker pull $(GO_CONTAINER_IMAGE)
 	docker pull gcr.io/distroless/static:latest
 
-.PHONY: docker-build-all
-docker-build-all: $(addprefix docker-build-,$(ALL_ARCH)) ## Build docker images for all architectures
+.PHONY: docker-build ## Build the docker images for all providers
+docker-build: buildx-machine docker-pull-prerequisites
+	$(MAKE) docker-build-rke2-bootstrap
+	$(MAKE) docker-build-rke2-control-plane 
 
-docker-build-%:
-	$(MAKE) ARCH=$* docker-build
-
-ALL_DOCKER_BUILD = rke2-bootstrap rke2-control-plane
-
-.PHONY: docker-build
-docker-build: docker-pull-prerequisites ## Run docker-build-* targets for all providers
-	$(MAKE) ARCH=$(ARCH) $(addprefix docker-build-,$(ALL_DOCKER_BUILD))
 
 .PHONY: docker-build-rke2-bootstrap
-docker-build-rke2-bootstrap: ## Build the docker image for rke2 bootstrap controller manager
-	DOCKER_BUILDKIT=1 docker build --build-arg builder_image=$(GO_CONTAINER_IMAGE) --build-arg goproxy=$(GOPROXY) --build-arg ARCH=$(ARCH) --build-arg package=./bootstrap --build-arg ldflags="$(LDFLAGS)" . -t $(BOOTSTRAP_IMG)-$(ARCH):$(TAG)
-	$(MAKE) set-manifest-image MANIFEST_IMG=$(BOOTSTRAP_IMG)-$(ARCH) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./bootstrap/config/default/manager_image_patch.yaml"
+docker-build-rke2-bootstrap: 
+	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
+			--platform $(ARCH) \
+			--load \
+			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg goproxy=$(GOPROXY) \
+			--build-arg package=./bootstrap \
+			--build-arg ldflags="$(LDFLAGS)" . -t $(BOOTSTRAP_IMG):$(TAG)
+	$(MAKE) set-manifest-image MANIFEST_IMG=$(BOOTSTRAP_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./bootstrap/config/default/manager_image_patch.yaml"
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./bootstrap/config/default/manager_pull_policy.yaml"
 
 .PHONY: docker-build-rke2-control-plane
-docker-build-rke2-control-plane: ## Build the docker image for rke2 control plane controller manager
-	DOCKER_BUILDKIT=1 docker build --build-arg builder_image=$(GO_CONTAINER_IMAGE) --build-arg goproxy=$(GOPROXY) --build-arg ARCH=$(ARCH) --build-arg package=./controlplane --build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG)-$(ARCH):$(TAG)
-	$(MAKE) set-manifest-image MANIFEST_IMG=$(CONTROLPLANE_IMG)-$(ARCH) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./controlplane/config/default/manager_image_patch.yaml"
+docker-build-rke2-control-plane:
+	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
+			--platform $(ARCH) \
+			--load \
+			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg goproxy=$(GOPROXY) \
+			--build-arg package=./controlplane \
+			--build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG):$(TAG)
+	$(MAKE) set-manifest-image MANIFEST_IMG=$(CONTROLPLANE_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./controlplane/config/default/manager_image_patch.yaml"
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./controlplane/config/default/manager_pull_policy.yaml"
 
 ## --------------------------------------
@@ -419,15 +432,14 @@ LOCAL_GINKGO_ARGS ?=
 LOCAL_GINKGO_ARGS += $(GINKGO_ARGS)
 .PHONY: test-e2e-local
 test-e2e-local: ## Run e2e tests
-	PULL_POLICY=IfNotPresent MANAGER_IMAGE=$(CONTROLLER_IMG)-$(ARCH):$(TAG) \
+	PULL_POLICY=IfNotPresent MANAGER_IMAGE=$(CONTROLLER_IMG):$(TAG) \
 	$(MAKE) docker-build \
 	GINKGO_ARGS='$(LOCAL_GINKGO_ARGS)' \
 	test-e2e-run
 
 .PHONY: e2e-image
 e2e-image:
-	DOCKER_BUILDKIT=1 docker build --build-arg builder_image=$(GO_CONTAINER_IMAGE) --build-arg goproxy=$(GOPROXY) --build-arg ARCH=$(ARCH) --build-arg package=./controlplane --build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG):$(TAG)
-	DOCKER_BUILDKIT=1 docker build --build-arg builder_image=$(GO_CONTAINER_IMAGE) --build-arg goproxy=$(GOPROXY) --build-arg ARCH=$(ARCH) --build-arg package=./bootstrap --build-arg ldflags="$(LDFLAGS)" . -t $(BOOTSTRAP_IMG):$(TAG)
+	TAG=$(TAG) $(MAKE) docker-build
 
 .PHONY: compile-e2e
 compile-e2e: ## Test e2e compilation
@@ -459,16 +471,10 @@ release: clean-release ## Build and push container images using the latest git t
 	@if [ -z "${RELEASE_TAG}" ]; then echo "RELEASE_TAG is not set"; exit 1; fi
 	@if ! [ -z "$$(git status --porcelain)" ]; then echo "Your local git repository contains uncommitted changes, use git clean before proceeding."; exit 1; fi
 	git checkout "${RELEASE_TAG}"
-	# Build binaries first.
-	# GIT_VERSION=$(RELEASE_TAG) $(MAKE) release-binaries
 	# Set the manifest image to the production bucket.
 	$(MAKE) manifest-modification REGISTRY=$(REGISTRY)
 	## Build the manifests
 	$(MAKE) release-manifests
-	# Set the development manifest image to the staging bucket.
-	# $(MAKE) manifest-modification-dev REGISTRY=$(STAGING_REGISTRY)
-	## Build the development manifests
-	# $(MAKE) release-manifests-dev
 	## Clean the git artifacts modified in the release process
 	$(MAKE) clean-release-git
 
@@ -507,35 +513,37 @@ release-notes: $(RELEASE_DIR) $(GH)
 ## Docker
 ## --------------------------------------
 
-.PHONY: docker-push
-docker-push: ## Push the docker images
-	docker push $(BOOTSTRAP_IMG)-$(ARCH):$(TAG)
-	docker push $(CONTROLPLANE_IMG)-$(ARCH):$(TAG)
+.PHONY: docker-build-and-push
+docker-build-and-push: buildx-machine docker-pull-prerequisites
+	$(MAKE) docker-build-and-push-rke2-bootstrap
+	$(MAKE) docker-build-and-push-rke2-controlplane
 
-.PHONY: docker-push-all
-docker-push-all: $(addprefix docker-push-,$(ALL_ARCH))  ## Push all the architecture docker images
-	$(MAKE) docker-push-manifest-rke2-bootstrap
-	$(MAKE) docker-push-manifest-rke2-control-plane
-
-docker-push-%:
-	$(MAKE) ARCH=$* docker-push
-
-.PHONY: docker-push-manifest-rke2-bootstrap
-docker-push-manifest-rke2-bootstrap: ## Push the multiarch manifest for the rke2 bootstrap docker images
-	## Minimum docker version 18.06.0 is required for creating and pushing manifest images.
-	docker manifest create --amend $(BOOTSTRAP_IMG):$(TAG) $(shell echo $(ALL_ARCH) | sed -e "s~[^ ]*~$(BOOTSTRAP_IMG)\-&:$(TAG)~g")
-	@for arch in $(ALL_ARCH); do docker manifest annotate --arch $${arch} ${BOOTSTRAP_IMG}:${TAG} ${BOOTSTRAP_IMG}-$${arch}:${TAG}; done
-	docker manifest push --purge $(BOOTSTRAP_IMG):$(TAG)
-	## $(MAKE) set-manifest-image MANIFEST_IMG=$(BOOTSTRAP_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./bootstrap/config/default/manager_image_patch.yaml"
+.PHONY: docker-build-and-push-rke2-bootstrap
+docker-build-and-push-rke2-bootstrap:
+	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
+			--platform $(TARGET_PLATFORMS) \
+			--push \
+			--sbom=true \
+			--attest type=provenance,mode=max \
+			--iidfile=$(IID_FILE) \
+			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg goproxy=$(GOPROXY) \
+			--build-arg package=./bootstrap \
+			--build-arg ldflags="$(LDFLAGS)" . -t $(BOOTSTRAP_IMG):$(TAG)
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./bootstrap/config/default/manager_pull_policy.yaml"
 
-.PHONY: docker-push-manifest-rke2-control-plane
-docker-push-manifest-rke2-control-plane: ## Push the multiarch manifest for the rke2 control plane docker images
-	## Minimum docker version 18.06.0 is required for creating and pushing manifest images.
-	docker manifest create --amend $(CONTROLPLANE_IMG):$(TAG) $(shell echo $(ALL_ARCH) | sed -e "s~[^ ]*~$(CONTROLPLANE_IMG)\-&:$(TAG)~g")
-	@for arch in $(ALL_ARCH); do docker manifest annotate --arch $${arch} ${CONTROLPLANE_IMG}:${TAG} ${CONTROLPLANE_IMG}-$${arch}:${TAG}; done
-	docker manifest push --purge $(CONTROLPLANE_IMG):$(TAG)
-	## $(MAKE) set-manifest-image MANIFEST_IMG=$(CONTROLPLANE_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./controlplane/config/default/manager_image_patch.yaml"
+.PHONY: docker-build-and-push-rke2-controlplane
+docker-build-and-push-rke2-controlplane:
+	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
+			--platform $(TARGET_PLATFORMS) \
+			--push \
+			--sbom=true \
+			--attest type=provenance,mode=max \
+			--iidfile=$(IID_FILE) \
+			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg goproxy=$(GOPROXY) \
+			--build-arg package=./controlplane \
+			--build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG):$(TAG)
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./controlplane/config/default/manager_pull_policy.yaml"
 
 .PHONY: set-manifest-pull-policy
