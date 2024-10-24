@@ -1,4 +1,6 @@
-# Example manifests
+# Cluster API vSphere Infrastructure Provider
+
+## Installing the vSphere provider and creating a workload cluster
 
 This config includes a kubevip loadbalancer on the controlplane nodes. The VIP of the loadbalancer for the Kubernetes API is set by the CONTROL_PLANE_ENDPOINT_IP.
 
@@ -35,9 +37,10 @@ VSPHERE_SSH_AUTHORIZED_KEY: "ssh-rsa AAAAB3N..."              # The public ssh a
 Then run the following command to generate the RKE2 cluster manifests:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/samples/vmware/cluster-template.yaml -n example-vsphere rke2-vsphere > vsphere-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/vmware/cluster-template.yaml -n example-vsphere rke2-vsphere > vsphere-rke2-clusterctl.yaml
 ```
 
 ```bash
 kubectl apply -f vsphere-rke2-clusterctl.yaml
 ```
+

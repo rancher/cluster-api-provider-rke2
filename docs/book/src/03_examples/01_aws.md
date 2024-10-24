@@ -1,10 +1,6 @@
-# Using CAPI Provider RKE2 with AWS
-This README focuses on using the RKE2 provider with the AWS Infrastructure provider.
+# Cluster API AWS Infrastructure Provider
 
-## Setting up the Management Cluster
-Make sure your set up a Management Cluster to use with Cluster API, example [here in the main README](https://github.com/rancher/cluster-api-provider-rke2#management-cluster).
-
-## Deploying the Cluster API AWS Infrastructure Provider
+## Installing the AWS provider 
 
 Refer to the [Cluster API book](https://cluster-api.sigs.k8s.io/user/quick-start#initialization-for-common-providers) for configuring AWS credentials and setting up the AWS infrastructure provider.
 
@@ -36,7 +32,7 @@ export AWS_AMI_ID="ami-id"
 Now, we can generate the YAML files from the templates using `clusterctl generate yaml` command:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/samples/aws/cluster-template.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/aws/cluster-template.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
 ```
 
 After examining the result YAML file, you can apply to the management cluster using :
@@ -46,6 +42,7 @@ kubectl apply -f aws-rke2-clusterctl.yaml
 ```
 
 ## Checking the workload cluster
+
 After a while you should be able to check functionality of the workload cluster using `clusterctl`: 
 
 ```bash
@@ -94,6 +91,5 @@ export AWS_S3_BUCKET_NAME=<YOUR_AWS_S3_BUCKET_NAME>
 Now you can generate manifests from the cluster template:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/samples/aws/ignition/cluster-template-ignition.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/aws/ignition/cluster-template-ignition.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
 ```
-
