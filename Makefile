@@ -13,7 +13,7 @@ SHELL = /usr/bin/env bash -o pipefail
 #
 # Go.
 #
-GO_VERSION ?= 1.22.0
+GO_VERSION ?= 1.22.8
 GO_CONTAINER_IMAGE ?= docker.io/library/golang:$(GO_VERSION)
 
 # Use GOPROXY environment variable if set
@@ -113,8 +113,8 @@ GH := $(abspath $(TOOLS_BIN_DIR)/$(GH_BIN))
 # Registry / images
 TAG ?= dev
 ARCH ?= $(shell go env GOARCH)
-ALL_ARCH = amd64 arm arm64 ppc64le s390x
-TARGET_PLATFORMS := linux/amd64,linux/arm64,linux/arm,linux/ppc64le,linux/s390x
+ALL_ARCH = amd64 arm64
+TARGET_PLATFORMS := linux/amd64,linux/arm64
 MACHINE := cluster-api-provider-rke2
 REGISTRY ?= ghcr.io
 ORG ?= rancher

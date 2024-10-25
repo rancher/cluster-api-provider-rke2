@@ -16,15 +16,6 @@ ARG goproxy=https://proxy.golang.org
 # Run this with docker build --build-arg package=./controlplane or --build-arg package=./bootstrap
 ENV GOPROXY=$goproxy
 
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-
-# Cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
-
 # Copy the sources
 COPY ./ ./
 
