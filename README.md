@@ -18,4 +18,4 @@ Please see our [book](https://rancher.github.io/cluster-api-provider-rke2/) for 
 
 ## How to contribute?
 
-See our [contributor guide](https://rancher.github.io/cluster-api-provider-rke2/03_developer/00.html) for more details on how to get involved.
+See our [contributor guide](https://rancher.github.io/cluster-api-provider-rke2/04_developer/00.html) for more details on how to get involved.
