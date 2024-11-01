@@ -16,7 +16,7 @@ Cluster API Provider RKE2 (CAPRKE2) is a combination of 2 provider types, a __Cl
 Follow our [getting started guide](./01_user/01_getting-started.md) to start creating RKE2 clusters with CAPI.  
 
 ## Developer Guide
-Check our [developer guide](./03_developer/01_development.md) for instructions on how to setup your dev environment in order to contribute to this project.
+Check our [developer guide](./04_developer/01_development.md) for instructions on how to setup your dev environment in order to contribute to this project.
 
 ## Get in contact
 You can get in contact with us via the [#capbr](https://rancher-users.slack.com/archives/C046X0CDKCH) channel on the [Rancher Users Slack](https://slack.rancher.io/).
