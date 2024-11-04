@@ -14,7 +14,7 @@ clusterctl init --bootstrap rke2 --control-plane rke2 --infrastructure aws
 
 ## Create a workload cluster
 
-Before creating a workload clusters, it is required to build an AMI for the RKE2 version that is going to be installed on the cluster. You can follow the steps in the [image-builder README](../../image-builder/README.md#aws) to build the AMI.
+Before creating a workload clusters, it is required to build an AMI for the RKE2 version that is going to be installed on the cluster. You can follow the steps in the [image-builder README](https://github.com/rancher/cluster-api-provider-rke2/tree/main/image-builder#aws) to build the AMI.
 
 You will need to set the following environment variables:
 

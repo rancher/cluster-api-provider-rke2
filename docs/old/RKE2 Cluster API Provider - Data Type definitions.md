@@ -12,11 +12,11 @@ Therefore a particular attention has to be given to the kinds of manifests the e
 
 RKE2 is a very configurable Kubernetes distribution. The main ways to configure RKE2 are as follows:
 
-- config.yaml file (default location at /etc/rancher/rke2/): configuration options for RKE2 that are described in this [documentation page]([Server Configuration Reference - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/install/install_options/server_config/))
+- config.yaml file (default location at /etc/rancher/rke2/): configuration options for RKE2 that are described in this [documentation page]([Server Configuration Reference - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/reference/server_config))
   
 - registries.yaml (default location at /etc/rancher/rke2/): Container Image registry configuration for the cluster (mirrors, rewrites, etc.), documentation available in this [RKE2 Documentation page](https://docs.rke2.io/install/containerd_registry_configuration)
   
-- Environement variables for versions, etc. (options documented [here]([Overview - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/install/install_options/install_options/#configuring-the-linux-installation-script)))
+- Environment variables for versions, etc. (options documented [here]([Overview - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/install/configuration#configuring-the-linux-installation-script)))
   
 - Possibly automatically deploy manifests in `/var/lib/rancher/rke2/server/manifests/`
   
