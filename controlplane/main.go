@@ -238,7 +238,7 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 		Scheme:              mgr.GetScheme(),
 		WatchFilterValue:    watchFilterValue,
 		SecretCachingClient: secretCachingClient,
-	}).SetupWithManager(ctx, mgr); err != nil {
+	}).SetupWithManager(ctx, mgr, clusterCacheTrackerClientQPS, clusterCacheTrackerClientBurst); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RKE2ControlPlane")
 		os.Exit(1)
 	}

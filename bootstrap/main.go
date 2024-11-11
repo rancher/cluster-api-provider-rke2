@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util/flags"
 
 	bootstrapv1alpha1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
@@ -222,9 +223,36 @@ func setupChecks(mgr ctrl.Manager) {
 }
 
 func setupReconcilers(mgr ctrl.Manager) {
+	secretCachingClient, err := client.New(mgr.GetConfig(), client.Options{
+		HTTPClient: mgr.GetHTTPClient(),
+		Cache: &client.CacheOptions{
+			Reader: mgr.GetCache(),
+		},
+	})
+	if err != nil {
+		setupLog.Error(err, "Unable to create secret caching client")
+		os.Exit(1)
+	}
+
+	tracker, err := remote.NewClusterCacheTracker(
+		mgr,
+		remote.ClusterCacheTrackerOptions{
+			SecretCachingClient: secretCachingClient,
+			ControllerName:      "rke2-bootstrap-controller",
+			Log:                 &ctrl.Log,
+			ClientQPS:           clusterCacheTrackerClientQPS,
+			ClientBurst:         clusterCacheTrackerClientBurst,
+		},
+	)
+	if err != nil {
+		setupLog.Error(err, "Unable to create cluster cache tracker")
+		os.Exit(1)
+	}
+
 	if err := (&controllers.RKE2ConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Tracker: tracker,
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2Config")
 		os.Exit(1)
