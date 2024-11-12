@@ -22,6 +22,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
+	pkgerrors "github.com/pkg/errors"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
@@ -56,7 +59,7 @@ type ApplyClusterTemplateAndWaitInput struct {
 	WaitForClusterIntervals      []interface{}
 	WaitForControlPlaneIntervals []interface{}
 	WaitForMachineDeployments    []interface{}
-	Args                         []string // extra args to be used during `kubectl apply`
+	Args                         []string
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
 	ControlPlaneWaiters
@@ -72,7 +75,7 @@ type ApplyCustomClusterTemplateAndWaitInput struct {
 	WaitForClusterIntervals      []interface{}
 	WaitForControlPlaneIntervals []interface{}
 	WaitForMachineDeployments    []interface{}
-	Args                         []string // extra args to be used during `kubectl apply`
+	Args                         []string
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
 	ControlPlaneWaiters
@@ -113,8 +116,8 @@ func ApplyClusterTemplateAndWait(ctx context.Context, input ApplyClusterTemplate
 	Expect(input.ConfigCluster.ControlPlaneMachineCount).ToNot(BeNil())
 	Expect(input.ConfigCluster.WorkerMachineCount).ToNot(BeNil())
 
-	Byf("Creating the RKE2 based workload cluster with name %q using the %q template (Kubernetes %s)",
-		input.ConfigCluster.ClusterName, input.ConfigCluster.Flavor, input.ConfigCluster.KubernetesVersion)
+	By(fmt.Sprintf("Creating the RKE2 based workload cluster with name %q using the %q template (Kubernetes %s)",
+		input.ConfigCluster.ClusterName, input.ConfigCluster.Flavor, input.ConfigCluster.KubernetesVersion))
 
 	By("Getting the cluster template yaml")
 	workloadClusterTemplate := clusterctl.ConfigCluster(ctx, clusterctl.ConfigClusterInput{
@@ -163,22 +166,22 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 	Expect(input.Namespace).NotTo(BeEmpty(), "Invalid argument. input.Namespace can't be empty when calling ApplyCustomClusterTemplateAndWait")
 	Expect(result).ToNot(BeNil(), "Invalid argument. result can't be nil when calling ApplyClusterTemplateAndWait")
 
-	Byf("Creating the workload cluster with name %q from the provided yaml", input.ClusterName)
+	By(fmt.Sprintf("Creating the workload cluster with name %q from the provided yaml", input.ClusterName))
 
-	Byf("Applying the cluster template yaml of cluster %s", klog.KRef(input.Namespace, input.ClusterName))
+	By(fmt.Sprintf("Applying the cluster template yaml of cluster %s", klog.KRef(input.Namespace, input.ClusterName)))
 	Eventually(func() error {
-		return input.ClusterProxy.Apply(ctx, input.CustomTemplateYAML, input.Args...)
+		return Apply(ctx, input.ClusterProxy, input.CustomTemplateYAML, input.Args...)
 	}, input.WaitForClusterIntervals...).Should(Succeed(), "Failed to apply the cluster template")
 
 	// Once we applied the cluster template we can run PreWaitForCluster.
 	// Note: This can e.g. be used to verify the BeforeClusterCreate lifecycle hook is executed
 	// and blocking correctly.
 	if input.PreWaitForCluster != nil {
-		Byf("Calling PreWaitForCluster for cluster %s", klog.KRef(input.Namespace, input.ClusterName))
+		By(fmt.Sprintf("Calling PreWaitForCluster for cluster %s", klog.KRef(input.Namespace, input.ClusterName)))
 		input.PreWaitForCluster()
 	}
 
-	Byf("Waiting for the cluster infrastructure of cluster %s to be provisioned", klog.KRef(input.Namespace, input.ClusterName))
+	By(fmt.Sprintf("Waiting for the cluster infrastructure of cluster %s to be provisioned", klog.KRef(input.Namespace, input.ClusterName)))
 	result.Cluster = framework.DiscoveryAndWaitForCluster(ctx, framework.DiscoveryAndWaitForClusterInput{
 		Getter:    input.ClusterProxy.GetClient(),
 		Namespace: input.Namespace,
@@ -193,20 +196,20 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 		})
 	}
 
-	Byf("Waiting for control plane of cluster %s to be initialized", klog.KRef(input.Namespace, input.ClusterName))
+	By(fmt.Sprintf("Waiting for control plane of cluster %s to be initialized", klog.KRef(input.Namespace, input.ClusterName)))
 	input.WaitForControlPlaneInitialized(ctx, input, result)
 
-	Byf("Waiting for control plane of cluster %s to be ready", klog.KRef(input.Namespace, input.ClusterName))
+	By(fmt.Sprintf("Waiting for control plane of cluster %s to be ready", klog.KRef(input.Namespace, input.ClusterName)))
 	input.WaitForControlPlaneMachinesReady(ctx, input, result)
 
-	Byf("Waiting for the machine deployments of cluster %s to be provisioned", klog.KRef(input.Namespace, input.ClusterName))
+	By(fmt.Sprintf("Waiting for the machine deployments of cluster %s to be provisioned", klog.KRef(input.Namespace, input.ClusterName)))
 	result.MachineDeployments = DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
 		Lister:  input.ClusterProxy.GetClient(),
 		Cluster: result.Cluster,
 	}, input.WaitForMachineDeployments...)
 
 	if input.PostMachinesProvisioned != nil {
-		Byf("Calling PostMachinesProvisioned for cluster %s", klog.KRef(input.Namespace, input.ClusterName))
+		By(fmt.Sprintf("Calling PostMachinesProvisioned for cluster %s", klog.KRef(input.Namespace, input.ClusterName)))
 		input.PostMachinesProvisioned()
 	}
 }
@@ -314,7 +317,7 @@ func WaitForControlPlaneAndMachinesReady(ctx context.Context, input WaitForContr
 	Expect(input.ControlPlane).ToNot(BeNil(), "Invalid argument. input.ControlPlane can't be nil when calling WaitForControlPlaneReady")
 
 	if input.ControlPlane.Spec.Replicas != nil && int(*input.ControlPlane.Spec.Replicas) > 1 {
-		Byf("Waiting for the remaining control plane machines managed by %s to be provisioned", klog.KObj(input.ControlPlane))
+		By(fmt.Sprintf("Waiting for the remaining control plane machines managed by %s to be provisioned", klog.KObj(input.ControlPlane)))
 		WaitForRKE2ControlPlaneMachinesToExist(ctx, WaitForRKE2ControlPlaneMachinesToExistInput{
 			Lister:       input.GetLister,
 			Cluster:      input.Cluster,
@@ -322,7 +325,7 @@ func WaitForControlPlaneAndMachinesReady(ctx context.Context, input WaitForContr
 		}, intervals...)
 	}
 
-	Byf("Waiting for control plane %s to be ready (implies underlying nodes to be ready as well)", klog.KObj(input.ControlPlane))
+	By(fmt.Sprintf("Waiting for control plane %s to be ready (implies underlying nodes to be ready as well)", klog.KObj(input.ControlPlane)))
 	waitForControlPlaneToBeReadyInput := WaitForControlPlaneToBeReadyInput{
 		Getter:       input.GetLister,
 		ControlPlane: client.ObjectKeyFromObject(input.ControlPlane),
@@ -355,7 +358,7 @@ func WaitForRKE2ControlPlaneMachinesToExist(ctx context.Context, input WaitForRK
 	Eventually(func() (int, error) {
 		machineList := &clusterv1.MachineList{}
 		if err := input.Lister.List(ctx, machineList, inClustersNamespaceListOption, matchClusterListOption); err != nil {
-			Byf("Failed to list the machines: %+v", err)
+			By(fmt.Sprintf("Failed to list the machines: %+v", err))
 			return 0, err
 		}
 		count := 0
@@ -532,4 +535,134 @@ func CollectArtifacts(ctx context.Context, kubeconfigPath, name string, args ...
 	fmt.Printf("stderr:\n%s\n", string(stderr.Bytes()))
 	fmt.Printf("stdout:\n%s\n", string(stdout.Bytes()))
 	return err
+}
+
+// Apply wraps `kubectl apply ...` and prints the output so we can see what gets applied to the cluster.
+func Apply(ctx context.Context, clusterProxy framework.ClusterProxy, resources []byte, args ...string) error {
+	Expect(ctx).NotTo(BeNil(), "ctx is required for Apply")
+	Expect(resources).NotTo(BeNil(), "resources is required for Apply")
+
+	if err := KubectlApply(ctx, clusterProxy.GetKubeconfigPath(), resources, args...); err != nil {
+
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return pkgerrors.New(fmt.Sprintf("%s: stderr: %s", err.Error(), exitErr.Stderr))
+		}
+	}
+	return nil
+}
+
+// KubectlApply shells out to kubectl apply.
+func KubectlApply(ctx context.Context, kubeconfigPath string, resources []byte, args ...string) error {
+	aargs := append([]string{"apply", "--kubeconfig", kubeconfigPath, "-f", "-"}, args...)
+	rbytes := bytes.NewReader(resources)
+	applyCmd := NewCommand(
+		WithCommand(kubectlPath()),
+		WithArgs(aargs...),
+		WithStdin(rbytes),
+	)
+
+	fmt.Printf("Running kubectl %s\n", strings.Join(aargs, " "))
+	stdout, stderr, err := applyCmd.Run(ctx)
+	if len(stderr) > 0 {
+		fmt.Printf("stderr:\n%s\n", string(stderr))
+	}
+	if len(stdout) > 0 {
+		fmt.Printf("stdout:\n%s\n", string(stdout))
+	}
+	return err
+}
+
+// KubectlWait shells out to kubectl wait.
+func KubectlWait(ctx context.Context, kubeconfigPath string, args ...string) error {
+	wargs := append([]string{"wait", "--kubeconfig", kubeconfigPath}, args...)
+	wait := NewCommand(
+		WithCommand(kubectlPath()),
+		WithArgs(wargs...),
+	)
+	_, stderr, err := wait.Run(ctx)
+	if err != nil {
+		fmt.Println(string(stderr))
+		return err
+	}
+	return nil
+}
+
+func kubectlPath() string {
+	if kubectlPath, ok := os.LookupEnv("CAPI_KUBECTL_PATH"); ok {
+		return kubectlPath
+	}
+	return "kubectl"
+}
+
+type Command struct {
+	Cmd   string
+	Args  []string
+	Stdin io.Reader
+}
+
+// Option is a functional option type that modifies a Command.
+type Option func(*Command)
+
+// NewCommand returns a configured Command.
+func NewCommand(opts ...Option) *Command {
+	cmd := &Command{
+		Stdin: nil,
+	}
+	for _, option := range opts {
+		option(cmd)
+	}
+	return cmd
+}
+
+// WithStdin sets up the command to read from this io.Reader.
+func WithStdin(stdin io.Reader) Option {
+	return func(cmd *Command) {
+		cmd.Stdin = stdin
+	}
+}
+
+// WithCommand defines the command to run such as `kubectl` or `kind`.
+func WithCommand(command string) Option {
+	return func(cmd *Command) {
+		cmd.Cmd = command
+	}
+}
+
+// WithArgs sets the arguments for the command such as `get pods -n kube-system` to the command `kubectl`.
+func WithArgs(args ...string) Option {
+	return func(cmd *Command) {
+		cmd.Args = args
+	}
+}
+
+// Run executes the command and returns stdout, stderr and the error if there is any.
+func (c *Command) Run(ctx context.Context) ([]byte, []byte, error) {
+	cmd := exec.CommandContext(ctx, c.Cmd, c.Args...) //nolint:gosec
+	if c.Stdin != nil {
+		cmd.Stdin = c.Stdin
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	output, err := io.ReadAll(stdout)
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	errout, err := io.ReadAll(stderr)
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	if err := cmd.Wait(); err != nil {
+		return output, errout, errors.WithStack(err)
+	}
+	return output, errout, nil
 }

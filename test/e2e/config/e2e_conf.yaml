@@ -5,19 +5,19 @@ images:
     loadBehavior: mustLoad
   - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
-  - name: quay.io/jetstack/cert-manager-cainjector:v1.14.4
+  - name: quay.io/jetstack/cert-manager-cainjector:v1.15.1
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-webhook:v1.14.4
+  - name: quay.io/jetstack/cert-manager-webhook:v1.15.1
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-controller:v1.14.4
+  - name: quay.io/jetstack/cert-manager-controller:v1.15.1
     loadBehavior: tryLoad
 
 providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-    - name: "v1.7.2"
-      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/core-components.yaml"
+    - name: "v1.8.5"
+      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.8.5/core-components.yaml"
       type: "url"
       contract: v1beta1
       files:
@@ -30,8 +30,8 @@ providers:
   - name: docker
     type: InfrastructureProvider
     versions:
-    - name: "v1.7.2"
-      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/infrastructure-components-development.yaml"
+    - name: "v1.8.5"
+      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.8.5/infrastructure-components-development.yaml"
       type: "url"
       contract: v1beta1
       files:
@@ -47,8 +47,8 @@ providers:
   - name: docker-updated
     type: InfrastructureProvider
     versions:
-    - name: "v1.7.2"
-      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/infrastructure-components-development.yaml"
+    - name: "v1.8.5"
+      value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.8.5/infrastructure-components-development.yaml"
       type: "url"
       contract: v1beta1
       files:
@@ -115,13 +115,13 @@ providers:
           new: "--leader-elect=false"
 
 variables:
-  KUBERNETES_VERSION_MANAGEMENT: "v1.28.0"
-  KUBERNETES_VERSION: "v1.28.1"
-  KIND_IMAGE_VERSION: "v1.28.0"
+  KUBERNETES_VERSION_MANAGEMENT: "v1.29.2"
+  KUBERNETES_VERSION: "v1.29.4"
+  KIND_IMAGE_VERSION: "v1.29.4"
   NODE_DRAIN_TIMEOUT: "60s"
   WORKER_MACHINE_COUNT: "2"
   CONTROL_PLANE_MACHINE_COUNT: "1"
-  KUBERNETES_VERSION_UPGRADE_TO: "v1.28.12"
+  KUBERNETES_VERSION_UPGRADE_TO: "v1.29.5"
   KUBERNETES_UPGRADE_OCI_IMAGE_ID: "${KUBERNETES_UPGRADE_OCI_IMAGE_ID}"
   IP_FAMILY: "IPv4"
   EXP_CLUSTER_RESOURCE_SET: "true"

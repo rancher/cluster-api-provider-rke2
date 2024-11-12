@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
@@ -39,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util/flags"
 
 	bootstrapv1alpha1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
@@ -47,6 +47,7 @@ import (
 	controlplanev1alpha1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
+	"github.com/rancher/cluster-api-provider-rke2/version"
 )
 
 var (
@@ -54,20 +55,21 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 
 	// flags.
-	enableLeaderElection        bool
-	leaderElectionLeaseDuration time.Duration
-	leaderElectionRenewDeadline time.Duration
-	leaderElectionRetryPeriod   time.Duration
-	watchFilterValue            string
-	profilerAddress             string
-	concurrencyNumber           int
-	syncPeriod                  time.Duration
-	watchNamespace              string
-	webhookPort                 int
-	webhookCertDir              string
-	healthAddr                  string
-
-	diagnosticsOptions = flags.DiagnosticsOptions{}
+	enableLeaderElection           bool
+	leaderElectionLeaseDuration    time.Duration
+	leaderElectionRenewDeadline    time.Duration
+	leaderElectionRetryPeriod      time.Duration
+	watchFilterValue               string
+	profilerAddress                string
+	concurrencyNumber              int
+	syncPeriod                     time.Duration
+	clusterCacheTrackerClientQPS   float32
+	clusterCacheTrackerClientBurst int
+	watchNamespace                 string
+	webhookPort                    int
+	webhookCertDir                 string
+	healthAddr                     string
+	managerOptions                 = flags.ManagerOptions{}
 )
 
 func init() {
@@ -108,6 +110,12 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&syncPeriod, "sync-period", consts.DefaultSyncPeriod,
 		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
 
+	fs.Float32Var(&clusterCacheTrackerClientQPS, "clustercachetracker-client-qps", 20,
+		"Maximum queries per second from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
+
+	fs.IntVar(&clusterCacheTrackerClientBurst, "clustercachetracker-client-burst", 30,
+		"Maximum number of queries that should be allowed in one burst from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
+
 	fs.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.") //nolint:lll
 
@@ -119,7 +127,7 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&healthAddr, "health-addr", ":9440",
 		"The address the health endpoint binds to.")
 
-	flags.AddDiagnosticsOptions(fs, &diagnosticsOptions)
+	flags.AddManagerOptions(fs, &managerOptions)
 }
 
 // Add RBAC for the authorized diagnostics endpoint.
@@ -133,7 +141,13 @@ func main() {
 
 	ctrl.SetLogger(klog.Background())
 
-	diagnosticsOpts := flags.GetDiagnosticsOptions(diagnosticsOptions)
+	restConfig := ctrl.GetConfigOrDie()
+
+	tlsOptions, metricsOptions, err := flags.GetManagerOptions(managerOptions)
+	if err != nil {
+		setupLog.Error(err, "Unable to start manager: invalid flags")
+		os.Exit(1)
+	}
 
 	var watchNamespaces map[string]cache.Config
 
@@ -144,23 +158,16 @@ func main() {
 		}
 	}
 
-	if profilerAddress != "" {
-		klog.Infof("Profiler listening for requests at %s", profilerAddress)
-
-		go func() {
-			klog.Info(http.ListenAndServe(profilerAddress, nil))
-		}()
-	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:           scheme,
-		LeaderElection:   enableLeaderElection,
-		LeaderElectionID: "rke2-bootstrap-manager-leader-election-capi",
-		PprofBindAddress: profilerAddress,
-		LeaseDuration:    &leaderElectionLeaseDuration,
-		RenewDeadline:    &leaderElectionRenewDeadline,
-		RetryPeriod:      &leaderElectionRetryPeriod,
-		Metrics:          diagnosticsOpts,
+	ctrlOptions := ctrl.Options{
+		Scheme:                 scheme,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "rke2-bootstrap-manager-leader-election-capi",
+		PprofBindAddress:       profilerAddress,
+		LeaseDuration:          &leaderElectionLeaseDuration,
+		RenewDeadline:          &leaderElectionRenewDeadline,
+		RetryPeriod:            &leaderElectionRetryPeriod,
+		HealthProbeBindAddress: healthAddr,
+		Metrics:                *metricsOptions,
 		Cache: cache.Options{
 			DefaultNamespaces: watchNamespaces,
 			SyncPeriod:        &syncPeriod,
@@ -177,23 +184,27 @@ func main() {
 			webhook.Options{
 				Port:    webhookPort,
 				CertDir: webhookCertDir,
+				TLSOpts: tlsOptions,
 			},
 		),
-		HealthProbeBindAddress: healthAddr,
-	})
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, ctrlOptions)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	// Setup the context that's going to be used in controllers and for the manager.
+	ctx := ctrl.SetupSignalHandler()
+
 	setupChecks(mgr)
 	setupReconcilers(mgr)
 	setupWebhooks(mgr)
-	//+kubebuilder:scaffold:builder
 
-	setupLog.Info("starting manager")
+	setupLog.Info("Starting manager", "version", version.Get().String())
 
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
@@ -212,9 +223,36 @@ func setupChecks(mgr ctrl.Manager) {
 }
 
 func setupReconcilers(mgr ctrl.Manager) {
+	secretCachingClient, err := client.New(mgr.GetConfig(), client.Options{
+		HTTPClient: mgr.GetHTTPClient(),
+		Cache: &client.CacheOptions{
+			Reader: mgr.GetCache(),
+		},
+	})
+	if err != nil {
+		setupLog.Error(err, "Unable to create secret caching client")
+		os.Exit(1)
+	}
+
+	tracker, err := remote.NewClusterCacheTracker(
+		mgr,
+		remote.ClusterCacheTrackerOptions{
+			SecretCachingClient: secretCachingClient,
+			ControllerName:      "rke2-bootstrap-controller",
+			Log:                 &ctrl.Log,
+			ClientQPS:           clusterCacheTrackerClientQPS,
+			ClientBurst:         clusterCacheTrackerClientBurst,
+		},
+	)
+	if err != nil {
+		setupLog.Error(err, "Unable to create cluster cache tracker")
+		os.Exit(1)
+	}
+
 	if err := (&controllers.RKE2ConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Tracker: tracker,
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2Config")
 		os.Exit(1)

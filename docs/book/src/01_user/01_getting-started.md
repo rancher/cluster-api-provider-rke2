@@ -53,7 +53,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 No additional steps are required and you can install the RKE2 provider with **clusterctl** directly:
 
 ```bash
-clusterctl init --core cluster-api:v1.7.6 --bootstrap rke2:v0.8.0 --control-plane rke2:v0.8.0 --infrastructure docker:v1.7.6
+clusterctl init --core cluster-api:v1.8.5 --bootstrap rke2:v0.8.0 --control-plane rke2:v0.8.0 --infrastructure docker:v1.8.5
 ```
 
 Next, you can proceed to [creating a workload cluster](#create-a-workload-cluster).
@@ -124,8 +124,8 @@ export CABPR_NAMESPACE=example
 export CLUSTER_NAME=capd-rke2-test
 export CABPR_CP_REPLICAS=3
 export CABPR_WK_REPLICAS=2
-export KUBERNETES_VERSION=v1.27.3
-export KIND_IMAGE_VERSION=v1.27.3
+export KUBERNETES_VERSION=v1.30.3
+export KIND_IMAGE_VERSION=v1.30.3
 ```
 
 The next step is to substitue the values in the YAML using the following commands:
@@ -231,7 +231,7 @@ for example:
 export CLUSTER_NAME=capd-rke2-clusterclass
 export CABPR_CP_REPLICAS=3
 export CABPR_WK_REPLICAS=2
-export KUBERNETES_VERSION=v1.25.11
+export KUBERNETES_VERSION=v1.30.3
 export KIND_IP=192.168.20.20
 ```
 
