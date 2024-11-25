@@ -426,6 +426,11 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 
 	conditions.MarkTrue(rcp, controlplanev1.AvailableCondition)
 
+	lowestVersion := controlPlane.Machines.LowestVersion()
+	if lowestVersion != nil {
+		controlPlane.RCP.Status.Version = lowestVersion
+	}
+
 	return nil
 }
 
