@@ -20,7 +20,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -207,24 +206,24 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.EtcdS3SkipSslVerify).To(BeFalse())
 		Expect(rke2ServerConfig.EtcdArgs).To(Equal(serverConfig.Etcd.CustomConfig.ExtraArgs))
 		Expect(rke2ServerConfig.EtcdImage).To(Equal(serverConfig.Etcd.CustomConfig.OverrideImage))
-		Expect(rke2ServerConfig.EtcdExtraMounts).To(Equal(serverConfig.Etcd.CustomConfig.ExtraMounts))
-		Expect(rke2ServerConfig.EtcdExtraEnv).To(Equal(serverConfig.Etcd.CustomConfig.ExtraEnv))
+		Expect(rke2ServerConfig.EtcdExtraMounts).To(Equal(componentMapToSlice(serverConfig.Etcd.CustomConfig.ExtraMounts)))
+		Expect(rke2ServerConfig.EtcdExtraEnv).To(Equal(componentMapToSlice(serverConfig.Etcd.CustomConfig.ExtraEnv)))
 		Expect(rke2ServerConfig.ServiceNodePortRange).To(Equal(rke2ServerConfig.ServiceNodePortRange))
 		Expect(rke2ServerConfig.TLSSan).To(Equal(append(serverConfig.TLSSan, opts.ControlPlaneEndpoint)))
 		Expect(rke2ServerConfig.KubeAPIServerArgs).To(Equal(serverConfig.KubeAPIServer.ExtraArgs))
 		Expect(rke2ServerConfig.KubeAPIserverImage).To(Equal(serverConfig.KubeAPIServer.OverrideImage))
-		Expect(rke2ServerConfig.KubeAPIserverExtraMounts).To(Equal(serverConfig.KubeAPIServer.ExtraMounts))
-		Expect(rke2ServerConfig.KubeAPIserverExtraEnv).To(Equal(serverConfig.KubeAPIServer.ExtraEnv))
+		Expect(rke2ServerConfig.KubeAPIserverExtraMounts).To(Equal(componentMapToSlice(serverConfig.KubeAPIServer.ExtraMounts)))
+		Expect(rke2ServerConfig.KubeAPIserverExtraEnv).To(Equal(componentMapToSlice(serverConfig.KubeAPIServer.ExtraEnv)))
 		Expect(rke2ServerConfig.KubeSchedulerArgs).To(Equal(serverConfig.KubeScheduler.ExtraArgs))
 		Expect(rke2ServerConfig.KubeSchedulerImage).To(Equal(serverConfig.KubeScheduler.OverrideImage))
-		Expect(rke2ServerConfig.KubeSchedulerExtraMounts).To(Equal(serverConfig.KubeScheduler.ExtraMounts))
-		Expect(rke2ServerConfig.KubeSchedulerExtraEnv).To(Equal(serverConfig.KubeScheduler.ExtraEnv))
+		Expect(rke2ServerConfig.KubeSchedulerExtraMounts).To(Equal(componentMapToSlice(serverConfig.KubeScheduler.ExtraMounts)))
+		Expect(rke2ServerConfig.KubeSchedulerExtraEnv).To(Equal(componentMapToSlice(serverConfig.KubeScheduler.ExtraEnv)))
 		Expect(rke2ServerConfig.KubeControllerManagerArgs).To(Equal(serverConfig.KubeControllerManager.ExtraArgs))
 		Expect(rke2ServerConfig.KubeControllerManagerImage).To(Equal(serverConfig.KubeControllerManager.OverrideImage))
-		Expect(rke2ServerConfig.KubeControllerManagerExtraMounts).To(Equal(serverConfig.KubeControllerManager.ExtraMounts))
-		Expect(rke2ServerConfig.KubeControllerManagerExtraEnv).To(Equal(serverConfig.KubeControllerManager.ExtraEnv))
-		Expect(rke2ServerConfig.CloudControllerManagerExtraMounts).To(Equal(serverConfig.CloudControllerManager.ExtraMounts))
-		Expect(rke2ServerConfig.CloudControllerManagerExtraEnv).To(Equal(serverConfig.CloudControllerManager.ExtraEnv))
+		Expect(rke2ServerConfig.KubeControllerManagerExtraMounts).To(Equal(componentMapToSlice(serverConfig.KubeControllerManager.ExtraMounts)))
+		Expect(rke2ServerConfig.KubeControllerManagerExtraEnv).To(Equal(componentMapToSlice(serverConfig.KubeControllerManager.ExtraEnv)))
+		Expect(rke2ServerConfig.CloudControllerManagerExtraMounts).To(Equal(componentMapToSlice(serverConfig.CloudControllerManager.ExtraMounts)))
+		Expect(rke2ServerConfig.CloudControllerManagerExtraEnv).To(Equal(componentMapToSlice(serverConfig.CloudControllerManager.ExtraEnv)))
 
 		Expect(files).To(HaveLen(3))
 
@@ -322,8 +321,8 @@ var _ = Describe("RKE2 Agent Config", func() {
 		Expect(agentConfig.Snapshotter).To(Equal(opts.AgentConfig.Snapshotter))
 		Expect(agentConfig.KubeProxyArgs).To(Equal(opts.AgentConfig.KubeProxy.ExtraArgs))
 		Expect(agentConfig.KubeProxyImage).To(Equal(opts.AgentConfig.KubeProxy.OverrideImage))
-		Expect(agentConfig.KubeProxyExtraMounts).To(Equal(opts.AgentConfig.KubeProxy.ExtraMounts))
-		Expect(agentConfig.KubeProxyExtraEnv).To(Equal(opts.AgentConfig.KubeProxy.ExtraEnv))
+		Expect(agentConfig.KubeProxyExtraMounts).To(Equal(componentMapToSlice(opts.AgentConfig.KubeProxy.ExtraMounts)))
+		Expect(agentConfig.KubeProxyExtraEnv).To(Equal(componentMapToSlice(opts.AgentConfig.KubeProxy.ExtraEnv)))
 		Expect(agentConfig.Token).To(Equal(opts.Token))
 
 		Expect(files).To(HaveLen(3))
@@ -337,5 +336,50 @@ var _ = Describe("RKE2 Agent Config", func() {
 		Expect(files[2].Content).To(Equal("test_resolv_conf"))
 		Expect(files[2].Owner).To(Equal(consts.DefaultFileOwner))
 		Expect(files[2].Permissions).To(Equal(consts.DefaultFileMode))
+	})
+})
+
+var _ = Describe("MapToSlice", func() {
+	It("should convert a single key-value pair map to a slice", func() {
+		input := map[string]string{"FOO": "BAR"}
+		expected := []string{"FOO=BAR"}
+		Expect(componentMapToSlice(input)).To(Equal(expected))
+	})
+
+	It("should handle multiple key-value pairs", func() {
+		input := map[string]string{"FOO": "BAR", "HELLO": "WORLD"}
+		result := componentMapToSlice(input)
+		Expect(result).To(ContainElements("FOO=BAR", "HELLO=WORLD"))
+		Expect(len(result)).To(Equal(2))
+	})
+
+	It("should return an empty slice for an empty map", func() {
+		input := map[string]string{}
+		expected := []string{}
+		Expect(componentMapToSlice(input)).To(Equal(expected))
+	})
+
+	It("should handle maps with empty values", func() {
+		input := map[string]string{"FOO": ""}
+		expected := []string{"FOO="}
+		Expect(componentMapToSlice(input)).To(Equal(expected))
+	})
+
+	It("should skip entries with empty keys", func() {
+		input := map[string]string{"": "BAR", "FOO": "BAR"}
+		expected := []string{"FOO=BAR"}
+		Expect(componentMapToSlice(input)).To(Equal(expected))
+	})
+
+	It("should skip entries with empty keys and values", func() {
+		input := map[string]string{"": "", "FOO": "BAR"}
+		expected := []string{"FOO=BAR"}
+		Expect(componentMapToSlice(input)).To(Equal(expected))
+	})
+
+	It("should skip entries with empty keys even if values are non-empty", func() {
+		input := map[string]string{"": "NON_EMPTY", "FOO": "BAR"}
+		expected := []string{"FOO=BAR"}
+		Expect(componentMapToSlice(input)).To(Equal(expected))
 	})
 })
