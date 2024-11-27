@@ -86,53 +86,53 @@ sysctl -p /etc/sysctl.d/90-rke2-cis.conf
 
 // ServerConfig is a struct that contains the information needed to generate a RKE2 server config.
 type ServerConfig struct {
-	AdvertiseAddress                  string            `json:"advertise-address,omitempty"`
-	AuditPolicyFile                   string            `json:"audit-policy-file,omitempty"`
-	BindAddress                       string            `json:"bind-address,omitempty"`
-	CNI                               []string          `json:"cni,omitempty"`
-	CloudControllerManagerExtraEnv    map[string]string `json:"cloud-controller-manager-extra-env,omitempty"`
-	CloudControllerManagerExtraMounts map[string]string `json:"cloud-controller-manager-extra-mount,omitempty"`
-	CloudProviderConfig               string            `json:"cloud-provider-config,omitempty"`
-	CloudProviderName                 string            `json:"cloud-provider-name,omitempty"`
-	ClusterDNS                        string            `json:"cluster-dns,omitempty"`
-	ClusterDomain                     string            `json:"cluster-domain,omitempty"`
-	DisableCloudController            bool              `json:"disable-cloud-controller,omitempty"`
-	DisableComponents                 []string          `json:"disable,omitempty"`
-	DisableKubeProxy                  bool              `json:"disable-kube-proxy,omitempty"`
-	DisableScheduler                  bool              `json:"disable-scheduler,omitempty"`
-	EtcdArgs                          []string          `json:"etcd-arg,omitempty"`
-	EtcdExtraEnv                      map[string]string `json:"etcd-extra-env,omitempty"`
-	EtcdExtraMounts                   map[string]string `json:"etcd-extra-mount,omitempty"`
-	EtcdImage                         string            `json:"etcd-image,omitempty"`
-	EtcdDisableSnapshots              *bool             `json:"etcd-disable-snapshots,omitempty"`
-	EtcdExposeMetrics                 bool              `json:"etcd-expose-metrics,omitempty"`
-	EtcdS3                            bool              `json:"etcd-s3,omitempty"`
-	EtcdS3AccessKey                   string            `json:"etcd-s3-access-key,omitempty"`
-	EtcdS3Bucket                      string            `json:"etcd-s3-bucket,omitempty"`
-	EtcdS3Endpoint                    string            `json:"etcd-s3-endpoint,omitempty"`
-	EtcdS3EndpointCA                  string            `json:"etcd-s3-endpoint-ca,omitempty"`
-	EtcdS3Folder                      string            `json:"etcd-s3-folder,omitempty"`
-	EtcdS3Region                      string            `json:"etcd-s3-region,omitempty"`
-	EtcdS3SecretKey                   string            `json:"etcd-s3-secret-key,omitempty"`
-	EtcdS3SkipSslVerify               bool              `json:"etcd-s3-skip-ssl-verify,omitempty"`
-	EtcdSnapshotDir                   string            `json:"etcd-snapshot-dir,omitempty"`
-	EtcdSnapshotName                  string            `json:"etcd-snapshot-name,omitempty"`
-	EtcdSnapshotRetention             string            `json:"etcd-snapshot-retention,omitempty"`
-	EtcdSnapshotScheduleCron          string            `json:"etcd-snapshot-schedule-cron,omitempty"`
-	KubeAPIServerArgs                 []string          `json:"kube-apiserver-arg,omitempty"`
-	KubeAPIserverExtraEnv             map[string]string `json:"kube-apiserver-extra-env,omitempty"`
-	KubeAPIserverExtraMounts          map[string]string `json:"kube-apiserver-extra-mount,omitempty"`
-	KubeAPIserverImage                string            `json:"kube-apiserver-image,omitempty"`
-	KubeControllerManagerArgs         []string          `json:"kube-controller-manager-arg,omitempty"`
-	KubeControllerManagerExtraEnv     map[string]string `json:"kube-controller-manager-extra-env,omitempty"`
-	KubeControllerManagerExtraMounts  map[string]string `json:"kube-controller-manager-extra-mount,omitempty"`
-	KubeControllerManagerImage        string            `json:"kube-controller-manager-image,omitempty"`
-	KubeSchedulerArgs                 []string          `json:"kube-scheduler-arg,omitempty"`
-	KubeSchedulerExtraEnv             map[string]string `json:"kube-scheduler-extra-env,omitempty"`
-	KubeSchedulerExtraMounts          map[string]string `json:"kube-scheduler-extra-mount,omitempty"`
-	KubeSchedulerImage                string            `json:"kube-scheduler-image,omitempty"`
-	ServiceNodePortRange              string            `json:"service-node-port-range,omitempty"`
-	TLSSan                            []string          `json:"tls-san,omitempty"`
+	AdvertiseAddress                  string   `json:"advertise-address,omitempty"`
+	AuditPolicyFile                   string   `json:"audit-policy-file,omitempty"`
+	BindAddress                       string   `json:"bind-address,omitempty"`
+	CNI                               []string `json:"cni,omitempty"`
+	CloudControllerManagerExtraEnv    []string `json:"cloud-controller-manager-extra-env,omitempty"`
+	CloudControllerManagerExtraMounts []string `json:"cloud-controller-manager-extra-mount,omitempty"`
+	CloudProviderConfig               string   `json:"cloud-provider-config,omitempty"`
+	CloudProviderName                 string   `json:"cloud-provider-name,omitempty"`
+	ClusterDNS                        string   `json:"cluster-dns,omitempty"`
+	ClusterDomain                     string   `json:"cluster-domain,omitempty"`
+	DisableCloudController            bool     `json:"disable-cloud-controller,omitempty"`
+	DisableComponents                 []string `json:"disable,omitempty"`
+	DisableKubeProxy                  bool     `json:"disable-kube-proxy,omitempty"`
+	DisableScheduler                  bool     `json:"disable-scheduler,omitempty"`
+	EtcdArgs                          []string `json:"etcd-arg,omitempty"`
+	EtcdExtraEnv                      []string `json:"etcd-extra-env,omitempty"`
+	EtcdExtraMounts                   []string `json:"etcd-extra-mount,omitempty"`
+	EtcdImage                         string   `json:"etcd-image,omitempty"`
+	EtcdDisableSnapshots              *bool    `json:"etcd-disable-snapshots,omitempty"`
+	EtcdExposeMetrics                 bool     `json:"etcd-expose-metrics,omitempty"`
+	EtcdS3                            bool     `json:"etcd-s3,omitempty"`
+	EtcdS3AccessKey                   string   `json:"etcd-s3-access-key,omitempty"`
+	EtcdS3Bucket                      string   `json:"etcd-s3-bucket,omitempty"`
+	EtcdS3Endpoint                    string   `json:"etcd-s3-endpoint,omitempty"`
+	EtcdS3EndpointCA                  string   `json:"etcd-s3-endpoint-ca,omitempty"`
+	EtcdS3Folder                      string   `json:"etcd-s3-folder,omitempty"`
+	EtcdS3Region                      string   `json:"etcd-s3-region,omitempty"`
+	EtcdS3SecretKey                   string   `json:"etcd-s3-secret-key,omitempty"`
+	EtcdS3SkipSslVerify               bool     `json:"etcd-s3-skip-ssl-verify,omitempty"`
+	EtcdSnapshotDir                   string   `json:"etcd-snapshot-dir,omitempty"`
+	EtcdSnapshotName                  string   `json:"etcd-snapshot-name,omitempty"`
+	EtcdSnapshotRetention             string   `json:"etcd-snapshot-retention,omitempty"`
+	EtcdSnapshotScheduleCron          string   `json:"etcd-snapshot-schedule-cron,omitempty"`
+	KubeAPIServerArgs                 []string `json:"kube-apiserver-arg,omitempty"`
+	KubeAPIserverExtraEnv             []string `json:"kube-apiserver-extra-env,omitempty"`
+	KubeAPIserverExtraMounts          []string `json:"kube-apiserver-extra-mount,omitempty"`
+	KubeAPIserverImage                string   `json:"kube-apiserver-image,omitempty"`
+	KubeControllerManagerArgs         []string `json:"kube-controller-manager-arg,omitempty"`
+	KubeControllerManagerExtraEnv     []string `json:"kube-controller-manager-extra-env,omitempty"`
+	KubeControllerManagerExtraMounts  []string `json:"kube-controller-manager-extra-mount,omitempty"`
+	KubeControllerManagerImage        string   `json:"kube-controller-manager-image,omitempty"`
+	KubeSchedulerArgs                 []string `json:"kube-scheduler-arg,omitempty"`
+	KubeSchedulerExtraEnv             []string `json:"kube-scheduler-extra-env,omitempty"`
+	KubeSchedulerExtraMounts          []string `json:"kube-scheduler-extra-mount,omitempty"`
+	KubeSchedulerImage                string   `json:"kube-scheduler-image,omitempty"`
+	ServiceNodePortRange              string   `json:"service-node-port-range,omitempty"`
+	TLSSan                            []string `json:"tls-san,omitempty"`
 
 	// We don't expose these fields in the API
 	ClusterCIDR string `json:"cluster-cidr,omitempty"`
@@ -332,8 +332,8 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 	if opts.ServerConfig.Etcd.CustomConfig != nil {
 		rke2ServerConfig.EtcdArgs = opts.ServerConfig.Etcd.CustomConfig.ExtraArgs
 		rke2ServerConfig.EtcdImage = opts.ServerConfig.Etcd.CustomConfig.OverrideImage
-		rke2ServerConfig.EtcdExtraMounts = opts.ServerConfig.Etcd.CustomConfig.ExtraMounts
-		rke2ServerConfig.EtcdExtraEnv = opts.ServerConfig.Etcd.CustomConfig.ExtraEnv
+		rke2ServerConfig.EtcdExtraMounts = componentMapToSlice(opts.ServerConfig.Etcd.CustomConfig.ExtraMounts)
+		rke2ServerConfig.EtcdExtraEnv = componentMapToSlice(opts.ServerConfig.Etcd.CustomConfig.ExtraEnv)
 	}
 
 	rke2ServerConfig.ServiceNodePortRange = opts.ServerConfig.ServiceNodePortRange
@@ -342,57 +342,57 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 	if opts.ServerConfig.KubeAPIServer != nil {
 		rke2ServerConfig.KubeAPIServerArgs = opts.ServerConfig.KubeAPIServer.ExtraArgs
 		rke2ServerConfig.KubeAPIserverImage = opts.ServerConfig.KubeAPIServer.OverrideImage
-		rke2ServerConfig.KubeAPIserverExtraMounts = opts.ServerConfig.KubeAPIServer.ExtraMounts
-		rke2ServerConfig.KubeAPIserverExtraEnv = opts.ServerConfig.KubeAPIServer.ExtraEnv
+		rke2ServerConfig.KubeAPIserverExtraMounts = componentMapToSlice(opts.ServerConfig.KubeAPIServer.ExtraMounts)
+		rke2ServerConfig.KubeAPIserverExtraEnv = componentMapToSlice(opts.ServerConfig.KubeAPIServer.ExtraEnv)
 	}
 
 	if opts.ServerConfig.KubeScheduler != nil {
 		rke2ServerConfig.KubeSchedulerArgs = opts.ServerConfig.KubeScheduler.ExtraArgs
 		rke2ServerConfig.KubeSchedulerImage = opts.ServerConfig.KubeScheduler.OverrideImage
-		rke2ServerConfig.KubeSchedulerExtraMounts = opts.ServerConfig.KubeScheduler.ExtraMounts
-		rke2ServerConfig.KubeSchedulerExtraEnv = opts.ServerConfig.KubeScheduler.ExtraEnv
+		rke2ServerConfig.KubeSchedulerExtraMounts = componentMapToSlice(opts.ServerConfig.KubeScheduler.ExtraMounts)
+		rke2ServerConfig.KubeSchedulerExtraEnv = componentMapToSlice(opts.ServerConfig.KubeScheduler.ExtraEnv)
 	}
 
 	if opts.ServerConfig.KubeControllerManager != nil {
 		rke2ServerConfig.KubeControllerManagerArgs = opts.ServerConfig.KubeControllerManager.ExtraArgs
 		rke2ServerConfig.KubeControllerManagerImage = opts.ServerConfig.KubeControllerManager.OverrideImage
-		rke2ServerConfig.KubeControllerManagerExtraMounts = opts.ServerConfig.KubeControllerManager.ExtraMounts
-		rke2ServerConfig.KubeControllerManagerExtraEnv = opts.ServerConfig.KubeControllerManager.ExtraEnv
+		rke2ServerConfig.KubeControllerManagerExtraMounts = componentMapToSlice(opts.ServerConfig.KubeControllerManager.ExtraMounts)
+		rke2ServerConfig.KubeControllerManagerExtraEnv = componentMapToSlice(opts.ServerConfig.KubeControllerManager.ExtraEnv)
 	}
 
 	if opts.ServerConfig.CloudControllerManager != nil {
-		rke2ServerConfig.CloudControllerManagerExtraMounts = opts.ServerConfig.CloudControllerManager.ExtraMounts
-		rke2ServerConfig.CloudControllerManagerExtraEnv = opts.ServerConfig.CloudControllerManager.ExtraEnv
+		rke2ServerConfig.CloudControllerManagerExtraMounts = componentMapToSlice(opts.ServerConfig.CloudControllerManager.ExtraMounts)
+		rke2ServerConfig.CloudControllerManagerExtraEnv = componentMapToSlice(opts.ServerConfig.CloudControllerManager.ExtraEnv)
 	}
 
 	return rke2ServerConfig, files, nil
 }
 
 type rke2AgentConfig struct {
-	ContainerRuntimeEndpoint       string            `json:"container-runtime-endpoint,omitempty"`
-	CloudProviderConfig            string            `json:"cloud-provider-config,omitempty"`
-	CloudProviderName              string            `json:"cloud-provider-name,omitempty"`
-	DataDir                        string            `json:"data-dir,omitempty"`
-	ImageCredentialProviderConfig  string            `json:"image-credential-provider-config,omitempty"`
-	ImageCredentialProviderBinDir  string            `json:"image-credential-provider-bin-dir,omitempty"`
-	KubeProxyArgs                  []string          `json:"kube-proxy-arg,omitempty"`
-	KubeProxyExtraEnv              map[string]string `json:"kube-proxy-extra-env,omitempty"`
-	KubeProxyExtraMounts           map[string]string `json:"kube-proxy-extra-mount,omitempty"`
-	KubeProxyImage                 string            `json:"kube-proxy-image,omitempty"`
-	KubeletArgs                    []string          `json:"kubelet-arg,omitempty"`
-	KubeletPath                    string            `json:"kubelet-path,omitempty"`
-	LbServerPort                   int               `json:"lb-server-port,omitempty"`
-	NodeLabels                     []string          `json:"node-label,omitempty"`
-	NodeTaints                     []string          `json:"node-taint,omitempty"`
-	Profile                        string            `json:"profile,omitempty"`
-	ProtectKernelDefaults          bool              `json:"protect-kernel-defaults,omitempty"`
-	PodSecurityAdmissionConfigFile string            `json:"pod-security-admission-config-file,omitempty"` // new flag, not present in the RKE2 docs yet
-	ResolvConf                     string            `json:"resolv-conf,omitempty"`
-	RuntimeImage                   string            `json:"runtime-image,omitempty"`
-	Selinux                        bool              `json:"selinux,omitempty"`
-	Server                         string            `json:"server,omitempty"`
-	Snapshotter                    string            `json:"snapshotter,omitempty"`
-	Token                          string            `json:"token,omitempty"`
+	ContainerRuntimeEndpoint       string   `json:"container-runtime-endpoint,omitempty"`
+	CloudProviderConfig            string   `json:"cloud-provider-config,omitempty"`
+	CloudProviderName              string   `json:"cloud-provider-name,omitempty"`
+	DataDir                        string   `json:"data-dir,omitempty"`
+	ImageCredentialProviderConfig  string   `json:"image-credential-provider-config,omitempty"`
+	ImageCredentialProviderBinDir  string   `json:"image-credential-provider-bin-dir,omitempty"`
+	KubeProxyArgs                  []string `json:"kube-proxy-arg,omitempty"`
+	KubeProxyExtraEnv              []string `json:"kube-proxy-extra-env,omitempty"`
+	KubeProxyExtraMounts           []string `json:"kube-proxy-extra-mount,omitempty"`
+	KubeProxyImage                 string   `json:"kube-proxy-image,omitempty"`
+	KubeletArgs                    []string `json:"kubelet-arg,omitempty"`
+	KubeletPath                    string   `json:"kubelet-path,omitempty"`
+	LbServerPort                   int      `json:"lb-server-port,omitempty"`
+	NodeLabels                     []string `json:"node-label,omitempty"`
+	NodeTaints                     []string `json:"node-taint,omitempty"`
+	Profile                        string   `json:"profile,omitempty"`
+	ProtectKernelDefaults          bool     `json:"protect-kernel-defaults,omitempty"`
+	PodSecurityAdmissionConfigFile string   `json:"pod-security-admission-config-file,omitempty"` // new flag, not present in the RKE2 docs yet
+	ResolvConf                     string   `json:"resolv-conf,omitempty"`
+	RuntimeImage                   string   `json:"runtime-image,omitempty"`
+	Selinux                        bool     `json:"selinux,omitempty"`
+	Server                         string   `json:"server,omitempty"`
+	Snapshotter                    string   `json:"snapshotter,omitempty"`
+	Token                          string   `json:"token,omitempty"`
 
 	// We don't expose these in the API
 	PauseImage      string `json:"pause-image,omitempty"`
@@ -536,8 +536,8 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 	if opts.AgentConfig.KubeProxy != nil {
 		rke2AgentConfig.KubeProxyArgs = opts.AgentConfig.KubeProxy.ExtraArgs
 		rke2AgentConfig.KubeProxyImage = opts.AgentConfig.KubeProxy.OverrideImage
-		rke2AgentConfig.KubeProxyExtraMounts = opts.AgentConfig.KubeProxy.ExtraMounts
-		rke2AgentConfig.KubeProxyExtraEnv = opts.AgentConfig.KubeProxy.ExtraEnv
+		rke2AgentConfig.KubeProxyExtraMounts = componentMapToSlice(opts.AgentConfig.KubeProxy.ExtraMounts)
+		rke2AgentConfig.KubeProxyExtraEnv = componentMapToSlice(opts.AgentConfig.KubeProxy.ExtraEnv)
 	}
 
 	rke2AgentConfig.Token = opts.Token
@@ -620,4 +620,18 @@ func GenerateWorkerConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1
 	}
 
 	return rke2AgentConfig, agentFiles, nil
+}
+
+func componentMapToSlice(input map[string]string) []string {
+	result := []string{}
+
+	for key, value := range input {
+		if key == "" || (key == "" && value == "") {
+			continue
+		}
+
+		result = append(result, key+"="+value)
+	}
+
+	return result
 }
