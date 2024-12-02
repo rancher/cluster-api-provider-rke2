@@ -71,8 +71,7 @@ install_plugins() {
     tar zxvf "${KREW}.tar.gz" &&
     ./"${KREW}" install krew
   )
-  kubectl krew index add crust-gather https://github.com/crust-gather/crust-gather.git || true
-  kubectl krew install crust-gather/crust-gather
+  kubectl krew install crust-gather
 }
 
 verify_kubectl_version
