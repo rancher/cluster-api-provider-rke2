@@ -12,7 +12,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/google/gofuzz v1.2.0
 	github.com/onsi/ginkgo/v2 v2.21.0
-	github.com/onsi/gomega v1.35.1
+	github.com/onsi/gomega v1.36.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.6-0.20210604193023-d5e0c0615ace
 	go.etcd.io/etcd/api/v3 v3.5.15
