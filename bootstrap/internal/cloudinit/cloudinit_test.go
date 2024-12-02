@@ -32,7 +32,7 @@ var _ = Describe("WorkerAirGappedCloudInitTest", func() {
 	It("Should use the image embedded install.sh method", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		workerCloudInitString := string(workerCloudInitData)
+		workerCloudInitString := unzipUserdata(workerCloudInitData)
 		_, err = GinkgoWriter.Write(workerCloudInitData)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(workerCloudInitString).To(Equal(`## template: jinja
@@ -66,7 +66,7 @@ var _ = Describe("WorkerAirGappedWithChecksumCloudInitTest", func() {
 	It("Should use the image embedded install.sh method and check the checksum first", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		workerCloudInitString := string(workerCloudInitData)
+		workerCloudInitString := unzipUserdata(workerCloudInitData)
 		_, err = GinkgoWriter.Write(workerCloudInitData)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(workerCloudInitString).To(Equal(`## template: jinja
@@ -101,7 +101,7 @@ var _ = Describe("WorkerOnlineCloudInitTest", func() {
 	It("Should use the RKE2 Online installation method", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		workerCloudInitString := string(workerCloudInitData)
+		workerCloudInitString := unzipUserdata(workerCloudInitData)
 		_, err = GinkgoWriter.Write(workerCloudInitData)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(workerCloudInitString).To(Equal(`## template: jinja
@@ -134,7 +134,7 @@ var _ = Describe("NTPWorkerTest", func() {
 	It("Should use the RKE2 Online installation method", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		workerCloudInitString := string(workerCloudInitData)
+		workerCloudInitString := unzipUserdata(workerCloudInitData)
 		_, err = GinkgoWriter.Write(workerCloudInitData)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(workerCloudInitString).To(Equal(`## template: jinja
@@ -172,7 +172,7 @@ var _ = Describe("WorkerCISTest", func() {
 	It("Should run the CIS script", func() {
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		workerCloudInitString := string(workerCloudInitData)
+		workerCloudInitString := unzipUserdata(workerCloudInitData)
 		_, err = GinkgoWriter.Write(workerCloudInitData)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(workerCloudInitString).To(Equal(`## template: jinja
@@ -274,7 +274,7 @@ runcmd:
 		}
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		workerCloudInitString := string(workerCloudInitData)
+		workerCloudInitString := unzipUserdata(workerCloudInitData)
 		_, err = GinkgoWriter.Write(workerCloudInitData)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -312,7 +312,7 @@ runcmd:
 		}
 		workerCloudInitData, err := NewJoinWorker(input)
 		Expect(err).ToNot(HaveOccurred())
-		workerCloudInitString := string(workerCloudInitData)
+		workerCloudInitString := unzipUserdata(workerCloudInitData)
 		_, err = GinkgoWriter.Write(workerCloudInitData)
 		Expect(err).NotTo(HaveOccurred())
 

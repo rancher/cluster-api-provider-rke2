@@ -17,6 +17,9 @@ limitations under the License.
 package cloudinit
 
 import (
+	"bytes"
+	"compress/gzip"
+	"io"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -27,4 +30,12 @@ func TestCloudInit(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "CloudInit Suite")
+}
+
+func unzipUserdata(userdata []byte) string {
+	r, err := gzip.NewReader(bytes.NewBuffer(userdata))
+	Expect(err).ToNot(HaveOccurred())
+	content, err := io.ReadAll(r)
+	Expect(err).ToNot(HaveOccurred())
+	return string(content)
 }

@@ -19,6 +19,7 @@ package cloudinit
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"strings"
 	"text/template"
@@ -135,12 +136,17 @@ func generate(kind string, tpl string, data interface{}) ([]byte, error) {
 		return nil, errors.Wrapf(err, "failed to parse %s template", kind)
 	}
 
-	var out bytes.Buffer
-	if err := t.Execute(&out, data); err != nil {
+	var buf bytes.Buffer
+	out := gzip.NewWriter(&buf)
+	err = t.Execute(out, data)
+	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate %s template", kind)
 	}
-
-	return out.Bytes(), nil
+	err = out.Close()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate %s compressed userdata", kind)
+	}
+	return buf.Bytes(), nil
 }
 
 func cleanupAdditionalCloudInit(cloudInitData string) (string, error) {
