@@ -34,6 +34,10 @@ VSPHERE_SSH_AUTHORIZED_KEY: "ssh-rsa AAAAB3N..."              # The public ssh a
                                                               #  Keep this close to the minimum Kubernetes version of the cluster being created.
 ```
 
+<div style="border: 1px solid yellow; background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px;">
+  **Warning:** This example uses KubeVIP, and there may be upstream issues with it. We do not provide support for resolving any such issues. Use at your own risk.
+</div>
+
 Then run the following command to generate the RKE2 cluster manifests:
 
 ```bash
