@@ -25,7 +25,9 @@ import (
 	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -244,39 +247,41 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 	r.controller = c
 	r.recorder = mgr.GetEventRecorderFor("rke2-control-plane-controller")
 
-	// Set up a ClusterCacheTracker and ClusterCacheReconciler to provide to controllers
+	// Set up a clusterCache to provide to controllers
 	// requiring a connection to a remote cluster
-	tracker, err := remote.NewClusterCacheTracker(
-		mgr,
-		remote.ClusterCacheTrackerOptions{
-			SecretCachingClient: r.SecretCachingClient,
-			ControllerName:      "rke2-control-plane-controller",
-			Log:                 &ctrl.Log,
-			Indexes:             []remote.Index{},
-			ClientUncachedObjects: []client.Object{
-				&corev1.ConfigMap{},
-				&corev1.Secret{},
-			},
-			ClientQPS:   clientQPS,
-			ClientBurst: clientBurst,
+	clusterCache, err := clustercache.SetupWithManager(ctx, mgr, clustercache.Options{
+		SecretClient: r.SecretCachingClient,
+		Cache: clustercache.CacheOptions{
+			Indexes: []clustercache.CacheOptionsIndex{clustercache.NodeProviderIDIndex},
 		},
-	)
+		Client: clustercache.ClientOptions{
+			QPS:       clientQPS,
+			Burst:     clientBurst,
+			UserAgent: remote.DefaultClusterAPIUserAgent("rke2-control-plane-controller"),
+			Cache: clustercache.ClientCacheOptions{
+				DisableFor: []client.Object{
+					// Don't cache ConfigMaps & Secrets.
+					&corev1.ConfigMap{},
+					&corev1.Secret{},
+					// Don't cache Pods & DaemonSets (we get/list them e.g. during drain).
+					&corev1.Pod{},
+					&appsv1.DaemonSet{},
+					// Don't cache PersistentVolumes and VolumeAttachments (we get/list them e.g. during wait for volumes to detach)
+					&storagev1.VolumeAttachment{},
+					&corev1.PersistentVolume{},
+				},
+			},
+		},
+	}, controller.Options{})
 	if err != nil {
 		return errors.Wrap(err, "unable to create cluster cache tracker")
-	}
-
-	if err := (&remote.ClusterCacheReconciler{
-		Client:  mgr.GetClient(),
-		Tracker: tracker,
-	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
-		return errors.Wrap(err, "unable to create controller")
 	}
 
 	if r.managementCluster == nil {
 		r.managementCluster = &rke2.Management{
 			Client:              r.Client,
 			SecretCachingClient: r.SecretCachingClient,
-			Tracker:             tracker,
+			ClusterCache:        clusterCache,
 		}
 	}
 
