@@ -126,7 +126,7 @@ func (m *Management) NewWorkload(
 	}
 
 	if !strings.Contains(string(etcdKeyPair.Key), "EC PRIVATE KEY") {
-		clientKey, err := m.Tracker.GetEtcdClientCertificateKey(ctx, clusterKey)
+		clientKey, err := m.ClusterCache.GetClientCertificatePrivateKey(ctx, clusterKey)
 		if err != nil {
 			return nil, err
 		}
