@@ -131,6 +131,10 @@ func (m *Management) NewWorkload(
 			return nil, err
 		}
 
+		if clientKey == nil {
+			return nil, fmt.Errorf("client key is not populated yet, requeuing")
+		}
+
 		clientCert, err = generateClientCert(etcdKeyPair.Cert, etcdKeyPair.Key, clientKey)
 		if err != nil {
 			return nil, err
