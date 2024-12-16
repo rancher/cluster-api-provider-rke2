@@ -4,6 +4,8 @@ kind: Cluster
 metadata:
   name: "${CLUSTER_NAME}"
   namespace: "${NAMESPACE}"
+  annotations:
+    machine.cluster.x-k8s.io/exclude-wait-for-node-volume-detach: "true"
 spec:
   clusterNetwork:
     pods:
