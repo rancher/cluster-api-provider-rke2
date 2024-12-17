@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"strings"
@@ -323,6 +324,8 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 		Name:       rcp.Name,
 		UID:        rcp.UID,
 	}
+
+	rcp.Spec.InfrastructureRef.Namespace = cmp.Or(rcp.Spec.InfrastructureRef.Namespace, rcp.Namespace)
 
 	// Clone the infrastructure template
 	infraRef, err := external.CreateFromTemplate(ctx, &external.CreateFromTemplateInput{
