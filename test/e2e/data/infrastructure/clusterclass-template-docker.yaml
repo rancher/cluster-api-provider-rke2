@@ -109,8 +109,7 @@ data:
 
     backend kube-apiservers
       option httpchk GET /healthz
-      http-check expect status 401
-      # TODO: we should be verifying (!)
+
       {{range $server, $address := .BackendServers}}
       server {{ $server }} {{ JoinHostPort $address $.BackendControlPlanePort }} check check-ssl verify none resolvers docker resolve-prefer {{ if $.IPv6 -}} ipv6 {{- else -}} ipv4 {{- end }}
       {{- end}}
@@ -161,6 +160,9 @@ spec:
         cni: calico
         disableComponents:
           kubernetesComponents: [ "cloudController"]
+        kubeAPIServer:
+          extraArgs:
+          - --anonymous-auth=true
       rolloutStrategy:
         type: "RollingUpdate"
         rollingUpdate:

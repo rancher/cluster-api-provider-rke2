@@ -44,6 +44,10 @@ metadata:
 spec: 
   replicas: ${CABPR_CP_REPLICAS}
   version: ${KUBERNETES_VERSION}+rke2r1
+  serverConfig:
+    kubeAPIServer:
+      extraArgs:
+      - --anonymous-auth=true
   agentConfig:
     cisProfile: ${CIS_PROFILE}
   infrastructureRef:
@@ -153,8 +157,7 @@ data:
 
     backend kube-apiservers
       option httpchk GET /healthz
-      http-check expect status 401
-      # TODO: we should be verifying (!)
+
       {{range $server, $address := .BackendServers}}
       server {{ $server }} {{ JoinHostPort $address $.BackendControlPlanePort }} check check-ssl verify none resolvers docker resolve-prefer {{ if $.IPv6 -}} ipv6 {{- else -}} ipv4 {{- end }}
       {{- end}}
