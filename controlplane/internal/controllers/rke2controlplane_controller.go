@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/cluster-api/util/certs"
 	"strings"
 	"time"
 
@@ -55,6 +56,7 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
+	capikubeconfig "sigs.k8s.io/cluster-api/util/kubeconfig"
 )
 
 const (
@@ -810,6 +812,24 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 	// only do rotation on owned secrets
 	if !util.IsControlledBy(configSecret, rcp) {
 		return ctrl.Result{}, nil
+	}
+
+	needsRotation, err := capikubeconfig.NeedsClientCertRotation(configSecret, certs.ClientCertificateRenewalDuration)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if needsRotation {
+		logger.Info("Rotating kubeconfig secret")
+		if err := kubeconfig.CreateSecretWithOwner(
+			ctx,
+			r.Client,
+			clusterName,
+			endpoint.String(),
+			controllerOwnerRef,
+		); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "failed to regenerate kubeconfig")
+		}
 	}
 
 	return ctrl.Result{}, nil
