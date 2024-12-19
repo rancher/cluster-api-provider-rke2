@@ -6,7 +6,7 @@ toolchain go1.22.8
 
 require (
 	github.com/blang/semver/v4 v4.0.0
-	github.com/coreos/butane v0.22.0
+	github.com/coreos/butane v0.23.0
 	github.com/coreos/ignition/v2 v2.20.0
 	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46
 	github.com/go-logr/logr v1.4.2
