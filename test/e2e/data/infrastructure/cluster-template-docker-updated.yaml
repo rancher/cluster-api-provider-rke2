@@ -110,6 +110,8 @@ spec:
       test: "true"
   serverConfig:
     disableComponents:
+      pluginComponents:
+      - rke2-ingress-nginx
       kubernetesComponents:
       - cloudController
     kubeAPIServer:
