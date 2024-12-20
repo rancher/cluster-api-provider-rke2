@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
@@ -57,7 +58,7 @@ type ManagementCluster interface {
 type Management struct {
 	Client              ctrlclient.Client
 	SecretCachingClient ctrlclient.Reader
-	Tracker             *remote.ClusterCacheTracker
+	ClusterCache        clustercache.ClusterCache
 }
 
 // RemoteClusterConnectionError represents a failure to connect to a remote cluster.

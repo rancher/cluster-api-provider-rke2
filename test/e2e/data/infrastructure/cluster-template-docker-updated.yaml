@@ -25,10 +25,12 @@ data:
       default-server init-addr none
 
     frontend stats
+      mode http
       bind *:8404
       stats enable
-      stats uri /
-      stats refresh 10s
+      stats uri /stats
+      stats refresh 1s
+      stats admin if TRUE
 
     frontend control-plane
       bind *:{{ .FrontendControlPlanePort }}
@@ -40,8 +42,8 @@ data:
     backend kube-apiservers
       option httpchk GET /healthz
 
-      {{range $server, $address := .BackendServers}}
-      server {{ $server }} {{ JoinHostPort $address $.BackendControlPlanePort }} check check-ssl verify none resolvers docker resolve-prefer {{ if $.IPv6 -}} ipv6 {{- else -}} ipv4 {{- end }}
+      {{range $server, $backend := .BackendServers}}
+      server {{ $server }} {{ JoinHostPort $backend.Address $.BackendControlPlanePort }} check check-ssl verify none resolvers docker resolve-prefer {{ if $.IPv6 -}} ipv6 {{- else -}} ipv4 {{- end }}
       {{- end}}
 
     frontend rke2-join
@@ -54,8 +56,8 @@ data:
     backend rke2-servers
       option httpchk GET /v1-rke2/readyz
       http-check expect status 403
-      {{range $server, $address := .BackendServers}}
-      server {{ $server }} {{ $address }}:9345 check check-ssl verify none
+      {{range $server, $backend := .BackendServers}}
+      server {{ $server }} {{ $backend.Address }}:9345 check check-ssl verify none
       {{- end}}
 kind: ConfigMap
 metadata:
@@ -64,7 +66,7 @@ metadata:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster 
 metadata:
-  name: ${CLUSTER_NAME} 
+  name: ${CLUSTER_NAME}
 spec:
   clusterNetwork:
     pods:
@@ -108,6 +110,8 @@ spec:
       test: "true"
   serverConfig:
     disableComponents:
+      pluginComponents:
+      - rke2-ingress-nginx
       kubernetesComponents:
       - cloudController
     kubeAPIServer:

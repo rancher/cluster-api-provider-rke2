@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"strings"
@@ -190,6 +191,10 @@ func (r *RKE2ControlPlaneReconciler) removePreTerminateHookAnnotationFromMachine
 	machineOriginal := machine.DeepCopy()
 	delete(machine.Annotations, controlplanev1.PreTerminateHookCleanupAnnotation)
 
+	// Mitigating inssue https://github.com/kubernetes-sigs/cluster-api/issues/11591
+	machine.Annotations[clusterv1.ExcludeNodeDrainingAnnotation] = "true"
+	machine.Annotations[clusterv1.ExcludeWaitForNodeVolumeDetachAnnotation] = "true"
+
 	if err := r.Client.Patch(ctx, machine, client.MergeFrom(machineOriginal)); err != nil {
 		return errors.Wrapf(err, "failed to remove pre-terminate hook from control plane Machine %s", klog.KObj(machine))
 	}
@@ -323,6 +328,8 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 		Name:       rcp.Name,
 		UID:        rcp.UID,
 	}
+
+	rcp.Spec.InfrastructureRef.Namespace = cmp.Or(rcp.Spec.InfrastructureRef.Namespace, rcp.Namespace)
 
 	// Clone the infrastructure template
 	infraRef, err := external.CreateFromTemplate(ctx, &external.CreateFromTemplateInput{
