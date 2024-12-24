@@ -14,7 +14,7 @@ RKE2 is a very configurable Kubernetes distribution. The main ways to configure 
 
 - config.yaml file (default location at /etc/rancher/rke2/): configuration options for RKE2 that are described in this [documentation page]([Server Configuration Reference - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/reference/server_config))
   
-- registries.yaml (default location at /etc/rancher/rke2/): Container Image registry configuration for the cluster (mirrors, rewrites, etc.), documentation available in this [RKE2 Documentation page](https://docs.rke2.io/install/containerd_registry_configuration)
+- registries.yaml (default location at /etc/rancher/rke2/): Container Image registry configuration for the cluster (mirrors, rewrites, etc.), documentation available in this [RKE2 Documentation page](https://docs.rke2.io/install/private_registry)
   
 - Environment variables for versions, etc. (options documented [here]([Overview - RKE2 - Rancher's Next Generation Kubernetes Distribution](https://docs.rke2.io/install/configuration#configuring-the-linux-installation-script)))
   
