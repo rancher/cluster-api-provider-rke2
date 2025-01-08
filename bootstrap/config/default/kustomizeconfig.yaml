@@ -1,3 +1,0 @@
-varReference:
-- kind: Deployment
-  path: spec/template/spec/volumes/secret/secretName
