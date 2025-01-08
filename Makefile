@@ -29,7 +29,7 @@ export GO111MODULE=on
 #
 # Kubebuilder.
 #
-export KUBEBUILDER_ENVTEST_KUBERNETES_VERSION ?= 1.25.0
+export KUBEBUILDER_ENVTEST_KUBERNETES_VERSION ?= 1.32.0
 export KUBEBUILDER_CONTROLPLANE_START_TIMEOUT ?= 60s
 export KUBEBUILDER_CONTROLPLANE_STOP_TIMEOUT ?= 60s
 
@@ -62,16 +62,16 @@ endif
 GO_INSTALL := ./scripts/go-install.sh
 
 # Binaries
-KUSTOMIZE_VER := v4.5.2
+KUSTOMIZE_VER := v5.5.0
 KUSTOMIZE_BIN := kustomize
 KUSTOMIZE := $(abspath $(TOOLS_BIN_DIR)/$(KUSTOMIZE_BIN)-$(KUSTOMIZE_VER))
-KUSTOMIZE_PKG := sigs.k8s.io/kustomize/kustomize/v4
+KUSTOMIZE_PKG := sigs.k8s.io/kustomize/kustomize/v5
 
 # This is a commit from CR main (22.05.2024).
 # Intentionally using a commit from main to use a setup-envtest version
 # that uses binaries from controller-tools, not GCS.
 # CR PR: https://github.com/kubernetes-sigs/controller-runtime/pull/2811
-SETUP_ENVTEST_VER := v0.0.0-20240522175850-2e9781e9fc60
+SETUP_ENVTEST_VER := release-0.19
 SETUP_ENVTEST_BIN := setup-envtest
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/$(SETUP_ENVTEST_BIN)-$(SETUP_ENVTEST_VER))
 SETUP_ENVTEST_PKG := sigs.k8s.io/controller-runtime/tools/setup-envtest
@@ -105,7 +105,7 @@ GOLANGCI_LINT_VER := v1.55.1
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN))
 
-GINKGO_VER := v2.20.1
+GINKGO_VER := v2.22.0
 GINKGO_BIN := ginkgo
 GINKGO := $(abspath $(TOOLS_BIN_DIR)/$(GINKGO_BIN)-$(GINKGO_VER))
 GINKGO_PKG := github.com/onsi/ginkgo/v2/ginkgo

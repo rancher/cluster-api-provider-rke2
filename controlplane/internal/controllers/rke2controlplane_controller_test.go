@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
@@ -17,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Reconclie control plane conditions", func() {
+var _ = Describe("Reconcile control plane conditions", func() {
 	var (
 		err            error
 		cp             *rke2.ControlPlane
@@ -135,7 +137,9 @@ var _ = Describe("Reconclie control plane conditions", func() {
 			},
 		}
 		Expect(testEnv.Create(ctx, nodeByRef.DeepCopy())).To(Succeed())
-		Eventually(testEnv.Get(ctx, client.ObjectKeyFromObject(nodeByRef), nodeByRef)).Should(Succeed())
+		Eventually(func() error {
+			return testEnv.Get(ctx, client.ObjectKeyFromObject(nodeByRef), nodeByRef)
+		}, 5*time.Second).Should(Succeed())
 		Expect(testEnv.Status().Update(ctx, nodeByRef.DeepCopy())).To(Succeed())
 
 		orphanedNode = &corev1.Node{ObjectMeta: metav1.ObjectMeta{
