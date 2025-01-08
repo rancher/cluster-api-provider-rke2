@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"sigs.k8s.io/cluster-api/util/certs"
 	"strings"
 	"time"
 
@@ -50,8 +49,10 @@ import (
 	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
+	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	capikubeconfig "sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/cluster-api/util/patch"
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
@@ -59,7 +60,6 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
-	capikubeconfig "sigs.k8s.io/cluster-api/util/kubeconfig"
 )
 
 const (
@@ -826,8 +826,8 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 
 	if needsRotation {
 		logger.Info("Rotating kubeconfig secret")
-		err = kubeconfig.CreateSecretWithOwner(ctx, r.Client, clusterName, endpoint.String(), controllerOwnerRef)
-		if err != nil {
+
+		if err := kubeconfig.CreateSecretWithOwner(ctx, r.Client, clusterName, endpoint.String(), controllerOwnerRef); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to regenerate kubeconfig")
 		}
 	}
