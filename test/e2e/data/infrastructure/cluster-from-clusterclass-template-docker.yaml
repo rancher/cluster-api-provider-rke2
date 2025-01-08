@@ -18,12 +18,12 @@ spec:
     version: ${KUBERNETES_VERSION}+rke2r1
     controlPlane:
       metadata: {}
-      replicas: ${CABPR_CP_REPLICAS}
+      replicas: ${CONTROL_PLANE_MACHINE_COUNT}
     workers:
       machineDeployments:
       - class: default-worker
         name: md-0
-        replicas: ${CABPR_WK_REPLICAS}
+        replicas: ${WORKER_MACHINE_COUNT}
     variables:
       - name: dockerKindImage
         value: kindest/node:${KIND_IMAGE_VERSION}

@@ -120,9 +120,9 @@ var _ = Describe("Workload cluster creation", func() {
 					return e2eConfig.GetVariable(KubernetesVersion)
 				case "KIND_IMAGE_VERSION":
 					return e2eConfig.GetVariable(KindImageVersion)
-				case "CABPR_CP_REPLICAS":
+				case "CONTROL_PLANE_MACHINE_COUNT":
 					return e2eConfig.GetVariable(ControlPlaneMachineCount)
-				case "CABPR_WK_REPLICAS":
+				case "WORKER_MACHINE_COUNT":
 					return e2eConfig.GetVariable(WorkerMachineCount)
 				default:
 					return os.Getenv(s)

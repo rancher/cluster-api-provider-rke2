@@ -1,4 +1,4 @@
-# Air-Gapped CAPD image building for CABPR
+# Air-Gapped CAPD image building for CAPRKE2
 
 ## Needed Artifacts for RKE2 Air Gapped Installation
 

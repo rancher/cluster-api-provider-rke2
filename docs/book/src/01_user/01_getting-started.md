@@ -71,20 +71,13 @@ providers:
     url: "https://github.com/rancher/cluster-api-provider-rke2/releases/${VERSION}/control-plane-components.yaml"
     type: "ControlPlaneProvider"
 ``` 
-> NOTE: Due to some issue related to how `CAPD` creates Load Balancer healthchecks, it is necessary to use a fork of `CAPD` by providing in the above configuration file the following :
-
-```yaml
-  - name: "docker"
-    url: "https://github.com/belgaied2/cluster-api/releases/v1.3.3-cabpr-fix/infrastructure-components.yaml"
-    type: "InfrastructureProvider"
-``` 
 
 This configuration tells clusterctl where to look for provider manifests in order to deploy provider components in the management cluster. 
 
 The next step is to run the `clusterctl init` command:
 
 ```bash
-clusterctl init --bootstrap rke2 --control-plane rke2 --infrastructure docker:v1.3.3-cabpr-fix
+clusterctl init --bootstrap rke2 --control-plane rke2
 ```
 
 This should output something similar to the following:
@@ -110,20 +103,20 @@ There are some sample cluster templates available under the `examples` folder. T
 
 For this `Getting Started` section, we will be using the `docker` samples available under `examples/docker/online-default` folder. This folder contains a YAML template file called `cluster-template.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
 Set the following environment variables:
-- CABPR_NAMESPACE
+- NAMESPACE
 - CLUSTER_NAME
-- CABPR_CP_REPLICAS
-- CABPR_WK_REPLICAS
+- CONTROL_PLANE_MACHINE_COUNT
+- WORKER_MACHINE_COUNT
 - KUBERNETES_VERSION
 - KIND_IMAGE_VERSION
 
 for example:
 
 ```bash
-export CABPR_NAMESPACE=example
+export NAMESPACE=example
 export CLUSTER_NAME=capd-rke2-test
-export CABPR_CP_REPLICAS=3
-export CABPR_WK_REPLICAS=2
+export CONTROL_PLANE_MACHINE_COUNT=3
+export WORKER_MACHINE_COUNT=2
 export KUBERNETES_VERSION=v1.30.3
 export KIND_IMAGE_VERSION=v1.30.3
 ```
@@ -220,8 +213,8 @@ If you are interested in leveraging this functionality, you can refer to the exa
 
 As with other sample templates, you will need to set a number environment variables:
 - CLUSTER_NAME
-- CABPR_CP_REPLICAS
-- CABPR_WK_REPLICAS
+- CONTROL_PLANE_MACHINE_COUNT
+- WORKER_MACHINE_COUNT
 - KUBERNETES_VERSION
 - KIND_IP
 
@@ -229,8 +222,8 @@ for example:
 
 ```bash
 export CLUSTER_NAME=capd-rke2-clusterclass
-export CABPR_CP_REPLICAS=3
-export CABPR_WK_REPLICAS=2
+export CONTROL_PLANE_MACHINE_COUNT=3
+export WORKER_MACHINE_COUNT=2
 export KUBERNETES_VERSION=v1.30.3
 export KIND_IP=192.168.20.20
 ```
