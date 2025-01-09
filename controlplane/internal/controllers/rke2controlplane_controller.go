@@ -468,7 +468,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		conditions.MarkFalse(
 			rcp, controlplanev1.CertificatesAvailableCondition,
 			controlplanev1.CertificatesGenerationFailedReason,
-			clusterv1.ConditionSeverityWarning, err.Error())
+			clusterv1.ConditionSeverityWarning, "%s", err.Error())
 
 		return ctrl.Result{}, err
 	}
