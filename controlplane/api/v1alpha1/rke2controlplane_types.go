@@ -283,7 +283,8 @@ type EtcdS3 struct {
 
 	// S3CredentialSecret is a reference to a Secret containing the Access Key and Secret Key necessary to access the target S3 Bucket.
 	// The Secret must contain the following keys: "aws_access_key_id" and "aws_secret_access_key".
-	S3CredentialSecret corev1.ObjectReference `json:"s3CredentialSecret"`
+	// If empty, the controller will default to IAM authentication
+	S3CredentialSecret *corev1.ObjectReference `json:"s3CredentialSecret,omitempty"`
 
 	// Bucket S3 bucket name.
 	//+optional

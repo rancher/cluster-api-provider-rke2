@@ -1094,6 +1094,7 @@ spec:
                                         description: |-
                                           S3CredentialSecret is a reference to a Secret containing the Access Key and Secret Key necessary to access the target S3 Bucket.
                                           The Secret must contain the following keys: "aws_access_key_id" and "aws_secret_access_key".
+                                          If empty, the controller will default to IAM authentication
                                         properties:
                                           apiVersion:
                                             description: API version of the referent.
@@ -1137,7 +1138,6 @@ spec:
                                         x-kubernetes-map-type: atomic
                                     required:
                                     - endpoint
-                                    - s3CredentialSecret
                                     type: object
                                   scheduleCron:
                                     description: 'ScheduleCron Snapshot interval time

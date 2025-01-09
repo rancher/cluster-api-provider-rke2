@@ -266,24 +266,28 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 	if opts.ServerConfig.Etcd.BackupConfig.S3 != nil {
 		rke2ServerConfig.EtcdS3 = true
 		awsCredentialsSecret := &corev1.Secret{}
+		accessKeyID, secretAccessKey := []byte{}, []byte{}
 
-		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
-			Name:      opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Name,
-			Namespace: opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Namespace,
-		}, awsCredentialsSecret); err != nil {
-			return nil, nil, fmt.Errorf("failed to get aws credentials secret: %w", err)
-		}
+		if opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret != nil {
+			if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+				Name:      opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Name,
+				Namespace: opts.ServerConfig.Etcd.BackupConfig.S3.S3CredentialSecret.Namespace,
+			}, awsCredentialsSecret); err != nil {
+				return nil, nil, fmt.Errorf("failed to get aws credentials secret: %w", err)
+			}
 
-		accessKeyID, ok := awsCredentialsSecret.Data["aws_access_key_id"]
+			var ok bool
+			accessKeyID, ok = awsCredentialsSecret.Data["aws_access_key_id"]
 
-		if !ok {
-			return nil, nil, fmt.Errorf("aws credentials secret is missing aws_access_key_id")
-		}
+			if !ok {
+				return nil, nil, fmt.Errorf("aws credentials secret is missing aws_access_key_id")
+			}
 
-		secretAccessKey, ok := awsCredentialsSecret.Data["aws_secret_access_key"]
+			secretAccessKey, ok = awsCredentialsSecret.Data["aws_secret_access_key"]
 
-		if !ok {
-			return nil, nil, fmt.Errorf("aws credentials secret is missing aws_secret_access_key")
+			if !ok {
+				return nil, nil, fmt.Errorf("aws credentials secret is missing aws_secret_access_key")
+			}
 		}
 
 		rke2ServerConfig.EtcdS3AccessKey = string(accessKeyID)

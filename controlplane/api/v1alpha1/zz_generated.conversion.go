@@ -288,7 +288,7 @@ func autoConvert_v1alpha1_EtcdS3_To_v1beta1_EtcdS3(in *EtcdS3, out *v1beta1.Etcd
 	out.Endpoint = in.Endpoint
 	out.EndpointCASecret = (*v1.ObjectReference)(unsafe.Pointer(in.EndpointCASecret))
 	out.EnforceSSLVerify = in.EnforceSSLVerify
-	out.S3CredentialSecret = in.S3CredentialSecret
+	out.S3CredentialSecret = (*v1.ObjectReference)(unsafe.Pointer(in.S3CredentialSecret))
 	out.Bucket = in.Bucket
 	out.Region = in.Region
 	out.Folder = in.Folder
@@ -304,7 +304,7 @@ func autoConvert_v1beta1_EtcdS3_To_v1alpha1_EtcdS3(in *v1beta1.EtcdS3, out *Etcd
 	out.Endpoint = in.Endpoint
 	out.EndpointCASecret = (*v1.ObjectReference)(unsafe.Pointer(in.EndpointCASecret))
 	out.EnforceSSLVerify = in.EnforceSSLVerify
-	out.S3CredentialSecret = in.S3CredentialSecret
+	out.S3CredentialSecret = (*v1.ObjectReference)(unsafe.Pointer(in.S3CredentialSecret))
 	out.Bucket = in.Bucket
 	out.Region = in.Region
 	out.Folder = in.Folder
