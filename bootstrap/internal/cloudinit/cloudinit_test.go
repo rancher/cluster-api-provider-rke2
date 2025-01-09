@@ -254,14 +254,15 @@ runcmd:
   - 'print hello world' 
 `
 		arbitraryData = map[string]string{
-			"disk_setup": `
-  ephemeral0:
-    table_type: mbr
-    layout: False
-    overwrite: False`,
+			"disk_setup": `ephemeral0:
+  table_type: mbr
+  layout: False
+  overwrite: False`,
 			"device_aliases": "{'ephemeral0': '/dev/vdb'}",
-			"runcmd": `
-  - 'print hello world'`,
+			"runcmd":         `- 'print hello world'`,
+			"users": `- name: capv
+  sudo: ALL=(ALL) NOPASSWD:ALL`,
+			"list": "['data']",
 		}
 	})
 
@@ -287,12 +288,22 @@ write_files:
       
 
 
-device_aliases: {'ephemeral0': '/dev/vdb'}
+device_aliases: 
+  ephemeral0: /dev/vdb
+  
 disk_setup: 
   ephemeral0:
+    layout: false
+    overwrite: false
     table_type: mbr
-    layout: False
-    overwrite: False
+  
+list: 
+- data
+
+users: 
+- name: capv
+  sudo: ALL=(ALL) NOPASSWD:ALL
+
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
