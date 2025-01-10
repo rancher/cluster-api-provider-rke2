@@ -110,7 +110,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 					ExposeMetrics: true,
 					BackupConfig: controlplanev1.EtcdBackupConfig{
 						S3: &controlplanev1.EtcdS3{
-							S3CredentialSecret: corev1.ObjectReference{
+							S3CredentialSecret: &corev1.ObjectReference{
 								Name:      "test",
 								Namespace: "test",
 							},
