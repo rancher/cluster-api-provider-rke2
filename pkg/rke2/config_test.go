@@ -121,7 +121,6 @@ var _ = Describe("RKE2ServerConfig", func() {
 							Bucket:           "testbucket",
 							Region:           "testregion",
 							Endpoint:         "testendpoint",
-							Folder:           "testfolder",
 							EnforceSSLVerify: true,
 						},
 						Directory:    "testdir",
@@ -195,11 +194,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.EtcdS3Folder).To(Equal(serverConfig.Etcd.BackupConfig.S3.Folder))
 		Expect(rke2ServerConfig.EtcdS3Endpoint).To(Equal(serverConfig.Etcd.BackupConfig.S3.Endpoint))
 		Expect(rke2ServerConfig.EtcdS3EndpointCA).To(Equal("/etc/rancher/rke2/etcd-s3-ca.crt"))
-		if serverConfig.Etcd.BackupConfig.S3 != nil {
-			Expect(rke2ServerConfig.EtcdSnapshotDir).To(Equal(serverConfig.Etcd.BackupConfig.S3.Folder))
-		} else {
-			Expect(rke2ServerConfig.EtcdSnapshotDir).To(Equal(serverConfig.Etcd.BackupConfig.Directory))
-		}
+		Expect(rke2ServerConfig.EtcdSnapshotDir).To(Equal(serverConfig.Etcd.BackupConfig.Directory))
 		Expect(rke2ServerConfig.EtcdSnapshotName).To(Equal(serverConfig.Etcd.BackupConfig.SnapshotName))
 		Expect(rke2ServerConfig.EtcdSnapshotRetention).To(Equal(serverConfig.Etcd.BackupConfig.Retention))
 		Expect(rke2ServerConfig.EtcdSnapshotScheduleCron).To(Equal(serverConfig.Etcd.BackupConfig.ScheduleCron))
