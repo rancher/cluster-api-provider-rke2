@@ -51,11 +51,12 @@ spec:
     kubeAPIServer:
       extraArgs:
       - --anonymous-auth=true
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: DockerMachineTemplate
-    name: controlplane
-  nodeDrainTimeout: 2m
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: DockerMachineTemplate
+      name: controlplane
+    nodeDrainTimeout: 2m
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate

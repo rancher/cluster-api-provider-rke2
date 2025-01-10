@@ -70,10 +70,11 @@ metadata:
   name: ${CLUSTER_NAME}
   namespace: ${NAMESPACE}
 spec:
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: Metal3MachineTemplate
-    name: ${CLUSTER_NAME}-controlplane
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: Metal3MachineTemplate
+      name: ${CLUSTER_NAME}-controlplane
   replicas: 1
   agentConfig:
     kubelet:

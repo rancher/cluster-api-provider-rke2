@@ -48,6 +48,16 @@ var _ webhook.Defaulter = &RKE2ControlPlane{}
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
 func (r *RKE2ControlPlane) Default() {
 	bootstrapv1.DefaultRKE2ConfigSpec(&r.Spec.RKE2ConfigSpec)
+
+	// Defaults missing MachineTemplate.InfrastructureRef to Spec.InfrastructureRef
+	if len(r.Spec.MachineTemplate.InfrastructureRef.Name) == 0 {
+		r.Spec.MachineTemplate.InfrastructureRef = r.Spec.InfrastructureRef
+	}
+
+	// Defaults missing MachineTemplate.NodeDrainTimeout to Spec.NodeDrainTimeout
+	if r.Spec.MachineTemplate.NodeDrainTimeout == nil {
+		r.Spec.MachineTemplate.NodeDrainTimeout = r.Spec.NodeDrainTimeout
+	}
 }
 
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1beta1-rke2controlplane,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanes,verbs=create;update,versions=v1beta1,name=vrke2controlplane.kb.io,admissionReviewVersions=v1
@@ -63,6 +73,7 @@ func (r *RKE2ControlPlane) ValidateCreate() (admission.Warnings, error) {
 	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)...)
 	allErrs = append(allErrs, r.validateCNI()...)
 	allErrs = append(allErrs, r.validateRegistrationMethod()...)
+	allErrs = append(allErrs, r.validateMachineTemplate()...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
@@ -84,6 +95,7 @@ func (r *RKE2ControlPlane) ValidateUpdate(old runtime.Object) (admission.Warning
 
 	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(r.Name, &r.Spec.RKE2ConfigSpec)...)
 	allErrs = append(allErrs, r.validateCNI()...)
+	allErrs = append(allErrs, r.validateMachineTemplate()...)
 
 	oldSet := oldControlplane.Spec.RegistrationMethod != ""
 	if oldSet && r.Spec.RegistrationMethod != oldControlplane.Spec.RegistrationMethod {
@@ -127,6 +139,18 @@ func (r *RKE2ControlPlane) validateRegistrationMethod() field.ErrorList {
 				field.Invalid(field.NewPath("spec.registrationAddress"),
 					r.Spec.RegistrationAddress, "registrationAddress must be supplied when using registration method 'address'"))
 		}
+	}
+
+	return allErrs
+}
+
+func (r *RKE2ControlPlane) validateMachineTemplate() field.ErrorList {
+	var allErrs field.ErrorList
+
+	if r.Spec.MachineTemplate.InfrastructureRef.Name == "" && r.Spec.InfrastructureRef.Name == "" {
+		allErrs = append(allErrs,
+			field.Invalid(field.NewPath("spec", "machineTemplate", "infrastructureRef"),
+				r.Spec.MachineTemplate.InfrastructureRef, "machineTemplate is required"))
 	}
 
 	return allErrs

@@ -329,12 +329,12 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 		UID:        rcp.UID,
 	}
 
-	rcp.Spec.InfrastructureRef.Namespace = cmp.Or(rcp.Spec.InfrastructureRef.Namespace, rcp.Namespace)
+	rcp.Spec.MachineTemplate.InfrastructureRef.Namespace = cmp.Or(rcp.Spec.MachineTemplate.InfrastructureRef.Namespace, rcp.Namespace)
 
 	// Clone the infrastructure template
 	infraRef, err := external.CreateFromTemplate(ctx, &external.CreateFromTemplateInput{
 		Client:      r.Client,
-		TemplateRef: &rcp.Spec.InfrastructureRef,
+		TemplateRef: &rcp.Spec.MachineTemplate.InfrastructureRef,
 		Namespace:   rcp.Namespace,
 		OwnerRef:    infraCloneOwner,
 		ClusterName: cluster.Name,
@@ -460,7 +460,7 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 				ConfigRef: bootstrapRef,
 			},
 			FailureDomain:    failureDomain,
-			NodeDrainTimeout: rcp.Spec.NodeDrainTimeout,
+			NodeDrainTimeout: rcp.Spec.MachineTemplate.NodeDrainTimeout,
 		},
 	}
 

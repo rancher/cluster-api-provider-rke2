@@ -154,10 +154,6 @@ metadata:
 spec:
   template:
     spec:
-      infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-        kind: DockerMachineTemplate
-        name: ${CLASS_NAME}-control-plane
       serverConfig:
         cni: calico
         disableComponents:

@@ -72,12 +72,17 @@ type RKE2ControlPlaneSpec struct {
 
 	// InfrastructureRef is a required reference to a custom resource
 	// offered by an infrastructure provider.
+	// This field is deprecated. Use `.machineTemplate.infrastructureRef` instead.
+	// +optional
+	// +kubebuilder:deprecatedversion:warning="Use `.machineTemplate.infrastructureRef` instead"
 	InfrastructureRef corev1.ObjectReference `json:"infrastructureRef"`
 
 	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
 	// The default value is 0, meaning that the node can be drained without any time limitations.
 	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// This field is deprecated. Use `.machineTemplate.nodeDrainTimeout` instead.
 	// +optional
+	// +kubebuilder:deprecatedversion:warning="Use `.machineTemplate.nodeDrainTimeout` instead"
 	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
 
 	// RegistrationMethod is the method to use for registering nodes into the RKE2 cluster.

@@ -49,11 +49,12 @@ spec:
   version: ${KUBERNETES_VERSION}+rke2r1
   serverConfig:
     cni: calico
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: DockerMachineTemplate
-    name: controlplane
-  nodeDrainTimeout: 2m
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: DockerMachineTemplate
+      name: controlplane
+    nodeDrainTimeout: 2m
   registrationMethod: "address"
   registrationAddress: "${REGISTRATION_VIP}"
   preRKE2Commands:

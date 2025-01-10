@@ -146,8 +146,8 @@ func matchesTemplateClonedFrom(infraConfigs map[string]*unstructured.Unstructure
 		}
 
 		// Check if the machine's infrastructure reference has been created from the current RCP infrastructure template.
-		if clonedFromName != rcp.Spec.InfrastructureRef.Name ||
-			clonedFromGroupKind != rcp.Spec.InfrastructureRef.GroupVersionKind().GroupKind().String() {
+		if clonedFromName != rcp.Spec.MachineTemplate.InfrastructureRef.Name ||
+			clonedFromGroupKind != rcp.Spec.MachineTemplate.InfrastructureRef.GroupVersionKind().GroupKind().String() {
 			return false
 		}
 
