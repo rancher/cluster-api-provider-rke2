@@ -123,11 +123,12 @@ spec:
   - sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/1.0/meta-data/hostname)
   agentConfig:
     airGapped: true
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-    kind: AWSMachineTemplate
-    name: ${CLUSTER_NAME}-control-plane
-  nodeDrainTimeout: 2m
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+      kind: AWSMachineTemplate
+      name: ${CLUSTER_NAME}-control-plane
+    nodeDrainTimeout: 2m
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   serverConfig:
     cloudProviderName: external

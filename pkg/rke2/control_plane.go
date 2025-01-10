@@ -124,7 +124,7 @@ func (c *ControlPlane) Version() *string {
 
 // InfrastructureRef returns the RKE2ControlPlane's infrastructure template.
 func (c *ControlPlane) InfrastructureRef() *corev1.ObjectReference {
-	return &c.RCP.Spec.InfrastructureRef
+	return &c.RCP.Spec.MachineTemplate.InfrastructureRef
 }
 
 // AsOwnerReference returns an owner reference to the RKE2ControlPlane.

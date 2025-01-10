@@ -156,11 +156,12 @@ spec:
               type: File
             name: kubeconfig
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: VSphereMachineTemplate
-    name: vsphere-controlplane
-  nodeDrainTimeout: 2m
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: VSphereMachineTemplate
+      name: vsphere-controlplane
+    nodeDrainTimeout: 2m
   preRKE2Commands:
     - sleep 30 #fix to give OS time to become ready
   version: ${RKE2_VERSION}

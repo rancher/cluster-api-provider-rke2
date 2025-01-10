@@ -1595,6 +1595,7 @@ spec:
                 description: |-
                   InfrastructureRef is a required reference to a custom resource
                   offered by an infrastructure provider.
+                  This field is deprecated. Use `.machineTemplate.infrastructureRef` instead.
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -1769,6 +1770,7 @@ spec:
                   NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
                   The default value is 0, meaning that the node can be drained without any time limitations.
                   NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+                  This field is deprecated. Use `.machineTemplate.nodeDrainTimeout` instead.
                 type: string
               postRKE2Commands:
                 description: PostRKE2Commands specifies extra commands to run after
@@ -2436,7 +2438,6 @@ spec:
                 pattern: (v\d\.\d{2}\.\d+\+rke2r\d)|^$
                 type: string
             required:
-            - infrastructureRef
             - rolloutStrategy
             type: object
           status:

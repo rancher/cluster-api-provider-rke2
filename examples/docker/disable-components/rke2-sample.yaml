@@ -45,10 +45,6 @@ spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   agentConfig:
     version: ${KUBERNETES_VERSION}+rke2r1
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: DockerMachineTemplate
-    name: controlplane
   serverConfig:
     kubeAPIServer:
       extraArgs:
@@ -56,7 +52,12 @@ spec:
    disableComponents:
       pluginComponents:
       - "rke2-ingress-nginx"
-  nodeDrainTimeout: 2m
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: DockerMachineTemplate
+      name: controlplane
+    nodeDrainTimeout: 2m
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
