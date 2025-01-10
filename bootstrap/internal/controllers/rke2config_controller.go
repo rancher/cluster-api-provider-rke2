@@ -17,12 +17,14 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -430,19 +432,25 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		return ctrl.Result{}, err
 	}
 
-	b, err := kubeyaml.Marshal(configStruct)
+	var buf bytes.Buffer
+	yamlEncoder := yaml.NewEncoder(&buf)
+	yamlEncoder.SetIndent(2)
+
+	err = yamlEncoder.Encode(&configStruct)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("unable to marshal config.yaml: %w", err)
 	}
 
 	scope.Logger.Info("Server config marshalled successfully")
 
 	initConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
-		Content:     string(b),
+		Content:     buf.String(),
 		Owner:       consts.DefaultFileOwner,
 		Permissions: filePermissions,
 	}
+
+	yamlEncoder.Close()
 
 	files, err := r.generateFileListIncludingRegistries(ctx, scope, configFiles)
 	if err != nil {
@@ -639,9 +647,14 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		return ctrl.Result{}, err
 	}
 
-	b, err := kubeyaml.Marshal(configStruct)
+	var buf bytes.Buffer
+	yamlEncoder := yaml.NewEncoder(&buf)
+	yamlEncoder.SetIndent(2)
 
-	scope.Logger.Info("Showing marshalled config.yaml", "config.yaml", string(b))
+	err = yamlEncoder.Encode(&configStruct)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to marshal config.yaml: %w", err)
+	}
 
 	if err != nil {
 		return ctrl.Result{}, err
@@ -651,10 +664,12 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 
 	initConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
-		Content:     string(b),
+		Content:     buf.String(),
 		Owner:       consts.DefaultFileOwner,
 		Permissions: filePermissions,
 	}
+
+	yamlEncoder.Close()
 
 	files, err := r.generateFileListIncludingRegistries(ctx, scope, configFiles)
 	if err != nil {
@@ -767,22 +782,25 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		return ctrl.Result{}, err
 	}
 
-	b, err := kubeyaml.Marshal(configStruct)
+	var buf bytes.Buffer
+	yamlEncoder := yaml.NewEncoder(&buf)
+	yamlEncoder.SetIndent(2)
 
-	scope.Logger.V(5).Info("Showing marshalled config.yaml", "config.yaml", string(b))
-
+	err = yamlEncoder.Encode(&configStruct)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("unable to marshal config.yaml: %w", err)
 	}
 
 	scope.Logger.Info("Joining Worker config marshalled successfully")
 
 	wkJoinConfigFile := bootstrapv1.File{
 		Path:        rke2.DefaultRKE2ConfigLocation,
-		Content:     string(b),
+		Content:     buf.String(),
 		Owner:       consts.DefaultFileOwner,
 		Permissions: filePermissions,
 	}
+
+	yamlEncoder.Close()
 
 	files, err := r.generateFileListIncludingRegistries(ctx, scope, configFiles)
 	if err != nil {

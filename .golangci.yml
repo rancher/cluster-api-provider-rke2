@@ -54,6 +54,7 @@ linters-settings:
       - "5"
       - "4"
       - "3"
+      - "2"
   goimports:
     local-prefixes: github.com/rancher/cluster-api-provider-rke2
   gci:
