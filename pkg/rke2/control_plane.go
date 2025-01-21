@@ -181,7 +181,7 @@ func (c *ControlPlane) NextFailureDomainForScaleUp(ctx context.Context) *string 
 		return nil
 	}
 
-	return capifd.PickFewest(ctx, c.FailureDomains().FilterControlPlane(), c.UpToDateMachines())
+	return capifd.PickFewest(ctx, c.FailureDomains().FilterControlPlane(), c.Machines, c.UpToDateMachines())
 }
 
 // InitialControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for an initializing control plane.
