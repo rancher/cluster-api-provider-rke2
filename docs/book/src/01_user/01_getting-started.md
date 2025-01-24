@@ -117,8 +117,8 @@ export NAMESPACE=example
 export CLUSTER_NAME=capd-rke2-test
 export CONTROL_PLANE_MACHINE_COUNT=3
 export WORKER_MACHINE_COUNT=2
-export KUBERNETES_VERSION=v1.30.3
-export KIND_IMAGE_VERSION=v1.30.3
+export KIND_IMAGE_VERSION=v1.31.4
+export RKE2_VERSION=v1.31.4+rke2r1
 ```
 
 The next step is to substitue the values in the YAML using the following commands:
