@@ -107,8 +107,8 @@ Set the following environment variables:
 - CLUSTER_NAME
 - CONTROL_PLANE_MACHINE_COUNT
 - WORKER_MACHINE_COUNT
-- KUBERNETES_VERSION
 - KIND_IMAGE_VERSION
+- RKE2_VERSION
 
 for example:
 
@@ -159,12 +159,12 @@ kubectl get machine -n example
 and you should see output similar to the following:
 
 ```
-NAME                                 CLUSTER          NODENAME                                 PROVIDERID                                          PHASE     AGE   VERSION
-capd-rke2-test-control-plane-9fw9t   capd-rke2-test   capd-rke2-test-control-plane-9fw9t       docker:////capd-rke2-test-control-plane-9fw9t       Running   35m   v1.27.3+rke2r1
-capd-rke2-test-control-plane-m2sdk   capd-rke2-test   capd-rke2-test-control-plane-m2sdk       docker:////capd-rke2-test-control-plane-m2sdk       Running   12m   v1.27.3+rke2r1
-capd-rke2-test-control-plane-zk2xb   capd-rke2-test   capd-rke2-test-control-plane-zk2xb       docker:////capd-rke2-test-control-plane-zk2xb       Running   27m   v1.27.3+rke2r1
-worker-md-0-fhxrw-crn5g              capd-rke2-test   capd-rke2-test-worker-md-0-fhxrw-crn5g   docker:////capd-rke2-test-worker-md-0-fhxrw-crn5g   Running   36m   v1.27.3+rke2r1
-worker-md-0-fhxrw-qsk7n              capd-rke2-test   capd-rke2-test-worker-md-0-fhxrw-qsk7n   docker:////capd-rke2-test-worker-md-0-fhxrw-qsk7n   Running   36m   v1.27.3+rke2r1
+NAME                                 CLUSTER          NODENAME                                 PROVIDERID                                          PHASE     AGE    VERSION
+capd-rke2-test-control-plane-9kw26   capd-rke2-test   capd-rke2-test-control-plane-9kw26       docker:////capd-rke2-test-control-plane-9kw26       Running   21m    v1.31.4+rke2r1
+capd-rke2-test-control-plane-pznp8   capd-rke2-test   capd-rke2-test-control-plane-pznp8       docker:////capd-rke2-test-control-plane-pznp8       Running   8m5s   v1.31.4+rke2r1
+capd-rke2-test-control-plane-rwzgk   capd-rke2-test   capd-rke2-test-control-plane-rwzgk       docker:////capd-rke2-test-control-plane-rwzgk       Running   17m    v1.31.4+rke2r1
+worker-md-0-hm765-hlzgr              capd-rke2-test   capd-rke2-test-worker-md-0-hm765-hlzgr   docker:////capd-rke2-test-worker-md-0-hm765-hlzgr   Running   18m    v1.31.4+rke2r1
+worker-md-0-hm765-w6h5j              capd-rke2-test   capd-rke2-test-worker-md-0-hm765-w6h5j   docker:////capd-rke2-test-worker-md-0-hm765-w6h5j   Running   18m    v1.31.4+rke2r1
 ```
 
 ## Accessing the workload cluster
@@ -179,7 +179,7 @@ and see an output similar to this:
 
 ```
 NAMESPACE   NAME             CLUSTERCLASS   PHASE         AGE   VERSION
-example     capd-rke2-test                  Provisioned   31m
+example     capd-rke2-test                  Provisioned   22m
 ```
 
 You can also get an “at glance” view of the cluster and its resources by running:
@@ -191,14 +191,14 @@ clusterctl describe cluster capd-rke2-test -n example
 This should output similar to this:
 
 ```
-NAME                                                            READY  SEVERITY  REASON  SINCE  MESSAGE                                                                         
-Cluster/capd-rke2-test                                          True                     2m56s                                                                                   
-├─ClusterInfrastructure - DockerCluster/capd-rke2-test          True                     31m                                                                                     
-├─ControlPlane - RKE2ControlPlane/capd-rke2-test-control-plane  True                     2m56s                                                                                   
-│ └─3 Machines...                                               True                     28m    See capd-rke2-test-control-plane-9fw9t, capd-rke2-test-control-plane-m2sdk, ...  
-└─Workers                                                                                                                                                                        
-  └─MachineDeployment/worker-md-0                               True                     15m                                                                                     
-    └─2 Machines...                                             True                     25m    See worker-md-0-fhxrw-crn5g, worker-md-0-fhxrw-qsk7n
+NAME                                                            READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/capd-rke2-test                                          True                     5m8s
+├─ClusterInfrastructure - DockerCluster/capd-rke2-test          True                     22m
+├─ControlPlane - RKE2ControlPlane/capd-rke2-test-control-plane  True                     5m8s
+│ └─3 Machines...                                               True                     20m    See capd-rke2-test-control-plane-9kw26, capd-rke2-test-control-plane-pznp8, ...
+└─Workers
+  └─MachineDeployment/worker-md-0                               True                     11m
+    └─2 Machines...                                             True                     15m    See worker-md-0-hm765-hlzgr, worker-md-0-hm765-w6h5j
 ```
 
 🎉 CONGRATULATIONS! 🎉 You created your first RKE2 cluster with CAPD as an infrastructure provider.
