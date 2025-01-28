@@ -8,7 +8,7 @@ ARG builder_image
 # It's an invalid finding since the image is explicitly set in the Makefile.
 # https://github.com/hadolint/hadolint/wiki/DL3006
 # hadolint ignore=DL3006
-FROM ${builder_image} as builder
+FROM --platform=$BUILDPLATFORM ${builder_image} as builder
 WORKDIR /workspace
 
 # Run this with docker build --build-arg goproxy=$(go env GOPROXY) to override the goproxy
@@ -22,10 +22,11 @@ COPY ./ ./
 # Build
 ARG package=.
 ARG ldflags
+ARG TARGETOS TARGETARCH
 
 # Do not force rebuild of up-to-date packages (do not use -a) and use the compiler cache folder
 RUN --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=0 GOOS=linux \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "${ldflags} -extldflags '-static'" \
     -o manager ${package}
 
