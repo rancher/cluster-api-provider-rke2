@@ -53,7 +53,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 No additional steps are required and you can install the RKE2 provider with **clusterctl** directly:
 
 ```bash
-clusterctl init --core cluster-api:v1.9.3--bootstrap rke2:v0.10.0 --control-plane rke2:v0.10.0 --infrastructure docker:v1.9.3
+clusterctl init --core cluster-api:v1.9.3--bootstrap rke2:v0.11.0 --control-plane rke2:v0.11.0 --infrastructure docker:v1.9.3
 ```
 
 Next, you can proceed to [creating a workload cluster](#create-a-workload-cluster).
