@@ -557,11 +557,13 @@ func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []boo
 	}
 
 	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(AgentConfigOpts{
-		AgentConfig: opts.AgentConfig,
-		Client:      opts.Client,
-		Ctx:         opts.Ctx,
-		Token:       opts.Token,
-		Version:     opts.Version,
+		AgentConfig:            opts.AgentConfig,
+		Client:                 opts.Client,
+		Ctx:                    opts.Ctx,
+		Token:                  opts.Token,
+		Version:                opts.Version,
+		CloudProviderConfigMap: opts.ServerConfig.CloudProviderConfigMap,
+		CloudProviderName:      opts.ServerConfig.CloudProviderName,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
@@ -588,12 +590,14 @@ func GenerateJoinControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []boo
 	}
 
 	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(AgentConfigOpts{
-		AgentConfig: opts.AgentConfig,
-		Client:      opts.Client,
-		Ctx:         opts.Ctx,
-		ServerURL:   opts.ServerURL,
-		Token:       opts.Token,
-		Version:     opts.Version,
+		AgentConfig:            opts.AgentConfig,
+		Client:                 opts.Client,
+		Ctx:                    opts.Ctx,
+		ServerURL:              opts.ServerURL,
+		Token:                  opts.Token,
+		Version:                opts.Version,
+		CloudProviderConfigMap: opts.ServerConfig.CloudProviderConfigMap,
+		CloudProviderName:      opts.ServerConfig.CloudProviderName,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate rke2 agent config: %w", err)
