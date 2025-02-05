@@ -10,41 +10,41 @@ Cluster API Provider RKE2 is compliant with the `clusterctl` contract, which mea
 ## Management Cluster
 
 In order to use this provider, you need to have a management cluster available to you and have your current KUBECONFIG context set to talk to that cluster. If you do not have a cluster available to you, you can create a `kind` cluster. These are the steps needed to achieve that:
-1. Ensure kind is installed (https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+1. Ensure [kind is installed](https://kind.sigs.k8s.io/docs/user/quick-start/#installation).
 2. Create a special `kind` configuration file if you intend to use the Docker infrastructure provider:
 
-```bash
-cat > kind-cluster-with-extramounts.yaml <<EOF
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-name: capi-test
-nodes:
-- role: control-plane
-  extraMounts:
-    - hostPath: /var/run/docker.sock
-      containerPath: /var/run/docker.sock
-EOF
-```
+    ```bash
+    cat > kind-cluster-with-extramounts.yaml <<EOF
+    kind: Cluster
+    apiVersion: kind.x-k8s.io/v1alpha4
+    name: capi-test
+    nodes:
+    - role: control-plane
+      extraMounts:
+        - hostPath: /var/run/docker.sock
+          containerPath: /var/run/docker.sock
+    EOF
+    ```
 
 3. Run the following command to create a local kind cluster:
 
-```bash
-kind create cluster --config kind-cluster-with-extramounts.yaml
-```
+    ```bash
+    kind create cluster --config kind-cluster-with-extramounts.yaml
+    ```
 
 4. Check your newly created `kind` cluster :
 
-```bash
-kubectl cluster-info
-```
-and get a similar result to this:
+    ```bash
+    kubectl cluster-info
+    ```
+    and get a similar result to this:
 
-```
-Kubernetes control plane is running at https://127.0.0.1:40819
-CoreDNS is running at https://127.0.0.1:40819/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
-
-To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
-```
+    ```
+    Kubernetes control plane is running at https://127.0.0.1:40819
+    CoreDNS is running at https://127.0.0.1:40819/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+    
+    To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+    ```
 
 ## Setting up clusterctl
 
