@@ -36,6 +36,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 
 	BeforeEach(func() {
 		opts = &ServerConfigOpts{
+			Token: "just-a-test-token",
 			Cluster: v1beta1.Cluster{
 				Spec: v1beta1.ClusterSpec{
 					ClusterNetwork: &v1beta1.ClusterNetwork{
@@ -166,7 +167,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 	})
 
 	It("should succefully generate a server config", func() {
-		rke2ServerConfig, files, err := newRKE2ServerConfig(*opts)
+		rke2ServerConfig, files, err := GenerateInitControlPlaneConfig(*opts)
 		Expect(err).ToNot(HaveOccurred())
 
 		serverConfig := opts.ServerConfig
@@ -219,8 +220,9 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.KubeControllerManagerExtraEnv).To(Equal(componentMapToSlice(extraEnv, serverConfig.KubeControllerManager.ExtraEnv)))
 		Expect(rke2ServerConfig.CloudControllerManagerExtraMounts).To(Equal(componentMapToSlice(extraMount, serverConfig.CloudControllerManager.ExtraMounts)))
 		Expect(rke2ServerConfig.CloudControllerManagerExtraEnv).To(Equal(componentMapToSlice(extraEnv, serverConfig.CloudControllerManager.ExtraEnv)))
+		Expect(rke2ServerConfig.Token).To(Equal(opts.Token))
 
-		Expect(files).To(HaveLen(3))
+		Expect(files).To(HaveLen(4))
 
 		Expect(files[0].Path).To(Equal(rke2ServerConfig.AuditPolicyFile))
 		Expect(files[0].Content).To(Equal("test_audit"))
@@ -236,6 +238,11 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(files[2].Content).To(Equal("test_ca"))
 		Expect(files[2].Owner).To(Equal(consts.DefaultFileOwner))
 		Expect(files[2].Permissions).To(Equal("0640"))
+
+		Expect(files[3].Path).To(Equal(rke2ServerConfig.CloudProviderConfig))
+		Expect(files[3].Content).To(Equal("test_cloud_config"))
+		Expect(files[3].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[3].Permissions).To(Equal(consts.DefaultFileMode))
 	})
 })
 
@@ -295,7 +302,7 @@ var _ = Describe("RKE2 Agent Config", func() {
 	})
 
 	It("should succefully generate an agent config", func() {
-		agentConfig, files, err := newRKE2AgentConfig(*opts)
+		agentConfig, files, err := GenerateWorkerConfig(*opts)
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(agentConfig.ContainerRuntimeEndpoint).To(Equal(opts.AgentConfig.ContainerRuntimeEndpoint))
