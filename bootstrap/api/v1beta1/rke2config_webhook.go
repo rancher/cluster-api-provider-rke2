@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/coreos/butane/config/common"
@@ -46,11 +47,13 @@ func (r *RKE2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=mrke2config.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &RKE2Config{}
+var _ webhook.CustomDefaulter = &RKE2Config{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2Config) Default() {
+func (r *RKE2Config) Default(_ context.Context, _ runtime.Object) error {
 	DefaultRKE2ConfigSpec(&r.Spec)
+
+	return nil
 }
 
 // DefaultRKE2ConfigSpec defaults the RKE2ConfigSpec.
@@ -62,10 +65,10 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=vrke2config.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &RKE2Config{}
+var _ webhook.CustomValidator = &RKE2Config{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateCreate() (admission.Warnings, error) {
+func (r *RKE2Config) ValidateCreate(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	rke2configlog.Info("RKE2Config validate create", "rke2config", klog.KObj(r))
 
 	var allErrs field.ErrorList
@@ -80,7 +83,7 @@ func (r *RKE2Config) ValidateCreate() (admission.Warnings, error) {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
+func (r *RKE2Config) ValidateUpdate(_ context.Context, _, _ runtime.Object) (admission.Warnings, error) {
 	rke2configlog.Info("RKE2Config validate update", "rke2config", klog.KObj(r))
 
 	var allErrs field.ErrorList
@@ -95,7 +98,7 @@ func (r *RKE2Config) ValidateUpdate(_ runtime.Object) (admission.Warnings, error
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateDelete() (admission.Warnings, error) {
+func (r *RKE2Config) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	return nil, nil
 }
 

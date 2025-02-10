@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"errors"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,19 +40,21 @@ func (r *RKE2ControlPlaneTemplate) SetupWebhookWithManager(mgr ctrl.Manager) err
 
 //+kubebuilder:webhook:path=/mutate-controlplane-cluster-x-k8s-io-v1beta1-rke2controlplanetemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1beta1,name=mrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &RKE2ControlPlaneTemplate{}
+var _ webhook.CustomDefaulter = &RKE2ControlPlaneTemplate{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplate) Default() {
+func (r *RKE2ControlPlaneTemplate) Default(_ context.Context, _ runtime.Object) error {
 	bootstrapv1.DefaultRKE2ConfigSpec(&r.Spec.Template.Spec.RKE2ConfigSpec)
+
+	return nil
 }
 
 //+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1beta1-rke2controlplanetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1beta1,name=vrke2controlplanetemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &RKE2ControlPlaneTemplate{}
+var _ webhook.CustomValidator = &RKE2ControlPlaneTemplate{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplate) ValidateCreate() (admission.Warnings, error) {
+func (r *RKE2ControlPlaneTemplate) ValidateCreate(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	rke2controlplanelog.Info("RKE2ControlPlane validate create", "control-plane", klog.KObj(r))
 
 	var allErrs field.ErrorList
@@ -68,7 +71,7 @@ func (r *RKE2ControlPlaneTemplate) ValidateCreate() (admission.Warnings, error) 
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *RKE2ControlPlaneTemplate) ValidateUpdate(_ context.Context, old, _ runtime.Object) (admission.Warnings, error) {
 	oldControlplane, ok := old.(*RKE2ControlPlaneTemplate)
 	if !ok {
 		return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), r.Name, field.ErrorList{
@@ -96,7 +99,7 @@ func (r *RKE2ControlPlaneTemplate) ValidateUpdate(old runtime.Object) (admission
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplate) ValidateDelete() (admission.Warnings, error) {
+func (r *RKE2ControlPlaneTemplate) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	rke2controlplanelog.Info("validate delete", "name", r.Name)
 
 	return nil, nil

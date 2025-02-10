@@ -17,6 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -36,33 +38,35 @@ func (r *RKE2ConfigTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1beta1-rke2configtemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1beta1,name=mrke2configtemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &RKE2ConfigTemplate{}
+var _ webhook.CustomDefaulter = &RKE2ConfigTemplate{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) Default() {
+func (r *RKE2ConfigTemplate) Default(_ context.Context, _ runtime.Object) error {
 	RKE2configtemplatelog.Info("default", "name", r.Name)
+
+	return nil
 }
 
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2configtemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1beta1,name=vrke2configtemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &RKE2ConfigTemplate{}
+var _ webhook.CustomValidator = &RKE2ConfigTemplate{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) ValidateCreate() (admission.Warnings, error) {
+func (r *RKE2ConfigTemplate) ValidateCreate(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	RKE2configtemplatelog.Info("validate create", "name", r.Name)
 
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
+func (r *RKE2ConfigTemplate) ValidateUpdate(_ context.Context, _, _ runtime.Object) (admission.Warnings, error) {
 	RKE2configtemplatelog.Info("validate update", "name", r.Name)
 
 	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) ValidateDelete() (admission.Warnings, error) {
+func (r *RKE2ConfigTemplate) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	RKE2configtemplatelog.Info("validate delete", "name", r.Name)
 
 	return nil, nil
