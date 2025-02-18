@@ -224,13 +224,13 @@ func setupReconcilers(mgr ctrl.Manager) {
 }
 
 func setupWebhooks(mgr ctrl.Manager) {
-	if err := (&bootstrapv1.RKE2Config{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2Config")
+	if err := bootstrapv1.SetupRKE2ConfigTemplateWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ConfigTemplate")
 		os.Exit(1)
 	}
 
-	if err := (&bootstrapv1.RKE2ConfigTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Rke2ConfigTemplate")
+	if err := bootstrapv1.SetupRKE2ConfigWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2Config")
 		os.Exit(1)
 	}
 }

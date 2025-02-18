@@ -69,6 +69,7 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 		},
 	}
 
+	validator := RKE2ConfigCustomValidator{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			RegisterTestingT(t)
@@ -77,7 +78,7 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 				Spec: *tt.spec.DeepCopy(),
 			}
 
-			_, err := config.ValidateCreate(context.Background(), config)
+			_, err := validator.ValidateCreate(context.Background(), config)
 
 			if tt.expectErr {
 				Expect(err).To(HaveOccurred())

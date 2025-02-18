@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,45 +30,75 @@ import (
 // RKE2configtemplatelog is for logging in this package.
 var RKE2configtemplatelog = logf.Log.WithName("RKE2configtemplate-resource")
 
-// SetupWebhookWithManager sets up and registers the webhook with the manager.
-func (r *RKE2ConfigTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
+// RKE2ConfigTemplateCustomDefaulter struct is responsible for setting default values on the custom resource of the
+// Kind RKE2ConfigTemplate when those are created or updated.
+type RKE2ConfigTemplateCustomDefaulter struct{}
+
+// RKE2ConfigTemplateCustomValidator struct is responsible for validating the RKE2ConfigTemplate resource
+// when it is created, updated, or deleted.
+type RKE2ConfigTemplateCustomValidator struct{}
+
+// SetupRKE2ConfigTemplateWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.
+func SetupRKE2ConfigTemplateWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(&RKE2ConfigTemplate{}).
+		WithValidator(&RKE2ConfigTemplateCustomValidator{}).
+		WithDefaulter(&RKE2ConfigTemplateCustomDefaulter{}).
 		Complete()
 }
 
 //+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1beta1-rke2configtemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1beta1,name=mrke2configtemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.CustomDefaulter = &RKE2ConfigTemplate{}
+var _ webhook.CustomDefaulter = &RKE2ConfigTemplateCustomDefaulter{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) Default(_ context.Context, _ runtime.Object) error {
-	RKE2configtemplatelog.Info("default", "name", r.Name)
+func (r *RKE2ConfigTemplateCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
+	rct, ok := obj.(*RKE2ConfigTemplate)
+	if !ok {
+		return fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
+	}
+
+	RKE2configtemplatelog.Info("default", "name", rct.Name)
 
 	return nil
 }
 
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2configtemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=create;update,versions=v1beta1,name=vrke2configtemplate.kb.io,admissionReviewVersions=v1
 
-var _ webhook.CustomValidator = &RKE2ConfigTemplate{}
+var _ webhook.CustomValidator = &RKE2ConfigTemplateCustomValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) ValidateCreate(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
-	RKE2configtemplatelog.Info("validate create", "name", r.Name)
+func (r *RKE2ConfigTemplateCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rct, ok := obj.(*RKE2ConfigTemplate)
+	if !ok {
+		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
+	}
+
+	RKE2configtemplatelog.Info("validate create", "name", rct.Name)
 
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) ValidateUpdate(_ context.Context, _, _ runtime.Object) (admission.Warnings, error) {
-	RKE2configtemplatelog.Info("validate update", "name", r.Name)
+func (r *RKE2ConfigTemplateCustomValidator) ValidateUpdate(_ context.Context, oldObj, _ runtime.Object) (admission.Warnings, error) {
+	rct, ok := oldObj.(*RKE2ConfigTemplate)
+	if !ok {
+		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", oldObj)
+	}
+
+	RKE2configtemplatelog.Info("validate update", "name", rct.Name)
 
 	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplate) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
-	RKE2configtemplatelog.Info("validate delete", "name", r.Name)
+func (r *RKE2ConfigTemplateCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rct, ok := obj.(*RKE2ConfigTemplate)
+	if !ok {
+		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
+	}
+
+	RKE2configtemplatelog.Info("validate delete", "name", rct.Name)
 
 	return nil, nil
 }
