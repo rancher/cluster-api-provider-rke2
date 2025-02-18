@@ -298,10 +298,18 @@ func (c *ControlPlane) MachinesNeedingRollout() collections.Machines {
 	)
 }
 
-// UpToDateMachines returns the machines that are up to date with the control
+// UpToDateMachines returns the machines that are up-to-date with the control
 // plane's configuration and therefore do not require rollout.
 func (c *ControlPlane) UpToDateMachines() collections.Machines {
-	return c.Machines.Difference(c.MachinesNeedingRollout())
+	// Ignore machines to be deleted.
+	machines := c.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
+	// Filter machines if they are scheduled for rollout or if with an outdated configuration.
+	machines.AnyFilter(
+		// Machines that do not match with RCP config.
+		collections.Not(matchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
+	)
+
+	return machines.Difference(c.MachinesNeedingRollout())
 }
 
 // getInfraResources fetches the external infrastructure resource for each machine in the collection
