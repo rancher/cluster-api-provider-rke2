@@ -37,10 +37,16 @@ var rke2controlplanelog = logf.Log.WithName("rke2controlplane-resource")
 
 // RKE2ControlPlaneCustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind RKE2ControlPlane when those are created or updated.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
 type RKE2ControlPlaneCustomDefaulter struct{}
 
 // RKE2ControlPlaneCustomValidator struct is responsible for validating the RKE2ControlPlane resource
 // when it is created, updated, or deleted.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
 type RKE2ControlPlaneCustomValidator struct{}
 
 // SetupRKE2ControlPlaneWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.

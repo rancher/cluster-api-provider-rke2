@@ -32,10 +32,16 @@ var RKE2configtemplatelog = logf.Log.WithName("RKE2configtemplate-resource")
 
 // RKE2ConfigTemplateCustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind RKE2ConfigTemplate when those are created or updated.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
 type RKE2ConfigTemplateCustomDefaulter struct{}
 
 // RKE2ConfigTemplateCustomValidator struct is responsible for validating the RKE2ConfigTemplate resource
 // when it is created, updated, or deleted.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
 type RKE2ConfigTemplateCustomValidator struct{}
 
 // SetupRKE2ConfigTemplateWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.

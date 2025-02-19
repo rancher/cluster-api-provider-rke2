@@ -34,10 +34,16 @@ import (
 
 // RKE2ControlPlaneTemplateCustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind RKE2ControlPlaneTemplate when those are created or updated.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
 type RKE2ControlPlaneTemplateCustomDefaulter struct{}
 
 // RKE2ControlPlaneTemplateCustomValidator struct is responsible for validating the RKE2ControlPlaneTemplate resource
 // when it is created, updated, or deleted.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
 type RKE2ControlPlaneTemplateCustomValidator struct{}
 
 // SetupRKE2ControlPlaneTemplateWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.
