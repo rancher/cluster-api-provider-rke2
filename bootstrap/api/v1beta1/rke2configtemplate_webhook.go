@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -61,7 +62,7 @@ var _ webhook.CustomDefaulter = &RKE2ConfigTemplateCustomDefaulter{}
 func (r *RKE2ConfigTemplateCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
 	rct, ok := obj.(*RKE2ConfigTemplate)
 	if !ok {
-		return fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2ConfigTemplate but got a %T", obj))
 	}
 
 	RKE2configtemplatelog.Info("default", "name", rct.Name)

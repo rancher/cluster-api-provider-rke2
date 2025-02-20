@@ -69,7 +69,7 @@ var _ webhook.CustomDefaulter = &RKE2ConfigCustomDefaulter{}
 func (r *RKE2ConfigCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
 	rc, ok := obj.(*RKE2Config)
 	if !ok {
-		return fmt.Errorf("expected a RKE2Config object but got %T", obj)
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2Config but got a %T", obj))
 	}
 
 	DefaultRKE2ConfigSpec(&rc.Spec)

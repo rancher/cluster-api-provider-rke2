@@ -66,7 +66,7 @@ var _ webhook.CustomDefaulter = &RKE2ControlPlaneCustomDefaulter{}
 func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
 	rcp, ok := obj.(*RKE2ControlPlane)
 	if !ok {
-		return fmt.Errorf("expected a RKE2ControlPlane object but got %T", obj)
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2ControlPlane but got a %T", obj))
 	}
 
 	bootstrapv1.DefaultRKE2ConfigSpec(&rcp.Spec.RKE2ConfigSpec)
