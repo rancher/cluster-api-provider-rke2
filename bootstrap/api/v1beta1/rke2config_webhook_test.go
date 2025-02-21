@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -68,6 +69,7 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 		},
 	}
 
+	validator := RKE2ConfigCustomValidator{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			RegisterTestingT(t)
@@ -76,7 +78,7 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 				Spec: *tt.spec.DeepCopy(),
 			}
 
-			_, err := config.ValidateCreate()
+			_, err := validator.ValidateCreate(context.Background(), config)
 
 			if tt.expectErr {
 				Expect(err).To(HaveOccurred())

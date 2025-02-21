@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/coreos/butane/config/common"
@@ -37,20 +38,43 @@ var (
 	rke2configlog         = logf.Log.WithName("rke2config-resource")
 )
 
-// SetupWebhookWithManager sets up and registers the webhook with the manager.
-func (r *RKE2Config) SetupWebhookWithManager(mgr ctrl.Manager) error {
+// RKE2ConfigCustomDefaulter struct is responsible for setting default values on the custom resource of the
+// Kind RKE2Config when those are created or updated.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
+type RKE2ConfigCustomDefaulter struct{}
+
+// RKE2ConfigCustomValidator struct is responsible for validating the RKE2Config resource
+// when it is created, updated, or deleted.
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as it is used only for temporary operations and does not need to be deeply copied.
+// +kubebuilder:object:generate=false
+type RKE2ConfigCustomValidator struct{}
+
+// SetupRKE2ConfigWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.
+func SetupRKE2ConfigWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(&RKE2Config{}).
+		WithValidator(&RKE2ConfigCustomValidator{}).
+		WithDefaulter(&RKE2ConfigCustomDefaulter{}).
 		Complete()
 }
 
 //+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=mrke2config.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &RKE2Config{}
+var _ webhook.CustomDefaulter = &RKE2ConfigCustomDefaulter{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2Config) Default() {
-	DefaultRKE2ConfigSpec(&r.Spec)
+func (r *RKE2ConfigCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
+	rc, ok := obj.(*RKE2Config)
+	if !ok {
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2Config but got a %T", obj))
+	}
+
+	DefaultRKE2ConfigSpec(&rc.Spec)
+
+	return nil
 }
 
 // DefaultRKE2ConfigSpec defaults the RKE2ConfigSpec.
@@ -62,40 +86,50 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=vrke2config.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &RKE2Config{}
+var _ webhook.CustomValidator = &RKE2ConfigCustomValidator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateCreate() (admission.Warnings, error) {
-	rke2configlog.Info("RKE2Config validate create", "rke2config", klog.KObj(r))
+func (r *RKE2ConfigCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rc, ok := obj.(*RKE2Config)
+	if !ok {
+		return nil, fmt.Errorf("expected a RKE2Config object but got %T", obj)
+	}
+
+	rke2configlog.Info("RKE2Config validate create", "rke2config", klog.KObj(rc))
 
 	var allErrs field.ErrorList
 
-	allErrs = append(allErrs, ValidateRKE2ConfigSpec(r.Name, &r.Spec)...)
+	allErrs = append(allErrs, ValidateRKE2ConfigSpec(rc.Name, &rc.Spec)...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
 	}
 
-	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
+	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), rc.Name, allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
-	rke2configlog.Info("RKE2Config validate update", "rke2config", klog.KObj(r))
+func (r *RKE2ConfigCustomValidator) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
+	newrc, ok := newObj.(*RKE2Config)
+	if !ok {
+		return nil, fmt.Errorf("expected a RKE2Config object but got %T", newObj)
+	}
+
+	rke2configlog.Info("RKE2Config validate update", "rke2config", klog.KObj(newrc))
 
 	var allErrs field.ErrorList
 
-	allErrs = append(allErrs, ValidateRKE2ConfigSpec(r.Name, &r.Spec)...)
+	allErrs = append(allErrs, ValidateRKE2ConfigSpec(newrc.Name, &newrc.Spec)...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
 	}
 
-	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), r.Name, allErrs)
+	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), newrc.Name, allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2Config) ValidateDelete() (admission.Warnings, error) {
+func (r *RKE2ConfigCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	return nil, nil
 }
 

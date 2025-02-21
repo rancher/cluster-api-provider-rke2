@@ -108,10 +108,10 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&RKE2ControlPlane{}).SetupWebhookWithManager(mgr)
+	err = SetupRKE2ControlPlaneWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&RKE2ControlPlaneTemplate{}).SetupWebhookWithManager(mgr)
+	err = SetupRKE2ControlPlaneTemplateWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

@@ -14,6 +14,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -44,11 +45,12 @@ func TestRKE2ControlPlaneTemplateValidateCreate(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	validator := RKE2ControlPlaneTemplateCustomValidator{}
 	for _, test := range tests {
 		tt := test
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			warn, err := tt.inputTemplate.ValidateCreate()
+			warn, err := validator.ValidateCreate(context.Background(), tt.inputTemplate)
 			if tt.wantErr {
 				g.Expect(err).To(HaveOccurred())
 			} else {
@@ -92,11 +94,12 @@ func TestRKE2ControlPlaneTemplateValidateUpdate(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	validator := RKE2ControlPlaneTemplateCustomValidator{}
 	for _, test := range tests {
 		tt := test
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			warn, err := tt.newTemplate.ValidateUpdate(tt.oldTemplate)
+			warn, err := validator.ValidateUpdate(context.Background(), tt.oldTemplate, tt.newTemplate)
 			if tt.wantErr {
 				g.Expect(err).To(HaveOccurred())
 			} else {

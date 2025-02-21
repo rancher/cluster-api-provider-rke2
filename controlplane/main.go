@@ -245,13 +245,13 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 }
 
 func setupWebhooks(mgr ctrl.Manager) {
-	if err := (&controlplanev1.RKE2ControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ControlPlane")
+	if err := controlplanev1.SetupRKE2ControlPlaneTemplateWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ControlPlaneTemplate")
 		os.Exit(1)
 	}
 
-	if err := (&controlplanev1.RKE2ControlPlaneTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ControlPlaneTemplate")
+	if err := controlplanev1.SetupRKE2ControlPlaneWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ControlPlane")
 		os.Exit(1)
 	}
 }
