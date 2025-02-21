@@ -22,10 +22,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/utils/ptr"
 
 	ignition "github.com/coreos/ignition/v2/config/v3_3"
-
-	"k8s.io/utils/pointer"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
@@ -119,15 +118,15 @@ var _ = Describe("Render", func() {
 
 		Expect(ign.Systemd.Units).To(HaveLen(3))
 		Expect(ign.Systemd.Units[0].Name).To(Equal("rke2-install.service"))
-		Expect(ign.Systemd.Units[0].Contents).To(Equal(pointer.String("[Unit]\nDescription=rke2-install\nWants=network-online.target\nAfter=network-online.target network.target\nConditionPathExists=!/etc/cluster-api/bootstrap-success.complete\n[Service]\nUser=root\n# To not restart the unit when it exits, as it is expected.\nType=oneshot\nExecStart=/etc/rke2-install.sh\n[Install]\nWantedBy=multi-user.target\n")))
-		Expect(ign.Systemd.Units[0].Enabled).To(Equal(pointer.Bool(true)))
+		Expect(ign.Systemd.Units[0].Contents).To(Equal(ptr.To("[Unit]\nDescription=rke2-install\nWants=network-online.target\nAfter=network-online.target network.target\nConditionPathExists=!/etc/cluster-api/bootstrap-success.complete\n[Service]\nUser=root\n# To not restart the unit when it exits, as it is expected.\nType=oneshot\nExecStart=/etc/rke2-install.sh\n[Install]\nWantedBy=multi-user.target\n")))
+		Expect(ign.Systemd.Units[0].Enabled).To(Equal(ptr.To(true)))
 
 		Expect(ign.Systemd.Units[1].Name).To(Equal("chronyd.service"))
-		Expect(ign.Systemd.Units[1].Enabled).To(Equal(pointer.Bool(true)))
+		Expect(ign.Systemd.Units[1].Enabled).To(Equal(ptr.To(true)))
 
 		Expect(ign.Systemd.Units[2].Name).To(Equal("test.service"))
-		Expect(ign.Systemd.Units[2].Contents).To(Equal(pointer.String("[Unit]\nDescription=test\n[Service]\nExecStart=/etc/test.sh\n[Install]\nWantedBy=test.target\n")))
-		Expect(ign.Systemd.Units[2].Enabled).To(Equal(pointer.Bool(true)))
+		Expect(ign.Systemd.Units[2].Contents).To(Equal(ptr.To("[Unit]\nDescription=test\n[Service]\nExecStart=/etc/test.sh\n[Install]\nWantedBy=test.target\n")))
+		Expect(ign.Systemd.Units[2].Enabled).To(Equal(ptr.To(true)))
 	})
 
 	It("accepts empty additional config", func() {
