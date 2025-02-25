@@ -123,6 +123,9 @@ spec:
   - sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/1.0/meta-data/hostname)
   agentConfig:
     airGapped: true
+    kubelet:
+      extraArgs:
+      - --cloud-provider=external
   machineTemplate:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
@@ -212,6 +215,9 @@ spec:
     spec:
       agentConfig:
         airGapped: true
+        kubelet:
+          extraArgs:
+          - --cloud-provider=external
       preRKE2Commands:
       - sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/1.0/meta-data/hostname)
 ---
@@ -229,6 +235,7 @@ apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
 metadata:
   name: crs-ccm
+  namespace: ${NAMESPACE}
 spec:
   clusterSelector:
     matchLabels:
@@ -242,6 +249,7 @@ apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
 metadata:
   name: crs-csi
+  namespace: ${NAMESPACE}
 spec:
   clusterSelector:
     matchLabels:
@@ -436,6 +444,7 @@ metadata:
   labels:
     type: generated
   name: cloud-controller-manager-addon
+  namespace: ${NAMESPACE}
 ---
 apiVersion: v1
 data:
@@ -1113,3 +1122,4 @@ metadata:
   labels:
     type: generated
   name: aws-ebs-csi-driver-addon
+  namespace: ${NAMESPACE}
