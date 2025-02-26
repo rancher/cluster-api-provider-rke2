@@ -2,6 +2,9 @@ package rke2
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -300,12 +303,20 @@ var _ = Describe("Node metadata propagation", func() {
 			clusterv1.MachineAnnotation: machineDifferentNode.Name,
 		}))
 
-		result := &corev1.Node{}
-		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), result)).To(Succeed())
-		Expect(result.GetAnnotations()).To(Equal(map[string]string{
-			"test":                      "true",
-			clusterv1.MachineAnnotation: machineDifferentNode.Name,
-		}))
+		Eventually(func() error {
+			result := &corev1.Node{}
+			if err := testEnv.Get(ctx, client.ObjectKeyFromObject(node), result); err != nil {
+				return err
+			}
+			if !reflect.DeepEqual(result.GetAnnotations(), map[string]string{
+				"test":                      "true",
+				clusterv1.MachineAnnotation: machineDifferentNode.Name,
+			}) {
+				return fmt.Errorf("annotations do not match: got %v", result.GetAnnotations())
+			}
+			return nil
+		}, 5*time.Second).Should(Succeed())
+
 	})
 
 	It("should recover from error condition on successfull node patch for arbitrary node name", func() {
