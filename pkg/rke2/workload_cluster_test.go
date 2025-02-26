@@ -260,8 +260,10 @@ var _ = Describe("Node metadata propagation", func() {
 		}))
 
 		result := &corev1.Node{}
-		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), result)).To(Succeed())
-		Expect(result.GetAnnotations()).To(Equal(map[string]string{
+		Eventually(ctx, func() map[string]string {
+			Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), result)).To(Succeed())
+			return result.GetAnnotations()
+		}).WithTimeout(10 * time.Second).Should(Equal(map[string]string{
 			"test":                      "true",
 			clusterv1.MachineAnnotation: nodeName,
 		}))
