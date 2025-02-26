@@ -39,6 +39,8 @@ import (
 	kubeyaml "sigs.k8s.io/yaml"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterexpv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
+	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -89,30 +91,28 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	logger := log.FromContext(ctx)
 	logger.Info("Reconcile RKE2Config")
 
-	scope, res, err := r.prepareScope(ctx, logger, req)
+	scope, err := NewScope(ctx, req, r.Client)
 	if err != nil {
-		if errors.Is(errors.Cause(err), util.ErrNoCluster) {
-			logger.Info(fmt.Sprintf("%s does not belong to a cluster yet, waiting until it's part of a cluster", scope.Machine.Kind))
+		if errors.Is(err, ErrRKE2ConfigNotFound) {
+			logger.Info("RKE2Config not found. Nothing to do.")
 
-			return res, nil
+			return ctrl.Result{}, nil
 		}
 
-		if apierrors.IsNotFound(err) {
-			logger.Info("Cluster does not exist yet, waiting until it is created")
+		if errors.Is(err, ErrNoRKE2ConfigOwner) {
+			logger.Info("RKE2Config has no owner yet.")
 
-			return res, nil
+			return ctrl.Result{}, nil
 		}
 
-		logger.Error(err, "Could not get cluster with metadata")
-
-		return res, nil
+		return ctrl.Result{}, fmt.Errorf("initializing RKE2Config scope: %w", err)
 	}
 
-	if res != (ctrl.Result{}) {
-		return res, nil
-	}
+	if annotations.IsPaused(scope.Cluster, scope.Config) {
+		logger.Info("Reconciliation is paused for this object")
 
-	ctx = ctrl.LoggerInto(ctx, logger)
+		return ctrl.Result{}, nil
+	}
 
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(scope.Config, r.Client)
@@ -150,10 +150,22 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	if scope.Machine.Spec.Bootstrap.DataSecretName != nil && (!scope.Config.Status.Ready || scope.Config.Status.DataSecretName == nil) {
-		scope.Config.Status.Ready = true
-		scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
-		conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+	if scope.HasMachineOwner() {
+		if scope.Machine.Spec.Bootstrap.DataSecretName != nil &&
+			(!scope.Config.Status.Ready || scope.Config.Status.DataSecretName == nil) {
+			scope.Config.Status.Ready = true
+			scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
+			conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+		}
+	}
+
+	if scope.HasMachinePoolOwner() {
+		if scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName != nil &&
+			(!scope.Config.Status.Ready || scope.Config.Status.DataSecretName == nil) {
+			scope.Config.Status.Ready = true
+			scope.Config.Status.DataSecretName = scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName
+			conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+		}
 	}
 	// Status is ready means a config has been generated.
 	if scope.Config.Status.Ready {
@@ -170,7 +182,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	r.RKE2InitLock.Unlock(ctx, scope.Cluster)
 
 	// it's a control plane join
-	if scope.HasControlPlaneOwner {
+	if scope.HasControlPlaneOwner() {
 		return r.joinControlplane(ctx, scope)
 	}
 
@@ -193,101 +205,13 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return r.joinWorker(ctx, scope)
 }
 
-func (r *RKE2ConfigReconciler) prepareScope(
-	ctx context.Context,
-	logger logr.Logger,
-	req ctrl.Request,
-) (*Scope, ctrl.Result, error) {
-	config := &bootstrapv1.RKE2Config{}
-
-	if err := r.Get(ctx, req.NamespacedName, config, &client.GetOptions{}); err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Error(err, "rke2Config not found", "rke2-config-name", req.NamespacedName)
-
-			return nil, ctrl.Result{}, err
-		}
-
-		logger.Error(err, "", "rke2-config-namespaced-name", req.NamespacedName)
-
-		return nil, ctrl.Result{}, err
-	}
-
-	machine, err := util.GetOwnerMachine(ctx, r.Client, config.ObjectMeta)
-	if err != nil {
-		logger.Error(err, "Failed to retrieve owner Machine from the API Server", "RKE2Config", config.Namespace+"/"+config.Name)
-
-		return nil, ctrl.Result{}, err
-	}
-
-	if machine == nil {
-		logger.Info("Machine Controller has not yet set OwnerRef")
-
-		return nil, ctrl.Result{Requeue: true}, nil
-	}
-
-	logger = logger.WithValues(machine.Kind, machine.GetNamespace()+"/"+machine.GetName(), "resourceVersion", machine.GetResourceVersion())
-	scope := &Scope{
-		Config:  config,
-		Machine: machine,
-		Logger:  logger,
-	}
-
-	// Getting the ControlPlane owner
-	cp, err := bsutil.GetOwnerControlPlane(ctx, r.Client, scope.Machine.ObjectMeta)
-	if err != nil && cp != nil {
-		logger.Error(err, "Failed to retrieve owner ControlPlane from the API Server", "RKE2Config", config.Namespace+"/"+config.Name)
-
-		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, err
-	}
-
-	if cp == nil {
-		logger.V(5).Info("This config is for a worker node")
-
-		scope.HasControlPlaneOwner = false
-	} else {
-		logger.Info("This config is for a ControlPlane node")
-		scope.HasControlPlaneOwner = true
-		scope.ControlPlane = cp
-		logger = logger.WithValues(cp.Kind, cp.GetNamespace()+"/"+cp.GetName(), "resourceVersion", cp.GetResourceVersion())
-	}
-
-	cluster, err := util.GetClusterByName(ctx, r.Client, machine.GetNamespace(), machine.Spec.ClusterName)
-	if err != nil {
-		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, err
-	}
-
-	if annotations.IsPaused(cluster, config) {
-		logger.Info("Reconciliation is paused for this object")
-
-		return nil, ctrl.Result{RequeueAfter: DefaultRequeueAfter}, fmt.Errorf("reconciliation is paused for this object")
-	}
-
-	scope.Cluster = cluster
-
-	return scope, ctrl.Result{}, nil
-}
-
-// Scope is a scoped struct used during reconciliation.
-type Scope struct {
-	Logger               logr.Logger
-	Config               *bootstrapv1.RKE2Config
-	Machine              *clusterv1.Machine
-	Cluster              *clusterv1.Cluster
-	HasControlPlaneOwner bool
-	ControlPlane         *controlplanev1.RKE2ControlPlane
-}
-
-func (s *Scope) getDesiredVersion() string {
-	return *s.Machine.Spec.Version
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.RKE2InitLock == nil {
 		r.RKE2InitLock = locking.NewControlPlaneInitMutex(mgr.GetClient())
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&bootstrapv1.RKE2Config{}).
 		Watches(
 			&clusterv1.Machine{},
@@ -296,8 +220,16 @@ func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&clusterv1.Cluster{},
 			handler.EnqueueRequestsFromMapFunc(r.ClusterToRKE2Configs),
-		).
-		Complete(r)
+		)
+
+	if feature.Gates.Enabled(feature.MachinePool) {
+		builder = builder.Watches(
+			&clusterexpv1.MachinePool{},
+			handler.EnqueueRequestsFromMapFunc(r.MachinePoolToBootstrapMapFunc),
+		)
+	}
+
+	return builder.Complete(r)
 }
 
 // MachineToBootstrapMapFunc is a handler.ToRequestsFunc to be used to enqueue
@@ -312,6 +244,26 @@ func (r *RKE2ConfigReconciler) MachineToBootstrapMapFunc(_ context.Context, o cl
 
 	if m.Spec.Bootstrap.ConfigRef != nil && m.Spec.Bootstrap.ConfigRef.GroupVersionKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config") {
 		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Bootstrap.ConfigRef.Name}
+		result = append(result, ctrl.Request{NamespacedName: name})
+	}
+
+	return result
+}
+
+// MachinePoolToBootstrapMapFunc is a handler.ToRequestsFunc to be used to enqueue
+// request for reconciliation of RKE2Config.
+func (r *RKE2ConfigReconciler) MachinePoolToBootstrapMapFunc(_ context.Context, o client.Object) []ctrl.Request {
+	m, ok := o.(*clusterexpv1.MachinePool)
+	if !ok {
+		panic(fmt.Sprintf("Expected a Machine but got a %T", o))
+	}
+
+	result := []ctrl.Request{}
+
+	spec := m.Spec.Template.Spec
+
+	if spec.Bootstrap.ConfigRef != nil && spec.Bootstrap.ConfigRef.GroupVersionKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config") {
+		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Template.Spec.Bootstrap.ConfigRef.Name}
 		result = append(result, ctrl.Request{NamespacedName: name})
 	}
 
@@ -340,9 +292,33 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 		return nil
 	}
 
-	for _, m := range machineList.Items {
-		m := m
-		result = append(result, r.MachineToBootstrapMapFunc(ctx, &m)...)
+	for _, machine := range machineList.Items {
+		if machine.Spec.Bootstrap.ConfigRef != nil {
+			if machine.Spec.Bootstrap.ConfigRef.Kind == "RKE2Config" {
+				result = append(result, ctrl.Request{NamespacedName: types.NamespacedName{
+					Namespace: machine.Namespace,
+					Name:      machine.Spec.Bootstrap.ConfigRef.Name,
+				}})
+			}
+		}
+	}
+
+	if feature.Gates.Enabled(feature.MachinePool) {
+		machinePoolList := &clusterexpv1.MachinePoolList{}
+		if err := r.Client.List(ctx, machinePoolList, selectors...); err != nil {
+			return nil
+		}
+
+		for _, machinePool := range machinePoolList.Items {
+			if machinePool.Spec.Template.Spec.Bootstrap.ConfigRef != nil {
+				if machinePool.Spec.Template.Spec.Bootstrap.ConfigRef.Kind == "RKE2Config" {
+					result = append(result, ctrl.Request{NamespacedName: types.NamespacedName{
+						Namespace: machinePool.Namespace,
+						Name:      machinePool.Spec.Template.Spec.Bootstrap.ConfigRef.Name,
+					}})
+				}
+			}
+		}
 	}
 
 	return result
@@ -350,7 +326,7 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 
 // handleClusterNotInitialized handles the first control plane node.
 func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, scope *Scope) (res ctrl.Result, reterr error) { //nolint:funlen
-	if !scope.HasControlPlaneOwner {
+	if !scope.HasControlPlaneOwner() {
 		scope.Logger.Info("Requeuing because this machine is not a Control Plane machine")
 
 		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
@@ -426,7 +402,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
 			Client:               r.Client,
-			Version:              scope.getDesiredVersion(),
+			Version:              scope.GetDesiredVersion(),
 		})
 	if err != nil {
 		return ctrl.Result{}, err
@@ -488,7 +464,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 			ConfigFile:              initConfigFile,
-			RKE2Version:             scope.getDesiredVersion(),
+			RKE2Version:             scope.GetDesiredVersion(),
 			WriteFiles:              files,
 			NTPServers:              ntpServers,
 			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
@@ -638,7 +614,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
 			Client:               r.Client,
-			Version:              scope.getDesiredVersion(),
+			Version:              scope.GetDesiredVersion(),
 		},
 	)
 	if err != nil {
@@ -707,7 +683,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			PreRKE2Commands:     scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:    scope.Config.Spec.PostRKE2Commands,
 			ConfigFile:          initConfigFile,
-			RKE2Version:         scope.getDesiredVersion(),
+			RKE2Version:         scope.GetDesiredVersion(),
 			WriteFiles:          files,
 			NTPServers:          ntpServers,
 			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
@@ -776,7 +752,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 			Client:                 r.Client,
 			CloudProviderName:      scope.ControlPlane.Spec.ServerConfig.CloudProviderName,
 			CloudProviderConfigMap: scope.ControlPlane.Spec.ServerConfig.CloudProviderConfigMap,
-			Version:                scope.getDesiredVersion(),
+			Version:                scope.GetDesiredVersion(),
 		})
 	if err != nil {
 		return ctrl.Result{}, err
@@ -819,7 +795,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
 		PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 		ConfigFile:              wkJoinConfigFile,
-		RKE2Version:             scope.getDesiredVersion(),
+		RKE2Version:             scope.GetDesiredVersion(),
 		WriteFiles:              files,
 		NTPServers:              ntpServers,
 		AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
