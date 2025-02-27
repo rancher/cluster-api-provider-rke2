@@ -162,6 +162,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 					ExtraEnv:      map[string]string{"testenv": "testenv"},
 					ExtraMounts:   map[string]string{"testmount": "testmount"},
 				},
+				EmbeddedRegistry: true,
 			},
 		}
 	})
@@ -221,6 +222,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.CloudControllerManagerExtraMounts).To(Equal(componentMapToSlice(extraMount, serverConfig.CloudControllerManager.ExtraMounts)))
 		Expect(rke2ServerConfig.CloudControllerManagerExtraEnv).To(Equal(componentMapToSlice(extraEnv, serverConfig.CloudControllerManager.ExtraEnv)))
 		Expect(rke2ServerConfig.Token).To(Equal(opts.Token))
+		Expect(rke2ServerConfig.EmbeddedRegistry).To(BeTrue())
 
 		Expect(files).To(HaveLen(4))
 

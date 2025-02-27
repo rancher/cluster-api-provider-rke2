@@ -194,6 +194,10 @@ type RKE2ServerConfig struct {
 	// The config map must contain a key named cloud-config.
 	//+optional
 	CloudProviderConfigMap *corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
+
+	// EmbeddedRegistry enables the embedded registry.
+	//+optional
+	EmbeddedRegistry bool `json:"embeddedRegistry,omitempty"`
 }
 
 // RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane.
