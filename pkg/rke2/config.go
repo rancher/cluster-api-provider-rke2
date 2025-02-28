@@ -131,6 +131,7 @@ type ServerConfig struct {
 	KubeSchedulerImage                string   `yaml:"kube-scheduler-image,omitempty"`
 	ServiceNodePortRange              string   `yaml:"service-node-port-range,omitempty"`
 	TLSSan                            []string `yaml:"tls-san,omitempty"`
+	EmbeddedRegistry                  bool     `yaml:"embedded-registry,omitempty"`
 
 	// We don't expose these fields in the API
 	ClusterCIDR string `yaml:"cluster-cidr,omitempty"`
@@ -364,6 +365,8 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 		rke2ServerConfig.CloudControllerManagerExtraMounts = componentMapToSlice(extraMount, opts.ServerConfig.CloudControllerManager.ExtraMounts)
 		rke2ServerConfig.CloudControllerManagerExtraEnv = componentMapToSlice(extraEnv, opts.ServerConfig.CloudControllerManager.ExtraEnv)
 	}
+
+	rke2ServerConfig.EmbeddedRegistry = opts.ServerConfig.EmbeddedRegistry
 
 	return rke2ServerConfig, files, nil
 }

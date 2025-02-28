@@ -7,6 +7,7 @@
     - [Air-gapped installation](./02_topics/01_air-gapped-installation.md)
     - [Node registration methods](./02_topics/02_node-registration-methods.md)
     - [CIS and PSA](./02_topics/03_cis-psa.md)
+    - [Embedded registry](./02_topics/04_embedded-registry.md)
 - [Examples](./03_examples/00.md)
     - [AWS](./03_examples/01_aws.md)
     - [vSphere](./03_examples/02_vsphere.md)

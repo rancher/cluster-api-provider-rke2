@@ -57,6 +57,7 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
+	dst.Spec.ServerConfig.EmbeddedRegistry = restored.Spec.ServerConfig.EmbeddedRegistry
 	dst.Spec.MachineTemplate = restored.Spec.MachineTemplate
 	dst.Status = restored.Status
 
@@ -133,6 +134,7 @@ func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
+	dst.Spec.Template.Spec.ServerConfig.EmbeddedRegistry = restored.Spec.Template.Spec.ServerConfig.EmbeddedRegistry
 	dst.Spec.Template = restored.Spec.Template
 	dst.Status = restored.Status
 
@@ -219,4 +221,8 @@ func Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in *bootstrapv1be
 
 func Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in *bootstrapv1alpha1.RKE2ConfigSpec, out *bootstrapv1beta1.RKE2ConfigSpec, s apiconversion.Scope) error {
 	return bootstrapv1alpha1.Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in, out, s)
+}
+
+func Convert_v1beta1_RKE2ServerConfig_To_v1alpha1_RKE2ServerConfig(in *controlplanev1.RKE2ServerConfig, out *RKE2ServerConfig, s apiconversion.Scope) error {
+	return autoConvert_v1beta1_RKE2ServerConfig_To_v1alpha1_RKE2ServerConfig(in, out, s)
 }

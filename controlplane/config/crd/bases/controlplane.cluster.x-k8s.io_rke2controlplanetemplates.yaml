@@ -1004,6 +1004,9 @@ spec:
                                   type: string
                                 type: array
                             type: object
+                          embeddedRegistry:
+                            description: EmbeddedRegistry enables the embedded registry.
+                            type: boolean
                           etcd:
                             description: Etcd defines optional custom configuration
                               of ETCD.
