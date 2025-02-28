@@ -41,7 +41,7 @@ VSPHERE_SSH_AUTHORIZED_KEY: "ssh-rsa AAAAB3N..."              # The public ssh a
 Then run the following command to generate the RKE2 cluster manifests:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/vmware/cluster-template.yaml -n example-vsphere rke2-vsphere > vsphere-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/templates/vmware/cluster-template.yaml -n example-vsphere rke2-vsphere > vsphere-rke2-clusterctl.yaml
 ```
 
 ```bash
