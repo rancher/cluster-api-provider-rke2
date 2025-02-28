@@ -99,9 +99,9 @@ You can now create your first workload cluster by running the following:
 
 ## Create a workload cluster
 
-There are some sample cluster templates available under the `examples` folder. This section assumes you are using CAPI v1.6.0 or higher.
+There are some sample cluster templates available under the `examples/templates` folder. This section assumes you are using CAPI v1.6.0 or higher.
 
-For this `Getting Started` section, we will be using the `docker` samples available under `examples/docker/online-default` folder. This folder contains a YAML template file called `cluster-template.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
+For this `Getting Started` section, we will be using the `docker` samples available under `examples/templates/docker/` folder. This folder contains a YAML template file called `cluster-template.yaml` which contains environment variable placeholders which can be substituted using the [envsubst](https://github.com/a8m/envsubst/releases) tool. We will use `clusterctl` to generate the manifests from these template files.
 Set the following environment variables:
 - NAMESPACE
 - CLUSTER_NAME
@@ -124,7 +124,7 @@ export RKE2_VERSION=v1.31.4+rke2r1
 The next step is to substitue the values in the YAML using the following commands:
 
 ```bash
-cd examples/docker/online-default
+cd examples/docker/
 cat cluster-template.yaml | clusterctl generate yaml > rke2-docker-example.yaml
 ```
 
@@ -207,9 +207,9 @@ Cluster/capd-rke2-test                                          True            
 
 This provider supports using [ClusterClass](https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20210526-cluster-class-and-managed-topologies.md), a Cluster API feature that implements an extra level of abstraction on top of the existing Cluster API functionality. The `ClusterClass` object is used to define a collection of template resources (control plane and machine deployment) which are used to generate one or more clusters of the same flavor.
 
-If you are interested in leveraging this functionality, you can refer to the examples [here](https://github.com/rancher/cluster-api-provider-rke2/tree/main/examples/docker/clusterclass):
-- [clusterclass-quick-start.yaml](https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/docker/clusterclass/clusterclass-quick-start.yaml): creates a sample `ClusterClass` and necessary resources.
-- [rke2-sample.yaml](https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/docker/clusterclass/rke2-sample.yaml): creates a workload cluster using the `ClusterClass`.
+If you are interested in leveraging this functionality, you can refer to the examples [here](https://github.com/rancher/cluster-api-provider-rke2/tree/main/examples/clusterclass/docker):
+- [clusterclass-template.yaml](https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/clusterclass/docker/clusterclass-template.yaml): creates a sample `ClusterClass` and necessary resources.
+- [cluster-template-topology.yaml](https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/clusterclass/docker/cluster-template-topology.yaml): creates a workload cluster using the `ClusterClass`.
 
 As with other sample templates, you will need to set a number environment variables:
 - CLUSTER_NAME
