@@ -32,7 +32,7 @@ export AWS_AMI_ID="ami-id"
 Now, we can generate the YAML files from the templates using `clusterctl generate yaml` command:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/aws/cluster-template.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/templates/aws/cluster-template.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
 ```
 
 After examining the result YAML file, you can apply to the management cluster using :
@@ -91,5 +91,5 @@ export AWS_S3_BUCKET_NAME=<YOUR_AWS_S3_BUCKET_NAME>
 Now you can generate manifests from the cluster template:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/aws/ignition/cluster-template-ignition.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/templates/aws/cluster-template-ignition.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
 ```

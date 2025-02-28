@@ -20,7 +20,7 @@ export KIND_IMAGE_VERSION=v1.30.0
 Now, we can generate the YAML files from the templates using `clusterctl generate yaml` command:
 
 ```bash
-clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/docker/online-default/cluster-template.yaml -n example-docker rke2-docker > docker-rke2-clusterctl.yaml
+clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/templates/docker/cluster-template.yaml -n example-docker rke2-docker > docker-rke2-clusterctl.yaml
 ```
 
 After examining the result YAML file, you can apply to the management cluster using:
