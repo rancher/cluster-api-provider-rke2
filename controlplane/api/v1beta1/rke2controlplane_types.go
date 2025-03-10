@@ -392,7 +392,7 @@ const (
 )
 
 // DisabledPluginComponent selects a plugin Components to be disabled.
-// +kubebuilder:validation:Enum=rke2-coredns;rke2-ingress-nginx;rke2-metrics-server
+// +kubebuilder:validation:Enum=rke2-coredns;rke2-ingress-nginx;rke2-metrics-server;rke2-snapshot-controller;rke2-snapshot-controller-crd;rke2-snapshot-validation-webhook
 type DisabledPluginComponent string
 
 const (
@@ -402,6 +402,12 @@ const (
 	IngressNginx DisabledPluginComponent = "rke2-ingress-nginx"
 	// MetricsServer references the RKE2 Plugin "rke2-metrics-server".
 	MetricsServer DisabledPluginComponent = "rke2-metrics-server"
+	// SnapshotController references the RKE2 Plugin "rke2-snapshot-controller".
+	SnapshotController DisabledPluginComponent = "rke2-snapshot-controller"
+	// SnapshotControllerCRD references the RKE2 Plugin "rke2-snapshot-controller-crd".
+	SnapshotControllerCRD DisabledPluginComponent = "rke2-snapshot-controller-crd"
+	// SnapshotValidationWebhook references the RKE2 Plugin "rke2-snapshot-validation-webhook".
+	SnapshotValidationWebhook DisabledPluginComponent = "rke2-snapshot-validation-webhook"
 )
 
 // RolloutStrategy describes how to replace existing machines
