@@ -202,7 +202,12 @@ type RKE2ServerConfig struct {
 
 // RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane.
 type RKE2ControlPlaneStatus struct {
-	// Ready indicates the BootstrapData field is ready to be consumed.
+	// Ready denotes that the RKE2ControlPlane API Server became ready during initial provisioning
+	// to receive requests.
+	// NOTE: this field is part of the Cluster API contract and it is used to orchestrate provisioning.
+	// The value of this field is never updated after provisioning is completed. Please use conditions
+	// to check the operational state of the control plane.
+	// +optional
 	Ready bool `json:"ready,omitempty"`
 
 	// Initialized indicates the target cluster has completed initialization.
