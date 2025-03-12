@@ -391,8 +391,9 @@ const (
 	CloudController DisabledKubernetesComponent = "cloudController"
 )
 
+//+kubebuilder:validation:Enum=rke2-coredns;rke2-ingress-nginx;rke2-metrics-server;rke2-snapshot-controller;rke2-snapshot-controller-crd;rke2-snapshot-validation-webhook
+
 // DisabledPluginComponent selects a plugin Components to be disabled.
-// +kubebuilder:validation:Enum=rke2-coredns;rke2-ingress-nginx;rke2-metrics-server;rke2-snapshot-controller;rke2-snapshot-controller-crd;rke2-snapshot-validation-webhook
 type DisabledPluginComponent string
 
 const (
