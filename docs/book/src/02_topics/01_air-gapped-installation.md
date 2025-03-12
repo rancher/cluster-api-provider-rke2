@@ -53,4 +53,4 @@ Considering the above tradeoffs, base images used for Air-Gapped need to comply 
 
 In order to deploy RKE2 Clusters in Air-Gapped mode using CAPRKE2, you need to set the fields `spec.agentConfig.airGapped` for the RKE2ControlPlane object and `spec.template.spec.agentConfig.airGapped` for RKE2ConfigTemplate object to `true`.
 
-You can check a reference implementation for CAPD [here](https://github.com/rancher/cluster-api-provider-rke2/tree/main/examples/docker/air-gapped) including configuration for CAPD custom image.
+You can check a reference implementation for CAPD [here](https://github.com/rancher/cluster-api-provider-rke2/tree/main/examples/templates/docker/air-gapped) including configuration for CAPD custom image.
