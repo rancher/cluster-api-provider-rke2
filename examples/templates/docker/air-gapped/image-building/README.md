@@ -23,4 +23,4 @@ export KUBERNETES_VERSION=v1.23.16
 docker build -t rke2-ubuntu:$KUBERNETES_VERSION .
 ```
 
-This image can then be uploaded to a container image registry and used in [manifest template for CAPD](../rke2-sample.yaml) under the `spec.template.spec.customImage` field for the `DockerMachineTemplate` object.
+This image can then be uploaded to a container image registry and used in [manifest template for CAPD](../cluster-template.yaml) under the `spec.template.spec.customImage` field for the `DockerMachineTemplate` object.
