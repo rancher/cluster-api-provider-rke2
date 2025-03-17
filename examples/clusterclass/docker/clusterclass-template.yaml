@@ -160,6 +160,8 @@ spec:
           kubernetesComponents: [ "cloudController"]
       machineTemplate:
         nodeDrainTimeout: 2m
+        nodeDeletionTimeout: 30s
+        nodeVolumeDetachTimeout: 5m
       rolloutStrategy:
         type: "RollingUpdate"
         rollingUpdate:
