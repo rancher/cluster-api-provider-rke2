@@ -106,7 +106,7 @@ GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER))
 GOLANGCI_LINT_PKG := github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
-GINKGO_VER := v2.22.0
+GINKGO_VER := v2.22.2
 GINKGO_BIN := ginkgo
 GINKGO := $(abspath $(TOOLS_BIN_DIR)/$(GINKGO_BIN)-$(GINKGO_VER))
 GINKGO_PKG := github.com/onsi/ginkgo/v2/ginkgo

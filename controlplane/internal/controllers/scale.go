@@ -459,8 +459,10 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
-			FailureDomain:    failureDomain,
-			NodeDrainTimeout: rcp.Spec.MachineTemplate.NodeDrainTimeout,
+			FailureDomain:           failureDomain,
+			NodeDrainTimeout:        rcp.Spec.MachineTemplate.NodeDrainTimeout,
+			NodeVolumeDetachTimeout: rcp.Spec.MachineTemplate.NodeVolumeDetachTimeout,
+			NodeDeletionTimeout:     rcp.Spec.MachineTemplate.NodeDeletionTimeout,
 		},
 	}
 
