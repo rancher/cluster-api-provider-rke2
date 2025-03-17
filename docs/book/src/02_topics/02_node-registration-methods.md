@@ -19,11 +19,14 @@ metadata:
 spec:
   agentConfig:
     version: v1.26.4+rke2r1
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: DockerMachineTemplate
-    name: controlplane
-  nodeDrainTimeout: 2m
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: DockerMachineTemplate
+      name: controlplane
+    nodeDrainTimeout: 2m
+    nodeDeletionTimeout: 30s
+    nodeVolumeDetachTimeout: 5m
   replicas: 3
   serverConfig:
     cni: calico
