@@ -392,12 +392,18 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		scope.Logger.Info("RKE2 server token generated and stored in Secret!")
 	}
 
+	registrationAddress := scope.Cluster.Spec.ControlPlaneEndpoint.Host
+	if scope.ControlPlane.Spec.RegistrationMethod == controlplanev1.RegistrationMethodAddress &&
+		scope.ControlPlane.Spec.RegistrationAddress != "" {
+		registrationAddress = scope.ControlPlane.Spec.RegistrationAddress
+	}
+
 	configStruct, configFiles, err := rke2.GenerateInitControlPlaneConfig(
 		rke2.ServerConfigOpts{
 			Cluster:              *scope.Cluster,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
 			Token:                token,
-			ServerURL:            fmt.Sprintf(serverURLFormat, scope.Cluster.Spec.ControlPlaneEndpoint.Host, registrationPort),
+			ServerURL:            fmt.Sprintf(serverURLFormat, registrationAddress, registrationPort),
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
