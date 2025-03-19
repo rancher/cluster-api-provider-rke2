@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The default way this provider uses to deploy RKE2 is by using the [online installation method](https://docs.rke2.io/install/quickstart). This methdod needs access to Rancher servers and Docker.io registry for downloading scripts, RKE2 packages and container images neessary to the installation of RKE2.
+The default way this provider uses to deploy RKE2 is by using the [online installation method](https://docs.rke2.io/install/quickstart). This method needs access to Rancher servers and Docker.io registry for downloading scripts, RKE2 packages and container images necessary to the installation of RKE2.
 
 Some users might prefer using Air-Gapped installation for multiple possible reasons like deployment on particularly secure environments, sporadic access issues (like Deployment to Edge Locations) or Bandwidth preservation.
 
