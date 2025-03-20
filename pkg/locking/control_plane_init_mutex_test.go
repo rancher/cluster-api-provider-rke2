@@ -238,7 +238,8 @@ func TestControlPlaneInitMutex_LockWithMachineDeletion(t *testing.T) {
 					Namespace: cluster.Namespace,
 				}, cm)).To(Succeed())
 
-				info, err := semaphore{cm}.information()
+				s := &semaphore{cm}
+				info, err := s.information()
 				g.Expect(err).To(BeNil())
 
 				g.Expect(info.MachineName).To(Equal(tc.expectedMachineName))

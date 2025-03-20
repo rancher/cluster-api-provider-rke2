@@ -168,10 +168,10 @@ func newSemaphore() *semaphore {
 }
 
 func configMapName(clusterName string) string {
-	return fmt.Sprintf("%s-lock", clusterName)
+	return clusterName + "-lock"
 }
 
-func (s semaphore) information() (*information, error) {
+func (s *semaphore) information() (*information, error) {
 	li := &information{}
 	if err := json.Unmarshal([]byte(s.Data[semaphoreInformationKey]), li); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal semaphore information")
@@ -180,7 +180,7 @@ func (s semaphore) information() (*information, error) {
 	return li, nil
 }
 
-func (s semaphore) setInformation(information *information) error {
+func (s *semaphore) setInformation(information *information) error {
 	b, err := json.Marshal(information)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal semaphore information")

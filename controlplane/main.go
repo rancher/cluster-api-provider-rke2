@@ -23,6 +23,8 @@ import (
 	"os"
 	"time"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"github.com/spf13/pflag"
@@ -30,8 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/klog/v2"
+	klog "k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -112,7 +113,8 @@ func InitFlags(fs *pflag.FlagSet) {
 		"Maximum queries per second from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
 
 	fs.IntVar(&clusterCacheTrackerClientBurst, "clustercachetracker-client-burst", 30,
-		"Maximum number of queries that should be allowed in one burst from the cluster cache tracker clients to the Kubernetes API server of workload clusters.")
+		"Maximum number of queries allowed in one burst from cluster cache tracker clients "+
+			"to the Kubernetes API server of workload clusters.")
 
 	fs.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.") //nolint:lll

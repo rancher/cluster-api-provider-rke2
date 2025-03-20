@@ -207,7 +207,7 @@ func cleanupArbitraryData(arbitraryData map[string]string) error {
 				return fmt.Errorf("invalid list value provided: '%s', error: %w", v, err)
 			}
 
-			arbitraryData[k] = fmt.Sprintf("\n%s", b.String())
+			arbitraryData[k] = "\n" + b.String()
 
 			continue
 		}

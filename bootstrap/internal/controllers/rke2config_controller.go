@@ -189,11 +189,11 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// It's a worker join
 	// GetTheControlPlane for the worker
 	wkControlPlane := controlplanev1.RKE2ControlPlane{}
+
 	err = r.Client.Get(ctx, types.NamespacedName{
 		Namespace: scope.Cluster.Spec.ControlPlaneRef.Namespace,
 		Name:      scope.Cluster.Spec.ControlPlaneRef.Name,
 	}, &wkControlPlane)
-
 	if err != nil {
 		scope.Logger.Info("Unable to find control plane object for owning Cluster", "error", err)
 
@@ -984,7 +984,6 @@ func generateFilesFromManifestConfig(
 		Namespace: manifestConfigMap.Namespace,
 		Name:      manifestConfigMap.Name,
 	}, manifestSec)
-
 	if err != nil {
 		return
 	}
