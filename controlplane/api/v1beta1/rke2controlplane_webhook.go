@@ -19,8 +19,10 @@ package v1beta1
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
@@ -30,6 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+)
+
+const (
+	defaultNodeDeletionTimeout     = 10 * time.Second
+	defaultNodeDrainTimeout        = 120 * time.Second
+	defaultNodeVolumeDetachTimeout = 300 * time.Second
 )
 
 // log is for logging in this package.
@@ -79,6 +87,21 @@ func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, obj runtim
 	// Defaults missing MachineTemplate.NodeDrainTimeout to Spec.NodeDrainTimeout
 	if rcp.Spec.MachineTemplate.NodeDrainTimeout == nil {
 		rcp.Spec.MachineTemplate.NodeDrainTimeout = rcp.Spec.NodeDrainTimeout
+	}
+
+	// Set default NodeDrainTimeout if not set
+	if rcp.Spec.MachineTemplate.NodeDrainTimeout == nil {
+		rcp.Spec.MachineTemplate.NodeDrainTimeout = &metav1.Duration{Duration: defaultNodeDrainTimeout}
+	}
+
+	// Set default NodeVolumeDetachTimeout if not set
+	if rcp.Spec.MachineTemplate.NodeVolumeDetachTimeout == nil {
+		rcp.Spec.MachineTemplate.NodeVolumeDetachTimeout = &metav1.Duration{Duration: defaultNodeVolumeDetachTimeout}
+	}
+
+	// Set default NodeDeletionTimeout if not set
+	if rcp.Spec.MachineTemplate.NodeDeletionTimeout == nil {
+		rcp.Spec.MachineTemplate.NodeDeletionTimeout = &metav1.Duration{Duration: defaultNodeDeletionTimeout}
 	}
 
 	return nil
@@ -136,6 +159,34 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateUpdate(_ context.Context, old
 		)
 	}
 
+	// Ensure new fields NodeDrainTimeout, NodeVolumeDetachTimeout and NodeDeletionTimeout are mutable
+	if oldControlplane.Spec.MachineTemplate.NodeDrainTimeout != nil && newControlplane.Spec.MachineTemplate.NodeDrainTimeout != nil &&
+		oldControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration != newControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration {
+		rke2controlplanelog.Info(
+			"NodeDrainTimeout field updated",
+			"old", oldControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration,
+			"new", newControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration,
+		)
+	}
+
+	if oldControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout != nil && newControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout != nil &&
+		oldControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration != newControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration {
+		rke2controlplanelog.Info(
+			"NodeVolumeDetachTimeout field updated",
+			"old", oldControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration,
+			"new", newControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration,
+		)
+	}
+
+	if oldControlplane.Spec.MachineTemplate.NodeDeletionTimeout != nil && newControlplane.Spec.MachineTemplate.NodeDeletionTimeout != nil &&
+		oldControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration != newControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration {
+		rke2controlplanelog.Info(
+			"NodeDeletionTimeout field updated",
+			"old", oldControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration,
+			"new", newControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration,
+		)
+	}
+
 	if len(allErrs) == 0 {
 		return nil, nil
 	}
@@ -188,6 +239,27 @@ func (r *RKE2ControlPlane) validateMachineTemplate() field.ErrorList {
 		allErrs = append(allErrs,
 			field.Invalid(field.NewPath("spec", "machineTemplate", "infrastructureRef"),
 				r.Spec.MachineTemplate.InfrastructureRef, "machineTemplate is required"))
+	}
+
+	// Validate NodeDrainTimeout (must be non-negative)
+	if r.Spec.MachineTemplate.NodeDrainTimeout != nil && r.Spec.MachineTemplate.NodeDrainTimeout.Duration < 0 {
+		allErrs = append(allErrs,
+			field.Invalid(field.NewPath("spec", "machineTemplate", "NodeDrainTimeout"),
+				r.Spec.MachineTemplate.NodeDrainTimeout.Duration, "must be non-negative"))
+	}
+
+	// Validate NodeVolumeDetachTimeout (must be non-negative)
+	if r.Spec.MachineTemplate.NodeVolumeDetachTimeout != nil && r.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration < 0 {
+		allErrs = append(allErrs,
+			field.Invalid(field.NewPath("spec", "machineTemplate", "nodeVolumeDetachTimeout"),
+				r.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration, "must be non-negative"))
+	}
+
+	// Validate NodeDeletionTimeout (must be non-negative)
+	if r.Spec.MachineTemplate.NodeDeletionTimeout != nil && r.Spec.MachineTemplate.NodeDeletionTimeout.Duration < 0 {
+		allErrs = append(allErrs,
+			field.Invalid(field.NewPath("spec", "machineTemplate", "nodeDeletionTimeout"),
+				r.Spec.MachineTemplate.NodeDeletionTimeout.Duration, "must be non-negative"))
 	}
 
 	return allErrs
