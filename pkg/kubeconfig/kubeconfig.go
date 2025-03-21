@@ -116,7 +116,7 @@ func New(
 		return nil, errors.Wrap(err, "unable to sign certificate")
 	}
 
-	userName := fmt.Sprintf("%s-admin", clusterName)
+	userName := clusterName + "-admin"
 	contextName := fmt.Sprintf("%s@%s", userName, clusterName)
 
 	return &api.Config{
@@ -156,7 +156,7 @@ func CreateSecret(ctx context.Context, c client.Client, cluster *clusterv1.Clust
 
 // CreateSecretWithOwner creates the Kubeconfig secret for the given cluster name, namespace, endpoint, and owner reference.
 func CreateSecretWithOwner(ctx context.Context, c client.Client, clusterName client.ObjectKey, endpoint string, owner metav1.OwnerReference) error {
-	server := fmt.Sprintf("https://%s", endpoint)
+	server := "https://" + endpoint
 
 	out, err := generateKubeconfig(ctx, c, clusterName, server)
 	if err != nil {

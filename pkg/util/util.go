@@ -20,7 +20,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
+	"errors"
+	"math"
 	"regexp"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,7 +41,7 @@ const (
 )
 
 // ErrControlPlaneNotFound is returned when a control plane is not found.
-var ErrControlPlaneNotFound = fmt.Errorf("control plane not found")
+var ErrControlPlaneNotFound = errors.New("control plane not found")
 
 // GetOwnerControlPlane returns the RKE2ControlPlane object that owns the object passed as parameter.
 func GetOwnerControlPlane(ctx context.Context, c client.Client, obj metav1.ObjectMeta) (*controlplanev1.RKE2ControlPlane, error) {
@@ -109,7 +110,7 @@ func Random(size int) (string, error) {
 
 // TokenName returns a token name from the cluster name.
 func TokenName(clusterName string) string {
-	return fmt.Sprintf("%s-token", clusterName)
+	return clusterName + "-token"
 }
 
 // Rke2ToKubeVersion converts an RKE2 version to a Kubernetes version.
@@ -212,4 +213,13 @@ func ProfileCompliant(profile bootstrapv1.CISProfile, version string) bool {
 	default:
 		return false
 	}
+}
+
+// SafeInt32 returns the int32 value of an int, ensuring it does not exceed the maximum int32 value.
+func SafeInt32(n int) int32 {
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	return int32(n) //nolint:gosec
 }

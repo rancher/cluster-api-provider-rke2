@@ -150,7 +150,7 @@ func (w *Workload) removeMemberForNode(ctx context.Context, name string) error {
 		return errors.Wrap(err, "failed to remove member from etcd")
 	}
 
-	log.FromContext(ctx).Info(fmt.Sprintf("Removed member: %s", member.Name))
+	log.FromContext(ctx).Info("Removed member: " + member.Name)
 
 	return nil
 }

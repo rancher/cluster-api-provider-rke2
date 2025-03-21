@@ -16,6 +16,7 @@ limitations under the License.
 package ignition
 
 import (
+	"errors"
 	"fmt"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
@@ -73,11 +74,11 @@ type ControlPlaneInput struct {
 // NewJoinWorker returns Ignition configuration for new worker node joining the cluster.
 func NewJoinWorker(input *JoinWorkerInput) ([]byte, error) {
 	if input == nil {
-		return nil, fmt.Errorf("input can't be nil")
+		return nil, errors.New("input can't be nil")
 	}
 
 	if input.BaseUserData == nil {
-		return nil, fmt.Errorf("base userdata can't be nil")
+		return nil, errors.New("base userdata can't be nil")
 	}
 
 	deployRKE2Command, err := getWorkerRKE2Commands(input.BaseUserData)
@@ -113,11 +114,11 @@ func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
 
 func controlPlaneConfigInput(input *ControlPlaneInput) (*ControlPlaneInput, error) {
 	if input == nil {
-		return nil, fmt.Errorf("input can't be nil")
+		return nil, errors.New("input can't be nil")
 	}
 
 	if input.ControlPlaneInput == nil {
-		return nil, fmt.Errorf("controlplane input can't be nil")
+		return nil, errors.New("controlplane input can't be nil")
 	}
 
 	deployRKE2Command, err := getControlPlaneRKE2Commands(&input.BaseUserData)
@@ -151,11 +152,11 @@ func getWorkerRKE2Commands(baseUserData *cloudinit.BaseUserData) ([]string, erro
 
 func getRKE2Commands(baseUserData *cloudinit.BaseUserData, command, airgappedCommand string, systemdServices []string) ([]string, error) {
 	if baseUserData == nil {
-		return nil, fmt.Errorf("base user data can't be nil")
+		return nil, errors.New("base user data can't be nil")
 	}
 
 	if baseUserData.RKE2Version == "" {
-		return nil, fmt.Errorf("rke2 version can't be empty")
+		return nil, errors.New("rke2 version can't be empty")
 	}
 
 	rke2Commands := []string{}

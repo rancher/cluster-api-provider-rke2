@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -181,7 +182,7 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 
 		auditPolicy, ok := auditPolicySecret.Data["audit-policy.yaml"]
 		if !ok {
-			return nil, nil, fmt.Errorf("audit policy secret is missing audit-policy.yaml key")
+			return nil, nil, errors.New("audit policy secret is missing audit-policy.yaml key")
 		}
 
 		rke2ServerConfig.AuditPolicyFile = "/etc/rancher/rke2/audit-policy.yaml"
@@ -227,7 +228,7 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 
 		cloudProviderConfig, ok := cloudProviderConfigMap.Data["cloud-config"]
 		if !ok {
-			return nil, nil, fmt.Errorf("cloud provider config map is missing cloud-config key")
+			return nil, nil, errors.New("cloud provider config map is missing cloud-config key")
 		}
 
 		rke2ServerConfig.CloudProviderConfig = "/etc/rancher/rke2/cloud-provider-config"
@@ -281,13 +282,13 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 			accessKeyID, ok = awsCredentialsSecret.Data["aws_access_key_id"]
 
 			if !ok {
-				return nil, nil, fmt.Errorf("aws credentials secret is missing aws_access_key_id")
+				return nil, nil, errors.New("aws credentials secret is missing aws_access_key_id")
 			}
 
 			secretAccessKey, ok = awsCredentialsSecret.Data["aws_secret_access_key"]
 
 			if !ok {
-				return nil, nil, fmt.Errorf("aws credentials secret is missing aws_secret_access_key")
+				return nil, nil, errors.New("aws credentials secret is missing aws_secret_access_key")
 			}
 		}
 
@@ -309,7 +310,7 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 
 			caCert, ok := endpointCAsecret.Data["ca.pem"]
 			if !ok {
-				return nil, nil, fmt.Errorf("endpoint CA secret is missing ca.pem")
+				return nil, nil, errors.New("endpoint CA secret is missing ca.pem")
 			}
 
 			rke2ServerConfig.EtcdS3EndpointCA = "/etc/rancher/rke2/etcd-s3-ca.crt"
@@ -449,7 +450,7 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 		cloudProviderConfig, ok := cloudProviderConfigMap.Data["cloud-config"]
 
 		if !ok {
-			return nil, nil, fmt.Errorf("cloud provider config map is missing cloud-config key")
+			return nil, nil, errors.New("cloud provider config map is missing cloud-config key")
 		}
 
 		rke2AgentConfig.CloudProviderConfig = DefaultRKE2CloudProviderConfigLocation
@@ -477,12 +478,12 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 		credentialConfig, ok := imageCredentialProviderCM.Data["credential-config.yaml"]
 
 		if !ok {
-			return nil, nil, fmt.Errorf("image credential provider config map is missing config.yaml")
+			return nil, nil, errors.New("image credential provider config map is missing config.yaml")
 		}
 
 		credentialProviderBinaries, ok := imageCredentialProviderCM.Data["credential-provider-binaries"]
 		if !ok {
-			return nil, nil, fmt.Errorf("image credential provider config map is missing credential-provider-binaries")
+			return nil, nil, errors.New("image credential provider config map is missing credential-provider-binaries")
 		}
 
 		rke2AgentConfig.ImageCredentialProviderBinDir = credentialProviderBinaries
@@ -518,7 +519,7 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 
 		resolvConf, ok := resolvConfCM.Data["resolv.conf"]
 		if !ok {
-			return nil, nil, fmt.Errorf("resolv conf config map is missing resolv.conf")
+			return nil, nil, errors.New("resolv conf config map is missing resolv.conf")
 		}
 
 		rke2AgentConfig.ResolvConf = "/etc/rancher/rke2/resolv.conf"
@@ -551,7 +552,7 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 // GenerateInitControlPlaneConfig generates the rke2 server and agent config for the init control plane node.
 func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.File, error) {
 	if opts.Token == "" {
-		return nil, nil, fmt.Errorf("token is required")
+		return nil, nil, errors.New("token is required")
 	}
 
 	rke2ServerConfig, serverFiles, err := newRKE2ServerConfig(opts)
@@ -580,11 +581,11 @@ func GenerateInitControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []boo
 // GenerateJoinControlPlaneConfig generates the rke2 agent config for joining a control plane node.
 func GenerateJoinControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.File, error) {
 	if opts.ServerURL == "" {
-		return nil, nil, fmt.Errorf("server url is required")
+		return nil, nil, errors.New("server url is required")
 	}
 
 	if opts.Token == "" {
-		return nil, nil, fmt.Errorf("token is required")
+		return nil, nil, errors.New("token is required")
 	}
 
 	rke2ServerConfig, serverFiles, err := newRKE2ServerConfig(opts)
@@ -614,11 +615,11 @@ func GenerateJoinControlPlaneConfig(opts ServerConfigOpts) (*ServerConfig, []boo
 // GenerateWorkerConfig generates the rke2 agent config and files.
 func GenerateWorkerConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.File, error) {
 	if opts.ServerURL == "" {
-		return nil, nil, fmt.Errorf("server url is required")
+		return nil, nil, errors.New("server url is required")
 	}
 
 	if opts.Token == "" {
-		return nil, nil, fmt.Errorf("token is required")
+		return nil, nil, errors.New("token is required")
 	}
 
 	rke2AgentConfig, agentFiles, err := newRKE2AgentConfig(opts)

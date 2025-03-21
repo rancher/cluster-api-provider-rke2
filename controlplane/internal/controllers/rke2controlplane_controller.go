@@ -60,6 +60,7 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
+	rke2util "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 )
 
 const (
@@ -317,8 +318,8 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		return err
 	}
 
-	rcp.Status.UpdatedReplicas = int32(len(controlPlane.UpToDateMachines()))
-	replicas := int32(len(ownedMachines))
+	rcp.Status.UpdatedReplicas = rke2util.SafeInt32(len(controlPlane.UpToDateMachines()))
+	replicas := rke2util.SafeInt32(len(ownedMachines))
 	desiredReplicas := *rcp.Spec.Replicas
 
 	// set basic data that does not require interacting with the workload cluster
@@ -360,17 +361,17 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		// make sure last resize operation is marked as completed.
 		// NOTE: we are checking the number of machines ready so we report resize completed only when the machines
 		// are actually provisioned (vs reporting completed immediately after the last machine object is created).
-		if int32(len(readyMachines)) == replicas {
+		if rke2util.SafeInt32(len(readyMachines)) == replicas {
 			conditions.MarkTrue(rcp, controlplanev1.ResizedCondition)
 		}
 	}
 
 	kubeconfigSecret := corev1.Secret{}
+
 	err = r.Client.Get(ctx, types.NamespacedName{
 		Namespace: cluster.Namespace,
 		Name:      secret.Name(cluster.Name, secret.Kubeconfig),
 	}, &kubeconfigSecret)
-
 	if err != nil {
 		r.Log.Info("Kubeconfig secret does not yet exist")
 
@@ -379,10 +380,10 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 
 	kubeConfig := kubeconfigSecret.Data[secret.KubeconfigDataName]
 	if kubeConfig == nil {
-		return fmt.Errorf("unable to find a value entry in the kubeconfig secret")
+		return errors.New("unable to find a value entry in the kubeconfig secret")
 	}
 
-	rcp.Status.ReadyReplicas = int32(len(readyMachines))
+	rcp.Status.ReadyReplicas = rke2util.SafeInt32(len(readyMachines))
 	rcp.Status.UnavailableReplicas = replicas - rcp.Status.ReadyReplicas
 
 	workloadCluster, err := r.getWorkloadCluster(ctx, util.ObjectKey(cluster))
@@ -424,7 +425,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 
 	rcp.Status.AvailableServerIPs = validIPAddresses
 	if len(rcp.Status.AvailableServerIPs) == 0 {
-		return fmt.Errorf("some Control Plane machines exist and are ready but they have no IP Address available")
+		return errors.New("some Control Plane machines exist and are ready but they have no IP Address available")
 	}
 
 	if len(readyMachines) == len(ownedMachines) {
@@ -939,8 +940,8 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 			maxSurge = *rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge
 		}
 
-		maxNodes := *rcp.Spec.Replicas + int32(maxSurge.IntValue())
-		if int32(controlPlane.Machines.Len()) < maxNodes {
+		maxNodes := *rcp.Spec.Replicas + rke2util.SafeInt32(maxSurge.IntValue())
+		if rke2util.SafeInt32(controlPlane.Machines.Len()) < maxNodes {
 			// scaleUpControlPlane ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
 			return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)
 		}
