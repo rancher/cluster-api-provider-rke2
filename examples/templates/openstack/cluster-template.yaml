@@ -14,6 +14,23 @@ metadata:
   name: ${CLUSTER_NAME}-cloud-config
   namespace: ${CLUSTER_NAME}
 ---
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: RKE2ConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-workers
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      preRKE2Commands:
+        - sleep 30 # fix to give OS time to become ready
+      agentConfig:
+        kubelet:
+          extraArgs:
+          - provider-id=openstack:///{{ ds.meta_data.uuid }}
+        nodeName: '{{ ds.meta_data.local_hostname }}'
+---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
