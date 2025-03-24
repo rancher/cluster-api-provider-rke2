@@ -14,7 +14,6 @@ metadata:
   name: ${CLUSTER_NAME}-cloud-config
   namespace: ${CLUSTER_NAME}
 ---
----
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate
 metadata:
