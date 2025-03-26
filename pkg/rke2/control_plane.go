@@ -249,7 +249,10 @@ func (c *ControlPlane) NewMachine(infraRef, bootstrapRef *corev1.ObjectReference
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
-			FailureDomain: failureDomain,
+			FailureDomain:           failureDomain,
+			NodeDrainTimeout:        c.RCP.Spec.MachineTemplate.NodeDrainTimeout,
+			NodeVolumeDetachTimeout: c.RCP.Spec.MachineTemplate.NodeVolumeDetachTimeout,
+			NodeDeletionTimeout:     c.RCP.Spec.MachineTemplate.NodeDeletionTimeout,
 		},
 	}
 }
