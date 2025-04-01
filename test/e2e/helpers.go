@@ -369,6 +369,20 @@ func WaitForRKE2ControlPlaneMachinesToExist(ctx context.Context, input WaitForRK
 		}
 		return count, nil
 	}, intervals...).Should(Equal(int(*input.ControlPlane.Spec.Replicas)), "Timed out waiting for %d control plane machines to exist", int(*input.ControlPlane.Spec.Replicas))
+
+	controlPlaneMachineTemplateLabels := input.ControlPlane.Spec.MachineTemplate.ObjectMeta.Labels
+
+	// check if machines owned by RKE2ControlPlane have the labels provided in .spec.machineTemplate.metadata.labels
+	machineList := &clusterv1.MachineList{}
+	err := input.Lister.List(ctx, machineList, inClustersNamespaceListOption, matchClusterListOption)
+	Expect(err).To(BeNil(), "failed to list the machines")
+
+	for _, machine := range machineList.Items {
+		machineLabels := machine.ObjectMeta.Labels
+		for k := range controlPlaneMachineTemplateLabels {
+			Expect(machineLabels[k]).To(Equal(controlPlaneMachineTemplateLabels[k]))
+		}
+	}
 }
 
 // WaitForControlPlaneToBeReadyInput is the input for WaitForControlPlaneToBeReady.
