@@ -121,7 +121,7 @@ export KIND_IMAGE_VERSION=v1.31.4
 export RKE2_VERSION=v1.31.4+rke2r1
 ```
 
-The next step is to substitue the values in the YAML using the following commands:
+The next step is to substitute the values in the YAML using the following commands:
 
 ```bash
 cd examples/docker/
@@ -235,7 +235,7 @@ You can check the range Docker assigns to this network by inspecting it:
 docker network inspect kind
 ```
 
-The next step is to substitue the values in the YAML using the following commands:
+The next step is to substitute the values in the YAML using the following commands:
 
 ```bash
 cat clusterclass-quick-start.yaml | clusterctl generate yaml > clusterclass-example.yaml
