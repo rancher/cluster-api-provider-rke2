@@ -464,6 +464,10 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 		},
 	}
 
+	for k, v := range rcp.Spec.MachineTemplate.ObjectMeta.Labels {
+		machine.Labels[k] = v
+	}
+
 	logger.Info("generating machine:", "machine-spec-version", machine.Spec.Version)
 
 	// Machine's bootstrap config may be missing RKE2Config if it is not the first machine in the control plane.

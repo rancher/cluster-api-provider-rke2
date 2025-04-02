@@ -62,6 +62,7 @@ type ApplyClusterTemplateAndWaitInput struct {
 	Args                         []string
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
+	SkipMachineLabelCheck        bool
 	ControlPlaneWaiters
 }
 
@@ -78,6 +79,7 @@ type ApplyCustomClusterTemplateAndWaitInput struct {
 	Args                         []string
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
+	SkipMachineLabelCheck        bool
 	ControlPlaneWaiters
 }
 
@@ -152,6 +154,7 @@ func ApplyClusterTemplateAndWait(ctx context.Context, input ApplyClusterTemplate
 		PreWaitForCluster:            input.PreWaitForCluster,
 		PostMachinesProvisioned:      input.PostMachinesProvisioned,
 		ControlPlaneWaiters:          input.ControlPlaneWaiters,
+		SkipMachineLabelCheck:        input.SkipMachineLabelCheck,
 	}, (*ApplyCustomClusterTemplateAndWaitResult)(result))
 }
 
@@ -304,9 +307,10 @@ func GetRKE2ControlPlaneByCluster(ctx context.Context, input GetRKE2ControlPlane
 
 // WaitForControlPlaneAndMachinesReadyInput is the input type for WaitForControlPlaneAndMachinesReady.
 type WaitForControlPlaneAndMachinesReadyInput struct {
-	GetLister    framework.GetLister
-	Cluster      *clusterv1.Cluster
-	ControlPlane *controlplanev1.RKE2ControlPlane
+	GetLister             framework.GetLister
+	Cluster               *clusterv1.Cluster
+	ControlPlane          *controlplanev1.RKE2ControlPlane
+	SkipMachineLabelCheck bool
 }
 
 // WaitForControlPlaneAndMachinesReady waits for a RKE2ControlPlane object to be ready (all the machine provisioned and one node ready).
@@ -319,9 +323,10 @@ func WaitForControlPlaneAndMachinesReady(ctx context.Context, input WaitForContr
 	if input.ControlPlane.Spec.Replicas != nil && int(*input.ControlPlane.Spec.Replicas) > 1 {
 		By(fmt.Sprintf("Waiting for the remaining control plane machines managed by %s to be provisioned", klog.KObj(input.ControlPlane)))
 		WaitForRKE2ControlPlaneMachinesToExist(ctx, WaitForRKE2ControlPlaneMachinesToExistInput{
-			Lister:       input.GetLister,
-			Cluster:      input.Cluster,
-			ControlPlane: input.ControlPlane,
+			Lister:                input.GetLister,
+			Cluster:               input.Cluster,
+			ControlPlane:          input.ControlPlane,
+			SkipMachineLabelCheck: input.SkipMachineLabelCheck,
 		}, intervals...)
 	}
 
@@ -340,9 +345,10 @@ func WaitForControlPlaneAndMachinesReady(ctx context.Context, input WaitForContr
 
 // WaitForRKE2ControlPlaneMachinesToExistInput is the input for WaitForRKE2ControlPlaneMachinesToExist.
 type WaitForRKE2ControlPlaneMachinesToExistInput struct {
-	Lister       framework.Lister
-	Cluster      *clusterv1.Cluster
-	ControlPlane *controlplanev1.RKE2ControlPlane
+	Lister                framework.Lister
+	Cluster               *clusterv1.Cluster
+	ControlPlane          *controlplanev1.RKE2ControlPlane
+	SkipMachineLabelCheck bool
 }
 
 // WaitForRKE2ControlPlaneMachinesToExist will wait until all control plane machines have node refs.
@@ -369,6 +375,21 @@ func WaitForRKE2ControlPlaneMachinesToExist(ctx context.Context, input WaitForRK
 		}
 		return count, nil
 	}, intervals...).Should(Equal(int(*input.ControlPlane.Spec.Replicas)), "Timed out waiting for %d control plane machines to exist", int(*input.ControlPlane.Spec.Replicas))
+
+	if !input.SkipMachineLabelCheck {
+		// check if machines owned by RKE2ControlPlane have the labels provided in .spec.machineTemplate.metadata.labels
+		controlPlaneMachineTemplateLabels := input.ControlPlane.Spec.MachineTemplate.ObjectMeta.Labels
+		machineList := &clusterv1.MachineList{}
+		err := input.Lister.List(ctx, machineList, inClustersNamespaceListOption, matchClusterListOption)
+		Expect(err).To(BeNil(), "failed to list the machines")
+
+		for _, machine := range machineList.Items {
+			machineLabels := machine.ObjectMeta.Labels
+			for k := range controlPlaneMachineTemplateLabels {
+				Expect(machineLabels[k]).To(Equal(controlPlaneMachineTemplateLabels[k]))
+			}
+		}
+	}
 }
 
 // WaitForControlPlaneToBeReadyInput is the input for WaitForControlPlaneToBeReady.
@@ -503,9 +524,10 @@ func setDefaults(input *ApplyCustomClusterTemplateAndWaitInput) {
 	if input.WaitForControlPlaneMachinesReady == nil {
 		input.WaitForControlPlaneMachinesReady = func(ctx context.Context, input ApplyCustomClusterTemplateAndWaitInput, result *ApplyCustomClusterTemplateAndWaitResult) {
 			WaitForControlPlaneAndMachinesReady(ctx, WaitForControlPlaneAndMachinesReadyInput{
-				GetLister:    input.ClusterProxy.GetClient(),
-				Cluster:      result.Cluster,
-				ControlPlane: result.ControlPlane,
+				GetLister:             input.ClusterProxy.GetClient(),
+				Cluster:               result.Cluster,
+				ControlPlane:          result.ControlPlane,
+				SkipMachineLabelCheck: input.SkipMachineLabelCheck,
 			}, input.WaitForControlPlaneIntervals...)
 		}
 	}
