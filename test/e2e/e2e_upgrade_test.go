@@ -115,6 +115,24 @@ var _ = Describe("Workload cluster creation", func() {
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
+			WaitForClusterReady(ctx, WaitForClusterReadyInput{
+				Getter:    bootstrapClusterProxy.GetClient(),
+				Name:      result.Cluster.Name,
+				Namespace: result.Cluster.Namespace,
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+
+			By("Fetching all Machines")
+			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+				Lister:      bootstrapClusterProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			})
+			Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
+			machinesNames := []string{}
+			for _, machine := range machineList.Items {
+				machinesNames = append(machinesNames, machine.Name)
+			}
+
 			By("Upgrading to next boostrap/controlplane provider version")
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:          bootstrapClusterProxy,
@@ -128,6 +146,26 @@ var _ = Describe("Workload cluster creation", func() {
 				Getter:       bootstrapClusterProxy.GetClient(),
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
+
+			WaitForClusterReady(ctx, WaitForClusterReadyInput{
+				Getter:    bootstrapClusterProxy.GetClient(),
+				Name:      result.Cluster.Name,
+				Namespace: result.Cluster.Namespace,
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+
+			By("Verifying machine rollout did not happen")
+			updatedMachineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+				Lister:      bootstrapClusterProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			})
+			Expect(updatedMachineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine after provider upgrade")
+			updatedMachinesNames := []string{}
+			for _, machine := range updatedMachineList.Items {
+				updatedMachinesNames = append(updatedMachinesNames, machine.Name)
+			}
+			Expect(updatedMachinesNames).Should(ContainElements(machinesNames), "Machines should not have been rolled out after provider upgrade")
+			Expect(len(updatedMachinesNames)).Should(Equal(len(machinesNames)), "Number of Machines should match after provider upgrade")
 
 			By("Scaling down control plane to 2 and workers up to 2")
 			ApplyClusterTemplateAndWait(ctx, ApplyClusterTemplateAndWaitInput{
