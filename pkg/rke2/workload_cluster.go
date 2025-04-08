@@ -204,7 +204,7 @@ func (w *Workload) getControlPlaneNodes(ctx context.Context) (*corev1.NodeList, 
 		labelNodeRoleControlPlane: "true",
 	}
 
-	if err := w.Client.List(ctx, nodes, ctrlclient.MatchingLabels(labels)); err != nil {
+	if err := w.List(ctx, nodes, ctrlclient.MatchingLabels(labels)); err != nil {
 		return nil, err
 	}
 
@@ -271,7 +271,7 @@ func (w *Workload) ClusterStatus(ctx context.Context) ClusterStatus {
 		Name:      rke2ServingSecretKey,
 		Namespace: metav1.NamespaceSystem,
 	}
-	err := w.Client.Get(ctx, key, &corev1.Secret{})
+	err := w.Get(ctx, key, &corev1.Secret{})
 	// In case of error we do assume the control plane is not initialized yet.
 	if err != nil {
 		logger := log.FromContext(ctx)
@@ -344,7 +344,7 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 		}
 
 		// If the machine is deleting, report all the conditions as deleting
-		if !machine.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !machine.DeletionTimestamp.IsZero() {
 			for _, condition := range allMachinePodConditions {
 				conditions.MarkFalse(machine, condition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
 			}
@@ -543,7 +543,7 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 		}
 
 		// If the machine is deleting, report all the conditions as deleting
-		if !machine.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !machine.DeletionTimestamp.IsZero() {
 			conditions.MarkFalse(machine, controlplanev1.MachineEtcdMemberHealthyCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
 
 			continue

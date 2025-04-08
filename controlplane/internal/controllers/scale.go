@@ -167,7 +167,7 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 	// NOTE: etcd member removal will be performed by the rke2-cleanup hook after machine completes drain & all volumes are detached.
 
 	logger = logger.WithValues("machine", machineToDelete)
-	if err := r.Client.Delete(ctx, machineToDelete); err != nil && !apierrors.IsNotFound(err) {
+	if err := r.Delete(ctx, machineToDelete); err != nil && !apierrors.IsNotFound(err) {
 		logger.Error(err, "Failed to delete control plane machine")
 		r.recorder.Eventf(rcp, corev1.EventTypeWarning, "FailedScaleDown",
 			"Failed to delete control plane Machine %s for cluster %s/%s control plane: %v", machineToDelete.Name, cluster.Namespace, cluster.Name, err)
@@ -195,7 +195,7 @@ func (r *RKE2ControlPlaneReconciler) removePreTerminateHookAnnotationFromMachine
 	machine.Annotations[clusterv1.ExcludeNodeDrainingAnnotation] = "true"
 	machine.Annotations[clusterv1.ExcludeWaitForNodeVolumeDetachAnnotation] = "true"
 
-	if err := r.Client.Patch(ctx, machine, client.MergeFrom(machineOriginal)); err != nil {
+	if err := r.Patch(ctx, machine, client.MergeFrom(machineOriginal)); err != nil {
 		return errors.Wrapf(err, "failed to remove pre-terminate hook from control plane Machine %s", klog.KObj(machine))
 	}
 
@@ -381,7 +381,7 @@ func (r *RKE2ControlPlaneReconciler) cleanupFromGeneration(ctx context.Context, 
 			config.SetNamespace(ref.Namespace)
 			config.SetName(ref.Name)
 
-			if err := r.Client.Delete(ctx, config); err != nil && !apierrors.IsNotFound(err) {
+			if err := r.Delete(ctx, config); err != nil && !apierrors.IsNotFound(err) {
 				errs = append(errs, errors.Wrap(err, "failed to cleanup generated resources after error"))
 			}
 		}
@@ -414,7 +414,7 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 		Spec: *spec,
 	}
 
-	if err := r.Client.Create(ctx, bootstrapConfig); err != nil {
+	if err := r.Create(ctx, bootstrapConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to create bootstrap configuration")
 	}
 
@@ -482,7 +482,7 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 		controlplanev1.PreTerminateHookCleanupAnnotation: "",
 	})
 
-	if err := r.Client.Create(ctx, machine); err != nil {
+	if err := r.Create(ctx, machine); err != nil {
 		return errors.Wrap(err, "failed to create machine")
 	}
 

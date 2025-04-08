@@ -55,7 +55,7 @@ type ControlPlaneInput struct {
 //nolint:gofumpt
 func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	input.Header = cloudConfigHeader
-	input.WriteFiles = append(input.WriteFiles, input.Certificates.AsFiles()...)
+	input.WriteFiles = append(input.WriteFiles, input.AsFiles()...)
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 	input.SentinelFileCommand = sentinelFileCommand
 

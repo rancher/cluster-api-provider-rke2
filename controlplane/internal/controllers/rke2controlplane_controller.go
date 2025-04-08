@@ -180,14 +180,14 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// status without waiting for a full resync (by default 10 minutes).
 		// Only requeue if we are not going in exponential backoff due to error,
 		// or if we are not already re-queueing, or if the object has a deletion timestamp.
-		if reterr == nil && !res.Requeue && res.RequeueAfter <= 0 && rcp.ObjectMeta.DeletionTimestamp.IsZero() {
+		if reterr == nil && !res.Requeue && res.RequeueAfter <= 0 && rcp.DeletionTimestamp.IsZero() {
 			if !rcp.Status.Ready {
 				res = ctrl.Result{RequeueAfter: DefaultRequeueTime}
 			}
 		}
 	}()
 
-	if !rcp.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !rcp.DeletionTimestamp.IsZero() {
 		// Handle deletion reconciliation loop.
 		res, err = r.reconcileDelete(ctx, cluster, rcp)
 
@@ -368,7 +368,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 
 	kubeconfigSecret := corev1.Secret{}
 
-	err = r.Client.Get(ctx, types.NamespacedName{
+	err = r.Get(ctx, types.NamespacedName{
 		Namespace: cluster.Namespace,
 		Name:      secret.Name(cluster.Name, secret.Kubeconfig),
 	}, &kubeconfigSecret)
@@ -759,7 +759,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 			continue
 		}
 
-		if err := r.Client.Delete(ctx, machinesToDelete[i]); err != nil && !apierrors.IsNotFound(err) {
+		if err := r.Delete(ctx, machinesToDelete[i]); err != nil && !apierrors.IsNotFound(err) {
 			logger.Error(err, "Failed to cleanup owned machine")
 			errs = append(errs, err)
 		}

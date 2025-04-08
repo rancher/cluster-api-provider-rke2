@@ -127,7 +127,7 @@ func controlPlaneConfigInput(input *ControlPlaneInput) (*ControlPlaneInput, erro
 	}
 
 	input.DeployRKE2Commands = deployRKE2Command
-	input.WriteFiles = append(input.WriteFiles, input.Certificates.AsFiles()...)
+	input.WriteFiles = append(input.WriteFiles, input.AsFiles()...)
 	input.WriteFiles = append(input.WriteFiles, input.ConfigFile)
 
 	return input, nil

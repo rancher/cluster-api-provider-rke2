@@ -190,7 +190,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// GetTheControlPlane for the worker
 	wkControlPlane := controlplanev1.RKE2ControlPlane{}
 
-	err = r.Client.Get(ctx, types.NamespacedName{
+	err = r.Get(ctx, types.NamespacedName{
 		Namespace: scope.Cluster.Spec.ControlPlaneRef.Namespace,
 		Name:      scope.Cluster.Spec.ControlPlaneRef.Name,
 	}, &wkControlPlane)
@@ -288,7 +288,7 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 	}
 
 	machineList := &clusterv1.MachineList{}
-	if err := r.Client.List(ctx, machineList, selectors...); err != nil {
+	if err := r.List(ctx, machineList, selectors...); err != nil {
 		return nil
 	}
 
@@ -305,7 +305,7 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 
 	if feature.Gates.Enabled(feature.MachinePool) {
 		machinePoolList := &clusterexpv1.MachinePoolList{}
-		if err := r.Client.List(ctx, machinePoolList, selectors...); err != nil {
+		if err := r.List(ctx, machinePoolList, selectors...); err != nil {
 			return nil
 		}
 
@@ -546,7 +546,7 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 
 			fileContentSecret := &corev1.Secret{}
 
-			if err := r.Client.Get(ctx, types.NamespacedName{
+			if err := r.Get(ctx, types.NamespacedName{
 				Name:      file.ContentFrom.Secret.Name,
 				Namespace: scope.Config.Namespace,
 			}, fileContentSecret); err != nil {
@@ -590,7 +590,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		Namespace: scope.Cluster.Namespace,
 		Name:      scope.Cluster.Name + tokenPrefix,
 	}
-	if err := r.Client.Get(ctx, secretKey, tokenSecret); err != nil {
+	if err := r.Get(ctx, secretKey, tokenSecret); err != nil {
 		scope.Logger.Error(
 			err,
 			"Token for already initialized RKE2 Cluster not found", "token-namespace",
@@ -728,7 +728,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		Namespace: scope.Cluster.Namespace,
 		Name:      scope.Cluster.Name + tokenPrefix,
 	}
-	if err := r.Client.Get(ctx, secretKey, tokenSecret); err != nil {
+	if err := r.Get(ctx, secretKey, tokenSecret); err != nil {
 		scope.Logger.Info(
 			"Token for already initialized RKE2 Cluster not found",
 			"token-namespace",
@@ -839,7 +839,7 @@ func (r *RKE2ConfigReconciler) getRegistrationTokenFromSecretValue(ctx context.C
 		Namespace: namespace,
 	}
 
-	err := r.Client.Get(ctx, secretKey, tokenSecret)
+	err := r.Get(ctx, secretKey, tokenSecret)
 	if err != nil {
 		return "", errors.Wrapf(err, "could not retrieve secret %s/%s", namespace, name)
 	}
@@ -933,7 +933,7 @@ func (r *RKE2ConfigReconciler) createSecretFromObject(
 	secretType string,
 	config bootstrapv1.RKE2Config,
 ) (reterr error) {
-	if err := r.Client.Create(ctx, &secret); err != nil {
+	if err := r.Create(ctx, &secret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create %s secret for %s: %s/%s", secretType, config.Kind, config.Name, config.Namespace)
 		}
@@ -957,7 +957,7 @@ func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(
 	secretType string,
 	config bootstrapv1.RKE2Config,
 ) (reterr error) {
-	if err := r.Client.Create(ctx, &secret); err != nil {
+	if err := r.Create(ctx, &secret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create %s secret for %s: %s/%s", secretType, config.Kind, config.Name, config.Namespace)
 		}
@@ -967,7 +967,7 @@ func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(
 			"secret-ref", secret.Namespace+"/"+secret.Name,
 			"RKE2Config", config.Name)
 
-		if err := r.Client.Update(ctx, &secret); err != nil {
+		if err := r.Update(ctx, &secret); err != nil {
 			return errors.Wrapf(err, "failed to update %s secret for %s: %s/%s", secretType, config.Kind, config.Namespace, config.Name)
 		}
 	}

@@ -101,9 +101,10 @@ GO_APIDIFF_PKG := github.com/joelanford/go-apidiff
 HADOLINT_VER := v2.10.0
 HADOLINT_FAILURE_THRESHOLD = warning
 
-GOLANGCI_LINT_VER := v1.64.8
+GOLANGCI_LINT_VER := $(shell cat .github/workflows/golangci-lint.yml | grep [[:space:]]version: | sed 's/.*version: //')
 GOLANGCI_LINT_BIN := golangci-lint
-GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN))
+GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER))
+GOLANGCI_LINT_PKG := github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 GINKGO_VER := v2.22.0
 GINKGO_BIN := ginkgo
@@ -653,10 +654,8 @@ $(SETUP_ENVTEST): # Build setup-envtest from tools folder.
 $(GINKGO): ## Build ginkgo.
 	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) $(GINKGO_PKG) $(GINKGO_BIN) $(GINKGO_VER)
 
-$(GOLANGCI_LINT): # Download and install golangci-lint
-	hack/ensure-golangci-lint.sh \
-		-b $(TOOLS_BIN_DIR) \
-		$(GOLANGCI_LINT_VER)
+$(GOLANGCI_LINT): # Build golangci-lint from tools folder.
+	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) $(GOLANGCI_LINT_PKG) $(GOLANGCI_LINT_BIN) $(GOLANGCI_LINT_VER)
 
 $(GH): # Download GitHub cli into the tools bin folder
 	hack/ensure-gh.sh \
