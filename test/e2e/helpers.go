@@ -36,6 +36,7 @@ import (
 
 	pkgerrors "github.com/pkg/errors"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -305,6 +306,30 @@ func GetRKE2ControlPlaneByCluster(ctx context.Context, input GetRKE2ControlPlane
 	return nil
 }
 
+// GetMachinesByClusterInput is the input for GetRKE2ControlPlaneByCluster.
+type GetMachinesByClusterInput struct {
+	Lister      framework.Lister
+	ClusterName string
+	Namespace   string
+}
+
+// GetMachinesByCluster returns the Machine objects for a cluster.
+func GetMachinesByCluster(ctx context.Context, input GetMachinesByClusterInput) *clusterv1.MachineList {
+	opts := []client.ListOption{
+		client.InNamespace(input.Namespace),
+		client.MatchingLabels{
+			clusterv1.ClusterNameLabel: input.ClusterName,
+		},
+	}
+
+	machineList := &clusterv1.MachineList{}
+	Eventually(func() error {
+		return input.Lister.List(ctx, machineList, opts...)
+	}, retryableOperationTimeout, retryableOperationInterval).Should(Succeed(), "Failed to list Machine objects for Cluster %s", klog.KRef(input.Namespace, input.ClusterName))
+
+	return machineList
+}
+
 // WaitForControlPlaneAndMachinesReadyInput is the input type for WaitForControlPlaneAndMachinesReady.
 type WaitForControlPlaneAndMachinesReadyInput struct {
 	GetLister             framework.GetLister
@@ -506,6 +531,42 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 		}
 
 		return nil
+	}, intervals...).Should(Succeed())
+}
+
+// WaitForClusterReadyInput is the input type for WaitForClusterReady.
+type WaitForClusterReadyInput struct {
+	Getter    framework.Getter
+	Name      string
+	Namespace string
+}
+
+// WaitForClusterReady will wait for a Cluster to be Ready.
+func WaitForClusterReady(ctx context.Context, input WaitForClusterReadyInput, intervals ...interface{}) {
+	By("Waiting for Cluster to be Ready")
+
+	Eventually(func() error {
+		cluster := &clusterv1.Cluster{}
+		key := types.NamespacedName{Name: input.Name, Namespace: input.Namespace}
+
+		if err := input.Getter.Get(ctx, key, cluster); err != nil {
+			return fmt.Errorf("getting Cluster %s/%s: %w", input.Namespace, input.Name, err)
+		}
+
+		readyCondition := conditions.Get(cluster, clusterv1.ReadyCondition)
+		if readyCondition == nil {
+			return fmt.Errorf("Cluster Ready condition is not found")
+		}
+
+		switch readyCondition.Status {
+		case corev1.ConditionTrue:
+			//Cluster is ready
+			return nil
+		case corev1.ConditionFalse:
+			return fmt.Errorf("Cluster is not Ready")
+		default:
+			return fmt.Errorf("Cluster Ready condition is unknown")
+		}
 	}, intervals...).Should(Succeed())
 }
 
