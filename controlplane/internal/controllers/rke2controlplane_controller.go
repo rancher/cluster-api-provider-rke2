@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/util/ssa"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
@@ -64,6 +65,10 @@ import (
 )
 
 const (
+	rke2ManagerName = "rke2controlplane"
+
+	rke2ControlPlaneKind = "RKE2ControlPlane"
+
 	// dependentCertRequeueAfter is how long to wait before checking again to see if
 	// dependent certificates have been created.
 	dependentCertRequeueAfter = 30 * time.Second
@@ -88,6 +93,7 @@ type RKE2ControlPlaneReconciler struct {
 	recorder                  record.EventRecorder
 	controller                controller.Controller
 	workloadCluster           rke2.WorkloadCluster
+	ssaCache                  ssa.Cache
 }
 
 //nolint:lll

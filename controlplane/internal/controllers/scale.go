@@ -28,6 +28,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/klog/v2"
@@ -35,11 +36,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/util/ssa"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/labels/format"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
@@ -429,6 +432,143 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 	return bootstrapRef, nil
 }
 
+// updateExternalObject updates the external object with the labels and annotations from RKE2ControlPlane.
+func (r *RKE2ControlPlaneReconciler) updateExternalObject(ctx context.Context, obj client.Object, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster) error {
+	updatedObject := &unstructured.Unstructured{}
+	updatedObject.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	updatedObject.SetNamespace(obj.GetNamespace())
+	updatedObject.SetName(obj.GetName())
+	// Set the UID to ensure that Server-Side-Apply only performs an update
+	// and does not perform an accidental create.
+	updatedObject.SetUID(obj.GetUID())
+
+	// Update labels
+	updatedObject.SetLabels(ControlPlaneMachineLabelsForCluster(rcp, cluster.Name))
+	// Update annotations
+	updatedObject.SetAnnotations(rcp.Spec.MachineTemplate.ObjectMeta.Annotations)
+
+	if err := ssa.Patch(ctx, r.Client, rke2ManagerName, updatedObject, ssa.WithCachingProxy{Cache: r.ssaCache, Original: obj}); err != nil {
+		return errors.Wrapf(err, "failed to update %s", obj.GetObjectKind().GroupVersionKind().Kind)
+	}
+	return nil
+}
+
+func (r *RKE2ControlPlaneReconciler) createMachine(ctx context.Context, machine *clusterv1.Machine) error {
+	if err := ssa.Patch(ctx, r.Client, rke2ManagerName, machine); err != nil {
+		return errors.Wrap(err, "failed to create Machine")
+	}
+	return nil
+}
+
+func (r *RKE2ControlPlaneReconciler) updateMachine(ctx context.Context, machine *clusterv1.Machine, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster) (*clusterv1.Machine, error) {
+	updatedMachine, err := r.computeDesiredMachine(rcp, cluster, machine.Spec.FailureDomain, machine)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to update Machine: failed to compute desired Machine")
+	}
+
+	err = ssa.Patch(ctx, r.Client, rke2ManagerName, updatedMachine, ssa.WithCachingProxy{Cache: r.ssaCache, Original: machine})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to update Machine")
+	}
+	return updatedMachine, nil
+}
+
+// computeDesiredMachine computes the desired Machine.
+// This Machine will be used during reconciliation to:
+// * create a new Machine
+// * update an existing Machine
+// Because we are using Server-Side-Apply we always have to calculate the full object.
+// There are small differences in how we calculate the Machine depending on if it
+// is a create or update. Example: for a new Machine we have to calculate a new name,
+// while for an existing Machine we have to use the name of the existing Machine.
+func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster, failureDomain *string, existingMachine *clusterv1.Machine) (*clusterv1.Machine, error) {
+	var machineName string
+	var machineUID types.UID
+	var version *string
+	annotations := map[string]string{}
+	if existingMachine == nil {
+		// Creating a new machine
+		machineName = names.SimpleNameGenerator.GenerateName(rcp.Name + "-")
+
+		desiredVersion := rcp.GetDesiredVersion()
+		version = &desiredVersion
+
+		// Machine's bootstrap config may be missing RKE2Config if it is not the first machine in the control plane.
+		// We store RKE2Config as annotation here to detect any changes in RCP RKE2Config and rollout the machine if any.
+		serverConfig, err := json.Marshal(rcp.Spec.ServerConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal cluster configuration")
+		}
+		annotations[controlplanev1.RKE2ServerConfigurationAnnotation] = string(serverConfig)
+		annotations[controlplanev1.PreTerminateHookCleanupAnnotation] = ""
+
+	} else {
+		// Updating an existing machine
+		machineName = existingMachine.Name
+		machineUID = existingMachine.UID
+		version = existingMachine.Spec.Version
+
+		// For existing machine only set the ClusterConfiguration annotation if the machine already has it.
+		// We should not add the annotation if it was missing in the first place because we do not have enough
+		// information.
+		if serverConfig, ok := existingMachine.Annotations[controlplanev1.RKE2ServerConfigurationAnnotation]; ok {
+			annotations[controlplanev1.RKE2ServerConfigurationAnnotation] = serverConfig
+		}
+	}
+
+	// Construct the basic Machine.
+	desiredMachine := &clusterv1.Machine{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: clusterv1.GroupVersion.String(),
+			Kind:       "Machine",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			UID:       machineUID,
+			Name:      machineName,
+			Namespace: rcp.Namespace,
+			// Note: by setting the ownerRef on creation we signal to the Machine controller that this is not a stand-alone Machine.
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind(rke2ControlPlaneKind)),
+			},
+			Labels:      map[string]string{},
+			Annotations: map[string]string{},
+		},
+		Spec: clusterv1.MachineSpec{
+			ClusterName: cluster.Name,
+			Version:     version,
+		},
+	}
+
+	// Set the in-place mutable fields.
+	// When we create a new Machine we will just create the Machine with those fields.
+	// When we update an existing Machine will we update the fields on the existing Machine (in-place mutate).
+
+	// Set labels
+	desiredMachine.Labels = ControlPlaneMachineLabelsForCluster(rcp, cluster.Name)
+
+	// Set annotations
+	// Add the annotations from the MachineTemplate.
+	// Note: we intentionally don't use the map directly to ensure we don't modify the map in KCP.
+	for k, v := range rcp.Spec.MachineTemplate.ObjectMeta.Annotations {
+		desiredMachine.Annotations[k] = v
+	}
+	for k, v := range annotations {
+		desiredMachine.Annotations[k] = v
+	}
+
+	// Set other in-place mutable fields
+	desiredMachine.Spec.NodeDrainTimeout = rcp.Spec.MachineTemplate.NodeDrainTimeout
+	desiredMachine.Spec.NodeDeletionTimeout = rcp.Spec.MachineTemplate.NodeDeletionTimeout
+	desiredMachine.Spec.NodeVolumeDetachTimeout = rcp.Spec.MachineTemplate.NodeVolumeDetachTimeout
+
+	if existingMachine != nil {
+		desiredMachine.Spec.InfrastructureRef = existingMachine.Spec.InfrastructureRef
+		desiredMachine.Spec.Bootstrap.ConfigRef = existingMachine.Spec.Bootstrap.ConfigRef
+	}
+
+	return desiredMachine, nil
+}
+
 func (r *RKE2ControlPlaneReconciler) generateMachine(
 	ctx context.Context,
 	rcp *controlplanev1.RKE2ControlPlane,
@@ -489,4 +629,22 @@ func (r *RKE2ControlPlaneReconciler) generateMachine(
 	}
 
 	return nil
+}
+
+// ControlPlaneMachineLabelsForCluster returns a set of labels to add to a control plane machine for this specific cluster.
+func ControlPlaneMachineLabelsForCluster(rcp *controlplanev1.RKE2ControlPlane, clusterName string) map[string]string {
+	labels := map[string]string{}
+
+	// Add the labels from the MachineTemplate.
+	// Note: we intentionally don't use the map directly to ensure we don't modify the map in RKE2ControlPlane.
+	for k, v := range rcp.Spec.MachineTemplate.ObjectMeta.Labels {
+		labels[k] = v
+	}
+
+	// Always force these labels over the ones coming from the spec.
+	labels[clusterv1.ClusterNameLabel] = clusterName
+	labels[clusterv1.MachineControlPlaneLabel] = ""
+	// Note: MustFormatValue is used here as the label value can be a hash if the control plane name is longer than 63 characters.
+	labels[clusterv1.MachineControlPlaneNameLabel] = format.MustFormatValue(rcp.Name)
+	return labels
 }
