@@ -142,7 +142,7 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(0))
-		Expect(cp.rke2Configs).To(HaveLen(1))
+		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
 		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionUnknown),
@@ -172,7 +172,7 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
-		Expect(cp.rke2Configs).To(HaveLen(0))
+		Expect(cp.Rke2Configs).To(HaveLen(0))
 		Expect(cp.Machines).To(HaveLen(1))
 		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionUnknown),
@@ -202,7 +202,7 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(0))
-		Expect(cp.rke2Configs).To(HaveLen(1))
+		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
 		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionUnknown),
@@ -217,7 +217,7 @@ var _ = Describe("Node metadata propagation", func() {
 			return w.Nodes
 		}).Should(HaveLen(1))
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
-		Expect(cp.rke2Configs).To(HaveLen(1))
+		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
 		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionTrue),
@@ -249,7 +249,7 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
-		Expect(cp.rke2Configs).To(HaveLen(1))
+		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
 		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionTrue),
@@ -295,7 +295,7 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
-		Expect(cp.rke2Configs).To(HaveLen(1))
+		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
 		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionTrue),
@@ -345,7 +345,7 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
-		Expect(cp.rke2Configs).To(HaveLen(1))
+		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
 		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
 			"Status", Equal(corev1.ConditionUnknown),

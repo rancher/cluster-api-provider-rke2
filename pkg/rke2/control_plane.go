@@ -53,8 +53,8 @@ type ControlPlane struct {
 	// reconciliationTime is the time of the current reconciliation, and should be used for all "now" calculations
 	reconciliationTime metav1.Time
 
-	rke2Configs    map[string]*bootstrapv1.RKE2Config
-	infraResources map[string]*unstructured.Unstructured
+	Rke2Configs    map[string]*bootstrapv1.RKE2Config
+	InfraResources map[string]*unstructured.Unstructured
 }
 
 // NewControlPlane returns an instantiated ControlPlane.
@@ -95,8 +95,8 @@ func NewControlPlane(
 		Cluster:              cluster,
 		Machines:             ownedMachines,
 		machinesPatchHelpers: patchHelpers,
-		rke2Configs:          rke2Configs,
-		infraResources:       infraObjects,
+		Rke2Configs:          rke2Configs,
+		InfraResources:       infraObjects,
 		reconciliationTime:   metav1.Now(),
 	}, nil
 }
@@ -297,7 +297,7 @@ func (c *ControlPlane) MachinesNeedingRollout() collections.Machines {
 	// Return machines if they are scheduled for rollout or if with an outdated configuration.
 	return machines.AnyFilter(
 		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
+		collections.Not(matchesRCPConfiguration(c.InfraResources, c.Rke2Configs, c.RCP)),
 	)
 }
 
@@ -309,7 +309,7 @@ func (c *ControlPlane) UpToDateMachines() collections.Machines {
 	// Filter machines if they are scheduled for rollout or if with an outdated configuration.
 	machines.AnyFilter(
 		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
+		collections.Not(matchesRCPConfiguration(c.InfraResources, c.Rke2Configs, c.RCP)),
 	)
 
 	return machines.Difference(c.MachinesNeedingRollout())
@@ -437,4 +437,9 @@ func (o machinesByDeletionTimestamp) Less(i, j int) bool {
 	}
 
 	return o[i].DeletionTimestamp.Before(o[j].DeletionTimestamp)
+}
+
+// SetPatchHelpers updates the patch helpers.
+func (c *ControlPlane) SetPatchHelpers(patchHelpers map[string]*patch.Helper) {
+	c.machinesPatchHelpers = patchHelpers
 }
