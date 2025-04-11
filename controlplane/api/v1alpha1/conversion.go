@@ -76,7 +76,7 @@ func (dst *RKE2ControlPlane) ConvertFrom(srcRaw conversion.Hub) error {
 
 	dst.Spec.AgentConfig.Version = src.Spec.Version
 
-	// Preserve Hub data on down-conversion
+	// Preserve `NodeDeletionTimeout` since it does not exist in v1alpha1
 	if err := utilconversion.MarshalData(src, dst); err != nil {
 		return err
 	}
@@ -137,6 +137,9 @@ func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.Template.Spec.ServerConfig.EmbeddedRegistry = restored.Spec.Template.Spec.ServerConfig.EmbeddedRegistry
 	dst.Spec.Template = restored.Spec.Template
 	dst.Status = restored.Status
+	dst.Spec.Template.Spec.MachineTemplate.NodeDrainTimeout = restored.Spec.Template.Spec.MachineTemplate.NodeDrainTimeout
+	dst.Spec.Template.Spec.MachineTemplate.NodeDeletionTimeout = restored.Spec.Template.Spec.MachineTemplate.NodeDeletionTimeout
+	dst.Spec.Template.Spec.MachineTemplate.NodeVolumeDetachTimeout = restored.Spec.Template.Spec.MachineTemplate.NodeVolumeDetachTimeout
 
 	return nil
 }

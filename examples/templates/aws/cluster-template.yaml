@@ -132,6 +132,8 @@ spec:
       kind: AWSMachineTemplate
       name: ${CLUSTER_NAME}-control-plane
     nodeDrainTimeout: 2m
+    nodeDeletionTimeout: 30s
+    nodeVolumeDetachTimeout: 5m
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   serverConfig:
     cloudProviderName: external
