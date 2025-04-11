@@ -44,7 +44,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/util/ssa"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
@@ -57,6 +56,8 @@ import (
 	"sigs.k8s.io/cluster-api/util/patch"
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/contract"
+	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/util/ssa"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/kubeconfig"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
@@ -65,8 +66,10 @@ import (
 )
 
 const (
+	// rke2ManagerName is the name of the RKE2 manager deployment.
 	rke2ManagerName = "rke2controlplane"
 
+	// rke2ControlPlaneKind is the kind of the RKE2 control plane.
 	rke2ControlPlaneKind = "RKE2ControlPlane"
 
 	// dependentCertRequeueAfter is how long to wait before checking again to see if
@@ -498,6 +501,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		logger.Error(err, "failed to reconcile Kubeconfig")
 
 		return result, err
+	}
+
+	if err := r.syncMachines(ctx, rke2.ControlPlane{}); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "failed to sync Machines")
 	}
 
 	controlPlaneMachines, err := r.managementClusterUncached.GetMachinesForCluster(
@@ -1097,4 +1104,87 @@ func (r *RKE2ControlPlaneReconciler) getWorkloadCluster(ctx context.Context, clu
 	}
 
 	return workloadCluster, nil
+}
+
+// syncMachines updates Machines, InfrastructureMachines and Rke2Configs to propagate in-place mutable fields from KCP.
+// Note: It also cleans up managed fields of all Machines so that Machines that were
+// created/patched before (< v1.4.0)“ the controller adopted Server-Side-Apply (SSA) can also work with SSA.
+// Note: For InfrastructureMachines and Rke2Configs it also drops ownership of "metadata.labels" and
+// "metadata.annotations" from "manager" so that "rke2controlplane" can own these fields and can work with SSA.
+// Otherwise, fields would be co-owned by our "old" "manager" and "rke2controlplane" and then we would not be
+// able to e.g. drop labels and annotations.
+func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPlane rke2.ControlPlane) error {
+	patchHelpers := map[string]*patch.Helper{}
+
+	for machineName := range controlPlane.Machines {
+		m := controlPlane.Machines[machineName]
+		// If the machine is already being deleted, we don't need to update it.
+		if !m.DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		// Cleanup managed fields of all Machines.
+		// We do this so that Machines that were created/patched before the controller adopted Server-Side-Apply (SSA)
+		// (< v1.4.0) can also work with SSA. Otherwise, fields would be co-owned by our "old" "manager" and
+		// "rke2controlplane" and then we would not be able to e.g. drop labels and annotations.
+		if err := ssa.CleanUpManagedFieldsForSSAAdoption(ctx, r.Client, m, rke2ManagerName); err != nil {
+			return errors.Wrapf(err, "failed to update Machine: failed to adjust the managedFields of the Machine %s", klog.KObj(m))
+		}
+		// Update Machine to propagate in-place mutable fields from RCP.
+		updatedMachine, err := r.UpdateMachine(ctx, m, controlPlane.RCP, controlPlane.Cluster)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update Machine: %s", klog.KObj(m))
+		}
+
+		controlPlane.Machines[machineName] = updatedMachine
+		// Since the machine is updated, re-create the patch helper so that any subsequent
+		// Patch calls use the correct base machine object to calculate the diffs.
+		// Example: reconcileControlPlaneConditions patches the machine objects in a subsequent call
+		// and, it should use the updated machine to calculate the diff.
+		// Note: If the patchHelpers are not re-computed based on the new updated machines, subsequent
+		// Patch calls will fail because the patch will be calculated based on an outdated machine and will error
+		// because of outdated resourceVersion.
+		patchHelper, err := patch.NewHelper(updatedMachine, r.Client)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create patch helper for Machine %s", klog.KObj(updatedMachine))
+		}
+
+		patchHelpers[machineName] = patchHelper
+
+		labelsAndAnnotationsManagedFieldPaths := []contract.Path{
+			{"f:metadata", "f:annotations"},
+			{"f:metadata", "f:labels"},
+		}
+		infraMachine := controlPlane.InfraResources[machineName]
+		// Cleanup managed fields of all InfrastructureMachines to drop ownership of labels and annotations
+		// from "manager". We do this so that InfrastructureMachines that are created using the Create method
+		// can also work with SSA. Otherwise, labels and annotations would be co-owned by our "old" "manager"
+		// and "rke2-kubeadmcontrolplane" and then we would not be able to e.g. drop labels and annotations.
+		if err := ssa.DropManagedFields(ctx, r.Client, infraMachine, rke2ManagerName, labelsAndAnnotationsManagedFieldPaths); err != nil {
+			return errors.Wrapf(err, "failed to clean up managedFields of InfrastructureMachine %s", klog.KObj(infraMachine))
+		}
+		// Update in-place mutating fields on InfrastructureMachine.
+		if err := r.UpdateExternalObject(ctx, infraMachine, controlPlane.RCP, controlPlane.Cluster); err != nil {
+			return errors.Wrapf(err, "failed to update InfrastructureMachine %s", klog.KObj(infraMachine))
+		}
+
+		rke2Config := controlPlane.Rke2Configs[machineName]
+		// Note: Set the GroupVersionKind because updateExternalObject depends on it.
+		rke2Config.SetGroupVersionKind(m.Spec.Bootstrap.ConfigRef.GroupVersionKind())
+		// Cleanup managed fields of all Rke2Configs to drop ownership of labels and annotations
+		// from "manager". We do this so that Rke2Configs that are created using the Create method
+		// can also work with SSA. Otherwise, labels and annotations would be co-owned by our "old" "manager"
+		// and "rke2controlplane" and then we would not be able to e.g. drop labels and annotations.
+		if err := ssa.DropManagedFields(ctx, r.Client, rke2Config, rke2ManagerName, labelsAndAnnotationsManagedFieldPaths); err != nil {
+			return errors.Wrapf(err, "failed to clean up managedFields of KubeadmConfig %s", klog.KObj(rke2Config))
+		}
+		// Update in-place mutating fields on BootstrapConfig.
+		if err := r.UpdateExternalObject(ctx, rke2Config, controlPlane.RCP, controlPlane.Cluster); err != nil {
+			return errors.Wrapf(err, "failed to update Rke2Config %s", klog.KObj(rke2Config))
+		}
+	}
+	// Update the patch helpers.
+	controlPlane.SetPatchHelpers(patchHelpers)
+
+	return nil
 }

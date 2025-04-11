@@ -32,7 +32,7 @@ import (
 // Option is the interface for configuration that modifies Options for a patch request.
 type Option interface {
 	// ApplyToOptions applies this configuration to the given Options.
-	ApplyToOptions(*Options)
+	ApplyToOptions(opts *Options)
 }
 
 // WithCachingProxy enables caching for the patch request.
@@ -88,6 +88,7 @@ func Patch(ctx context.Context, c client.Client, fieldManager string, modified c
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply object")
 		}
+
 		if options.Cache.Has(requestIdentifier, gvk.Kind) {
 			// If the request is cached return the original object.
 			if err := c.Scheme().Convert(options.Original, modified, ctx); err != nil {
@@ -95,6 +96,7 @@ func Patch(ctx context.Context, c client.Client, fieldManager string, modified c
 			}
 			// Recover gvk e.g. for logging.
 			modified.GetObjectKind().SetGroupVersionKind(gvk)
+
 			return nil
 		}
 	}
@@ -128,9 +130,15 @@ func Patch(ctx context.Context, c client.Client, fieldManager string, modified c
 // prepareModified converts obj into an Unstructured and filters out undesired fields.
 func prepareModified(scheme *runtime.Scheme, obj client.Object) (*unstructured.Unstructured, error) {
 	u := &unstructured.Unstructured{}
+
 	switch obj.(type) {
 	case *unstructured.Unstructured:
-		u = obj.DeepCopyObject().(*unstructured.Unstructured)
+		deepCopiedObj, ok := obj.DeepCopyObject().(*unstructured.Unstructured)
+		if !ok {
+			return nil, errors.New("failed to assert type to *unstructured.Unstructured")
+		}
+
+		u = deepCopiedObj
 	default:
 		if err := scheme.Convert(obj, u, nil); err != nil {
 			return nil, errors.Wrap(err, "failed to convert object to Unstructured")
@@ -155,5 +163,6 @@ func prepareModified(scheme *runtime.Scheme, obj client.Object) (*unstructured.U
 			{"spec"},
 		},
 	})
+
 	return u, nil
 }

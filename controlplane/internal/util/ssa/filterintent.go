@@ -69,6 +69,7 @@ func FilterIntent(ctx *FilterIntentInput) bool {
 	}
 
 	gotDeletions := false
+
 	for field := range value {
 		fieldCtx := &FilterIntentInput{
 			// Compose the Path for the nested field.
@@ -82,7 +83,9 @@ func FilterIntent(ctx *FilterIntentInput) bool {
 		// If the field should be filtered out, delete it from the modified object.
 		if fieldCtx.ShouldFilter(fieldCtx.Path) {
 			delete(value, field)
+
 			gotDeletions = true
+
 			continue
 		}
 
@@ -91,10 +94,12 @@ func FilterIntent(ctx *FilterIntentInput) bool {
 			// Ensure we are not leaving empty maps around.
 			if v, ok := fieldCtx.Value.(map[string]interface{}); ok && len(v) == 0 {
 				delete(value, field)
+
 				gotDeletions = true
 			}
 		}
 	}
+
 	return gotDeletions
 }
 
@@ -122,6 +127,7 @@ func IsPathAllowed(allowedPaths []contract.Path) func(path contract.Path) bool {
 				return true
 			}
 		}
+
 		return false
 	}
 }
@@ -130,6 +136,7 @@ func IsPathAllowed(allowedPaths []contract.Path) func(path contract.Path) bool {
 func IsPathNotAllowed(allowedPaths []contract.Path) func(path contract.Path) bool {
 	return func(path contract.Path) bool {
 		isAllowed := IsPathAllowed(allowedPaths)
+
 		return !isAllowed(path)
 	}
 }
@@ -142,6 +149,7 @@ func IsPathIgnored(ignorePaths []contract.Path) func(path contract.Path) bool {
 				return true
 			}
 		}
+
 		return false
 	}
 }

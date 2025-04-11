@@ -21,7 +21,7 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -135,7 +135,7 @@ var _ = Describe("NewJoinWorker", func() {
 		reader := bytes.NewReader(scriptContentsGzip)
 		gzreader, err := gzip.NewReader(reader)
 		Expect(err).ToNot(HaveOccurred())
-		scriptContents, err := ioutil.ReadAll(gzreader)
+		scriptContents, err := io.ReadAll(gzreader)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(scriptContents).To(ContainSubstring("/opt/rke2-cis-script.sh"))
 	})

@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/gomega"
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
-
 	// "github.com/rancher/cluster-api-provider-rke2/pkg/kubeconfig"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	corev1 "k8s.io/api/core/v1"

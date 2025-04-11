@@ -41,11 +41,13 @@ func (p Path) IsParentOf(other Path) bool {
 	if len(p) >= len(other) {
 		return false
 	}
+
 	for i := range p {
 		if p[i] != other[i] {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -54,11 +56,13 @@ func (p Path) Equal(other Path) bool {
 	if len(p) != len(other) {
 		return false
 	}
+
 	for i := range p {
 		if p[i] != other[i] {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -88,9 +92,11 @@ func (i *Int64) Get(obj *unstructured.Unstructured) (*int64, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %s from object", "."+strings.Join(i.path, "."))
 	}
+
 	if !ok {
 		return nil, errors.Wrapf(ErrFieldNotFound, "path %s", "."+strings.Join(i.path, "."))
 	}
+
 	return &value, nil
 }
 
@@ -99,6 +105,7 @@ func (i *Int64) Set(obj *unstructured.Unstructured, value int64) error {
 	if err := unstructured.SetNestedField(obj.UnstructuredContent(), value, i.path...); err != nil {
 		return errors.Wrapf(err, "failed to set path %s of object %v", "."+strings.Join(i.path, "."), obj.GroupVersionKind())
 	}
+
 	return nil
 }
 
@@ -122,13 +129,22 @@ func (i *Int32) Get(obj *unstructured.Unstructured) (*int32, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get %s from object", "."+strings.Join(path, "."))
 		}
+
 		if !ok {
 			paths = append(paths, "."+strings.Join(path, "."))
+
 			continue
 		}
+
+		if value > 2147483647 || value < -2147483648 {
+			return nil, errors.Wrapf(err, "int32 overflow: %d", value)
+		}
+
 		int32Value := int32(value)
+
 		return &int32Value, nil
 	}
+
 	return nil, errors.Wrapf(ErrFieldNotFound, "path %s", strings.Join(paths, ", "))
 }
 
@@ -140,6 +156,7 @@ func (i *Int32) Set(obj *unstructured.Unstructured, value int64) error {
 	if err := unstructured.SetNestedField(obj.UnstructuredContent(), value, i.paths[0]...); err != nil {
 		return errors.Wrapf(err, "failed to set path %s of object %v", "."+strings.Join(i.paths[0], "."), obj.GroupVersionKind())
 	}
+
 	return nil
 }
 
@@ -159,9 +176,11 @@ func (b *Bool) Get(obj *unstructured.Unstructured) (*bool, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %s from object", "."+strings.Join(b.path, "."))
 	}
+
 	if !ok {
 		return nil, errors.Wrapf(ErrFieldNotFound, "path %s", "."+strings.Join(b.path, "."))
 	}
+
 	return &value, nil
 }
 
@@ -170,6 +189,7 @@ func (b *Bool) Set(obj *unstructured.Unstructured, value bool) error {
 	if err := unstructured.SetNestedField(obj.UnstructuredContent(), value, b.path...); err != nil {
 		return errors.Wrapf(err, "failed to set path %s of object %v", "."+strings.Join(b.path, "."), obj.GroupVersionKind())
 	}
+
 	return nil
 }
 
@@ -189,9 +209,11 @@ func (s *String) Get(obj *unstructured.Unstructured) (*string, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %s from object", "."+strings.Join(s.path, "."))
 	}
+
 	if !ok {
 		return nil, errors.Wrapf(ErrFieldNotFound, "path %s", "."+strings.Join(s.path, "."))
 	}
+
 	return &value, nil
 }
 
@@ -200,6 +222,7 @@ func (s *String) Set(obj *unstructured.Unstructured, value string) error {
 	if err := unstructured.SetNestedField(obj.UnstructuredContent(), value, s.path...); err != nil {
 		return errors.Wrapf(err, "failed to set path %s of object %v", "."+strings.Join(s.path, "."), obj.GroupVersionKind())
 	}
+
 	return nil
 }
 
@@ -219,6 +242,7 @@ func (i *Duration) Get(obj *unstructured.Unstructured) (*metav1.Duration, error)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %s from object", "."+strings.Join(i.path, "."))
 	}
+
 	if !ok {
 		return nil, errors.Wrapf(ErrFieldNotFound, "path %s", "."+strings.Join(i.path, "."))
 	}
@@ -236,5 +260,6 @@ func (i *Duration) Set(obj *unstructured.Unstructured, value metav1.Duration) er
 	if err := unstructured.SetNestedField(obj.UnstructuredContent(), value.Duration.String(), i.path...); err != nil {
 		return errors.Wrapf(err, "failed to set path %s of object %v", "."+strings.Join(i.path, "."), obj.GroupVersionKind())
 	}
+
 	return nil
 }

@@ -42,14 +42,14 @@ const (
 
 var (
 	cacheHits = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "capi_ssa_cache_hits_total",
+		Name: "caprke2_ssa_cache_hits_total",
 		Help: "Total number of ssa cache hits.",
 	}, []string{
 		"kind", "controller",
 	})
 
 	cacheMisses = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "capi_ssa_cache_misses_total",
+		Name: "caprke2_ssa_cache_misses_total",
 		Help: "Total number of ssa cache misses.",
 	}, []string{
 		"kind", "controller",
@@ -74,10 +74,16 @@ func NewCache(controllerName string) Cache {
 	r := &ssaCache{
 		Store: cache.NewTTLStore(func(obj interface{}) (string, error) {
 			// We only add strings to the cache, so it's safe to cast to string.
-			return obj.(string), nil
+			key, ok := obj.(string)
+			if !ok {
+				return "", errors.New("object is not a string")
+			}
+
+			return key, nil
 		}, ttl),
 		controllerName: controllerName,
 	}
+
 	go func() {
 		for {
 			// Call list to clear the cache of expired items.
@@ -88,6 +94,7 @@ func NewCache(controllerName string) Cache {
 			time.Sleep(expirationInterval)
 		}
 	}()
+
 	return r
 }
 
@@ -109,12 +116,13 @@ func (r *ssaCache) Add(key string) {
 // Note: keys expire after the ttl.
 func (r *ssaCache) Has(key, kind string) bool {
 	// Note: We can ignore the error here because GetByKey never returns an error.
-	_, exists, _ := r.Store.GetByKey(key)
+	_, exists, _ := r.GetByKey(key)
 	if exists {
 		cacheHits.WithLabelValues(kind, r.controllerName).Inc()
 	} else {
 		cacheMisses.WithLabelValues(kind, r.controllerName).Inc()
 	}
+
 	return exists
 }
 
