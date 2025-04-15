@@ -34,6 +34,7 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	kubeyaml "sigs.k8s.io/yaml"
@@ -206,13 +207,16 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager, concurrency int) error {
 	if r.RKE2InitLock == nil {
 		r.RKE2InitLock = locking.NewControlPlaneInitMutex(mgr.GetClient())
 	}
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&bootstrapv1.RKE2Config{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: concurrency,
+		}).
 		Watches(
 			&clusterv1.Machine{},
 			handler.EnqueueRequestsFromMapFunc(r.MachineToBootstrapMapFunc),
