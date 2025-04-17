@@ -107,6 +107,12 @@ spec:
     rollingUpdate:
       maxSurge: 1
   agentConfig:
+    format: cloud-config
+    kubelet:
+      extraArgs:
+      - anonymous-auth=true
+    ntp:
+      enabled: true
     nodeAnnotations:
       test: "true"
   serverConfig:
@@ -127,6 +133,15 @@ spec:
       kind: DockerMachineTemplate
       name: "${CLUSTER_NAME}-control-plane"
     nodeDrainTimeout: 30s
+  preRKE2Commands:
+  - touch /pre-rke2-command.sentinel
+  postRKE2Commands:
+  - touch /post-rke2-command.sentinel
+  files:
+  - content: "Just a dummy file\n"
+    owner: root:root
+    path: /control-plane-file.sentinel
+    permissions: "0755"   
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
