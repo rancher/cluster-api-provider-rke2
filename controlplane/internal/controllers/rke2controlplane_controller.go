@@ -229,7 +229,7 @@ func patchRKE2ControlPlane(ctx context.Context, patchHelper *patch.Helper, rcp *
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, clientQPS float32, clientBurst int, concurrency int) error {
+func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, clientQPS float32, clientBurst, concurrency int) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&controlplanev1.RKE2ControlPlane{}).
 		Owns(&clusterv1.Machine{}).
