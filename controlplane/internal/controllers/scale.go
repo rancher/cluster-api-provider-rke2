@@ -601,7 +601,7 @@ func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 
 	// Set annotations
 	// Add the annotations from the MachineTemplate.
-	// Note: we intentionally don't use the map directly to ensure we don't modify the map in KCP.
+	// Note: we intentionally don't use the map directly to ensure we don't modify the map in RKE2ControlPlane.
 	for k, v := range rcp.Spec.MachineTemplate.ObjectMeta.Annotations {
 		desiredMachine.Annotations[k] = v
 	}

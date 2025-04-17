@@ -65,12 +65,12 @@ func NewControlPlane(
 	rcp *controlplanev1.RKE2ControlPlane,
 	ownedMachines collections.Machines,
 ) (*ControlPlane, error) {
-	infraObjects, err := getInfraResources(ctx, client, ownedMachines)
+	infraObjects, err := GetInfraResources(ctx, client, ownedMachines)
 	if err != nil {
 		return nil, err
 	}
 
-	rke2Configs, err := getRKE2Configs(ctx, client, ownedMachines)
+	rke2Configs, err := GetRKE2Configs(ctx, client, ownedMachines)
 	if err != nil {
 		return nil, err
 	}
@@ -315,9 +315,9 @@ func (c *ControlPlane) UpToDateMachines() collections.Machines {
 	return machines.Difference(c.MachinesNeedingRollout())
 }
 
-// getInfraResources fetches the external infrastructure resource for each machine in the collection
+// GetInfraResources fetches the external infrastructure resource for each machine in the collection
 // and returns a map of machine.Name -> infraResource.
-func getInfraResources(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*unstructured.Unstructured, error) {
+func GetInfraResources(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*unstructured.Unstructured, error) {
 	result := map[string]*unstructured.Unstructured{}
 
 	for _, m := range machines {
@@ -336,8 +336,8 @@ func getInfraResources(ctx context.Context, cl client.Client, machines collectio
 	return result, nil
 }
 
-// getRKE2Configs fetches the RKE2 config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
-func getRKE2Configs(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*bootstrapv1.RKE2Config, error) {
+// GetRKE2Configs fetches the RKE2 config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
+func GetRKE2Configs(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*bootstrapv1.RKE2Config, error) {
 	result := map[string]*bootstrapv1.RKE2Config{}
 
 	for name, m := range machines {
