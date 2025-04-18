@@ -4,6 +4,10 @@
 # Build the manager binary
 ARG builder_image
 
+# Build architecture
+ARG ARCH
+
+
 # Ignore Hadolint rule "Always tag the version of an image explicitly."
 # It's an invalid finding since the image is explicitly set in the Makefile.
 # https://github.com/hadolint/hadolint/wiki/DL3006
@@ -31,7 +35,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o manager ${package}
 
 # Production image
-FROM gcr.io/distroless/static:nonroot
+FROM gcr.io/distroless/static:nonroot-${ARCH}
 LABEL org.opencontainers.image.source=https://github.com/rancher/cluster-api-provider-rke2
 WORKDIR /
 COPY --from=builder /workspace/manager .

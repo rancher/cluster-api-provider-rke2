@@ -256,7 +256,8 @@ func (w *Workload) EtcdMembers(ctx context.Context) ([]string, error) {
 
 	names := []string{}
 	for _, member := range members {
-		names = append(names, member.Name)
+		// Convert etcd member to node name
+		names = append(names, etcdutil.NodeNameFromMember(member))
 	}
 
 	return names, nil

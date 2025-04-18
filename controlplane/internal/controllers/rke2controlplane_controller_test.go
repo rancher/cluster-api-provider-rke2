@@ -209,7 +209,12 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			},
 		}
 
-		cp, err = rke2.NewControlPlane(ctx, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
+		m := &rke2.Management{
+			Client:              testEnv,
+			SecretCachingClient: testEnv,
+		}
+
+		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
 		Expect(err).ToNot(HaveOccurred())
 
 		ref := metav1.OwnerReference{

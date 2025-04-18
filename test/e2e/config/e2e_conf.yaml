@@ -52,6 +52,7 @@ providers:
       type: "url"
       contract: v1beta1
       files:
+        - sourcePath: "../data/infrastructure/cluster-template-kcp-remediation.yaml"
         - sourcePath: "../data/infrastructure/cluster-template-docker-updated.yaml"
         - sourcePath: "../data/shared/v1beta1/metadata.yaml"
       replacements:
@@ -140,3 +141,6 @@ intervals:
   default/wait-deployment: ["5m", "10s"]
   default/wait-job: ["5m", "10s"]
   default/wait-service: ["3m", "10s"]
+  kcp-remediation/wait-machines: ["5m", "10s"]
+  kcp-remediation/check-machines-stable: ["30s", "5s"]
+  kcp-remediation/wait-machine-provisioned: ["5m", "10s"]

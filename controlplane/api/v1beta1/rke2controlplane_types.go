@@ -17,6 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -40,6 +42,23 @@ const (
 	// LegacyRKE2ControlPlane is a controlplane annotation that marks the CP as legacy. This CP will not provide
 	// etcd certificate management or etcd membership management.
 	LegacyRKE2ControlPlane = "controlplane.cluster.x-k8s.io/legacy"
+
+	// RemediationInProgressAnnotation is used to keep track that a RCP remediation is in progress, and more
+	// specifically it tracks that the system is in between having deleted an unhealthy machine and recreating its replacement.
+	// NOTE: if something external to CAPI removes this annotation the system cannot detect the above situation; this can lead to
+	// failures in updating remediation retry or remediation count (both counters restart from zero).
+	RemediationInProgressAnnotation = "controlplane.cluster.x-k8s.io/remediation-in-progress"
+
+	// RemediationForAnnotation is used to link a new machine to the unhealthy machine it is replacing;
+	// please note that in case of retry, when also the remediating machine fails, the system keeps track of
+	// the first machine of the sequence only.
+	// NOTE: if something external to CAPI removes this annotation the system this can lead to
+	// failures in updating remediation retry (the counter restarts from zero).
+	RemediationForAnnotation = "controlplane.cluster.x-k8s.io/remediation-for"
+
+	// DefaultMinHealthyPeriod defines the default minimum period before we consider a remediation on a
+	// machine unrelated from the previous remediation.
+	DefaultMinHealthyPeriod = 1 * time.Hour
 )
 
 // RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane.
@@ -98,6 +117,10 @@ type RKE2ControlPlaneSpec struct {
 
 	// The RolloutStrategy to use to replace control plane machines with new ones.
 	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy"`
+
+	// remediationStrategy is the RemediationStrategy that controls how control plane machine remediation happens.
+	// +optional
+	RemediationStrategy *RemediationStrategy `json:"remediationStrategy,omitempty"`
 }
 
 // RKE2ControlPlaneMachineTemplate defines the template for Machines
@@ -265,6 +288,10 @@ type RKE2ControlPlaneStatus struct {
 	// AvailableServerIPs is a list of the Control Plane IP adds that can be used to register further nodes.
 	// +optional
 	AvailableServerIPs []string `json:"availableServerIPs,omitempty"`
+
+	// lastRemediation stores info about last remediation performed.
+	// +optional
+	LastRemediation *LastRemediationStatus `json:"lastRemediation,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -422,6 +449,70 @@ const (
 	// SnapshotValidationWebhook references the RKE2 Plugin "rke2-snapshot-validation-webhook".
 	SnapshotValidationWebhook DisabledPluginComponent = "rke2-snapshot-validation-webhook"
 )
+
+// RemediationStrategy allows to define how control plane machine remediation happens.
+type RemediationStrategy struct {
+	// maxRetry is the Max number of retries while attempting to remediate an unhealthy machine.
+	// A retry happens when a machine that was created as a replacement for an unhealthy machine also fails.
+	// For example, given a control plane with three machines M1, M2, M3:
+	//
+	//	M1 become unhealthy; remediation happens, and M1-1 is created as a replacement.
+	//	If M1-1 (replacement of M1) has problems while bootstrapping it will become unhealthy, and then be
+	//	remediated; such operation is considered a retry, remediation-retry #1.
+	//	If M1-2 (replacement of M1-1) becomes unhealthy, remediation-retry #2 will happen, etc.
+	//
+	// A retry could happen only after RetryPeriod from the previous retry.
+	// If a machine is marked as unhealthy after MinHealthyPeriod from the previous remediation expired,
+	// this is not considered a retry anymore because the new issue is assumed unrelated from the previous one.
+	//
+	// If not set, the remedation will be retried infinitely.
+	// +optional
+	MaxRetry *int32 `json:"maxRetry,omitempty"`
+
+	// retryPeriod is the duration that KCP should wait before remediating a machine being created as a replacement
+	// for an unhealthy machine (a retry).
+	//
+	// If not set, a retry will happen immediately.
+	// +optional
+	RetryPeriod metav1.Duration `json:"retryPeriod,omitempty"`
+
+	// minHealthyPeriod defines the duration after which KCP will consider any failure to a machine unrelated
+	// from the previous one. In this case the remediation is not considered a retry anymore, and thus the retry
+	// counter restarts from 0. For example, assuming MinHealthyPeriod is set to 1h (default)
+	//
+	//	M1 become unhealthy; remediation happens, and M1-1 is created as a replacement.
+	//	If M1-1 (replacement of M1) has problems within the 1hr after the creation, also
+	//	this machine will be remediated and this operation is considered a retry - a problem related
+	//	to the original issue happened to M1 -.
+	//
+	//	If instead the problem on M1-1 is happening after MinHealthyPeriod expired, e.g. four days after
+	//	m1-1 has been created as a remediation of M1, the problem on M1-1 is considered unrelated to
+	//	the original issue happened to M1.
+	//
+	// If not set, this value is defaulted to 1h.
+	// +optional
+	MinHealthyPeriod *metav1.Duration `json:"minHealthyPeriod,omitempty"`
+}
+
+// LastRemediationStatus  stores info about last remediation performed.
+// NOTE: if for any reason information about last remediation are lost, RetryCount is going to restart from 0 and thus
+// more remediations than expected might happen.
+type LastRemediationStatus struct {
+	// machine is the machine name of the latest machine being remediated.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	Machine string `json:"machine"`
+
+	// timestamp is when last remediation happened. It is represented in RFC3339 form and is in UTC.
+	// +required
+	Timestamp metav1.Time `json:"timestamp"`
+
+	// retryCount used to keep track of remediation retry for the last remediated machine.
+	// A retry happens when a machine that was created as a replacement for an unhealthy machine also fails.
+	// +required
+	RetryCount int32 `json:"retryCount"`
+}
 
 // RolloutStrategy describes how to replace existing machines
 // with new ones.
