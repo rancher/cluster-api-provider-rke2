@@ -311,7 +311,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		logger.V(3).Info("Ready Machine : " + readyMachine.Name)
 	}
 
-	controlPlane, err := rke2.NewControlPlane(ctx, r.Client, cluster, rcp, ownedMachines)
+	controlPlane, err := rke2.NewControlPlane(ctx, r.managementCluster, r.Client, cluster, rcp, ownedMachines)
 	if err != nil {
 		logger.Error(err, "failed to initialize control plane")
 
@@ -386,7 +386,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	rcp.Status.ReadyReplicas = rke2util.SafeInt32(len(readyMachines))
 	rcp.Status.UnavailableReplicas = replicas - rcp.Status.ReadyReplicas
 
-	workloadCluster, err := r.getWorkloadCluster(ctx, util.ObjectKey(cluster))
+	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
 	if err != nil {
 		logger.Error(err, "Failed to get remote client for workload cluster", "cluster key", util.ObjectKey(cluster))
 
@@ -437,6 +437,35 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	lowestVersion := controlPlane.Machines.LowestVersion()
 	if lowestVersion != nil {
 		controlPlane.RCP.Status.Version = lowestVersion
+	}
+
+	// Surface lastRemediation data in status.
+	// LastRemediation is the remediation currently in progress, in any, or the
+	// most recent of the remediation we are keeping track on machines.
+	var lastRemediation *RemediationData
+
+	if v, ok := controlPlane.RCP.Annotations[controlplanev1.RemediationInProgressAnnotation]; ok {
+		remediationData, err := RemediationDataFromAnnotation(v)
+		if err != nil {
+			return err
+		}
+		lastRemediation = remediationData
+	} else {
+		for _, m := range controlPlane.Machines.UnsortedList() {
+			if v, ok := m.Annotations[controlplanev1.RemediationForAnnotation]; ok {
+				remediationData, err := RemediationDataFromAnnotation(v)
+				if err != nil {
+					return err
+				}
+				if lastRemediation == nil || lastRemediation.Timestamp.Time.Before(remediationData.Timestamp.Time) {
+					lastRemediation = remediationData
+				}
+			}
+		}
+	}
+
+	if lastRemediation != nil {
+		controlPlane.RCP.Status.LastRemediation = lastRemediation.ToStatus()
 	}
 
 	return nil
@@ -511,7 +540,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		return ctrl.Result{}, nil
 	}
 
-	controlPlane, err := rke2.NewControlPlane(ctx, r.Client, cluster, rcp, ownedMachines)
+	controlPlane, err := rke2.NewControlPlane(ctx, r.managementCluster, r.Client, cluster, rcp, ownedMachines)
 	if err != nil {
 		logger.Error(err, "failed to initialize control plane")
 
@@ -540,6 +569,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	}
 
 	if result, err := r.reconcilePreTerminateHook(ctx, controlPlane); err != nil || !result.IsZero() {
+		return result, err
+	}
+
+	// Reconcile unhealthy machines by triggering deletion and requeue if it is considered safe to remediate,
+	// otherwise continue with the other RCP operations.
+	if result, err := r.reconcileUnhealthyMachines(ctx, controlPlane); err != nil || !result.IsZero() {
 		return result, err
 	}
 
@@ -698,7 +733,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 		return ctrl.Result{}, nil
 	}
 
-	controlPlane, err := rke2.NewControlPlane(ctx, r.Client, cluster, rcp, ownedMachines)
+	controlPlane, err := rke2.NewControlPlane(ctx, r.managementCluster, r.Client, cluster, rcp, ownedMachines)
 	if err != nil {
 		logger.Error(err, "failed to initialize control plane")
 
@@ -868,7 +903,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 		return ctrl.Result{}, nil
 	}
 
-	workloadCluster, err := r.getWorkloadCluster(ctx, util.ObjectKey(controlPlane.Cluster))
+	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
 	if err != nil {
 		logger.Error(err, "Failed to get remote client for workload cluster", "cluster key", util.ObjectKey(controlPlane.Cluster))
 
@@ -920,7 +955,7 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		return ctrl.Result{}, nil
 	}
 
-	workloadCluster, err := r.getWorkloadCluster(ctx, util.ObjectKey(cluster))
+	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
 	if err != nil {
 		logger.Error(err, "Failed to get remote client for workload cluster", "cluster key", util.ObjectKey(cluster))
 
@@ -1080,15 +1115,4 @@ func machineHasOtherPreTerminateHooks(machine *clusterv1.Machine) bool {
 	}
 
 	return false
-}
-
-// getWorkloadCluster gets a cluster object.
-// The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
-func (r *RKE2ControlPlaneReconciler) getWorkloadCluster(ctx context.Context, clusterKey types.NamespacedName) (rke2.WorkloadCluster, error) {
-	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, clusterKey)
-	if err != nil {
-		return nil, fmt.Errorf("getting remote client for workload cluster: %w", err)
-	}
-
-	return workloadCluster, nil
 }
