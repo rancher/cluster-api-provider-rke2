@@ -137,7 +137,7 @@ var _ = Describe("Node metadata propagation", func() {
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
 		Expect(err).ToNot(HaveOccurred())
 
-		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -167,7 +167,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -197,7 +197,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -244,7 +244,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -290,7 +290,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -340,7 +340,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -360,7 +360,7 @@ var _ = Describe("Node metadata propagation", func() {
 		machines = collections.FromMachineList(&clusterv1.MachineList{Items: []clusterv1.Machine{
 			*machineDifferentNode,
 		}})
-		cp, err = NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
+		cp, err = NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())

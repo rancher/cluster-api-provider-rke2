@@ -25,6 +25,18 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd"
 )
 
+// TODO: find document confirmation of mapping between etcd member and node in k3s.
+func NodeNameFromMember(member *etcd.Member) string {
+	memberName := member.Name
+	lastIndex := strings.LastIndex(memberName, "-")
+
+	if lastIndex != -1 {
+		memberName = memberName[:lastIndex]
+	}
+
+	return memberName
+}
+
 // MemberForName returns the etcd member with the matching name.
 func MemberForName(members []*etcd.Member, name string) *etcd.Member {
 	for _, m := range members {

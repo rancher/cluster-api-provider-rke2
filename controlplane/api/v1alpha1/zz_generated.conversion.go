@@ -428,6 +428,7 @@ func autoConvert_v1beta1_RKE2ControlPlaneSpec_To_v1alpha1_RKE2ControlPlaneSpec(i
 	out.RegistrationMethod = RegistrationMethod(in.RegistrationMethod)
 	out.RegistrationAddress = in.RegistrationAddress
 	out.RolloutStrategy = (*RolloutStrategy)(unsafe.Pointer(in.RolloutStrategy))
+	// WARNING: in.RemediationStrategy requires manual conversion: does not exist in peer-type
 	return nil
 }
 
@@ -461,6 +462,7 @@ func autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStat
 	out.UpdatedReplicas = in.UpdatedReplicas
 	out.UnavailableReplicas = in.UnavailableReplicas
 	out.AvailableServerIPs = *(*[]string)(unsafe.Pointer(&in.AvailableServerIPs))
+	// WARNING: in.LastRemediation requires manual conversion: does not exist in peer-type
 	return nil
 }
 

@@ -329,9 +329,10 @@ docker-build: buildx-machine docker-pull-prerequisites
 .PHONY: docker-build-rke2-bootstrap
 docker-build-rke2-bootstrap: 
 	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
-			--platform $(ARCH) \
+			--platform linux/amd64 \
 			--load \
 			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg ARCH=$(ARCH) \
 			--build-arg goproxy=$(GOPROXY) \
 			--build-arg package=./bootstrap \
 			--build-arg ldflags="$(LDFLAGS)" . -t $(BOOTSTRAP_IMG):$(TAG)
@@ -341,9 +342,10 @@ docker-build-rke2-bootstrap:
 .PHONY: docker-build-rke2-control-plane
 docker-build-rke2-control-plane:
 	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
-			--platform $(ARCH) \
+			--platform linux/amd64 \
 			--load \
 			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg ARCH=$(ARCH) \
 			--build-arg goproxy=$(GOPROXY) \
 			--build-arg package=./controlplane \
 			--build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG):$(TAG)
@@ -395,7 +397,7 @@ kubectl: # Download kubectl cli into tools bin folder
 ##@ e2e:
 
 # Allow overriding the e2e configurations
-GINKGO_FOCUS ?= Workload cluster creation
+GINKGO_FOCUS ?=
 GINKGO_SKIP ?= API Version Upgrade
 GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
