@@ -1,0 +1,190 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${NAMESPACE}
+---
+apiVersion: v1
+data: #Please refer to cluster-api documentation to get these information
+  cacert: "" 
+  clouds.yaml: ""
+kind: Secret
+metadata:
+  labels:
+    clusterctl.cluster.x-k8s.io/move: "true"
+  name: ${CLUSTER_NAME}-cloud-config
+  namespace: ${CLUSTER_NAME}
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: RKE2ConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-workers
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      preRKE2Commands:
+        - sleep 30 # fix to give OS time to become ready
+      agentConfig:
+        kubelet:
+          extraArgs:
+          - provider-id=openstack:///{{ ds.meta_data.uuid }} # Data from Openstack metadata-service
+        nodeName: '{{ ds.meta_data.local_hostname }}' # Data from Openstack metadata-service
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+  labels:
+    clusterName: ${CLUSTER_NAME}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    serviceDomain: cluster.local
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: RKE2ControlPlane
+    name: ${CLUSTER_NAME}-control-plane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha7
+    kind: OpenStackCluster
+    name: ${CLUSTER_NAME}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: ${CLUSTER_NAME}-workers
+  namespace: ${NAMESPACE}
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+spec:
+  clusterName: ${CLUSTER_NAME}
+  replicas: 3
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: RKE2ConfigTemplate
+          name: ${CLUSTER_NAME}-workers
+      clusterName: ${CLUSTER_NAME}
+      failureDomain: ${OPENSTACK_FAILURE_DOMAIN} # It depends on openstack installation
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha7
+        kind: OpenStackMachineTemplate
+        name: ${CLUSTER_NAME}-workers
+      version: v1.30.8+rke2r1
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: RKE2ControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+  namespace: ${NAMESPACE}
+spec:
+  agentConfig:
+    kubelet:
+      extraArgs:
+      - provider-id=openstack:///{{ ds.meta_data.uuid }} # Data from Openstack metadata-service
+    nodeName: '{{ ds.meta_data.local_hostname }}' # Data from Openstack metadata-service
+  version: v1.30.8+rke2r1
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha7
+    kind: OpenStackMachineTemplate
+    name: ${CLUSTER_NAME}-control-plane
+  replicas: 3
+  rolloutStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: 0
+  registrationMethod: "internal-first"
+  serverConfig:
+    cni: calico
+    disableComponents: 
+      pluginComponents:
+        - "rke2-ingress-nginx" # Optional, I prefer using haproxy
+      kubernetesComponents:
+        - cloudController # We use use openstack-cloud-controller-manager 
+    etcd: 
+      backupConfig:
+        s3:
+          endpoint: ${S3_ENDPOINT}
+          s3CredentialSecret: 
+            apiVersion: v1
+            kind: Secret
+            name: etcd-backup-secret
+            namespace: ${NAMESPACE}
+          region: ${S3_REGION}
+          bucket: ${S3_BUCKET}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha7
+kind: OpenStackCluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  apiServerLoadBalancer:
+    enabled: true
+  cloudName: ${OPENSTACK_CLOUD_NAME}
+  dnsNameservers:
+    - 1.1.1.1
+    - 8.8.8.8
+  externalNetworkId: ${OPENSTACK_PUBLIC_NETWORK_ID}
+  identityRef:
+    kind: Secret
+    name: ${CLUSTER_NAME}-cloud-config
+  managedSecurityGroups: true
+  nodeCidr: 10.65.0.0/24
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha7
+kind: OpenStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      cloudName: ${OPENSTACK_CLOUD_NAME} # It depends on openstack installation (tanant)
+      securityGroups: # Example of pre-created security groups
+        - name: Calico
+        - name: rke2
+      flavor: ${OPENSTACK_CONTROLPLANE_FLAVOR}
+      identityRef:
+        kind: Secret
+        name: ${CLUSTER_NAME}-cloud-config
+      image: ${IMAGE}
+      sshKeyName: ${OPENSTACK_SSH_KEY}
+      rootVolume:
+        availabilityZone: nova
+        diskSize: 20
+        volumeType: default
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha7
+kind: OpenStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-workers
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      cloudName: ${OPENSTACK_CLOUD_NAME} # It depends on openstack installation (tanant)
+      flavor: ${OPENSTACK_WORKER_FLAVOR}
+      identityRef:
+        kind: Secret
+        name: ${CLUSTER_NAME}-cloud-config
+      image: ${IMAGE} #Ex. ubuntu-22.04-server-cloudimg-amd64
+      sshKeyName: ${OPENSTACK_SSH_KEY}
+      securityGroups: #Example of pre-created security groups
+        - name: Calico
+        - name: rke2
+      rootVolume:
+        availabilityZone: nova
+        diskSize: 50
+        volumeType: ${OPENSTACK_VOLUME_PROVIDER}
