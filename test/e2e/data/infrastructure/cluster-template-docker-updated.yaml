@@ -121,11 +121,15 @@ spec:
     metadata:
       labels:
         key: value
+      annotations:
+        key: value
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: DockerMachineTemplate
       name:  "${CLUSTER_NAME}-control-plane"
-    nodeDrainTimeout: 30s
+    nodeDrainTimeout: 2m
+    nodeDeletionTimeout: 30s
+    nodeVolumeDetachTimeout: 5m
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate

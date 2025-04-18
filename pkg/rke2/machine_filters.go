@@ -113,9 +113,13 @@ func matchServerConfig(rcp *controlplanev1.RKE2ControlPlane, machine *clusterv1.
 		machineServerConfig = &controlplanev1.RKE2ServerConfig{}
 	}
 
-	rcpServerConfig := &rcp.Spec.ServerConfig
-	if rcpServerConfig == nil {
+	var rcpServerConfig *controlplanev1.RKE2ServerConfig
+	if reflect.DeepEqual(rcp.Spec.ServerConfig, controlplanev1.RKE2ServerConfig{}) {
+		// If the ServerConfig is empty, initialize a new RKE2ServerConfig
 		rcpServerConfig = &controlplanev1.RKE2ServerConfig{}
+	} else {
+		// Otherwise, take the address of the existing ServerConfig
+		rcpServerConfig = &rcp.Spec.ServerConfig
 	}
 
 	// Compare and return

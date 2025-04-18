@@ -584,7 +584,7 @@ func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *Control
 			continue
 		}
 
-		rkeConfig, found := controlPlane.rke2Configs[machine.Name]
+		rkeConfig, found := controlPlane.Rke2Configs[machine.Name]
 		if !found {
 			conditions.MarkUnknown(
 				machine,

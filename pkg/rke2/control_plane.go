@@ -53,8 +53,8 @@ type ControlPlane struct {
 	// reconciliationTime is the time of the current reconciliation, and should be used for all "now" calculations
 	reconciliationTime metav1.Time
 
-	rke2Configs    map[string]*bootstrapv1.RKE2Config
-	infraResources map[string]*unstructured.Unstructured
+	Rke2Configs    map[string]*bootstrapv1.RKE2Config
+	InfraResources map[string]*unstructured.Unstructured
 }
 
 // NewControlPlane returns an instantiated ControlPlane.
@@ -65,12 +65,12 @@ func NewControlPlane(
 	rcp *controlplanev1.RKE2ControlPlane,
 	ownedMachines collections.Machines,
 ) (*ControlPlane, error) {
-	infraObjects, err := getInfraResources(ctx, client, ownedMachines)
+	infraObjects, err := GetInfraResources(ctx, client, ownedMachines)
 	if err != nil {
 		return nil, err
 	}
 
-	rke2Configs, err := getRKE2Configs(ctx, client, ownedMachines)
+	rke2Configs, err := GetRKE2Configs(ctx, client, ownedMachines)
 	if err != nil {
 		return nil, err
 	}
@@ -95,8 +95,8 @@ func NewControlPlane(
 		Cluster:              cluster,
 		Machines:             ownedMachines,
 		machinesPatchHelpers: patchHelpers,
-		rke2Configs:          rke2Configs,
-		infraResources:       infraObjects,
+		Rke2Configs:          rke2Configs,
+		InfraResources:       infraObjects,
 		reconciliationTime:   metav1.Now(),
 	}, nil
 }
@@ -249,7 +249,10 @@ func (c *ControlPlane) NewMachine(infraRef, bootstrapRef *corev1.ObjectReference
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
-			FailureDomain: failureDomain,
+			FailureDomain:           failureDomain,
+			NodeDrainTimeout:        c.RCP.Spec.MachineTemplate.NodeDrainTimeout,
+			NodeVolumeDetachTimeout: c.RCP.Spec.MachineTemplate.NodeVolumeDetachTimeout,
+			NodeDeletionTimeout:     c.RCP.Spec.MachineTemplate.NodeDeletionTimeout,
 		},
 	}
 }
@@ -294,7 +297,7 @@ func (c *ControlPlane) MachinesNeedingRollout() collections.Machines {
 	// Return machines if they are scheduled for rollout or if with an outdated configuration.
 	return machines.AnyFilter(
 		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
+		collections.Not(matchesRCPConfiguration(c.InfraResources, c.Rke2Configs, c.RCP)),
 	)
 }
 
@@ -306,15 +309,15 @@ func (c *ControlPlane) UpToDateMachines() collections.Machines {
 	// Filter machines if they are scheduled for rollout or if with an outdated configuration.
 	machines.AnyFilter(
 		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(c.infraResources, c.rke2Configs, c.RCP)),
+		collections.Not(matchesRCPConfiguration(c.InfraResources, c.Rke2Configs, c.RCP)),
 	)
 
 	return machines.Difference(c.MachinesNeedingRollout())
 }
 
-// getInfraResources fetches the external infrastructure resource for each machine in the collection
+// GetInfraResources fetches the external infrastructure resource for each machine in the collection
 // and returns a map of machine.Name -> infraResource.
-func getInfraResources(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*unstructured.Unstructured, error) {
+func GetInfraResources(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*unstructured.Unstructured, error) {
 	result := map[string]*unstructured.Unstructured{}
 
 	for _, m := range machines {
@@ -333,8 +336,8 @@ func getInfraResources(ctx context.Context, cl client.Client, machines collectio
 	return result, nil
 }
 
-// getRKE2Configs fetches the RKE2 config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
-func getRKE2Configs(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*bootstrapv1.RKE2Config, error) {
+// GetRKE2Configs fetches the RKE2 config for each machine in the collection and returns a map of machine.Name -> RKE2Config.
+func GetRKE2Configs(ctx context.Context, cl client.Client, machines collections.Machines) (map[string]*bootstrapv1.RKE2Config, error) {
 	result := map[string]*bootstrapv1.RKE2Config{}
 
 	for name, m := range machines {
@@ -434,4 +437,9 @@ func (o machinesByDeletionTimestamp) Less(i, j int) bool {
 	}
 
 	return o[i].DeletionTimestamp.Before(o[j].DeletionTimestamp)
+}
+
+// SetPatchHelpers updates the patch helpers.
+func (c *ControlPlane) SetPatchHelpers(patchHelpers map[string]*patch.Helper) {
+	c.machinesPatchHelpers = patchHelpers
 }
