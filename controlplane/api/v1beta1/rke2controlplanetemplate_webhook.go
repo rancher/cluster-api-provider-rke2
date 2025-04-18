@@ -101,13 +101,14 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateCreate(_ context.Conte
 func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	oldControlplane, ok := oldObj.(*RKE2ControlPlaneTemplate)
 	if !ok {
-		return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), oldControlplane.Name, field.ErrorList{
+		return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), "", field.ErrorList{
 			field.InternalError(nil, errors.New("failed to convert old RKE2ControlPlane to object")),
 		})
 	}
 
 	newControlplane, ok := newObj.(*RKE2ControlPlaneTemplate)
 	if !ok {
+		// At this point, oldControlplane is guaranteed to be valid
 		return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), oldControlplane.Name, field.ErrorList{
 			field.InternalError(nil, errors.New("failed to convert new RKE2ControlPlane to object")),
 		})
