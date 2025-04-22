@@ -203,7 +203,7 @@ func main() {
 	setupWebhooks(mgr)
 	setupReconcilers(ctx, mgr)
 
-	setupLog.Info("Starting manager", "version", version.Get().String())
+	setupLog.Info("Starting manager", "version", version.Get().String(), "concurrency", concurrencyNumber)
 
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
@@ -240,7 +240,7 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 		Scheme:              mgr.GetScheme(),
 		WatchFilterValue:    watchFilterValue,
 		SecretCachingClient: secretCachingClient,
-	}).SetupWithManager(ctx, mgr, clusterCacheTrackerClientQPS, clusterCacheTrackerClientBurst); err != nil {
+	}).SetupWithManager(ctx, mgr, clusterCacheTrackerClientQPS, clusterCacheTrackerClientBurst, concurrencyNumber); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RKE2ControlPlane")
 		os.Exit(1)
 	}

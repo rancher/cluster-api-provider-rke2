@@ -198,7 +198,7 @@ func main() {
 	setupReconcilers(mgr)
 	setupWebhooks(mgr)
 
-	setupLog.Info("Starting manager", "version", version.Get().String())
+	setupLog.Info("Starting manager", "version", version.Get().String(), "concurrency", concurrencyNumber)
 
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
@@ -222,7 +222,7 @@ func setupReconcilers(mgr ctrl.Manager) {
 	if err := (&controllers.RKE2ConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, concurrencyNumber); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2Config")
 		os.Exit(1)
 	}
