@@ -469,14 +469,14 @@ type RemediationStrategy struct {
 	// +optional
 	MaxRetry *int32 `json:"maxRetry,omitempty"`
 
-	// retryPeriod is the duration that KCP should wait before remediating a machine being created as a replacement
+	// retryPeriod is the duration that RKE2ControlPlane should wait before remediating a machine being created as a replacement
 	// for an unhealthy machine (a retry).
 	//
 	// If not set, a retry will happen immediately.
 	// +optional
 	RetryPeriod metav1.Duration `json:"retryPeriod,omitempty"`
 
-	// minHealthyPeriod defines the duration after which KCP will consider any failure to a machine unrelated
+	// minHealthyPeriod defines the duration after which RKE2ControlPlane will consider any failure to a machine unrelated
 	// from the previous one. In this case the remediation is not considered a retry anymore, and thus the retry
 	// counter restarts from 0. For example, assuming MinHealthyPeriod is set to 1h (default)
 	//
@@ -511,7 +511,7 @@ type LastRemediationStatus struct {
 	// retryCount used to keep track of remediation retry for the last remediated machine.
 	// A retry happens when a machine that was created as a replacement for an unhealthy machine also fails.
 	// +required
-	RetryCount int32 `json:"retryCount"`
+	RetryCount int `json:"retryCount"`
 }
 
 // RolloutStrategy describes how to replace existing machines

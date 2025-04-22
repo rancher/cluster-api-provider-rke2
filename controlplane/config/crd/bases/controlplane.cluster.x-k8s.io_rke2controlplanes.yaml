@@ -1977,8 +1977,8 @@ spec:
                     type: integer
                   minHealthyPeriod:
                     description: "minHealthyPeriod defines the duration after which
-                      KCP will consider any failure to a machine unrelated\nfrom the
-                      previous one. In this case the remediation is not considered
+                      RKE2ControlPlane will consider any failure to a machine unrelated\nfrom
+                      the previous one. In this case the remediation is not considered
                       a retry anymore, and thus the retry\ncounter restarts from 0.
                       For example, assuming MinHealthyPeriod is set to 1h (default)\n\n\tM1
                       become unhealthy; remediation happens, and M1-1 is created as
@@ -1994,7 +1994,7 @@ spec:
                     type: string
                   retryPeriod:
                     description: |-
-                      retryPeriod is the duration that KCP should wait before remediating a machine being created as a replacement
+                      retryPeriod is the duration that RKE2ControlPlane should wait before remediating a machine being created as a replacement
                       for an unhealthy machine (a retry).
 
                       If not set, a retry will happen immediately.
@@ -2586,7 +2586,6 @@ spec:
                     description: |-
                       retryCount used to keep track of remediation retry for the last remediated machine.
                       A retry happens when a machine that was created as a replacement for an unhealthy machine also fails.
-                    format: int32
                     type: integer
                   timestamp:
                     description: timestamp is when last remediation happened. It is

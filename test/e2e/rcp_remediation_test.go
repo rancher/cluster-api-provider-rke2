@@ -52,7 +52,7 @@ var _ = Describe("When testing RCP remediation", func() {
 			BootstrapClusterProxy:  bootstrapClusterProxy,
 			ArtifactFolder:         artifactFolder,
 			SkipCleanup:            skipCleanup,
-			InfrastructureProvider: ptr.To("docker-updated:v1.9.5"),
+			InfrastructureProvider: ptr.To("docker-rcp-remediation:v1.9.5"),
 		}
 	})
 })

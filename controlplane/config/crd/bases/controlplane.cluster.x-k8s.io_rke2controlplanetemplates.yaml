@@ -821,25 +821,26 @@ spec:
                             type: integer
                           minHealthyPeriod:
                             description: "minHealthyPeriod defines the duration after
-                              which KCP will consider any failure to a machine unrelated\nfrom
-                              the previous one. In this case the remediation is not
-                              considered a retry anymore, and thus the retry\ncounter
-                              restarts from 0. For example, assuming MinHealthyPeriod
-                              is set to 1h (default)\n\n\tM1 become unhealthy; remediation
-                              happens, and M1-1 is created as a replacement.\n\tIf
-                              M1-1 (replacement of M1) has problems within the 1hr
-                              after the creation, also\n\tthis machine will be remediated
-                              and this operation is considered a retry - a problem
-                              related\n\tto the original issue happened to M1 -.\n\n\tIf
-                              instead the problem on M1-1 is happening after MinHealthyPeriod
-                              expired, e.g. four days after\n\tm1-1 has been created
-                              as a remediation of M1, the problem on M1-1 is considered
-                              unrelated to\n\tthe original issue happened to M1.\n\nIf
-                              not set, this value is defaulted to 1h."
+                              which RKE2ControlPlane will consider any failure to
+                              a machine unrelated\nfrom the previous one. In this
+                              case the remediation is not considered a retry anymore,
+                              and thus the retry\ncounter restarts from 0. For example,
+                              assuming MinHealthyPeriod is set to 1h (default)\n\n\tM1
+                              become unhealthy; remediation happens, and M1-1 is created
+                              as a replacement.\n\tIf M1-1 (replacement of M1) has
+                              problems within the 1hr after the creation, also\n\tthis
+                              machine will be remediated and this operation is considered
+                              a retry - a problem related\n\tto the original issue
+                              happened to M1 -.\n\n\tIf instead the problem on M1-1
+                              is happening after MinHealthyPeriod expired, e.g. four
+                              days after\n\tm1-1 has been created as a remediation
+                              of M1, the problem on M1-1 is considered unrelated to\n\tthe
+                              original issue happened to M1.\n\nIf not set, this value
+                              is defaulted to 1h."
                             type: string
                           retryPeriod:
                             description: |-
-                              retryPeriod is the duration that KCP should wait before remediating a machine being created as a replacement
+                              retryPeriod is the duration that RKE2ControlPlane should wait before remediating a machine being created as a replacement
                               for an unhealthy machine (a retry).
 
                               If not set, a retry will happen immediately.
@@ -1454,7 +1455,6 @@ spec:
                     description: |-
                       retryCount used to keep track of remediation retry for the last remediated machine.
                       A retry happens when a machine that was created as a replacement for an unhealthy machine also fails.
-                    format: int32
                     type: integer
                   timestamp:
                     description: timestamp is when last remediation happened. It is

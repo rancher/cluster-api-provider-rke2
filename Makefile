@@ -118,6 +118,7 @@ GH := $(abspath $(TOOLS_BIN_DIR)/$(GH_BIN))
 # Registry / images
 TAG ?= dev
 ARCH ?= $(shell go env GOARCH)
+TARGET_PLATFORM = linux/$(ARCH)
 ALL_ARCH = amd64 arm64
 TARGET_PLATFORMS := linux/amd64,linux/arm64
 MACHINE := cluster-api-provider-rke2
@@ -327,9 +328,9 @@ docker-build: buildx-machine docker-pull-prerequisites
 
 
 .PHONY: docker-build-rke2-bootstrap
-docker-build-rke2-bootstrap: 
+docker-build-rke2-bootstrap:
 	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
-			--platform linux/amd64 \
+			--platform $(TARGET_PLATFORM) \
 			--load \
 			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
 			--build-arg ARCH=$(ARCH) \
@@ -342,7 +343,7 @@ docker-build-rke2-bootstrap:
 .PHONY: docker-build-rke2-control-plane
 docker-build-rke2-control-plane:
 	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
-			--platform linux/amd64 \
+			--platform $(TARGET_PLATFORM) \
 			--load \
 			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
 			--build-arg ARCH=$(ARCH) \

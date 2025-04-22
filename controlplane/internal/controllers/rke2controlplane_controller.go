@@ -308,6 +308,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 	return nil
 }
 
+// nolint:gocyclo
 func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster) error {
 	logger := log.FromContext(ctx)
 
@@ -499,6 +500,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 				if err != nil {
 					return err
 				}
+
 				if lastRemediation == nil || lastRemediation.Timestamp.Time.Before(remediationData.Timestamp.Time) {
 					lastRemediation = remediationData
 				}

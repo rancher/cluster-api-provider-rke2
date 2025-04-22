@@ -57,6 +57,10 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
+	if restored.Spec.RemediationStrategy != nil {
+		dst.Spec.RemediationStrategy = restored.Spec.RemediationStrategy
+	}
+
 	dst.Spec.ServerConfig.EmbeddedRegistry = restored.Spec.ServerConfig.EmbeddedRegistry
 	dst.Spec.MachineTemplate = restored.Spec.MachineTemplate
 	dst.Status = restored.Status

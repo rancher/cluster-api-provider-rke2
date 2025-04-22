@@ -92,7 +92,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	// and `MachineOwnerRemediated` is false, indicating that this controller is responsible for performing remediation.
 	machinesToBeRemediated := controlPlane.MachinesToBeRemediatedByRCP()
 
-	// If there are no machines to remediated, return so KCP can proceed with other operations (ctrl.Result nil).
+	// If there are no machines to remediated, return so RKE2ControlPlane can proceed with other operations (ctrl.Result nil).
 	if len(machinesToBeRemediated) == 0 {
 		return ctrl.Result{}, nil
 	}
@@ -109,7 +109,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	}
 
 	// Returns if the machine is in the process of being deleted.
-	if !machineToBeRemediated.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !machineToBeRemediated.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}
 
@@ -120,8 +120,8 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	// is not being deleted to avoid unnecessary logs if no further remediation should be done.
 	if v, ok := controlPlane.RCP.Annotations[controlplanev1.RemediationInProgressAnnotation]; ok {
 		// Check if the annotation is stale; this might happen in case there is a crash in the controller in between
-		// when a new Machine is created and the annotation is eventually removed from KCP via defer patch at the end
-		// of KCP reconcile.
+		// when a new Machine is created and the annotation is eventually removed from RKE2ControlPlane via defer patch at the end
+		// of RKE2ControlPlane reconcile.
 		remediationData, err := RemediationDataFromAnnotation(v)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -168,9 +168,9 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	// Before starting remediation, run preflight checks in order to verify it is safe to remediate.
 	// If any of the following checks fails, we'll surface the reason in the MachineOwnerRemediated condition.
 
-	// Check if KCP is allowed to remediate considering retry limits:
+	// Check if RKE2ControlPlane is allowed to remediate considering retry limits:
 	// - Remediation cannot happen because retryPeriod is not yet expired.
-	// - KCP already reached MaxRetries limit.
+	// - RKE2ControlPlane already reached MaxRetries limit.
 	remediationInProgressData, canRemediate, err := r.checkRetryLimits(log, machineToBeRemediated, controlPlane, reconciliationTime)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -181,7 +181,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		return ctrl.Result{}, nil
 	}
 
-	// Executes checks that apply only if the control plane is already initialized; in this case KCP can
+	// Executes checks that apply only if the control plane is already initialized; in this case RKE2ControlPlane can
 	// remediate only if it can safely assume that the operation preserves the operation state of the
 	// existing cluster (or at least it doesn't make it worse).
 	if controlPlane.RCP.Status.Initialized {
@@ -203,7 +203,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		}
 
 		// The cluster MUST NOT have healthy machines still being provisioned.
-		// This rule prevents KCP taking actions while the cluster is in a transitional state.
+		// This rule prevents RKE2ControlPlane taking actions while the cluster is in a transitional state.
 		if controlPlane.HasHealthyMachineStillProvisioning() {
 			log.Info("A control plane machine needs remediation, but there are other control-plane machines being provisioned. Skipping remediation")
 			conditions.MarkFalse(
@@ -217,7 +217,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			return ctrl.Result{}, nil
 		}
 
-		// The cluster MUST have no machines with a deletion timestamp. This rule prevents KCP taking actions while the cluster is in a transitional state.
+		// The cluster MUST have no machines with a deletion timestamp. This rule prevents RKE2ControlPlane taking actions while the cluster is in a transitional state.
 		if controlPlane.HasDeletingMachine() {
 			log.Info("A control plane machine needs remediation, but there are other control-plane machines being deleted. Skipping remediation")
 			conditions.MarkFalse(
@@ -231,7 +231,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			return ctrl.Result{}, nil
 		}
 
-		// Remediation MUST preserve etcd quorum. This rule ensures that KCP will not remove a member that would result in etcd
+		// Remediation MUST preserve etcd quorum. This rule ensures that RKE2ControlPlane will not remove a member that would result in etcd
 		// losing a majority of members and thus become unable to field new requests.
 		if controlPlane.IsEtcdManaged() {
 			canSafelyRemediate, err := r.canSafelyRemoveEtcdMember(ctx, controlPlane, machineToBeRemediated)
@@ -307,7 +307,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	}
 
 	// Delete the machine
-	if err := r.Client.Delete(ctx, machineToBeRemediated); err != nil {
+	if err := r.Delete(ctx, machineToBeRemediated); err != nil {
 		conditions.MarkFalse(
 			machineToBeRemediated,
 			clusterv1.MachineOwnerRemediatedCondition,
@@ -433,9 +433,9 @@ func pickMachineToBeRemediatedByConditionState(i, j *clusterv1.Machine, t cluste
 	return nil
 }
 
-// checkRetryLimits checks if KCP is allowed to remediate considering retry limits:
+// checkRetryLimits checks if RKE2ControlPlane is allowed to remediate considering retry limits:
 // - Remediation cannot happen because retryPeriod is not yet expired.
-// - KCP already reached the maximum number of retries for a machine.
+// - RKE2ControlPlane already reached the maximum number of retries for a machine.
 // NOTE: Counting the number of retries is required In order to prevent infinite remediation e.g. in case the
 // first Control Plane machine is failing due to quota issue.
 func (r *RKE2ControlPlaneReconciler) checkRetryLimits(
@@ -489,7 +489,7 @@ func (r *RKE2ControlPlaneReconciler) checkRetryLimits(
 	}
 
 	// Once we get here we already know that there was a last remediation for the Machine.
-	// If the current remediation is happening before minHealthyPeriod is expired, then KCP considers this
+	// If the current remediation is happening before minHealthyPeriod is expired, then RKE2ControlPlane considers this
 	// as a remediation for the same previously unhealthy machine.
 	// NOTE: If someone/something changes the RemediationForAnnotation on Machines (e.g. changes the Timestamp),
 	// this could potentially lead to executing more retries than expected, but this is considered acceptable in such a case.
@@ -624,14 +624,15 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 		}
 
 		// If an etcd member does not have a corresponding machine it is not possible to retrieve etcd member health,
-		// so KCP is assuming the worst scenario and considering the member unhealthy.
+		// so RKE2ControlPlane is assuming the worst scenario and considering the member unhealthy.
 		//
-		// NOTE: This should not happen given that KCP is running reconcileEtcdMembers before calling this method.
+		// NOTE: This should not happen given that RKE2ControlPlane is running reconcileEtcdMembers before calling this method.
 		if machine == nil {
 			log.Info("An etcd member does not have a corresponding machine, assuming this member is unhealthy", "memberName", etcdMember)
+
 			targetUnhealthyMembers++
 
-			unhealthyMembers = append(unhealthyMembers, fmt.Sprintf("%s (no machine)", etcdMember))
+			unhealthyMembers = append(unhealthyMembers, etcdMember+" (no machine)")
 
 			continue
 		}
@@ -649,10 +650,10 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 	}
 
 	// See https://etcd.io/docs/v3.3/faq/#what-is-failure-tolerance for fault tolerance formula explanation.
-	targetQuorum := (targetTotalMembers / 2.0) + 1 //nolint:gomnd
+	targetQuorum := (targetTotalMembers / 2.0) + 1 //nolint:mnd
 	canSafelyRemediate := targetTotalMembers-targetUnhealthyMembers >= targetQuorum
 
-	log.Info(fmt.Sprintf("etcd cluster projected after remediation of %s", machineToBeRemediated.Name),
+	log.Info("etcd cluster projected after remediation of "+machineToBeRemediated.Name,
 		"healthyMembers", healthyMembers,
 		"unhealthyMembers", unhealthyMembers,
 		"targetTotalMembers", targetTotalMembers,
@@ -663,7 +664,7 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 	return canSafelyRemediate, nil
 }
 
-// RemediationData struct is used to keep track of information stored in the RemediationInProgressAnnotation in KCP
+// RemediationData struct is used to keep track of information stored in the RemediationInProgressAnnotation in RKE2ControlPlane
 // during remediation and then into the RemediationForAnnotation on the replacement machine once it is created.
 type RemediationData struct {
 	// machine is the machine name of the latest machine being remediated.
@@ -702,6 +703,6 @@ func (r *RemediationData) ToStatus() *controlplanev1.LastRemediationStatus {
 	return &controlplanev1.LastRemediationStatus{
 		Machine:    r.Machine,
 		Timestamp:  r.Timestamp,
-		RetryCount: int32(r.RetryCount),
+		RetryCount: r.RetryCount,
 	}
 }
