@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -130,10 +128,6 @@ var _ = Describe("Workload cluster creation", func() {
 				Namespace:   result.Cluster.Namespace,
 			})
 			Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
-			machinesNames := []string{}
-			for _, machine := range machineList.Items {
-				machinesNames = append(machinesNames, machine.Name)
-			}
 
 			By("Upgrading to next boostrap/controlplane provider version")
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
@@ -155,34 +149,11 @@ var _ = Describe("Workload cluster creation", func() {
 				Namespace: result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
 
-			By("Verifying machine rollout did not happen")
-			Consistently(func() error {
-				updatedMachineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
-					Lister:      bootstrapClusterProxy.GetClient(),
-					ClusterName: result.Cluster.Name,
-					Namespace:   result.Cluster.Namespace,
-				})
-				if len(updatedMachineList.Items) == 0 {
-					return fmt.Errorf("There must be at least one Machine after provider upgrade")
-				}
-				updatedMachinesNames := []string{}
-				for _, machine := range updatedMachineList.Items {
-					updatedMachinesNames = append(updatedMachinesNames, machine.Name)
-				}
-				sameMachines, err := ContainElements(machinesNames).Match(updatedMachinesNames)
-				if err != nil {
-					return fmt.Errorf("matching machines: %w", err)
-				}
-				if !sameMachines {
-					fmt.Printf("Pre-upgrade machines: [%s]\n", strings.Join(machinesNames, ","))
-					fmt.Printf("Post-upgrade machines: [%s]\n", strings.Join(updatedMachinesNames, ","))
-					return fmt.Errorf("Machines should not have been rolled out after provider upgrade")
-				}
-				if len(updatedMachinesNames) != len(machinesNames) {
-					return fmt.Errorf("Number of Machines '%d' should match after provider upgrade '%d'", len(machinesNames), len(updatedMachinesNames))
-				}
-				return nil
-			}).WithTimeout(2 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
+			EnsureNoMachineRollout(ctx, GetMachinesByClusterInput{
+				Lister:      bootstrapClusterProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			}, machineList)
 
 			By("Scaling down control plane to 2 and workers up to 2")
 			ApplyClusterTemplateAndWait(ctx, ApplyClusterTemplateAndWaitInput{

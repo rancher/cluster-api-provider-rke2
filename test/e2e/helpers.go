@@ -570,6 +570,39 @@ func WaitForClusterReady(ctx context.Context, input WaitForClusterReadyInput, in
 	}, intervals...).Should(Succeed())
 }
 
+// EnsureNoMachineRollout will consistently verify that Machine rollout did not happen, by comparing an machine list.
+func EnsureNoMachineRollout(ctx context.Context, input GetMachinesByClusterInput, machineList *clusterv1.MachineList) {
+	machinesNames := []string{}
+	for _, machine := range machineList.Items {
+		machinesNames = append(machinesNames, machine.Name)
+	}
+
+	By("Verifying machine rollout did not happen")
+	Consistently(func() error {
+		updatedMachineList := GetMachinesByCluster(ctx, input)
+		if len(updatedMachineList.Items) == 0 {
+			return fmt.Errorf("There must be at least one Machine after provider upgrade")
+		}
+		updatedMachinesNames := []string{}
+		for _, machine := range updatedMachineList.Items {
+			updatedMachinesNames = append(updatedMachinesNames, machine.Name)
+		}
+		sameMachines, err := ContainElements(machinesNames).Match(updatedMachinesNames)
+		if err != nil {
+			return fmt.Errorf("matching machines: %w", err)
+		}
+		if !sameMachines {
+			fmt.Printf("Pre-upgrade machines: [%s]\n", strings.Join(machinesNames, ","))
+			fmt.Printf("Post-upgrade machines: [%s]\n", strings.Join(updatedMachinesNames, ","))
+			return fmt.Errorf("Machines should not have been rolled out after provider upgrade")
+		}
+		if len(updatedMachinesNames) != len(machinesNames) {
+			return fmt.Errorf("Number of Machines '%d' should match after provider upgrade '%d'", len(machinesNames), len(updatedMachinesNames))
+		}
+		return nil
+	}).WithTimeout(2 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
+}
+
 // setDefaults sets the default values for ApplyCustomClusterTemplateAndWaitInput if not set.
 // Currently, we set the default ControlPlaneWaiters here, which are implemented for RKE2ControlPlane.
 func setDefaults(input *ApplyCustomClusterTemplateAndWaitInput) {

@@ -72,11 +72,14 @@ spec:
   version: ${RKE2_VERSION}
   preRKE2Commands:
   - sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/1.0/meta-data/hostname)
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-    kind: AWSMachineTemplate
-    name: ${CLUSTER_NAME}-control-plane
-  nodeDrainTimeout: 2m
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+      kind: AWSMachineTemplate
+      name: ${CLUSTER_NAME}-control-plane
+    nodeDrainTimeout: 2m
+    nodeDeletionTimeout: 30s
+    nodeVolumeDetachTimeout: 5m
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   serverConfig:
     cloudProviderName: external

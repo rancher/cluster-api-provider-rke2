@@ -55,6 +55,8 @@ spec:
       kind: DockerMachineTemplate
       name: controlplane
     nodeDrainTimeout: 2m
+    nodeDeletionTimeout: 30s
+    nodeVolumeDetachTimeout: 5m
   registrationMethod: "address"
   registrationAddress: "${REGISTRATION_VIP}"
   preRKE2Commands:
