@@ -158,4 +158,24 @@ storage:
 		_, err := Render(input, additionalConfig)
 		Expect(err).To(HaveOccurred())
 	})
+	It("handles flatcar specifics", func() {
+		flatCarIgnition := `
+variant: flatcar
+version: 1.0.0
+`
+		additionalConfig = &bootstrapv1.AdditionalUserData{
+			Config: flatCarIgnition,
+			Strict: true,
+		}
+		ignitionJson, err := Render(input, additionalConfig)
+		Expect(err).ToNot(HaveOccurred())
+		ign, reports, err := ignition.Parse(ignitionJson)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(reports.IsFatal()).To(BeFalse())
+
+		Expect(ign.Ignition.Version).To(Equal("3.3.0"))
+
+		Expect(ign.Storage.Filesystems).To(HaveLen(0))
+
+	})
 })
