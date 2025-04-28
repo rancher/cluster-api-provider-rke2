@@ -39,6 +39,8 @@ func TestIgnition(t *testing.T) {
 	RunSpecs(t, "Ignition Suite")
 }
 
+var flatcarIgnition = `variant: flatcar`
+
 var additionalIgnition = `variant: fcos
 version: 1.4.0
 systemd:
@@ -139,6 +141,29 @@ var _ = Describe("NewJoinWorker", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(scriptContents).To(ContainSubstring("/opt/rke2-cis-script.sh"))
 	})
+	It("should render rke2-install without semanage for flatcar", func() {
+		input.AdditionalIgnition = &bootstrapv1.AdditionalUserData{
+			Config: flatcarIgnition,
+			Strict: true,
+		}
+		ignitionJson, err := NewJoinWorker(input)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ignitionJson).ToNot(BeNil())
+
+		ign, reports, err := ignition.Parse(ignitionJson)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(reports.IsFatal()).To(BeFalse())
+
+		scriptContentsEnc := strings.Split(*ign.Storage.Files[3].Contents.Source, ",")[1]
+		scriptContentsGzip, err := base64.StdEncoding.DecodeString(scriptContentsEnc)
+		Expect(err).ToNot(HaveOccurred())
+		reader := bytes.NewReader(scriptContentsGzip)
+		gzreader, err := gzip.NewReader(reader)
+		Expect(err).ToNot(HaveOccurred())
+		scriptContents, err := io.ReadAll(gzreader)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(scriptContents).ToNot(ContainSubstring("semanage"))
+	})
 
 })
 
@@ -189,6 +214,29 @@ var _ = Describe("NewJoinControlPlane", func() {
 		ignitionJson, err := NewJoinControlPlane(input)
 		Expect(err).To(HaveOccurred())
 		Expect(ignitionJson).To(BeNil())
+	})
+	It("should render rke2-install without semanage for flatcar", func() {
+		input.AdditionalIgnition = &bootstrapv1.AdditionalUserData{
+			Config: flatcarIgnition,
+			Strict: true,
+		}
+		ignitionJson, err := NewJoinControlPlane(input)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ignitionJson).ToNot(BeNil())
+
+		ign, reports, err := ignition.Parse(ignitionJson)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(reports.IsFatal()).To(BeFalse())
+
+		scriptContentsEnc := strings.Split(*ign.Storage.Files[3].Contents.Source, ",")[1]
+		scriptContentsGzip, err := base64.StdEncoding.DecodeString(scriptContentsEnc)
+		Expect(err).ToNot(HaveOccurred())
+		reader := bytes.NewReader(scriptContentsGzip)
+		gzreader, err := gzip.NewReader(reader)
+		Expect(err).ToNot(HaveOccurred())
+		scriptContents, err := io.ReadAll(gzreader)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(scriptContents).ToNot(ContainSubstring("semanage"))
 	})
 })
 
