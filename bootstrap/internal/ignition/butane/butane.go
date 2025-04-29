@@ -265,6 +265,11 @@ func Render(input *cloudinit.BaseUserData, butaneCfg *bootstrapv1.AdditionalUser
 			return nil, errors.Wrap(err, "converting additional config to Ignition")
 		}
 
+		if strings.Contains(butaneCfg.Config, "variant: flatcar") {
+			// this is flatcar drop /opt filesystem from default config
+			cfg.Storage.Filesystems = []ignitionTypes.Filesystem{}
+		}
+
 		cfg = ignition.Merge(cfg, addCfg)
 	}
 
