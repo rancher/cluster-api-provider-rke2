@@ -186,17 +186,17 @@ func (s *RKE2ConfigSpec) validateIgnition(pathPrefix *field.Path) field.ErrorLis
 				),
 			)
 		}
-	}
 
-	for i, file := range s.Files {
-		if file.Encoding == Gzip || file.Encoding == GzipBase64 {
-			allErrs = append(
-				allErrs,
-				field.Forbidden(
-					pathPrefix.Child("files").Index(i).Child("encoding"),
-					cannotUseWithIgnition,
-				),
-			)
+		for i, file := range s.Files {
+			if file.Encoding == Gzip || file.Encoding == GzipBase64 {
+				allErrs = append(
+					allErrs,
+					field.Forbidden(
+						pathPrefix.Child("files").Index(i).Child("encoding"),
+						cannotUseWithIgnition,
+					),
+				)
+			}
 		}
 	}
 
