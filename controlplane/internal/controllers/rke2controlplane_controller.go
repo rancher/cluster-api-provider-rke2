@@ -311,6 +311,18 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster) error {
 	logger := log.FromContext(ctx)
 
+	if cluster == nil {
+		logger.Info("Cluster is nil, skipping status update")
+
+		return nil
+	}
+
+	if rcp.Spec.Replicas == nil {
+		logger.Info("RKE2ControlPlane.Spec.Replicas is nil, skipping status update")
+
+		return nil
+	}
+
 	ownedMachines, err := r.managementCluster.GetMachinesForCluster(
 		ctx,
 		util.ObjectKey(cluster),
@@ -319,7 +331,19 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		return errors.Wrap(err, "failed to get list of owned machines")
 	}
 
+	if ownedMachines == nil {
+		logger.Info("Owned machines list is nil, skipping status update")
+
+		return nil
+	}
+
 	readyMachines := ownedMachines.Filter(collections.IsReady())
+	if readyMachines == nil {
+		logger.Info("Ready machines list is nil, skipping status update")
+
+		return nil
+	}
+
 	for _, readyMachine := range readyMachines {
 		logger.V(3).Info("Ready Machine : " + readyMachine.Name)
 	}
@@ -386,7 +410,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		Name:      secret.Name(cluster.Name, secret.Kubeconfig),
 	}, &kubeconfigSecret)
 	if err != nil {
-		r.Log.Info("Kubeconfig secret does not yet exist")
+		logger.Info("Kubeconfig secret does not yet exist")
 
 		return err
 	}
@@ -406,20 +430,20 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		return fmt.Errorf("getting workload cluster: %w", err)
 	}
 
+	if workloadCluster == nil {
+		logger.Info("Workload cluster is nil, skipping status update")
+
+		return nil
+	}
+
 	status := workloadCluster.ClusterStatus(ctx)
 
 	if status.HasRKE2ServingSecret {
 		rcp.Status.Initialized = true
 	}
 
-	if len(ownedMachines) == 0 {
-		logger.Info(fmt.Sprintf("no Control Plane Machines exist for RKE2ControlPlane %s/%s", rcp.Namespace, rcp.Name))
-
-		return nil
-	}
-
-	if len(readyMachines) == 0 {
-		logger.Info(fmt.Sprintf("no Control Plane Machines are ready for RKE2ControlPlane %s/%s", rcp.Namespace, rcp.Name))
+	if len(ownedMachines) == 0 || len(readyMachines) == 0 {
+		logger.Info(fmt.Sprintf("No Control Plane Machines exist or are ready for RKE2ControlPlane %s/%s", rcp.Namespace, rcp.Name))
 
 		return nil
 	}
@@ -428,11 +452,15 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 
 	registrationmethod, err := registration.NewRegistrationMethod(string(rcp.Spec.RegistrationMethod))
 	if err != nil {
+		logger.Error(err, "Failed to get node registration method")
+
 		return fmt.Errorf("getting node registration method: %w", err)
 	}
 
 	validIPAddresses, err := registrationmethod(cluster, rcp, availableCPMachines)
 	if err != nil {
+		logger.Error(err, "Failed to get registration addresses")
+
 		return fmt.Errorf("getting registration addresses: %w", err)
 	}
 
@@ -451,6 +479,8 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	if lowestVersion != nil {
 		controlPlane.RCP.Status.Version = lowestVersion
 	}
+
+	logger.Info("Successfully updated RKE2ControlPlane status", "namespace", rcp.Namespace, "name", rcp.Name)
 
 	return nil
 }
