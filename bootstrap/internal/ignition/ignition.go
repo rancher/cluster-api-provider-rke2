@@ -18,6 +18,7 @@ package ignition
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
@@ -102,6 +103,19 @@ func NewJoinControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	return render(&processedInput.BaseUserData, processedInput.AdditionalIgnition)
 }
 
+func removeSemanageCmd(cmds []string) []string {
+	// this is flatcar drop /opt filesystem from default config
+	newCmds := []string{}
+
+	for _, cmd := range cmds {
+		if !strings.HasPrefix(cmd, "semanage") {
+			newCmds = append(newCmds, cmd)
+		}
+	}
+
+	return newCmds
+}
+
 // NewInitControlPlane returns Ignition configuration for bootstrapping new cluster.
 func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	processedInput, err := controlPlaneConfigInput(input)
@@ -137,6 +151,10 @@ func render(input *cloudinit.BaseUserData, ignitionConfig *bootstrapv1.Additiona
 	additionalButaneConfig := &bootstrapv1.AdditionalUserData{}
 	if ignitionConfig != nil && ignitionConfig.Config != "" {
 		additionalButaneConfig = ignitionConfig
+	}
+
+	if strings.Contains(ignitionConfig.Config, "variant: flatcar") {
+		input.DeployRKE2Commands = removeSemanageCmd(input.DeployRKE2Commands)
 	}
 
 	return butane.Render(input, additionalButaneConfig)
