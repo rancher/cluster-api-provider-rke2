@@ -48,6 +48,7 @@ type RKE2ControlPlaneSpec struct {
 	bootstrapv1.RKE2ConfigSpec `json:",inline"`
 
 	// Replicas is the number of replicas for the Control Plane.
+	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Version defines the desired Kubernetes version.

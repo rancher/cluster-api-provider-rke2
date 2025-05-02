@@ -104,6 +104,12 @@ func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, obj runtim
 		rcp.Spec.MachineTemplate.NodeDeletionTimeout = &metav1.Duration{Duration: defaultNodeDeletionTimeout}
 	}
 
+	// Set replicas to 1 if not set
+	if rcp.Spec.Replicas == nil {
+		replicas := int32(1)
+		rcp.Spec.Replicas = &replicas
+	}
+
 	return nil
 }
 
