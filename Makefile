@@ -76,12 +76,12 @@ SETUP_ENVTEST_BIN := setup-envtest
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/$(SETUP_ENVTEST_BIN)-$(SETUP_ENVTEST_VER))
 SETUP_ENVTEST_PKG := sigs.k8s.io/controller-runtime/tools/setup-envtest
 
-CONTROLLER_GEN_VER := v0.16.1
+CONTROLLER_GEN_VER := v0.17.3
 CONTROLLER_GEN_BIN := controller-gen
 CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/$(CONTROLLER_GEN_BIN)-$(CONTROLLER_GEN_VER))
 CONTROLLER_GEN_PKG := sigs.k8s.io/controller-tools/cmd/controller-gen
 
-CONVERSION_GEN_VER := v0.30.0
+CONVERSION_GEN_VER := v0.33.0
 CONVERSION_GEN_BIN := conversion-gen
 # We are intentionally using the binary without version suffix, to avoid the version
 # in generated files.
@@ -226,7 +226,6 @@ generate-go-conversions-rke2-bootstrap: $(CONVERSION_GEN) ## Generate conversion
 generate-go-conversions-rke2-control-plane: $(CONVERSION_GEN) ## Generate conversions go code for the rke2 control plane
 	$(MAKE) clean-generated-conversions SRC_DIRS="./controlplane/api/v1alpha1"
 	$(CONVERSION_GEN) \
-		--extra-dirs=github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1 \
 		--output-file=zz_generated.conversion.go $(ROOT_DIR)/$(CAPRKE2_DIR) \
 		--go-header-file=./hack/boilerplate.go.txt \
 		./controlplane/api/v1alpha1
