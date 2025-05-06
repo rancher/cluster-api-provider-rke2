@@ -93,7 +93,7 @@ var _ = Describe("NewJoinWorker", func() {
 		Expect(reports.IsFatal()).To(BeFalse())
 
 		Expect(ign.Storage.Files).To(HaveLen(4))
-		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config"))
+		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config.d/010-rke2.conf"))
 		Expect(ign.Storage.Files[1].Path).To(Equal("/test/file"))
 		Expect(ign.Storage.Files[2].Path).To(Equal("/test/config"))
 		Expect(ign.Storage.Files[3].Path).To(Equal("/etc/rke2-install.sh"))
@@ -124,7 +124,7 @@ var _ = Describe("NewJoinWorker", func() {
 		Expect(reports.IsFatal()).To(BeFalse())
 
 		Expect(ign.Storage.Files).To(HaveLen(4))
-		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config"))
+		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config.d/010-rke2.conf"))
 		Expect(ign.Storage.Files[1].Path).To(Equal("/test/file"))
 		Expect(ign.Storage.Files[2].Path).To(Equal("/test/config"))
 		Expect(ign.Storage.Files[3].Path).To(Equal("/etc/rke2-install.sh"))
