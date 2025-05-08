@@ -32,11 +32,13 @@ var _ = Describe("Node metadata propagation", func() {
 		machineDifferentNode *clusterv1.Machine
 		machineNodeRefStatus clusterv1.MachineStatus
 		config               *bootstrapv1.RKE2Config
+		clusterKey           client.ObjectKey
 	)
 
 	BeforeEach(func() {
 		ns, err = testEnv.CreateNamespace(ctx, "ns")
 		Expect(err).ToNot(HaveOccurred())
+		clusterKey = types.NamespacedName{Namespace: ns.Name, Name: "cluster"}
 
 		annotations := map[string]string{
 			"test": "true",
@@ -66,7 +68,7 @@ var _ = Describe("Node metadata propagation", func() {
 				Namespace: ns.Name,
 			},
 			Spec: clusterv1.MachineSpec{
-				ClusterName: "cluster",
+				ClusterName: clusterKey.Name,
 				Bootstrap: clusterv1.Bootstrap{
 					ConfigRef: &corev1.ObjectReference{
 						Kind:       "RKE2Config",
@@ -90,7 +92,7 @@ var _ = Describe("Node metadata propagation", func() {
 				Namespace: ns.Name,
 			},
 			Spec: clusterv1.MachineSpec{
-				ClusterName: "cluster",
+				ClusterName: clusterKey.Name,
 				Bootstrap: clusterv1.Bootstrap{
 					ConfigRef: &corev1.ObjectReference{
 						Kind:       "RKE2Config",
@@ -134,7 +136,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 
 		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
@@ -165,7 +167,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
@@ -195,7 +197,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
@@ -242,7 +244,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
@@ -288,7 +290,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
@@ -338,7 +340,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), types.NamespacedName{})
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, testEnv.GetClient(), nil, nil, machines)
 		Expect(err).ToNot(HaveOccurred())
