@@ -106,7 +106,7 @@ var _ = Describe("Render", func() {
 
 		Expect(ign.Storage.Files).To(HaveLen(5))
 
-		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config"))
+		Expect(ign.Storage.Files[0].Path).To(Equal("/etc/ssh/sshd_config.d/010-rke2.conf"))
 
 		Expect(ign.Storage.Files[1].Path).To(Equal("/test/file"))
 

@@ -74,7 +74,7 @@ storage:
       mount_options:
        - "subvol=/@/opt"
   files:
-    - path: /etc/ssh/sshd_config
+    - path: /etc/ssh/sshd_config.d/010-rke2.conf
       mode: 0600
       overwrite: true
       contents:
