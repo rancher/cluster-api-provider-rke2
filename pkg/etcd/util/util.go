@@ -25,6 +25,18 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd"
 )
 
+// NodeNameFromMember returns the node name from the etcd member name.
+func NodeNameFromMember(member *etcd.Member) string {
+	memberName := member.Name
+	lastIndex := strings.LastIndex(memberName, "-")
+
+	if lastIndex != -1 {
+		memberName = memberName[:lastIndex]
+	}
+
+	return memberName
+}
+
 // MemberForName returns the etcd member with the matching name.
 func MemberForName(members []*etcd.Member, name string) *etcd.Member {
 	for _, m := range members {

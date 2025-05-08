@@ -795,6 +795,57 @@ spec:
                         - control-plane-endpoint
                         - ""
                         type: string
+                      remediationStrategy:
+                        description: remediationStrategy is the RemediationStrategy
+                          that controls how control plane machine remediation happens.
+                        properties:
+                          maxRetry:
+                            description: "maxRetry is the Max number of retries while
+                              attempting to remediate an unhealthy machine.\nA retry
+                              happens when a machine that was created as a replacement
+                              for an unhealthy machine also fails.\nFor example, given
+                              a control plane with three machines M1, M2, M3:\n\n\tM1
+                              become unhealthy; remediation happens, and M1-1 is created
+                              as a replacement.\n\tIf M1-1 (replacement of M1) has
+                              problems while bootstrapping it will become unhealthy,
+                              and then be\n\tremediated; such operation is considered
+                              a retry, remediation-retry #1.\n\tIf M1-2 (replacement
+                              of M1-1) becomes unhealthy, remediation-retry #2 will
+                              happen, etc.\n\nA retry could happen only after RetryPeriod
+                              from the previous retry.\nIf a machine is marked as
+                              unhealthy after MinHealthyPeriod from the previous remediation
+                              expired,\nthis is not considered a retry anymore because
+                              the new issue is assumed unrelated from the previous
+                              one.\n\nIf not set, the remedation will be retried infinitely."
+                            format: int32
+                            type: integer
+                          minHealthyPeriod:
+                            description: "minHealthyPeriod defines the duration after
+                              which RKE2ControlPlane will consider any failure to
+                              a machine unrelated\nfrom the previous one. In this
+                              case the remediation is not considered a retry anymore,
+                              and thus the retry\ncounter restarts from 0. For example,
+                              assuming MinHealthyPeriod is set to 1h (default)\n\n\tM1
+                              become unhealthy; remediation happens, and M1-1 is created
+                              as a replacement.\n\tIf M1-1 (replacement of M1) has
+                              problems within the 1hr after the creation, also\n\tthis
+                              machine will be remediated and this operation is considered
+                              a retry - a problem related\n\tto the original issue
+                              happened to M1 -.\n\n\tIf instead the problem on M1-1
+                              is happening after MinHealthyPeriod expired, e.g. four
+                              days after\n\tm1-1 has been created as a remediation
+                              of M1, the problem on M1-1 is considered unrelated to\n\tthe
+                              original issue happened to M1.\n\nIf not set, this value
+                              is defaulted to 1h."
+                            type: string
+                          retryPeriod:
+                            description: |-
+                              retryPeriod is the duration that RKE2ControlPlane should wait before remediating a machine being created as a replacement
+                              for an unhealthy machine (a retry).
+
+                              If not set, a retry will happen immediately.
+                            type: string
+                        type: object
                       replicas:
                         description: Replicas is the number of replicas for the Control
                           Plane.
@@ -1391,6 +1442,30 @@ spec:
                 description: Initialized indicates the target cluster has completed
                   initialization.
                 type: boolean
+              lastRemediation:
+                description: lastRemediation stores info about last remediation performed.
+                properties:
+                  machine:
+                    description: machine is the machine name of the latest machine
+                      being remediated.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                  retryCount:
+                    description: |-
+                      retryCount used to keep track of remediation retry for the last remediated machine.
+                      A retry happens when a machine that was created as a replacement for an unhealthy machine also fails.
+                    type: integer
+                  timestamp:
+                    description: timestamp is when last remediation happened. It is
+                      represented in RFC3339 form and is in UTC.
+                    format: date-time
+                    type: string
+                required:
+                - machine
+                - retryCount
+                - timestamp
+                type: object
               observedGeneration:
                 description: ObservedGeneration is the latest generation observed
                   by the controller.

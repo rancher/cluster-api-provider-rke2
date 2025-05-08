@@ -55,11 +55,15 @@ type ControlPlane struct {
 
 	Rke2Configs    map[string]*bootstrapv1.RKE2Config
 	InfraResources map[string]*unstructured.Unstructured
+
+	managementCluster ManagementCluster
+	workloadCluster   WorkloadCluster
 }
 
 // NewControlPlane returns an instantiated ControlPlane.
 func NewControlPlane(
 	ctx context.Context,
+	managementCluster ManagementCluster,
 	client client.Client,
 	cluster *clusterv1.Cluster,
 	rcp *controlplanev1.RKE2ControlPlane,
@@ -98,6 +102,7 @@ func NewControlPlane(
 		Rke2Configs:          rke2Configs,
 		InfraResources:       infraObjects,
 		reconciliationTime:   metav1.Now(),
+		managementCluster:    managementCluster,
 	}, nil
 }
 
@@ -366,6 +371,16 @@ func GetRKE2Configs(ctx context.Context, cl client.Client, machines collections.
 	return result, nil
 }
 
+// IsEtcdManaged returns true if the control plane relies on a managed etcd.
+func (c *ControlPlane) IsEtcdManaged() bool {
+	return true
+}
+
+// MachinesToBeRemediatedByRCP returns the list of control plane machines to be remediated by RCP.
+func (c *ControlPlane) MachinesToBeRemediatedByRCP() collections.Machines {
+	return c.Machines.Filter(collections.IsUnhealthyAndOwnerRemediated)
+}
+
 // UnhealthyMachines returns the list of control plane machines marked as unhealthy by MHC.
 func (c *ControlPlane) UnhealthyMachines() collections.Machines {
 	return c.Machines.Filter(collections.IsUnhealthy)
@@ -411,6 +426,28 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 	}
 
 	return kerrors.NewAggregate(errList)
+}
+
+// HasHealthyMachineStillProvisioning returns true if any healthy machine in the control plane is still in the process of being provisioned.
+func (c *ControlPlane) HasHealthyMachineStillProvisioning() bool {
+	return len(c.HealthyMachines().Filter(collections.Not(collections.HasNode()))) > 0
+}
+
+// GetWorkloadCluster builds a cluster object.
+// The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
+func (c *ControlPlane) GetWorkloadCluster(ctx context.Context) (WorkloadCluster, error) {
+	if c.workloadCluster != nil {
+		return c.workloadCluster, nil
+	}
+
+	workloadCluster, err := c.managementCluster.GetWorkloadCluster(ctx, client.ObjectKeyFromObject(c.Cluster))
+	if err != nil {
+		return nil, err
+	}
+
+	c.workloadCluster = workloadCluster
+
+	return c.workloadCluster, nil
 }
 
 // machinesByDeletionTimestamp sorts a list of Machines by deletion timestamp, using their names as a tie breaker.
