@@ -23,6 +23,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	// +kubebuilder:scaffold:imports
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
