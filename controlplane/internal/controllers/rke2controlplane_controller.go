@@ -107,6 +107,7 @@ type RKE2ControlPlaneReconciler struct {
 // +kubebuilder:rbac:groups="",resources=secrets;events;configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="bootstrap.cluster.x-k8s.io",resources=rke2configs,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups="infrastructure.cluster.x-k8s.io",resources=*,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups="apiextensions.k8s.io",resources=customresourcedefinitions,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -591,6 +592,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		logger.Error(err, "failed to initialize control plane")
 
 		return ctrl.Result{}, err
+	}
+
+	if err := controlPlane.ReconcileExternalReference(ctx, r.Client); err != nil {
+		logger.Error(err, "Could not reconcile external reference")
+
+		return ctrl.Result{}, fmt.Errorf("reconciling external reference: %w", err)
 	}
 
 	if err := r.syncMachines(ctx, controlPlane); err != nil {

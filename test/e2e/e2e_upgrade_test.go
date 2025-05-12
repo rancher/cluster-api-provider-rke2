@@ -107,7 +107,7 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
-				SkipMachineLabelCheck:        true,
+				SkipPreviousVersionChecks:    true,
 			}, result)
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
@@ -173,7 +173,6 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
-				SkipMachineLabelCheck:        true,
 			}, result)
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
@@ -199,7 +198,6 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
-				SkipMachineLabelCheck:        true,
 			}, result)
 
 			WaitForClusterToUpgrade(ctx, WaitForClusterToUpgradeInput{
