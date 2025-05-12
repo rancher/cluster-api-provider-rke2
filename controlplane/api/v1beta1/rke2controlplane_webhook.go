@@ -84,6 +84,11 @@ func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, obj runtim
 		rcp.Spec.MachineTemplate.InfrastructureRef = rcp.Spec.InfrastructureRef
 	}
 
+	// Defaults missing MachineTemplate.InfrastructureRef.Namespace
+	if rcp.Spec.MachineTemplate.InfrastructureRef.Namespace == "" {
+		rcp.Spec.MachineTemplate.InfrastructureRef.Namespace = rcp.Namespace
+	}
+
 	// Defaults missing MachineTemplate.NodeDrainTimeout to Spec.NodeDrainTimeout
 	if rcp.Spec.MachineTemplate.NodeDrainTimeout == nil {
 		rcp.Spec.MachineTemplate.NodeDrainTimeout = rcp.Spec.NodeDrainTimeout

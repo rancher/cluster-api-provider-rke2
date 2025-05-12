@@ -18,7 +18,9 @@ package rke2
 
 import (
 	"context"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -30,10 +32,13 @@ import (
 	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/controllers/external"
+	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/collections"
+	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	capifd "sigs.k8s.io/cluster-api/util/failuredomains"
 	"sigs.k8s.io/cluster-api/util/patch"
 
@@ -479,4 +484,54 @@ func (o machinesByDeletionTimestamp) Less(i, j int) bool {
 // SetPatchHelpers updates the patch helpers.
 func (c *ControlPlane) SetPatchHelpers(patchHelpers map[string]*patch.Helper) {
 	c.machinesPatchHelpers = patchHelpers
+}
+
+// ReconcileExternalReference reconciles Cluster ownership on (Infra)MachineTemplates.
+func (c *ControlPlane) ReconcileExternalReference(ctx context.Context, cl client.Client) error {
+	logger := log.FromContext(ctx)
+	ref := &c.RCP.Spec.MachineTemplate.InfrastructureRef
+
+	if !strings.HasSuffix(ref.Kind, clusterv1.TemplateSuffix) {
+		return nil
+	}
+
+	if err := utilconversion.UpdateReferenceAPIContract(ctx, cl, ref); err != nil {
+		return fmt.Errorf("updating reference API contract: %w", err)
+	}
+
+	obj, err := external.Get(ctx, cl, ref)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info(fmt.Sprintf("Could not find external object %s %s/%s.",
+				obj.GroupVersionKind().Kind,
+				obj.GetNamespace(),
+				obj.GetName()))
+
+			return nil
+		}
+
+		return fmt.Errorf("getting external object: %w", err)
+	}
+
+	// Note: We intentionally do not handle checking for the paused label on an external template reference
+
+	desiredOwnerRef := metav1.OwnerReference{
+		APIVersion: clusterv1.GroupVersion.String(),
+		Kind:       "Cluster",
+		Name:       c.Cluster.Name,
+		UID:        c.Cluster.UID,
+	}
+
+	if util.HasExactOwnerRef(obj.GetOwnerReferences(), desiredOwnerRef) {
+		return nil
+	}
+
+	patchHelper, err := patch.NewHelper(obj, cl)
+	if err != nil {
+		return fmt.Errorf("initializing patch helper: %w", err)
+	}
+
+	obj.SetOwnerReferences(util.EnsureOwnerRef(obj.GetOwnerReferences(), desiredOwnerRef))
+
+	return patchHelper.Patch(ctx, obj)
 }

@@ -40,6 +40,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
+	dockerv1 "sigs.k8s.io/cluster-api/test/infrastructure/docker/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -63,7 +64,8 @@ type ApplyClusterTemplateAndWaitInput struct {
 	Args                         []string
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
-	SkipMachineLabelCheck        bool
+	// SkipPreviousVersionChecks can be used when introducing a new feature that does not exist in the previous version.
+	SkipPreviousVersionChecks bool
 	ControlPlaneWaiters
 }
 
@@ -80,7 +82,7 @@ type ApplyCustomClusterTemplateAndWaitInput struct {
 	Args                         []string
 	PreWaitForCluster            func()
 	PostMachinesProvisioned      func()
-	SkipMachineLabelCheck        bool
+	SkipPreviousVersionChecks    bool
 	ControlPlaneWaiters
 }
 
@@ -155,7 +157,7 @@ func ApplyClusterTemplateAndWait(ctx context.Context, input ApplyClusterTemplate
 		PreWaitForCluster:            input.PreWaitForCluster,
 		PostMachinesProvisioned:      input.PostMachinesProvisioned,
 		ControlPlaneWaiters:          input.ControlPlaneWaiters,
-		SkipMachineLabelCheck:        input.SkipMachineLabelCheck,
+		SkipPreviousVersionChecks:    input.SkipPreviousVersionChecks,
 	}, (*ApplyCustomClusterTemplateAndWaitResult)(result))
 }
 
@@ -215,6 +217,14 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 	if input.PostMachinesProvisioned != nil {
 		By(fmt.Sprintf("Calling PostMachinesProvisioned for cluster %s", klog.KRef(input.Namespace, input.ClusterName)))
 		input.PostMachinesProvisioned()
+	}
+
+	if !input.SkipPreviousVersionChecks { //If condition can be removed after 0.15.0 is released, so that this test always runs.
+		VerifyDockerMachineTemplateOwner(ctx, VerifyDockerMachineTemplateOwnerInput{
+			Lister:      input.ClusterProxy.GetClient(),
+			ClusterName: result.Cluster.Name,
+			Namespace:   result.Cluster.Namespace,
+		})
 	}
 }
 
@@ -332,10 +342,9 @@ func GetMachinesByCluster(ctx context.Context, input GetMachinesByClusterInput) 
 
 // WaitForControlPlaneAndMachinesReadyInput is the input type for WaitForControlPlaneAndMachinesReady.
 type WaitForControlPlaneAndMachinesReadyInput struct {
-	GetLister             framework.GetLister
-	Cluster               *clusterv1.Cluster
-	ControlPlane          *controlplanev1.RKE2ControlPlane
-	SkipMachineLabelCheck bool
+	GetLister    framework.GetLister
+	Cluster      *clusterv1.Cluster
+	ControlPlane *controlplanev1.RKE2ControlPlane
 }
 
 // WaitForControlPlaneAndMachinesReady waits for a RKE2ControlPlane object to be ready (all the machine provisioned and one node ready).
@@ -348,10 +357,9 @@ func WaitForControlPlaneAndMachinesReady(ctx context.Context, input WaitForContr
 	if input.ControlPlane.Spec.Replicas != nil && int(*input.ControlPlane.Spec.Replicas) > 1 {
 		By(fmt.Sprintf("Waiting for the remaining control plane machines managed by %s to be provisioned", klog.KObj(input.ControlPlane)))
 		WaitForRKE2ControlPlaneMachinesToExist(ctx, WaitForRKE2ControlPlaneMachinesToExistInput{
-			Lister:                input.GetLister,
-			Cluster:               input.Cluster,
-			ControlPlane:          input.ControlPlane,
-			SkipMachineLabelCheck: input.SkipMachineLabelCheck,
+			Lister:       input.GetLister,
+			Cluster:      input.Cluster,
+			ControlPlane: input.ControlPlane,
 		}, intervals...)
 	}
 
@@ -370,10 +378,9 @@ func WaitForControlPlaneAndMachinesReady(ctx context.Context, input WaitForContr
 
 // WaitForRKE2ControlPlaneMachinesToExistInput is the input for WaitForRKE2ControlPlaneMachinesToExist.
 type WaitForRKE2ControlPlaneMachinesToExistInput struct {
-	Lister                framework.Lister
-	Cluster               *clusterv1.Cluster
-	ControlPlane          *controlplanev1.RKE2ControlPlane
-	SkipMachineLabelCheck bool
+	Lister       framework.Lister
+	Cluster      *clusterv1.Cluster
+	ControlPlane *controlplanev1.RKE2ControlPlane
 }
 
 // WaitForRKE2ControlPlaneMachinesToExist will wait until all control plane machines have node refs.
@@ -401,20 +408,19 @@ func WaitForRKE2ControlPlaneMachinesToExist(ctx context.Context, input WaitForRK
 		return count, nil
 	}, intervals...).Should(Equal(int(*input.ControlPlane.Spec.Replicas)), "Timed out waiting for %d control plane machines to exist", int(*input.ControlPlane.Spec.Replicas))
 
-	if !input.SkipMachineLabelCheck {
-		// check if machines owned by RKE2ControlPlane have the labels provided in .spec.machineTemplate.metadata.labels
-		controlPlaneMachineTemplateLabels := input.ControlPlane.Spec.MachineTemplate.ObjectMeta.Labels
-		machineList := &clusterv1.MachineList{}
-		err := input.Lister.List(ctx, machineList, inClustersNamespaceListOption, matchClusterListOption)
-		Expect(err).To(BeNil(), "failed to list the machines")
+	// check if machines owned by RKE2ControlPlane have the labels provided in .spec.machineTemplate.metadata.labels
+	controlPlaneMachineTemplateLabels := input.ControlPlane.Spec.MachineTemplate.ObjectMeta.Labels
+	machineList := &clusterv1.MachineList{}
+	err := input.Lister.List(ctx, machineList, inClustersNamespaceListOption, matchClusterListOption)
+	Expect(err).To(BeNil(), "failed to list the machines")
 
-		for _, machine := range machineList.Items {
-			machineLabels := machine.ObjectMeta.Labels
-			for k := range controlPlaneMachineTemplateLabels {
-				Expect(machineLabels[k]).To(Equal(controlPlaneMachineTemplateLabels[k]))
-			}
+	for _, machine := range machineList.Items {
+		machineLabels := machine.ObjectMeta.Labels
+		for k := range controlPlaneMachineTemplateLabels {
+			Expect(machineLabels[k]).To(Equal(controlPlaneMachineTemplateLabels[k]))
 		}
 	}
+
 }
 
 // WaitForControlPlaneToBeReadyInput is the input for WaitForControlPlaneToBeReady.
@@ -570,6 +576,31 @@ func WaitForClusterReady(ctx context.Context, input WaitForClusterReadyInput, in
 	}, intervals...).Should(Succeed())
 }
 
+// VerifyDockerMachineTemplateOwner is the input type for VerifyDockerMachineTemplateOwner.
+type VerifyDockerMachineTemplateOwnerInput struct {
+	Lister      framework.Lister
+	ClusterName string
+	Namespace   string
+}
+
+// VerifyDockerMachineTemplateOwner ensures all DockerMachineTemplates used by the Cluster, are also owned by it.
+// Note that for this test to work we manually label the DockerMachineTemplates with 'cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}'.
+// DockerMachineTemplates cloned from ClusterClasses' templates, are automatically labeled.
+func VerifyDockerMachineTemplateOwner(ctx context.Context, input VerifyDockerMachineTemplateOwnerInput) {
+	By("Verifying DockerMachineTemplates are owned by Cluster " + input.Namespace + "/" + input.ClusterName)
+	infraMachineTemplates := &dockerv1.DockerMachineTemplateList{}
+	Expect(input.Lister.List(ctx, infraMachineTemplates,
+		client.MatchingLabels{clusterv1.ClusterNameLabel: input.ClusterName},
+		client.InNamespace(input.Namespace),
+	)).Should(Succeed())
+	Expect(infraMachineTemplates.Items).ShouldNot(BeEmpty())
+	for _, infraMachineTemplate := range infraMachineTemplates.Items {
+		Expect(infraMachineTemplate.OwnerReferences).ShouldNot(BeEmpty())
+		Expect(infraMachineTemplate.OwnerReferences[0].Kind).Should(Equal("Cluster"))
+		Expect(infraMachineTemplate.OwnerReferences[0].Name).Should(Equal(input.ClusterName))
+	}
+}
+
 // EnsureNoMachineRollout will consistently verify that Machine rollout did not happen, by comparing an machine list.
 func EnsureNoMachineRollout(ctx context.Context, input GetMachinesByClusterInput, machineList *clusterv1.MachineList) {
 	machinesNames := []string{}
@@ -618,10 +649,9 @@ func setDefaults(input *ApplyCustomClusterTemplateAndWaitInput) {
 	if input.WaitForControlPlaneMachinesReady == nil {
 		input.WaitForControlPlaneMachinesReady = func(ctx context.Context, input ApplyCustomClusterTemplateAndWaitInput, result *ApplyCustomClusterTemplateAndWaitResult) {
 			WaitForControlPlaneAndMachinesReady(ctx, WaitForControlPlaneAndMachinesReadyInput{
-				GetLister:             input.ClusterProxy.GetClient(),
-				Cluster:               result.Cluster,
-				ControlPlane:          result.ControlPlane,
-				SkipMachineLabelCheck: input.SkipMachineLabelCheck,
+				GetLister:    input.ClusterProxy.GetClient(),
+				Cluster:      result.Cluster,
+				ControlPlane: result.ControlPlane,
 			}, input.WaitForControlPlaneIntervals...)
 		}
 	}
