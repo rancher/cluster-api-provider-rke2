@@ -152,6 +152,7 @@ spec:
   template:
     spec:
       agentConfig: {}
+      gzipUserData: false
       serverConfig:
         kubeAPIServer:
           extraArgs:

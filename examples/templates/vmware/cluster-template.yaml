@@ -178,6 +178,7 @@ spec:
     kubelet:
       extraArgs:
       - --cloud-provider=external
+  gzipUserData: false
   registrationMethod: "internal-first"
   rolloutStrategy:
     type: "RollingUpdate"
@@ -255,6 +256,7 @@ spec:
         kubelet:
           extraArgs:
             - "--cloud-provider=external"
+      gzipUserData: false
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VSphereMachineTemplate
