@@ -144,6 +144,7 @@ spec:
                 namespace: ${NAMESPACE}
                 name: registry-cert
       agentConfig: {}
+      gzipUserData: false
 ---
 apiVersion: v1
 kind: Secret

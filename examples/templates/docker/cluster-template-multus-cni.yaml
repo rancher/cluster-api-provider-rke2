@@ -45,6 +45,7 @@ spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   agentConfig:
     version: ${KUBERNETES_VERSION}+rke2r1
+  gzipUserData: false
   serverConfig:
     cniMultusEnable: true
     cni: calico
@@ -114,6 +115,7 @@ spec:
   template:
     spec:
       agentConfig: {}
+      gzipUserData: false
 ---
 apiVersion: v1
 kind: ConfigMap
