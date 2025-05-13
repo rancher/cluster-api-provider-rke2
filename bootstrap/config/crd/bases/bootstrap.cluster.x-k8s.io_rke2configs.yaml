@@ -952,6 +952,9 @@ spec:
                   - path
                   type: object
                 type: array
+              gzipUserData:
+                description: GzipUserData specifies if the user data should be gzipped.
+                type: boolean
               postRKE2Commands:
                 description: PostRKE2Commands specifies extra commands to run after
                   rke2 setup runs.
