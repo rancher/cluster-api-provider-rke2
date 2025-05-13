@@ -37,17 +37,23 @@ func TestFuzzyConversion(t *testing.T) {
 	g.Expect(bootstrapv1.AddToScheme(scheme)).To(Succeed())
 
 	t.Run("for RKE2Config", utilconversion.FuzzTestFunc(utilconversion.FuzzTestFuncInput{
-		Scheme:      scheme,
-		Hub:         &bootstrapv1.RKE2Config{},
-		Spoke:       &RKE2Config{},
-		FuzzerFuncs: []fuzzer.FuzzerFuncs{fuzzFuncs},
+		Scheme: scheme,
+		Hub:    &bootstrapv1.RKE2Config{},
+		Spoke:  &RKE2Config{},
+		FuzzerFuncs: []fuzzer.FuzzerFuncs{
+			fuzzFuncs,                    // v1alpha1 fuzzer
+			bootstrapv1.FuzzFuncsv1beta1, // v1beta1 fuzzer
+		},
 	}))
 
 	t.Run("for RKE2ConfigTemplate", utilconversion.FuzzTestFunc(utilconversion.FuzzTestFuncInput{
-		Scheme:      scheme,
-		Hub:         &bootstrapv1.RKE2ConfigTemplate{},
-		Spoke:       &RKE2ConfigTemplate{},
-		FuzzerFuncs: []fuzzer.FuzzerFuncs{fuzzFuncs},
+		Scheme: scheme,
+		Hub:    &bootstrapv1.RKE2ConfigTemplate{},
+		Spoke:  &RKE2ConfigTemplate{},
+		FuzzerFuncs: []fuzzer.FuzzerFuncs{
+			fuzzFuncs,
+			bootstrapv1.FuzzFuncsv1beta1,
+		},
 	}))
 }
 
