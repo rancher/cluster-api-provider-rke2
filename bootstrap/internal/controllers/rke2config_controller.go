@@ -643,10 +643,6 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		return ctrl.Result{}, fmt.Errorf("unable to marshal config.yaml: %w", err)
 	}
 
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
 	scope.Logger.Info("Joining Server config marshalled successfully")
 
 	initConfigFile := bootstrapv1.File{
