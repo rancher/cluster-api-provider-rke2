@@ -81,6 +81,7 @@ spec:
       extraArgs:
         - provider-id=metal3://{{ ds.meta_data.uuid }}
     nodeName: '{{ ds.meta_data.local_hostname }}'
+  gzipUserData: false
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: Metal3MachineTemplate
@@ -280,3 +281,4 @@ spec:
           extraArgs:
             - provider-id=metal3://{{ ds.meta_data.uuid }}
         nodeName: '{{ ds.meta_data.local_hostname }}'
+      gzipUserData: false

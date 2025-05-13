@@ -50,6 +50,7 @@ spec:
     rollingUpdate:
       maxSurge: 1
   agentConfig: {}
+  gzipUserData: false
   serverConfig:
     disableComponents:
       kubernetesComponents:
@@ -124,6 +125,7 @@ spec:
   template:
     spec:
       agentConfig: {}
+      gzipUserData: false
 ---
 apiVersion: v1
 kind: ConfigMap

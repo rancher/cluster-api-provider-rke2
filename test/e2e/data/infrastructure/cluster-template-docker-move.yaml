@@ -114,6 +114,9 @@ spec:
       - anonymous-auth=true
     ntp:
       enabled: true
+    nodeAnnotations:
+      test: "true"
+  gzipUserData: false
   serverConfig:
     disableComponents:
       pluginComponents:
@@ -194,4 +197,8 @@ metadata:
   name: ${CLUSTER_NAME}-md-0
 spec: 
   template:
-    spec: {}
+    spec:
+      agentConfig:
+        nodeAnnotations:
+          test: "true"
+      gzipUserData: false
