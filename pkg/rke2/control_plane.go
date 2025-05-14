@@ -191,7 +191,7 @@ func (c *ControlPlane) NextFailureDomainForScaleUp(ctx context.Context) *string 
 		return nil
 	}
 
-	return capifd.PickFewest(ctx, c.FailureDomains().FilterControlPlane(), c.Machines, c.UpToDateMachines())
+	return capifd.PickFewest(ctx, c.FailureDomains().FilterControlPlane(), c.Machines, c.UpToDateMachines(ctx))
 }
 
 // InitialControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for an initializing control plane.
@@ -300,29 +300,29 @@ func (c *ControlPlane) SortedByDeletionTimestamp(s collections.Machines) []*clus
 }
 
 // MachinesNeedingRollout return a list of machines that need to be rolled out.
-func (c *ControlPlane) MachinesNeedingRollout() collections.Machines {
+func (c *ControlPlane) MachinesNeedingRollout(ctx context.Context) collections.Machines {
 	// Ignore machines to be deleted.
 	machines := c.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
 
 	// Return machines if they are scheduled for rollout or if with an outdated configuration.
 	return machines.AnyFilter(
 		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(c.InfraResources, c.Rke2Configs, c.RCP)),
+		collections.Not(matchesRCPConfiguration(ctx, c.InfraResources, c.Rke2Configs, c.RCP)),
 	)
 }
 
 // UpToDateMachines returns the machines that are up-to-date with the control
 // plane's configuration and therefore do not require rollout.
-func (c *ControlPlane) UpToDateMachines() collections.Machines {
+func (c *ControlPlane) UpToDateMachines(ctx context.Context) collections.Machines {
 	// Ignore machines to be deleted.
 	machines := c.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
 	// Filter machines if they are scheduled for rollout or if with an outdated configuration.
 	machines.AnyFilter(
 		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(c.InfraResources, c.Rke2Configs, c.RCP)),
+		collections.Not(matchesRCPConfiguration(ctx, c.InfraResources, c.Rke2Configs, c.RCP)),
 	)
 
-	return machines.Difference(c.MachinesNeedingRollout())
+	return machines.Difference(c.MachinesNeedingRollout(ctx))
 }
 
 // GetInfraResources fetches the external infrastructure resource for each machine in the collection

@@ -25,6 +25,7 @@ spec:
         - "--diagnostics-address=${CAPRKE2_DIAGNOSTICS_ADDRESS:=:8443}"
         - "--insecure-diagnostics=${CAPRKE2_INSECURE_DIAGNOSTICS:=false}"
         - "--feature-gates=MachinePool=${EXP_MACHINE_POOL:=true}"
+        - "--v=${CAPRKE2_DEBUG_LEVEL:=0}"
         image: controller:latest
         name: manager
         ports:

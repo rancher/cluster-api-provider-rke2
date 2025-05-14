@@ -1,13 +1,15 @@
 package rke2
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured" //nolint: gci,goimports
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
+	"sigs.k8s.io/controller-runtime/pkg/log" //nolint: gci,goimports
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
@@ -17,26 +19,32 @@ import (
 // matchesRCPConfiguration returns a filter to find all machines that matches with RCP config and do not require any rollout.
 // Kubernetes version, infrastructure template, and RKE2Config field need to be equivalent.
 func matchesRCPConfiguration(
+	ctx context.Context,
 	infraConfigs map[string]*unstructured.Unstructured,
 	machineConfigs map[string]*bootstrapv1.RKE2Config,
 	rcp *controlplanev1.RKE2ControlPlane,
 ) func(machine *clusterv1.Machine) bool {
 	return collections.And(
-		matchesKubernetesOrRKE2Version(rcp.GetDesiredVersion()),
-		matchesRKE2BootstrapConfig(machineConfigs, rcp),
-		matchesTemplateClonedFrom(infraConfigs, rcp),
+		matchesKubernetesOrRKE2Version(ctx, rcp.GetDesiredVersion()),
+		matchesRKE2BootstrapConfig(ctx, machineConfigs, rcp),
+		matchesTemplateClonedFrom(ctx, infraConfigs, rcp),
 	)
 }
 
 // matchesRKE2BootstrapConfig checks if machine's RKE2ConfigSpec is equivalent with RCP's RKE2ConfigSpec.
-func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Config, rcp *controlplanev1.RKE2ControlPlane) collections.Func {
+func matchesRKE2BootstrapConfig(ctx context.Context,
+	machineConfigs map[string]*bootstrapv1.RKE2Config,
+	rcp *controlplanev1.RKE2ControlPlane,
+) collections.Func {
 	return func(machine *clusterv1.Machine) bool {
 		if machine == nil {
 			return true
 		}
 
+		logger := log.FromContext(ctx).WithValues("Machine", machine.Name)
+
 		// Check if RCP and machine RKE2Config matches, if not return
-		if match := matchServerConfig(rcp, machine); !match {
+		if match := matchServerConfig(ctx, rcp, machine); !match {
 			return false
 		}
 
@@ -53,6 +61,8 @@ func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Confi
 			// This is a safety precaution to avoid rolling out machines if the client or the api-server is misbehaving.
 			return true
 		}
+
+		logger = logger.WithValues("rke2Config", machineConfig.Name)
 
 		if _, ok := machineConfig.Annotations["cluster-api.cattle.io/turtles-system-agent"]; ok {
 			files := []bootstrapv1.File{}
@@ -91,13 +101,20 @@ func matchesRKE2BootstrapConfig(machineConfigs map[string]*bootstrapv1.RKE2Confi
 		}
 
 		// Check if RCP AgentConfig and machineBootstrapConfig matches
-		return reflect.DeepEqual(machineConfig.Spec, rcp.Spec.RKE2ConfigSpec)
+		match := reflect.DeepEqual(machineConfig.Spec, rcp.Spec.RKE2ConfigSpec)
+		if !match {
+			logger.V(5).Info("Machine bootstrap configuration does not match RKE2Config. Needs rollout.")
+		}
+
+		return match
 	}
 }
 
 // matchServerConfig checks if RKE2Configs in the ControlPlane object and the machine annotation match.
-func matchServerConfig(rcp *controlplanev1.RKE2ControlPlane, machine *clusterv1.Machine) bool {
+func matchServerConfig(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, machine *clusterv1.Machine) bool {
+	logger := log.FromContext(ctx).WithValues("Machine", machine.Name)
 	machineServerConfigStr, ok := machine.GetAnnotations()[controlplanev1.RKE2ServerConfigurationAnnotation]
+
 	if !ok {
 		// We don't have enough information to make a decision; don't' trigger a roll out.
 		return true
@@ -106,6 +123,8 @@ func matchServerConfig(rcp *controlplanev1.RKE2ControlPlane, machine *clusterv1.
 	machineServerConfig := &controlplanev1.RKE2ServerConfig{}
 	// RKE2ServerConfig annotation is not correct, need to rollout new machine
 	if err := json.Unmarshal([]byte(machineServerConfigStr), &machineServerConfig); err != nil {
+		logger.V(5).Info("Could not unmarshal server configuration from Machine annotation. Needs rollout.")
+
 		return false
 	}
 
@@ -123,15 +142,28 @@ func matchServerConfig(rcp *controlplanev1.RKE2ControlPlane, machine *clusterv1.
 	}
 
 	// Compare and return
-	return reflect.DeepEqual(machineServerConfig, rcpServerConfig)
+	match := reflect.DeepEqual(machineServerConfig, rcpServerConfig)
+	if !match {
+		logger.V(5).Info("Machine server configuration does not match RKE2ControlPlane server configuration. Needs rollout.")
+	}
+
+	return match
 }
 
 // matchesTemplateClonedFrom returns a filter to find all machines that match a given RCP infra template.
-func matchesTemplateClonedFrom(infraConfigs map[string]*unstructured.Unstructured, rcp *controlplanev1.RKE2ControlPlane) collections.Func {
+func matchesTemplateClonedFrom(ctx context.Context,
+	infraConfigs map[string]*unstructured.Unstructured,
+	rcp *controlplanev1.RKE2ControlPlane,
+) collections.Func {
 	return func(machine *clusterv1.Machine) bool {
+		logger := log.FromContext(ctx)
 		if machine == nil {
+			logger.V(5).Info("Can not validate template on missing Machine. Needs rollout.")
+
 			return false
 		}
+
+		logger = logger.WithValues("Machine", machine.Name)
 
 		infraObj, found := infraConfigs[machine.Name]
 		if !found {
@@ -150,8 +182,21 @@ func matchesTemplateClonedFrom(infraConfigs map[string]*unstructured.Unstructure
 		}
 
 		// Check if the machine's infrastructure reference has been created from the current RCP infrastructure template.
-		if clonedFromName != rcp.Spec.MachineTemplate.InfrastructureRef.Name ||
-			clonedFromGroupKind != rcp.Spec.MachineTemplate.InfrastructureRef.GroupVersionKind().GroupKind().String() {
+		if clonedFromName != rcp.Spec.MachineTemplate.InfrastructureRef.Name {
+			logger.V(5).Info(fmt.Sprintf("Machine template name changed from %s to %s. Needs rollout",
+				clonedFromName,
+				rcp.Spec.MachineTemplate.InfrastructureRef.Name),
+			)
+
+			return false
+		}
+
+		if clonedFromGroupKind != rcp.Spec.MachineTemplate.InfrastructureRef.GroupVersionKind().GroupKind().String() {
+			logger.V(5).Info(fmt.Sprintf("Machine template GroupKind changed from %s to %s. Needs rollout",
+				clonedFromGroupKind,
+				rcp.Spec.MachineTemplate.InfrastructureRef.GroupVersionKind().GroupKind().String()),
+			)
+
 			return false
 		}
 
@@ -160,18 +205,33 @@ func matchesTemplateClonedFrom(infraConfigs map[string]*unstructured.Unstructure
 }
 
 // matchesKubernetesVersion returns a filter to find all machines that match a given Kubernetes or RKE2 version.
-func matchesKubernetesOrRKE2Version(rke2Version string) func(*clusterv1.Machine) bool {
+func matchesKubernetesOrRKE2Version(ctx context.Context, rke2Version string) func(*clusterv1.Machine) bool {
 	return func(machine *clusterv1.Machine) bool {
+		logger := log.FromContext(ctx)
 		if machine == nil {
+			logger.V(5).Info("Can not validate k8s version on missing Machine. Needs rollout.")
+
 			return false
 		}
 
+		logger = logger.WithValues("Machine", machine.Name)
+
 		if machine.Spec.Version == nil {
+			logger.V(5).Info("Machine is missing k8s version. Needs rollout.")
+
 			return false
 		}
 
 		if bsutil.IsRKE2Version(*machine.Spec.Version) {
-			return bsutil.CompareVersions(*machine.Spec.Version, rke2Version)
+			match := bsutil.CompareVersions(*machine.Spec.Version, rke2Version)
+			if !match {
+				logger.V(5).Info(fmt.Sprintf("Machine RKE2 version '%s' does not match desired version '%s'. Needs rollout.",
+					*machine.Spec.Version,
+					rke2Version),
+				)
+			}
+
+			return match
 		}
 
 		rcpKubeVersion, err := bsutil.Rke2ToKubeVersion(rke2Version)
@@ -179,6 +239,14 @@ func matchesKubernetesOrRKE2Version(rke2Version string) func(*clusterv1.Machine)
 			return true
 		}
 
-		return bsutil.CompareVersions(*machine.Spec.Version, rcpKubeVersion)
+		match := bsutil.CompareVersions(*machine.Spec.Version, rcpKubeVersion)
+		if !match {
+			logger.V(5).Info(fmt.Sprintf("Machine k8s version '%s' does not match desired version '%s'. Needs rollout.",
+				*machine.Spec.Version,
+				rcpKubeVersion),
+			)
+		}
+
+		return match
 	}
 }
