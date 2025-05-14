@@ -145,6 +145,7 @@ variables:
   EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: "true"
   EXP_MACHINE_POOL: "true"
   CLUSTER_TOPOLOGY: "true"
+  CAPRKE2_DEBUG_LEVEL: "5"
 
 intervals:
   default/wait-controllers: ["3m", "10s"]

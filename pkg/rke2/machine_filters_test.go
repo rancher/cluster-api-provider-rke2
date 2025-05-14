@@ -1,6 +1,8 @@
 package rke2
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -65,7 +67,7 @@ var machine = clusterv1.Machine{
 
 var _ = Describe("ServerConfigMatching", func() {
 	It("should match the machine annotation", func() {
-		res := matchServerConfig(&rcp, &machine)
+		res := matchServerConfig(context.TODO(), &rcp, &machine)
 		Expect(res).To(BeTrue())
 	})
 })
@@ -88,7 +90,7 @@ var _ = Describe("matchAgentConfig", func() {
 		}
 		machineCollection := collections.FromMachines(&machine)
 		Expect(len(machineCollection)).To(Equal(1))
-		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(machineConfigs, &rcp))
+		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(context.TODO(), machineConfigs, &rcp))
 
 		Expect(len(matches)).To(Equal(1))
 		Expect(matches.Oldest().Name).To(Equal("machine-test"))
@@ -113,7 +115,7 @@ var _ = Describe("matchAgentConfig", func() {
 		}
 		machineCollection := collections.FromMachines(&machine)
 		Expect(len(machineCollection)).To(Equal(1))
-		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(machineConfigs, &rcp))
+		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(context.TODO(), machineConfigs, &rcp))
 
 		Expect(len(matches)).To(Equal(0))
 	},
@@ -137,7 +139,7 @@ var _ = Describe("matchAgentConfig", func() {
 		}
 		machineCollection := collections.FromMachines(&machine)
 		Expect(len(machineCollection)).To(Equal(1))
-		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(machineConfigs, &rcp))
+		matches := machineCollection.AnyFilter(matchesRKE2BootstrapConfig(context.TODO(), machineConfigs, &rcp))
 
 		Expect(len(matches)).To(Equal(0))
 	},
@@ -147,14 +149,14 @@ var _ = Describe("matchAgentConfig", func() {
 var _ = Describe("matching Kubernetes Version", func() {
 	It("should match version", func() {
 		machineCollection := collections.FromMachines(&machine)
-		matches := machineCollection.AnyFilter(matchesKubernetesOrRKE2Version(rcp.GetDesiredVersion()))
+		matches := machineCollection.AnyFilter(matchesKubernetesOrRKE2Version(context.TODO(), rcp.GetDesiredVersion()))
 		Expect(len(matches)).To(Equal(1))
 	})
 
 	It("should match when RKE2 version is set on the machine", func() {
 		machine.Spec.Version = &rke2MachineVersion
 		machineCollection := collections.FromMachines(&machine)
-		matches := machineCollection.AnyFilter(matchesKubernetesOrRKE2Version(rcp.GetDesiredVersion()))
+		matches := machineCollection.AnyFilter(matchesKubernetesOrRKE2Version(context.TODO(), rcp.GetDesiredVersion()))
 		Expect(len(matches)).To(Equal(1))
 		machine.Spec.Version = &k8sMachineVersion
 	})
