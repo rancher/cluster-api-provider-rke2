@@ -51,6 +51,7 @@ import (
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition"
+	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition/butane"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/locking"
@@ -903,7 +904,16 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 			return err
 		}
 
-		data = buf.Bytes()
+		if scope.Config.Spec.AgentConfig.Format == bootstrapv1.Ignition {
+			res, err := butane.EncapsulateGzippedConfig(buf.Bytes())
+			if err != nil {
+				return err
+			}
+
+			data = res
+		} else {
+			data = buf.Bytes()
+		}
 	}
 
 	secret := &corev1.Secret{
