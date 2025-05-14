@@ -181,20 +181,29 @@ func matchesTemplateClonedFrom(ctx context.Context,
 			return true
 		}
 
+		infraName := rcp.Spec.MachineTemplate.InfrastructureRef.Name
+		infraGroupKind := rcp.Spec.MachineTemplate.InfrastructureRef.GroupVersionKind().GroupKind().String()
+		// Legacy support. Prevent rollout before the deprecated InfrastructureRef is moved to MachineTemplate
+		// If MachineTemplate has not been populated yet, use deprecated reference.
+		if rcp.Spec.InfrastructureRef.Name != "" && rcp.Spec.MachineTemplate.InfrastructureRef.Name == "" {
+			infraName = rcp.Spec.InfrastructureRef.Name
+			infraGroupKind = rcp.Spec.InfrastructureRef.GroupVersionKind().GroupKind().String()
+		}
+
 		// Check if the machine's infrastructure reference has been created from the current RCP infrastructure template.
-		if clonedFromName != rcp.Spec.MachineTemplate.InfrastructureRef.Name {
+		if clonedFromName != infraName {
 			logger.V(5).Info(fmt.Sprintf("Machine template name changed from %s to %s. Needs rollout",
 				clonedFromName,
-				rcp.Spec.MachineTemplate.InfrastructureRef.Name),
+				infraName),
 			)
 
 			return false
 		}
 
-		if clonedFromGroupKind != rcp.Spec.MachineTemplate.InfrastructureRef.GroupVersionKind().GroupKind().String() {
+		if clonedFromGroupKind != infraGroupKind {
 			logger.V(5).Info(fmt.Sprintf("Machine template GroupKind changed from %s to %s. Needs rollout",
 				clonedFromGroupKind,
-				rcp.Spec.MachineTemplate.InfrastructureRef.GroupVersionKind().GroupKind().String()),
+				infraGroupKind),
 			)
 
 			return false
