@@ -357,7 +357,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		return err
 	}
 
-	rcp.Status.UpdatedReplicas = rke2util.SafeInt32(len(controlPlane.UpToDateMachines()))
+	rcp.Status.UpdatedReplicas = rke2util.SafeInt32(len(controlPlane.UpToDateMachines(ctx)))
 	replicas := rke2util.SafeInt32(len(ownedMachines))
 	desiredReplicas := *rcp.Spec.Replicas
 
@@ -636,7 +636,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	}
 
 	// Control plane machines rollout due to configuration changes (e.g. upgrades) takes precedence over other operations.
-	needRollout := controlPlane.MachinesNeedingRollout()
+	needRollout := controlPlane.MachinesNeedingRollout(ctx)
 
 	switch {
 	case len(needRollout) > 0:
