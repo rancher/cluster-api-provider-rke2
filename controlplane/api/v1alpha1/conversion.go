@@ -45,6 +45,10 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 		return err
 	}
 
+	if restored.Spec.GzipUserData != nil {
+		dst.Spec.GzipUserData = restored.Spec.GzipUserData
+	}
+
 	if restored.Spec.Version != "" {
 		dst.Spec.Version = restored.Spec.Version
 	}
