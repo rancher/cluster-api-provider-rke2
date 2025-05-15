@@ -134,14 +134,6 @@ func (t *TestEnvironmentConfiguration) Build() (*TestEnvironment, error) {
 		Metrics: metricsserver.Options{
 			BindAddress: "0",
 		},
-		Client: client.Options{
-			Cache: &client.CacheOptions{
-				DisableFor: []client.Object{
-					&corev1.ConfigMap{},
-					&corev1.Secret{},
-				},
-			},
-		},
 	}
 
 	mgr, err := ctrl.NewManager(t.env.Config, options)
