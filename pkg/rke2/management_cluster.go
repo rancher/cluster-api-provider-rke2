@@ -139,7 +139,7 @@ func (m *Management) getEtcdCAKeyPair(ctx context.Context, cl ctrlclient.Reader,
 	// Try to get the certificate via the cached ctrlclient.
 	if err := certificates.Lookup(ctx, cl, clusterKey); err != nil {
 		// Return error if we got an errors which is not a NotFound error.
-		return nil, errors.Wrapf(err, "failed to get secret CA bungle; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
+		return nil, errors.Wrapf(err, "failed to get secret CA bundle; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
 	}
 
 	var keypair *certs.KeyPair
