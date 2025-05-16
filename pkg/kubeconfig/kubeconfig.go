@@ -45,19 +45,19 @@ func generateKubeconfig(ctx context.Context, c client.Client, clusterName client
 	clusterCA, err := secret.GetFromNamespacedName(ctx, c, clusterName, secret.ClusterCA)
 	if err != nil {
 		if apierrors.IsNotFound(errors.Cause(err)) {
-			return nil, ErrDependentCertificateNotFound
+			return nil, fmt.Errorf("getting Cluster CA for cluster %s: %w", clusterName.String(), ErrDependentCertificateNotFound)
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("getting Cluster CA for cluster %s: %w", clusterName.String(), err)
 	}
 
 	clientClusterCA, err := secret.GetFromNamespacedName(ctx, c, clusterName, secret.ClientClusterCA)
 	if err != nil {
 		if apierrors.IsNotFound(errors.Cause(err)) {
-			return nil, ErrDependentCertificateNotFound
+			return nil, fmt.Errorf("getting Client Cluster CA for cluster %s: %w", clusterName.String(), ErrDependentCertificateNotFound)
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("getting Client Cluster CA for cluster %s: %w", clusterName.String(), err)
 	}
 
 	clientCACert, err := certs.DecodeCertPEM(clientClusterCA.Data[secret.TLSCrtDataName])
@@ -160,10 +160,28 @@ func CreateSecretWithOwner(ctx context.Context, c client.Client, clusterName cli
 
 	out, err := generateKubeconfig(ctx, c, clusterName, server)
 	if err != nil {
+		return fmt.Errorf("generating kubeconfig: %w", err)
+	}
+
+	if err := c.Create(ctx, GenerateSecretWithOwner(clusterName, out, owner)); err != nil {
+		return fmt.Errorf("creating Secret: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateSecret updates the Kubeconfig secret for the given cluster name, namespace, endpoint, and owner reference.
+func UpdateSecret(ctx context.Context, c client.Client, clusterName client.ObjectKey, endpoint string, configSecret *corev1.Secret) error {
+	server := "https://" + endpoint
+
+	out, err := generateKubeconfig(ctx, c, clusterName, server)
+	if err != nil {
 		return err
 	}
 
-	return c.Create(ctx, GenerateSecretWithOwner(clusterName, out, owner))
+	configSecret.Data[secret.KubeconfigDataName] = out
+
+	return c.Update(ctx, configSecret)
 }
 
 // GenerateSecret returns a Kubernetes secret for the given Cluster and kubeconfig data.

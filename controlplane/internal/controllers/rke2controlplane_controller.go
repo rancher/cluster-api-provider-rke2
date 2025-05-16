@@ -482,7 +482,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		conditions.MarkFalse(
 			rcp, controlplanev1.CertificatesAvailableCondition,
 			controlplanev1.CertificatesGenerationFailedReason,
-			clusterv1.ConditionSeverityWarning, err.Error())
+			clusterv1.ConditionSeverityWarning, "%s", err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -815,6 +815,8 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 
 	switch {
 	case apierrors.IsNotFound(err):
+		logger.Info("Kubeconfig Secret not found, creating a new one")
+
 		createErr := kubeconfig.CreateSecretWithOwner(
 			ctx,
 			r.Client,
@@ -822,7 +824,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 			endpoint.String(),
 			controllerOwnerRef,
 		)
+
 		if errors.Is(createErr, kubeconfig.ErrDependentCertificateNotFound) {
+			logger.Error(createErr, "Could not find Secret CA to create Kubeconfig Secret, requeuing...")
+
 			return ctrl.Result{RequeueAfter: dependentCertRequeueAfter}, nil
 		}
 		// always return if we have just created in order to skip rotation checks
@@ -834,6 +839,8 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 
 	// only do rotation on owned secrets
 	if !util.IsControlledBy(configSecret, rcp) {
+		logger.Info("Kubeconfig Secret not controlled by RKE2ControlPlane, nothing to do")
+
 		return ctrl.Result{}, nil
 	}
 
@@ -845,7 +852,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 	if needsRotation {
 		logger.Info("Rotating kubeconfig secret")
 
-		if err := kubeconfig.CreateSecretWithOwner(ctx, r.Client, clusterName, endpoint.String(), controllerOwnerRef); err != nil {
+		if err := kubeconfig.UpdateSecret(ctx, r.Client, clusterName, endpoint.String(), configSecret); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "failed to regenerate kubeconfig")
 		}
 	}
