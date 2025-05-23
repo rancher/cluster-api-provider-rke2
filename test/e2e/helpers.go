@@ -634,6 +634,40 @@ func EnsureNoMachineRollout(ctx context.Context, input GetMachinesByClusterInput
 	}).WithTimeout(2 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
 }
 
+type GetRKE2ControlPlaneInput struct {
+	Client    client.Client
+	Namespace string
+	Name      string
+}
+
+func WaitForRKE2WebhookReady(ctx context.Context, input GetRKE2ControlPlaneInput) *controlplanev1.RKE2ControlPlane {
+	cp := &controlplanev1.RKE2ControlPlane{}
+
+	Eventually(func() error {
+		return input.Client.Get(ctx, client.ObjectKey{
+			Namespace: input.Namespace,
+			Name:      input.Name,
+		}, cp)
+	}, retryableOperationTimeout, retryableOperationInterval).Should(Succeed(), "RKE2 webhook not ready or control plane resource not reachable")
+
+	return cp
+}
+
+// PatchGzipUserData patches the RKE2ControlPlane to set gzipUserData to true.
+// This is needed when upgrading from versions that do not yet support this field in templates.
+//
+// TODO(REMOVE AFTER v0.16.0 IS RELEASED):
+// This patch is required because older templates (e.g., v0.14.0) do not include the new field `gzipUserData`,
+// and setting it will cause unmarshaling errors after upgrading to v0.15.x.
+// Once v0.16.0 is officially released and templates start using this field correctly, we can move this to templates
+// and remove the patch step entirely.
+func PatchGzipUserData(ctx context.Context, c client.Client, cp *controlplanev1.RKE2ControlPlane) error {
+	patch := client.MergeFrom(cp.DeepCopy())
+	val := true
+	cp.Spec.RKE2ConfigSpec.GzipUserData = &val
+	return c.Patch(ctx, cp, patch)
+}
+
 // setDefaults sets the default values for ApplyCustomClusterTemplateAndWaitInput if not set.
 // Currently, we set the default ControlPlaneWaiters here, which are implemented for RKE2ControlPlane.
 func setDefaults(input *ApplyCustomClusterTemplateAndWaitInput) {

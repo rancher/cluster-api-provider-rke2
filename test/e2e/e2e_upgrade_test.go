@@ -138,6 +138,18 @@ var _ = Describe("Workload cluster creation", func() {
 				LogFolder:             clusterctlLogFolder,
 			})
 
+			By("Waiting for RKE2ControlPlane webhook to be ready")
+
+			cp := WaitForRKE2WebhookReady(ctx, GetRKE2ControlPlaneInput{
+				Client:    bootstrapClusterProxy.GetClient(),
+				Namespace: result.Cluster.Namespace,
+				Name:      result.ControlPlane.Name,
+			})
+
+			By("Patching RKE2ControlPlane to set gzipUserData")
+			err := PatchGzipUserData(ctx, bootstrapClusterProxy.GetClient(), cp)
+			Expect(err).ToNot(HaveOccurred(), "Failed to patch gzipUserData")
+
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
 				Getter:       bootstrapClusterProxy.GetClient(),
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
