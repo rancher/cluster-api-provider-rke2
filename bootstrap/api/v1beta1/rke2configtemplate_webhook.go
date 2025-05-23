@@ -22,14 +22,15 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// RKE2configtemplatelog is for logging in this package.
-var RKE2configtemplatelog = logf.Log.WithName("RKE2configtemplate-resource")
+// rke2ConfigTemplateLogger the RKE2ConfigTemplate webhook logger.
+var rke2ConfigTemplateLogger = logf.Log.WithName("RKE2ConfigTemplate")
 
 // RKE2ConfigTemplateCustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind RKE2ConfigTemplate when those are created or updated.
@@ -65,7 +66,7 @@ func (r *RKE2ConfigTemplateCustomDefaulter) Default(_ context.Context, obj runti
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2ConfigTemplate but got a %T", obj))
 	}
 
-	RKE2configtemplatelog.Info("default", "name", rct.Name)
+	rke2ConfigTemplateLogger.Info("defaulting", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	return nil
 }
@@ -81,7 +82,7 @@ func (r *RKE2ConfigTemplateCustomValidator) ValidateCreate(_ context.Context, ob
 		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
 	}
 
-	RKE2configtemplatelog.Info("validate create", "name", rct.Name)
+	rke2ConfigTemplateLogger.Info("validate create", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	return nil, nil
 }
@@ -93,7 +94,7 @@ func (r *RKE2ConfigTemplateCustomValidator) ValidateUpdate(_ context.Context, ol
 		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", oldObj)
 	}
 
-	RKE2configtemplatelog.Info("validate update", "name", rct.Name)
+	rke2ConfigTemplateLogger.Info("validate update", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	return nil, nil
 }
@@ -105,7 +106,7 @@ func (r *RKE2ConfigTemplateCustomValidator) ValidateDelete(_ context.Context, ob
 		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
 	}
 
-	RKE2configtemplatelog.Info("validate delete", "name", rct.Name)
+	rke2ConfigTemplateLogger.Info("validate delete", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	return nil, nil
 }
