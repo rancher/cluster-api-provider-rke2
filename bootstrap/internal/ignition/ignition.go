@@ -37,9 +37,8 @@ const (
 var (
 	serverDeployCommands = []string{
 		"setenforce 0",
-		"systemctl enable rke2-server.service",
-		"systemctl start rke2-server.service",
 		"restorecon /etc/systemd/system/rke2-server.service",
+		"systemctl enable --now rke2-server.service",
 		"mkdir -p /run/cluster-api /etc/cluster-api",
 		"echo success | tee /run/cluster-api/bootstrap-success.complete /etc/cluster-api/bootstrap-success.complete > /dev/null",
 		"setenforce 1",
@@ -47,9 +46,8 @@ var (
 
 	workerDeployCommands = []string{
 		"setenforce 0",
-		"systemctl enable rke2-agent.service",
-		"systemctl start rke2-agent.service",
 		"restorecon /etc/systemd/system/rke2-agent.service",
+		"systemctl enable --now rke2-agent.service",
 		"mkdir -p /run/cluster-api /etc/cluster-api",
 		"echo success | tee /run/cluster-api/bootstrap-success.complete /etc/cluster-api/bootstrap-success.complete > /dev/null",
 		"setenforce 1",
