@@ -95,7 +95,6 @@ type RKE2ControlPlaneReconciler struct {
 	managementCluster         rke2.ManagementCluster
 	recorder                  record.EventRecorder
 	controller                controller.Controller
-	workloadCluster           rke2.WorkloadCluster
 	ssaCache                  ssa.Cache
 }
 
@@ -692,19 +691,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	return ctrl.Result{}, nil
 }
 
-// GetWorkloadCluster builds a cluster object.
-// The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
-func (r *RKE2ControlPlaneReconciler) GetWorkloadCluster(ctx context.Context, controlPlane *rke2.ControlPlane) (rke2.WorkloadCluster, error) {
-	workloadCluster, err := r.managementCluster.GetWorkloadCluster(ctx, client.ObjectKeyFromObject(controlPlane.Cluster))
-	if err != nil {
-		return nil, err
-	}
-
-	r.workloadCluster = workloadCluster
-
-	return r.workloadCluster, nil
-}
-
 // reconcileEtcdMembers ensures the number of etcd members is in sync with the number of machines/nodes.
 // This is usually required after a machine deletion.
 //
@@ -741,7 +727,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileEtcdMembers(ctx context.Context, c
 		return nil
 	}
 
-	workloadCluster, err := r.GetWorkloadCluster(ctx, controlPlane)
+	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
 	if err != nil {
 		// Failing at connecting to the workload cluster can mean workload cluster is unhealthy for a variety of reasons such as etcd quorum loss.
 		return errors.Wrap(err, "cannot get remote client to workload cluster")
@@ -1137,7 +1123,7 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 	// If we have more than 1 Machine and etcd is managed we forward etcd leadership and remove the member
 	// to keep the etcd cluster healthy.
 	if controlPlane.Machines.Len() > 1 && !found {
-		workloadCluster, err := r.GetWorkloadCluster(ctx, controlPlane)
+		workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
 		if err != nil {
 			return ctrl.Result{}, errors.Wrapf(err,
 				"failed to remove etcd member for deleting Machine %s: failed to create client to workload cluster", klog.KObj(deletingMachine))
