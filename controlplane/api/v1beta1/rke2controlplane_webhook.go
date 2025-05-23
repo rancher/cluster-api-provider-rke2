@@ -40,8 +40,8 @@ const (
 	defaultNodeVolumeDetachTimeout = 300 * time.Second
 )
 
-// log is for logging in this package.
-var rke2controlplanelog = logf.Log.WithName("rke2controlplane-resource")
+// rke2ControlPlaneLogger is the RKE2ControlPlane webhook logger.
+var rke2ControlPlaneLogger = logf.Log.WithName("RKE2ControlPlane")
 
 // RKE2ControlPlaneCustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind RKE2ControlPlane when those are created or updated.
@@ -76,6 +76,8 @@ func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, obj runtim
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2ControlPlane but got a %T", obj))
 	}
+
+	rke2ControlPlaneLogger.Info("defaulting", "RKE2ControlPlane", klog.KObj(rcp))
 
 	bootstrapv1.DefaultRKE2ConfigSpec(&rcp.Spec.RKE2ConfigSpec)
 
@@ -129,7 +131,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateCreate(_ context.Context, obj
 		return nil, fmt.Errorf("expected a RKE2ControlPlane object but got %T", obj)
 	}
 
-	rke2controlplanelog.Info("RKE2ControlPlane validate create", "control-plane", klog.KObj(rcp))
+	rke2ControlPlaneLogger.Info("validate create", "RKE2ControlPlane", klog.KObj(rcp))
 
 	var allErrs field.ErrorList
 
@@ -157,6 +159,8 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateUpdate(_ context.Context, old
 		return nil, fmt.Errorf("expected a RKE2ControlPlane object but got %T", newObj)
 	}
 
+	rke2ControlPlaneLogger.Info("validate update", "RKE2ControlPlane", klog.KObj(oldControlplane))
+
 	var allErrs field.ErrorList
 
 	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(newControlplane.Name, &newControlplane.Spec.RKE2ConfigSpec)...)
@@ -173,7 +177,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateUpdate(_ context.Context, old
 	// Ensure new fields NodeDrainTimeout, NodeVolumeDetachTimeout and NodeDeletionTimeout are mutable
 	if oldControlplane.Spec.MachineTemplate.NodeDrainTimeout != nil && newControlplane.Spec.MachineTemplate.NodeDrainTimeout != nil &&
 		oldControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration != newControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration {
-		rke2controlplanelog.Info(
+		rke2ControlPlaneLogger.Info(
 			"NodeDrainTimeout field updated",
 			"old", oldControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration,
 			"new", newControlplane.Spec.MachineTemplate.NodeDrainTimeout.Duration,
@@ -182,7 +186,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateUpdate(_ context.Context, old
 
 	if oldControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout != nil && newControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout != nil &&
 		oldControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration != newControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration {
-		rke2controlplanelog.Info(
+		rke2ControlPlaneLogger.Info(
 			"NodeVolumeDetachTimeout field updated",
 			"old", oldControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration,
 			"new", newControlplane.Spec.MachineTemplate.NodeVolumeDetachTimeout.Duration,
@@ -191,7 +195,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateUpdate(_ context.Context, old
 
 	if oldControlplane.Spec.MachineTemplate.NodeDeletionTimeout != nil && newControlplane.Spec.MachineTemplate.NodeDeletionTimeout != nil &&
 		oldControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration != newControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration {
-		rke2controlplanelog.Info(
+		rke2ControlPlaneLogger.Info(
 			"NodeDeletionTimeout field updated",
 			"old", oldControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration,
 			"new", newControlplane.Spec.MachineTemplate.NodeDeletionTimeout.Duration,
@@ -212,7 +216,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateDelete(_ context.Context, obj
 		return nil, fmt.Errorf("expected a RKE2ControlPlane object but got %T", obj)
 	}
 
-	rke2controlplanelog.Info("validate delete", "name", rcp.Name)
+	rke2ControlPlaneLogger.Info("validate delete", "RKE2ControlPlane", klog.KObj(rcp))
 
 	return nil, nil
 }

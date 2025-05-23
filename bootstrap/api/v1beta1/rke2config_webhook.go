@@ -35,7 +35,7 @@ import (
 
 var (
 	cannotUseWithIgnition = fmt.Sprintf("not supported when spec.format is set to %q", Ignition)
-	rke2configlog         = logf.Log.WithName("rke2config-resource")
+	rke2ConfigLogger      = logf.Log.WithName("RKE2Config")
 )
 
 // RKE2ConfigCustomDefaulter struct is responsible for setting default values on the custom resource of the
@@ -72,6 +72,8 @@ func (r *RKE2ConfigCustomDefaulter) Default(_ context.Context, obj runtime.Objec
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2Config but got a %T", obj))
 	}
 
+	rke2ConfigLogger.Info("defaulting", "RKE2Config", klog.KObj(rc))
+
 	DefaultRKE2ConfigSpec(&rc.Spec)
 
 	return nil
@@ -95,7 +97,7 @@ func (r *RKE2ConfigCustomValidator) ValidateCreate(_ context.Context, obj runtim
 		return nil, fmt.Errorf("expected a RKE2Config object but got %T", obj)
 	}
 
-	rke2configlog.Info("RKE2Config validate create", "rke2config", klog.KObj(rc))
+	rke2ConfigLogger.Info("validate create", "RKE2Config", klog.KObj(rc))
 
 	var allErrs field.ErrorList
 
@@ -115,7 +117,7 @@ func (r *RKE2ConfigCustomValidator) ValidateUpdate(_ context.Context, _, newObj 
 		return nil, fmt.Errorf("expected a RKE2Config object but got %T", newObj)
 	}
 
-	rke2configlog.Info("RKE2Config validate update", "rke2config", klog.KObj(newrc))
+	rke2ConfigLogger.Info("validate update", "RKE2Config", klog.KObj(newrc))
 
 	var allErrs field.ErrorList
 
@@ -129,7 +131,14 @@ func (r *RKE2ConfigCustomValidator) ValidateUpdate(_ context.Context, _, newObj 
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+func (r *RKE2ConfigCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	rc, ok := obj.(*RKE2Config)
+	if !ok {
+		return nil, fmt.Errorf("expected a RKE2Config object but got %T", obj)
+	}
+
+	rke2ConfigLogger.Info("validate delete", "RKE2Config", klog.KObj(rc))
+
 	return nil, nil
 }
 
