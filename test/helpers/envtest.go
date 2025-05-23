@@ -135,12 +135,7 @@ func (t *TestEnvironmentConfiguration) Build() (*TestEnvironment, error) {
 			BindAddress: "0",
 		},
 		Client: client.Options{
-			Cache: &client.CacheOptions{
-				DisableFor: []client.Object{
-					&corev1.ConfigMap{},
-					&corev1.Secret{},
-				},
-			},
+			Cache: nil,
 		},
 	}
 
