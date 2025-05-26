@@ -20,6 +20,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -157,10 +158,15 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 		return ctrl.Result{}, errors.New("failed to pick control plane Machine to delete")
 	}
 
+	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("getting workload cluster: %w", err)
+	}
+
 	// If etcd leadership is on machine that is about to be deleted, move it to the newest member available.
 	if _, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]; !found {
 		etcdLeaderCandidate := controlPlane.Machines.Newest()
-		if err := r.workloadCluster.ForwardEtcdLeadership(ctx, machineToDelete, etcdLeaderCandidate); err != nil {
+		if err := workloadCluster.ForwardEtcdLeadership(ctx, machineToDelete, etcdLeaderCandidate); err != nil {
 			logger.Error(err, "Failed to move leadership to candidate machine", "candidate", etcdLeaderCandidate.Name)
 
 			return ctrl.Result{}, err
