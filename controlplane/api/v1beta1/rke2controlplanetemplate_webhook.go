@@ -26,11 +26,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 )
+
+// rke2ControlPlaneTemplateLogger is the RKE2ControlPlaneTemplate webhook logger.
+var rke2ControlPlaneTemplateLogger = logf.Log.WithName("RKE2ControlPlaneTemplate")
 
 // RKE2ControlPlaneTemplateCustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind RKE2ControlPlaneTemplate when those are created or updated.
@@ -66,6 +70,8 @@ func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, obj
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2ControlPlaneTemplate but got a %T", obj))
 	}
 
+	rke2ControlPlaneTemplateLogger.Info("defaulting", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
+
 	bootstrapv1.DefaultRKE2ConfigSpec(&rcpt.Spec.Template.Spec.RKE2ConfigSpec)
 
 	return nil
@@ -82,7 +88,7 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateCreate(_ context.Conte
 		return nil, fmt.Errorf("expected a RKE2ControlPlaneTemplate object but got %T", obj)
 	}
 
-	rke2controlplanelog.Info("RKE2ControlPlane validate create", "control-plane", klog.KObj(rcpt))
+	rke2ControlPlaneTemplateLogger.Info("validate create", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
 
 	var allErrs field.ErrorList
 
@@ -114,6 +120,8 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateUpdate(_ context.Conte
 		})
 	}
 
+	rke2ControlPlaneTemplateLogger.Info("validate update", "RKE2ControlPlaneTemplate", klog.KObj(oldControlplane))
+
 	var allErrs field.ErrorList
 
 	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(newControlplane.Name, &newControlplane.Spec.Template.Spec.RKE2ConfigSpec)...)
@@ -144,7 +152,7 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateDelete(_ context.Conte
 		return nil, fmt.Errorf("expected a RKE2ControlPlaneTemplate object but got %T", obj)
 	}
 
-	rke2controlplanelog.Info("validate delete", "name", rcpt.Name)
+	rke2ControlPlaneTemplateLogger.Info("validate delete", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
 
 	return nil, nil
 }
