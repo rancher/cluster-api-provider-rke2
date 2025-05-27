@@ -139,6 +139,7 @@ func (t *TestEnvironmentConfiguration) Build() (*TestEnvironment, error) {
 				DisableFor: []client.Object{
 					&corev1.ConfigMap{},
 					&corev1.Secret{},
+					&corev1.Node{},
 				},
 			},
 		},
