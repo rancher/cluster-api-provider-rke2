@@ -34,6 +34,14 @@ type Addr struct {
 	identifier uint32
 }
 
+// NewAddrFromConn creates an Addr from the given connection.
+func NewAddrFromConn(c *Conn) Addr {
+	return Addr{
+		port:       c.stream.Headers().Get(corev1.PortHeader),
+		identifier: c.stream.Identifier(),
+	}
+}
+
 // Network returns a fake network.
 func (a Addr) Network() string {
 	return portforward.PortForwardProtocolV1Name
@@ -48,12 +56,4 @@ func (a Addr) String() string {
 		portforward.PortForwardProtocolV1Name,
 		a.port,
 	)
-}
-
-// NewAddrFromConn creates an Addr from the given connection.
-func NewAddrFromConn(c *Conn) Addr {
-	return Addr{
-		port:       c.stream.Headers().Get(corev1.PortHeader),
-		identifier: c.stream.Identifier(),
-	}
 }

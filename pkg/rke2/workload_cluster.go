@@ -198,19 +198,6 @@ type ClusterStatus struct {
 	HasRKE2ServingSecret bool
 }
 
-func (w *Workload) getControlPlaneNodes(ctx context.Context) (*corev1.NodeList, error) {
-	nodes := &corev1.NodeList{}
-	labels := map[string]string{
-		labelNodeRoleControlPlane: "true",
-	}
-
-	if err := w.List(ctx, nodes, ctrlclient.MatchingLabels(labels)); err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
-}
-
 // PatchNodes patches the nodes in the workload cluster.
 func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
 	errList := []error{}
@@ -399,6 +386,60 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 	})
 }
 
+// UpdateNodeMetadata is responsible for populating node metadata after
+// it is referenced from machine object.
+func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *ControlPlane) error {
+	for nodeName, machine := range controlPlane.Machines {
+		if machine.Spec.Bootstrap.ConfigRef == nil {
+			continue
+		}
+
+		if machine.Status.NodeRef != nil {
+			nodeName = machine.Status.NodeRef.Name
+		}
+
+		conditions.MarkTrue(machine, controlplanev1.NodeMetadataUpToDate)
+
+		node, nodeFound := w.Nodes[nodeName]
+		if !nodeFound {
+			conditions.MarkUnknown(
+				machine,
+				controlplanev1.NodeMetadataUpToDate,
+				controlplanev1.NodePatchFailedReason, "associated node not found")
+
+			continue
+		} else if name, ok := node.Annotations[clusterv1.MachineAnnotation]; !ok || name != machine.Name {
+			conditions.MarkUnknown(
+				machine,
+				controlplanev1.NodeMetadataUpToDate,
+				controlplanev1.NodePatchFailedReason, fmt.Sprintf("node object is missing %s annotation", clusterv1.MachineAnnotation))
+
+			continue
+		}
+
+		rkeConfig, found := controlPlane.Rke2Configs[machine.Name]
+		if !found {
+			conditions.MarkUnknown(
+				machine,
+				controlplanev1.NodeMetadataUpToDate,
+				controlplanev1.NodePatchFailedReason, "associated RKE2 config not found")
+
+			continue
+		}
+
+		annotations.AddAnnotations(node, rkeConfig.Spec.AgentConfig.NodeAnnotations)
+	}
+
+	return w.PatchNodes(ctx, controlPlane)
+}
+
+// UpdateEtcdConditions is responsible for updating machine conditions reflecting the status of all the etcd members.
+// This operation is best effort, in the sense that in case of problems in retrieving member status, it sets
+// the condition to Unknown state without returning any error.
+func (w *Workload) UpdateEtcdConditions(controlPlane *ControlPlane) {
+	w.updateManagedEtcdConditions(controlPlane)
+}
+
 type aggregateFromMachinesToRCPInput struct {
 	controlPlane      *ControlPlane
 	machineConditions []clusterv1.ConditionType
@@ -407,6 +448,19 @@ type aggregateFromMachinesToRCPInput struct {
 	unhealthyReason   string
 	unknownReason     string
 	note              string
+}
+
+func (w *Workload) getControlPlaneNodes(ctx context.Context) (*corev1.NodeList, error) {
+	nodes := &corev1.NodeList{}
+	labels := map[string]string{
+		labelNodeRoleControlPlane: "true",
+	}
+
+	if err := w.List(ctx, nodes, ctrlclient.MatchingLabels(labels)); err != nil {
+		return nil, err
+	}
+
+	return nodes, nil
 }
 
 // aggregateFromMachinesToRCP aggregates a group of conditions from machines to RCP.
@@ -510,13 +564,6 @@ func aggregateFromMachinesToRCP(input aggregateFromMachinesToRCPInput) {
 	}
 }
 
-// UpdateEtcdConditions is responsible for updating machine conditions reflecting the status of all the etcd members.
-// This operation is best effort, in the sense that in case of problems in retrieving member status, it sets
-// the condition to Unknown state without returning any error.
-func (w *Workload) UpdateEtcdConditions(controlPlane *ControlPlane) {
-	w.updateManagedEtcdConditions(controlPlane)
-}
-
 func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 	// NOTE: This methods uses control plane nodes only to get in contact with etcd but then it relies on etcd
 	// as ultimate source of truth for the list of members and for their health.
@@ -551,51 +598,4 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 
 		conditions.MarkTrue(machine, controlplanev1.MachineEtcdMemberHealthyCondition)
 	}
-}
-
-// UpdateNodeMetadata is responsible for populating node metadata after
-// it is referenced from machine object.
-func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *ControlPlane) error {
-	for nodeName, machine := range controlPlane.Machines {
-		if machine.Spec.Bootstrap.ConfigRef == nil {
-			continue
-		}
-
-		if machine.Status.NodeRef != nil {
-			nodeName = machine.Status.NodeRef.Name
-		}
-
-		conditions.MarkTrue(machine, controlplanev1.NodeMetadataUpToDate)
-
-		node, nodeFound := w.Nodes[nodeName]
-		if !nodeFound {
-			conditions.MarkUnknown(
-				machine,
-				controlplanev1.NodeMetadataUpToDate,
-				controlplanev1.NodePatchFailedReason, "associated node not found")
-
-			continue
-		} else if name, ok := node.Annotations[clusterv1.MachineAnnotation]; !ok || name != machine.Name {
-			conditions.MarkUnknown(
-				machine,
-				controlplanev1.NodeMetadataUpToDate,
-				controlplanev1.NodePatchFailedReason, fmt.Sprintf("node object is missing %s annotation", clusterv1.MachineAnnotation))
-
-			continue
-		}
-
-		rkeConfig, found := controlPlane.Rke2Configs[machine.Name]
-		if !found {
-			conditions.MarkUnknown(
-				machine,
-				controlplanev1.NodeMetadataUpToDate,
-				controlplanev1.NodePatchFailedReason, "associated RKE2 config not found")
-
-			continue
-		}
-
-		annotations.AddAnnotations(node, rkeConfig.Spec.AgentConfig.NodeAnnotations)
-	}
-
-	return w.PatchNodes(ctx, controlPlane)
 }
