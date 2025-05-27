@@ -81,8 +81,8 @@ providers:
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-    - name: "v0.15.0"
-      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.15.0/control-plane-components.yaml"
+    - name: "v0.16.0"
+      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.16.0/control-plane-components.yaml"
       type: "url"
       contract: v1beta1
       files:
@@ -93,7 +93,7 @@ providers:
           new: "imagePullPolicy: IfNotPresent"
         - old: "--leader-elect"
           new: "--leader-elect=false"
-    - name: v0.16.99 # next; use manifest from source files
+    - name: v0.17.99 # next; use manifest from source files
       value: "../../../controlplane/config/default"
       contract: v1beta1
       files:
@@ -107,8 +107,8 @@ providers:
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-    - name: "v0.15.0"
-      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.15.0/bootstrap-components.yaml"
+    - name: "v0.16.0"
+      value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.16.0/bootstrap-components.yaml"
       type: "url"
       contract: v1beta1
       files:
@@ -119,7 +119,7 @@ providers:
           new: "imagePullPolicy: IfNotPresent"
         - old: "--leader-elect"
           new: "--leader-elect=false"
-    - name: v0.16.99 # next; use manifest from source files
+    - name: v0.17.99 # next; use manifest from source files
       value: ../../../bootstrap/config/default
       contract: v1beta1
       files:
