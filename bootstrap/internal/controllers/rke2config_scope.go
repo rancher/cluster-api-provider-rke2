@@ -54,30 +54,6 @@ type Scope struct {
 	ControlPlane *controlplanev1.RKE2ControlPlane
 }
 
-// HasMachineOwner returns true if the RKE2Config is owned by a Machine.
-func (s *Scope) HasMachineOwner() bool {
-	return s.Machine != nil
-}
-
-// HasMachinePoolOwner returns true if the RKE2Config is owned by a MachinePool.
-func (s *Scope) HasMachinePoolOwner() bool {
-	return s.MachinePool != nil
-}
-
-// HasControlPlaneOwner returns true if the RKE2Config is owned by a Machine which is also a ControlPlane.
-func (s *Scope) HasControlPlaneOwner() bool {
-	return s.Machine != nil && s.ControlPlane != nil
-}
-
-// GetDesiredVersion returns the K8S version associated to the RKE2Config owner.
-func (s *Scope) GetDesiredVersion() string {
-	if s.MachinePool != nil {
-		return *s.MachinePool.Spec.Template.Spec.Version
-	}
-
-	return *s.Machine.Spec.Version
-}
-
 // NewScope initializes the RKE2Config scope given a new request.
 func NewScope(ctx context.Context, req ctrl.Request, client client.Client) (*Scope, error) {
 	logger := log.FromContext(ctx)
@@ -149,4 +125,28 @@ func NewScope(ctx context.Context, req ctrl.Request, client client.Client) (*Sco
 		ControlPlane: cp,
 		Cluster:      cluster,
 	}, nil
+}
+
+// HasMachineOwner returns true if the RKE2Config is owned by a Machine.
+func (s *Scope) HasMachineOwner() bool {
+	return s.Machine != nil
+}
+
+// HasMachinePoolOwner returns true if the RKE2Config is owned by a MachinePool.
+func (s *Scope) HasMachinePoolOwner() bool {
+	return s.MachinePool != nil
+}
+
+// HasControlPlaneOwner returns true if the RKE2Config is owned by a Machine which is also a ControlPlane.
+func (s *Scope) HasControlPlaneOwner() bool {
+	return s.Machine != nil && s.ControlPlane != nil
+}
+
+// GetDesiredVersion returns the K8S version associated to the RKE2Config owner.
+func (s *Scope) GetDesiredVersion() string {
+	if s.MachinePool != nil {
+		return *s.MachinePool.Spec.Template.Spec.Version
+	}
+
+	return *s.Machine.Spec.Version
 }

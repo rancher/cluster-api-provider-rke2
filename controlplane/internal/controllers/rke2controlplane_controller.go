@@ -308,6 +308,28 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 	return nil
 }
 
+// ClusterToRKE2ControlPlane is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation
+// for RKE2ControlPlane based on updates to a Cluster.
+func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(ctx context.Context) handler.MapFunc {
+	log := log.FromContext(ctx)
+
+	return func(_ context.Context, o client.Object) []ctrl.Request {
+		c, ok := o.(*clusterv1.Cluster)
+		if !ok {
+			log.Error(nil, fmt.Sprintf("Expected a Cluster but got a %T", o))
+
+			return nil
+		}
+
+		controlPlaneRef := c.Spec.ControlPlaneRef
+		if controlPlaneRef != nil && controlPlaneRef.Kind == "RKE2ControlPlane" {
+			return []ctrl.Request{{NamespacedName: client.ObjectKey{Namespace: controlPlaneRef.Namespace, Name: controlPlaneRef.Name}}}
+		}
+
+		return nil
+	}
+}
+
 // nolint:gocyclo
 func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, cluster *clusterv1.Cluster) error {
 	logger := log.FromContext(ctx)
@@ -1037,28 +1059,6 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		logger.Error(err, "RolloutStrategy type is not set to RollingUpdateStrategyType, unable to determine the strategy for rolling out machines")
 
 		return ctrl.Result{}, nil
-	}
-}
-
-// ClusterToRKE2ControlPlane is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation
-// for RKE2ControlPlane based on updates to a Cluster.
-func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(ctx context.Context) handler.MapFunc {
-	log := log.FromContext(ctx)
-
-	return func(_ context.Context, o client.Object) []ctrl.Request {
-		c, ok := o.(*clusterv1.Cluster)
-		if !ok {
-			log.Error(nil, fmt.Sprintf("Expected a Cluster but got a %T", o))
-
-			return nil
-		}
-
-		controlPlaneRef := c.Spec.ControlPlaneRef
-		if controlPlaneRef != nil && controlPlaneRef.Kind == "RKE2ControlPlane" {
-			return []ctrl.Request{{NamespacedName: client.ObjectKey{Namespace: controlPlaneRef.Namespace, Name: controlPlaneRef.Name}}}
-		}
-
-		return nil
 	}
 }
 

@@ -32,6 +32,15 @@ type Conn struct {
 	writeDeadline time.Time
 }
 
+// NewConn creates a new net/conn interface based on an underlying Kubernetes
+// API server proxy connection.
+func NewConn(connection httpstream.Connection, stream httpstream.Stream) *Conn {
+	return &Conn{
+		connection: connection,
+		stream:     stream,
+	}
+}
+
 // Read from the connection.
 func (c *Conn) Read(b []byte) (n int, err error) {
 	return c.stream.Read(b)
@@ -77,13 +86,4 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 	c.readDeadline = t
 
 	return nil
-}
-
-// NewConn creates a new net/conn interface based on an underlying Kubernetes
-// API server proxy connection.
-func NewConn(connection httpstream.Connection, stream httpstream.Stream) *Conn {
-	return &Conn{
-		connection: connection,
-		stream:     stream,
-	}
 }
