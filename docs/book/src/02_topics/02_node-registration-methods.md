@@ -4,7 +4,7 @@ The provider supports multiple methods for registering a new node into the clust
 
 ## Usage
 
-The method to use is specified on the **RKEControlPlane** within the **spec**. If no method is supplied then the default method of **internal-first** will be used.
+The method to use is specified on the **RKEControlPlane** within the **spec**. If no method is supplied then the default method of **control-plane-endpoint** will be used.
 
 > You cannot change the registration method after creation.
 
@@ -35,6 +35,10 @@ spec:
 ```
 
 ## Registration Methods
+
+### control-plane-endpoint
+
+The CAPI (Infra)Cluster's `controlPlaneEndpoint` value will be used for node registration. If this endpoint is served by a load balancer, make sure that it allows traffic to the control plane nodes on the `9345` registration port.  
 
 ### internal-first
 
