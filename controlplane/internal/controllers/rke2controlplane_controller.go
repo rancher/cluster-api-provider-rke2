@@ -203,6 +203,32 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return res, err
 	}
 
+	updated := false
+
+	// Backfill MachineTemplate.InfrastructureRef if missing but legacy Spec.InfrastructureRef exists
+	if rcp.Spec.InfrastructureRef.Name != "" && rcp.Spec.MachineTemplate.InfrastructureRef.Name == "" {
+		rcp.Spec.MachineTemplate.InfrastructureRef = rcp.Spec.InfrastructureRef
+		updated = true
+	}
+
+	// Ensure MachineTemplate.InfrastructureRef.Namespace is set
+	if rcp.Spec.MachineTemplate.InfrastructureRef.Name != "" && rcp.Spec.MachineTemplate.InfrastructureRef.Namespace == "" {
+		rcp.Spec.MachineTemplate.InfrastructureRef.Namespace = rcp.Namespace
+		updated = true
+	}
+
+	if updated {
+		if err := patchHelper.Patch(ctx, rcp); err != nil {
+			logger.Error(err, "Failed to patch RKE2ControlPlane during backfill")
+			// If patching fails, we return an error to avoid re-queuing the object.
+			return ctrl.Result{}, err
+		}
+		// Log the backfill operation.
+		logger.Info("Backfilled missing RKE2ControlPlane fields from legacy format", "rcp", klog.KObj(rcp))
+		// Requeue to ensure the controller reprocesses the object with the updated fields.
+		return ctrl.Result{Requeue: true}, nil
+	}
+
 	// Handle normal reconciliation loop.
 	res, err = r.reconcileNormal(ctx, cluster, rcp)
 
