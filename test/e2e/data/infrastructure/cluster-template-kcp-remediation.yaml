@@ -138,6 +138,7 @@ spec:
   agentConfig:
     nodeAnnotations:
       test: "true"
+  gzipUserData: false
   serverConfig:
     disableComponents:
       pluginComponents:
@@ -211,6 +212,7 @@ spec:
       agentConfig:
         nodeAnnotations:
           test: "true"
+      gzipUserData: false
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineHealthCheck

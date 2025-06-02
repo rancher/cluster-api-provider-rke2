@@ -29,6 +29,7 @@ spec:
           extraArgs:
           - provider-id=openstack:///{{ ds.meta_data.uuid }} # Data from Openstack metadata-service
         nodeName: '{{ ds.meta_data.local_hostname }}' # Data from Openstack metadata-service
+      gzipUserData: false
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
@@ -94,6 +95,7 @@ spec:
       extraArgs:
       - provider-id=openstack:///{{ ds.meta_data.uuid }} # Data from Openstack metadata-service
     nodeName: '{{ ds.meta_data.local_hostname }}' # Data from Openstack metadata-service
+  gzipUserData: false
   version: v1.30.8+rke2r1
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha7

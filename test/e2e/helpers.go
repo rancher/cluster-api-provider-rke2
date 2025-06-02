@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	pkgerrors "github.com/pkg/errors"
@@ -427,6 +428,20 @@ func WaitForRKE2ControlPlaneMachinesToExist(ctx context.Context, input WaitForRK
 type WaitForControlPlaneToBeReadyInput struct {
 	Getter       framework.Getter
 	ControlPlane types.NamespacedName
+}
+
+func WaitForControlPlaneToBeReadyWithError(ctx context.Context, input WaitForControlPlaneToBeReadyInput, intervals ...interface{}) error {
+	// Use polling to wait for the RKE2ControlPlane to become ready
+	return wait.PollImmediate(10*time.Second, 10*time.Minute, func() (bool, error) {
+		var cp controlplanev1.RKE2ControlPlane
+		if err := input.Getter.Get(ctx, input.ControlPlane, &cp); err != nil {
+			return false, nil // retry if not found
+		}
+
+		// Check if the Ready condition is true
+		ready := conditions.IsTrue(&cp, clusterv1.ReadyCondition)
+		return ready, nil
+	})
 }
 
 // WaitForControlPlaneToBeReady will wait for a control plane to be ready.
