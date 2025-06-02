@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/blang/semver/v4 v4.0.0
-	github.com/coreos/butane v0.23.0
+	github.com/coreos/butane v0.24.0
 	github.com/coreos/ignition/v2 v2.21.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46
