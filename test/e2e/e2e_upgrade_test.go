@@ -27,8 +27,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	"gopkg.in/yaml.v2"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -85,7 +88,7 @@ var _ = Describe("Workload cluster creation", func() {
 	})
 
 	Context("Creating a single control-plane cluster", func() {
-		It("Should create a cluster with v0.16.0 and perform upgrade to latest version", func() {
+		FIt("Should create a cluster with v0.16.0 and perform upgrade to latest version", func() {
 			By("Installing v0.16.0 boostrap/controlplane provider version")
 			initUpgradableBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
@@ -129,7 +132,7 @@ var _ = Describe("Workload cluster creation", func() {
 			})
 			Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
 
-			By("Upgrading to next boostrap/controlplane provider version")
+			By("Upgrading to next bootstrap/controlplane provider version")
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:          bootstrapClusterProxy,
 				ClusterctlConfigPath:  clusterctlConfigPath,
@@ -137,6 +140,53 @@ var _ = Describe("Workload cluster creation", func() {
 				ControlPlaneProviders: []string{"rke2-control-plane:v0.17.99"},
 				LogFolder:             clusterctlLogFolder,
 			})
+
+			// Step: Patch gzipUserData after upgrade
+			By("Patching RKE2ControlPlane with gzipUserData=true after upgrade")
+
+			fmt.Fprintf(GinkgoWriter, "Before patching: GzipUserData=%v\n", result.ControlPlane.Spec.GzipUserData)
+
+			// Prepare patch
+			patch := client.MergeFrom(result.ControlPlane.DeepCopy())
+			result.ControlPlane.Spec.GzipUserData = pointer.Bool(true)
+
+			// Apply patch
+			err := bootstrapClusterProxy.GetClient().Patch(ctx, result.ControlPlane, patch)
+			fmt.Fprintf(GinkgoWriter, "Patching RKE2ControlPlane with gzipUserData=true: %v\n", err)
+			Expect(err).ToNot(HaveOccurred(), "Failed to patch RKE2ControlPlane with gzipUserData=true")
+
+			fmt.Fprintln(GinkgoWriter, "Successfully patched RKE2ControlPlane with gzipUserData=true")
+
+			// Wait for control plane to become ready
+			err = WaitForControlPlaneToBeReadyWithError(ctx, WaitForControlPlaneToBeReadyInput{
+				Getter:       bootstrapClusterProxy.GetClient(),
+				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
+			})
+			if err != nil {
+				fmt.Fprintln(GinkgoWriter, "RKE2ControlPlane did not become ready in time after patch")
+
+				// Fetch and dump current RKE2ControlPlane state
+				var cp controlplanev1.RKE2ControlPlane
+				getErr := bootstrapClusterProxy.GetClient().Get(ctx, client.ObjectKeyFromObject(result.ControlPlane), &cp)
+				if getErr == nil {
+					yamlBytes, _ := yaml.Marshal(cp)
+					fmt.Fprintln(GinkgoWriter, "\n--- RKE2ControlPlane YAML After Patch ---")
+					fmt.Fprintln(GinkgoWriter, string(yamlBytes))
+
+					if cp.Status.Conditions != nil {
+						fmt.Fprintln(GinkgoWriter, "\n--- RKE2ControlPlane Conditions ---")
+						for _, cond := range cp.Status.Conditions {
+							fmt.Fprintf(GinkgoWriter, "- %s: %s (Reason: %s, Message: %s)\n",
+								cond.Type, cond.Status, cond.Reason, cond.Message)
+						}
+					}
+				} else {
+					fmt.Fprintf(GinkgoWriter, "Failed to get RKE2ControlPlane: %v\n", getErr)
+				}
+
+				// Finally fail the test
+				Expect(err).ToNot(HaveOccurred(), "RKE2ControlPlane never became ready after patch")
+			}
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
 				Getter:       bootstrapClusterProxy.GetClient(),
