@@ -49,7 +49,7 @@ type AuthConfig struct {
 	Auth string `json:"auth,omitempty" toml:"auth" yaml:"auth,omitempty"`
 	// IdentityToken is used to authenticate the user and get
 	// an access token for the registry.
-	IdentityToken string `json:"identity_token,omitempty" toml:"identitytoken" yaml:"identity_token,omitempty"`
+	IdentityToken string `json:"token,omitempty" toml:"token" yaml:"token,omitempty"`
 }
 
 // TLSConfig contains the CA/Cert/Key used for a registry.
