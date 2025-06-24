@@ -687,16 +687,17 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 
 	cpinput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
-			AirGapped:           scope.Config.Spec.AgentConfig.AirGapped,
-			AirGappedChecksum:   scope.Config.Spec.AgentConfig.AirGappedChecksum,
-			CISEnabled:          scope.Config.Spec.AgentConfig.CISProfile != "",
-			PreRKE2Commands:     scope.Config.Spec.PreRKE2Commands,
-			PostRKE2Commands:    scope.Config.Spec.PostRKE2Commands,
-			ConfigFile:          initConfigFile,
-			RKE2Version:         scope.GetDesiredVersion(),
-			WriteFiles:          files,
-			NTPServers:          ntpServers,
-			AdditionalCloudInit: scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+			AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
+			AirGappedChecksum:       scope.Config.Spec.AgentConfig.AirGappedChecksum,
+			CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
+			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
+			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
+			ConfigFile:              initConfigFile,
+			RKE2Version:             scope.GetDesiredVersion(),
+			WriteFiles:              files,
+			NTPServers:              ntpServers,
+			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+			AdditionalArbitraryData: scope.Config.Spec.AgentConfig.AdditionalUserData.Data,
 		},
 	}
 
