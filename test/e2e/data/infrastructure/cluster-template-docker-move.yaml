@@ -62,11 +62,13 @@ data:
 kind: ConfigMap
 metadata:
   name: ${CLUSTER_NAME}-lb-config
+  labels:
+    clusterctl.cluster.x-k8s.io/move: "true"
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster 
 metadata:
-  name: ${CLUSTER_NAME}
+  name: ${CLUSTER_NAME} 
 spec:
   clusterNetwork:
     pods:
@@ -106,8 +108,12 @@ spec:
     rollingUpdate:
       maxSurge: 1
   agentConfig:
-    nodeAnnotations:
-      test: "true"
+    format: cloud-config
+    kubelet:
+      extraArgs:
+      - anonymous-auth=true
+    ntp:
+      enabled: true
   serverConfig:
     disableComponents:
       pluginComponents:
@@ -118,18 +124,11 @@ spec:
       extraArgs:
       - --anonymous-auth=true
   machineTemplate:
-    metadata:
-      labels:
-        key: value
-      annotations:
-        key: value
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: DockerMachineTemplate
-      name:  "${CLUSTER_NAME}-control-plane"
-    nodeDrainTimeout: 2m
-    nodeDeletionTimeout: 30s
-    nodeVolumeDetachTimeout: 5m
+      name: "${CLUSTER_NAME}-control-plane"
+    nodeDrainTimeout: 30s
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
@@ -142,6 +141,11 @@ spec:
     spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
+      extraMounts:
+      - containerPath: "/var/run/docker.sock"
+        hostPath: "/var/run/docker.sock"
+      - containerPath: "/var/lib/rancher/rke2/agent/images"
+        hostPath: "${LOCAL_IMAGES}"
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -178,6 +182,11 @@ spec:
     spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
+      extraMounts:
+      - containerPath: "/var/run/docker.sock"
+        hostPath: "/var/run/docker.sock"
+      - containerPath: "/var/lib/rancher/rke2/agent/images"
+        hostPath: "${LOCAL_IMAGES}"
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate
@@ -185,7 +194,4 @@ metadata:
   name: ${CLUSTER_NAME}-md-0
 spec: 
   template:
-    spec:
-      agentConfig:
-        nodeAnnotations:
-          test: "true"
+    spec: {}

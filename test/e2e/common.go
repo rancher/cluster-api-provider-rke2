@@ -51,6 +51,7 @@ const (
 	WorkerMachineCount              = "WORKER_MACHINE_COUNT"
 	IPFamily                        = "IP_FAMILY"
 	KindImageVersion                = "KIND_IMAGE_VERSION"
+	LocalImages                     = "LOCAL_IMAGES"
 )
 
 func Byf(format string, a ...interface{}) {
@@ -122,6 +123,7 @@ type cleanupInput struct {
 	Namespace         *corev1.Namespace
 	CancelWatches     context.CancelFunc
 	Cluster           *clusterv1.Cluster
+	KubeconfigPath    string
 	IntervalsGetter   func(spec, key string) []interface{}
 	SkipCleanup       bool
 	AdditionalCleanup func()
@@ -159,6 +161,9 @@ func dumpSpecResourcesAndCleanup(ctx context.Context, input cleanupInput) {
 		Client:    input.ClusterProxy.GetClient(),
 		Namespace: input.Namespace.Name,
 	}, input.IntervalsGetter(input.SpecName, "wait-delete-cluster")...)
+
+	Byf("Removing downstream Cluster kubeconfig: %s", input.KubeconfigPath)
+	Expect(os.Remove(input.KubeconfigPath)).Should(Succeed())
 
 	Byf("Deleting namespace used for hosting the %q test spec", input.SpecName)
 	framework.DeleteNamespace(ctx, framework.DeleteNamespaceInput{

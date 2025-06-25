@@ -31,16 +31,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
+	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/collections"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Workload cluster creation", func() {
+var _ = Describe("In-place propagation", func() {
 	var (
-		specName            = "create-workload-cluster"
+		specName            = "in-place-propagation"
 		namespace           *corev1.Namespace
 		cancelWatches       context.CancelFunc
 		result              *ApplyClusterTemplateAndWaitResult
@@ -77,6 +80,7 @@ var _ = Describe("Workload cluster creation", func() {
 		cleanInput := cleanupInput{
 			SpecName:          specName,
 			Cluster:           result.Cluster,
+			KubeconfigPath:    result.KubeconfigPath,
 			ClusterProxy:      bootstrapClusterProxy,
 			Namespace:         namespace,
 			CancelWatches:     cancelWatches,
@@ -98,8 +102,8 @@ var _ = Describe("Workload cluster creation", func() {
 					LogFolder:                clusterctlLogFolder,
 					ClusterctlConfigPath:     clusterctlConfigPath,
 					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
-					InfrastructureProvider:   "docker-updated",
-					Flavor:                   "docker-updated",
+					InfrastructureProvider:   "docker",
+					Flavor:                   "docker",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
 					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
@@ -272,6 +276,30 @@ var _ = Describe("Workload cluster creation", func() {
 				}
 				return nil
 			}, 5*time.Minute, 10*time.Second).Should(Succeed(), "Labels/annotations not propagated or associations not correct")
+
+			By("Waiting for machines to have propagated metadata")
+			for _, machine := range machineList.Items {
+				machine := machine
+
+				WaitForMachineConditions(ctx, WaitForMachineConditionsInput{
+					Getter:    bootstrapClusterProxy.GetClient(),
+					Machine:   &machine,
+					Checker:   conditions.IsTrue,
+					Condition: controlplanev1.NodeMetadataUpToDate,
+				}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
+			}
+
+			By("Verifying annotations have been propagated to nodes")
+			downstreamProxy := framework.NewClusterProxy("metadata", result.KubeconfigPath, initScheme())
+			Expect(downstreamProxy).ToNot(BeNil(), "Failed to get a metadata cluster proxy")
+
+			nodeList := &corev1.NodeList{}
+			Expect(downstreamProxy.GetClient().List(ctx, nodeList)).Should(Succeed())
+			for _, node := range nodeList.Items {
+				value, found := node.GetObjectMeta().GetAnnotations()["test"]
+				Expect(found).Should(BeTrue(), "'test' annotation must be found on node")
+				Expect(value).Should(Equal("true"), "'test' node annotation should have 'true' value")
+			}
 		})
 	})
 })

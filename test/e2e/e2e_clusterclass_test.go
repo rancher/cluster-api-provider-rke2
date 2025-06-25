@@ -34,9 +34,9 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 )
 
-var _ = Describe("Workload cluster creation", func() {
+var _ = Describe("Cluster Class provisioning", func() {
 	var (
-		specName            = "create-workload-cluster"
+		specName            = "cluster-class-provisioning"
 		namespace           *corev1.Namespace
 		cancelWatches       context.CancelFunc
 		result              *ApplyCustomClusterTemplateAndWaitResult
@@ -75,6 +75,7 @@ var _ = Describe("Workload cluster creation", func() {
 		cleanInput := cleanupInput{
 			SpecName:          specName,
 			Cluster:           result.Cluster,
+			KubeconfigPath:    result.KubeconfigPath,
 			ClusterProxy:      bootstrapClusterProxy,
 			Namespace:         namespace,
 			CancelWatches:     cancelWatches,

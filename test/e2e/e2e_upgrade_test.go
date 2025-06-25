@@ -36,9 +36,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Workload cluster creation", func() {
+var _ = Describe("Provider upgrade", func() {
 	var (
-		specName            = "create-workload-cluster"
+		specName            = "provider-upgrade"
 		namespace           *corev1.Namespace
 		cancelWatches       context.CancelFunc
 		result              *ApplyClusterTemplateAndWaitResult
@@ -72,6 +72,7 @@ var _ = Describe("Workload cluster creation", func() {
 		cleanInput := cleanupInput{
 			SpecName:          specName,
 			Cluster:           result.Cluster,
+			KubeconfigPath:    result.KubeconfigPath,
 			ClusterProxy:      bootstrapClusterProxy,
 			Namespace:         namespace,
 			CancelWatches:     cancelWatches,
