@@ -123,6 +123,13 @@ var _ = Describe("Bootstrap & Pivot", func() {
 				Namespace: result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
 
+			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
+				Reader:      bootstrapClusterProxy.GetClient(),
+				Version:     e2eConfig.GetVariable(KubernetesVersion),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+
 			Byf("Using pivoted proxy with kubeconfig: %s", result.KubeconfigPath)
 			pivotedProxy := framework.NewClusterProxy("pivoted", result.KubeconfigPath, initScheme())
 			Expect(pivotedProxy).ToNot(BeNil(), "Failed to get a pivoted cluster proxy")
@@ -222,6 +229,13 @@ var _ = Describe("Bootstrap & Pivot", func() {
 				Getter:    pivotedProxy.GetClient(),
 				Name:      result.Cluster.Name,
 				Namespace: result.Cluster.Namespace,
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+
+			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
+				Reader:      pivotedProxy.GetClient(),
+				Version:     e2eConfig.GetVariable(KubernetesVersionUpgradeTo),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
 
 			Byf("Moving back the Cluster %s/%s from %s to %s", result.Cluster.Namespace, result.Cluster.Name, pivotedProxy.GetKubeconfigPath(), bootstrapClusterProxy.GetKubeconfigPath())

@@ -657,6 +657,31 @@ func EnsureNoMachineRollout(ctx context.Context, input GetMachinesByClusterInput
 	}).WithTimeout(2 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
 }
 
+type WaitForAllMachinesRunningWithVersionInput struct {
+	Reader      framework.GetLister
+	Version     string
+	ClusterName string
+	Namespace   string
+}
+
+func WaitForAllMachinesRunningWithVersion(ctx context.Context, input WaitForAllMachinesRunningWithVersionInput, intervals ...any) {
+	Byf("Waiting for all machines to be Running with version %s", input.Version)
+	Eventually(func() bool {
+		machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+			Lister:      input.Reader,
+			ClusterName: input.ClusterName,
+			Namespace:   input.Namespace,
+		})
+		for _, machine := range machineList.Items {
+			if machine.Status.Phase != "Running" ||
+				machine.Spec.Version == nil || !strings.Contains(*machine.Spec.Version, input.Version) {
+				return false
+			}
+		}
+		return true
+	}, intervals...).Should(BeTrue())
+}
+
 // setDefaults sets the default values for ApplyCustomClusterTemplateAndWaitInput if not set.
 // Currently, we set the default ControlPlaneWaiters here, which are implemented for RKE2ControlPlane.
 func setDefaults(input *ApplyCustomClusterTemplateAndWaitInput) {

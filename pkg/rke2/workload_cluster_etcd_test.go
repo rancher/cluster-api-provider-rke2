@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/blang/semver/v4"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd"
 	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
@@ -34,147 +34,92 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	etcdfake "github.com/rancher/cluster-api-provider-rke2/pkg/etcd/fake"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util/patch"
 )
 
-func TestRemoveEtcdMemberForMachine(t *testing.T) {
-	machine := &clusterv1.Machine{
-		Status: clusterv1.MachineStatus{
+var _ = Describe("ETCD safe member removal", Ordered, func() {
+	var (
+		err         error
+		ns          *corev1.Namespace
+		node        *corev1.Node
+		nodeName    = "test-node"
+		machine     *clusterv1.Machine
+		w           *Workload
+		patchHelper *patch.Helper
+	)
+	BeforeAll(func() {
+		ns, err = testEnv.CreateNamespace(ctx, "ns")
+		Expect(err).ToNot(HaveOccurred())
+		node = &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   nodeName,
+				Labels: map[string]string{labelNodeRoleControlPlane: "true"},
+			},
+		}
+		machine = &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      nodeName,
+				Namespace: ns.Name,
+			},
+			Spec: clusterv1.MachineSpec{
+				ClusterName: "foo",
+				InfrastructureRef: corev1.ObjectReference{
+					Kind:       "Pod",
+					APIVersion: "v1",
+					Name:       "stub",
+					Namespace:  ns.Name,
+				},
+			},
+		}
+
+		machineStatus := clusterv1.MachineStatus{
 			NodeRef: &corev1.ObjectReference{
-				Name: "cp1",
+				Kind:       "Node",
+				APIVersion: "v1",
+				Name:       nodeName,
 			},
-		},
-	}
-	cp1 := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cp1",
-			Namespace: "cp1",
-			Labels: map[string]string{
-				labelNodeRoleControlPlane: "true",
-			},
-		},
-	}
-	cp1DiffNS := cp1.DeepCopy()
-	cp1DiffNS.Namespace = "diff-ns"
+		}
+		Expect(testEnv.Create(ctx, node)).Should(Succeed())
+		Expect(testEnv.Create(ctx, machine)).Should(Succeed())
+		machine.Status = machineStatus
+		Expect(testEnv.Status().Update(ctx, machine)).Should(Succeed())
+	})
+	AfterAll(func() {
+		testEnv.Cleanup(ctx, node, machine, ns)
+	})
+	It("Should mark the node for etcd member removal", func() {
+		patchHelper, err = patch.NewHelper(node, testEnv.GetClient())
+		Expect(err).ShouldNot(HaveOccurred())
+		w = &Workload{
+			Client:           testEnv.GetClient(),
+			Nodes:            map[string]*corev1.Node{node.Name: node},
+			nodePatchHelpers: map[string]*patch.Helper{node.Name: patchHelper},
+		}
+		Expect(w.RemoveEtcdMemberForMachine(ctx, machine)).Should(Succeed())
 
-	cp2 := cp1.DeepCopy()
-	cp2.Name = "cp2"
-	cp2.Namespace = "cp2"
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).Should(Succeed())
+		Expect(node.GetAnnotations()).ShouldNot(BeNil(), "Node should have annotations")
+		value, found := node.GetAnnotations()[etcdNodeRemoveAnnotation]
+		Expect(found).Should(BeTrue(), "remove annotation must be present")
+		Expect(value).Should(Equal("true"))
+	})
+	It("Should wait for removed node name annotation", func() {
+		safelyRemoved, err := w.IsEtcdMemberSafelyRemovedForMachine(ctx, machine)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(safelyRemoved).Should(BeFalse(), "etcd member not removed yet")
 
-	tests := []struct {
-		name                string
-		machine             *clusterv1.Machine
-		etcdClientGenerator etcd.ClientFor
-		objs                []client.Object
-		expectErr           bool
-	}{
-		{
-			name:      "does nothing if the machine is nil",
-			machine:   nil,
-			expectErr: false,
-		},
-		{
-			name: "does nothing if the machine has no node",
-			machine: &clusterv1.Machine{
-				Status: clusterv1.MachineStatus{
-					NodeRef: nil,
-				},
-			},
-			expectErr: false,
-		},
-		{
-			name:      "returns an error if there are less than 2 control plane nodes",
-			machine:   machine,
-			objs:      []client.Object{cp1},
-			expectErr: true,
-		},
-		{
-			name:                "returns an error if it fails to create the etcd client",
-			machine:             machine,
-			objs:                []client.Object{cp1, cp2},
-			etcdClientGenerator: &fakeEtcdClientGenerator{forNodesErr: errors.New("no client")},
-			expectErr:           true,
-		},
-		{
-			name:    "returns an error if the client errors getting etcd members",
-			machine: machine,
-			objs:    []client.Object{cp1, cp2},
-			etcdClientGenerator: &fakeEtcdClientGenerator{
-				forNodesClient: &etcd.Client{
-					EtcdClient: &etcdfake.FakeEtcdClient{
-						ErrorResponse: errors.New("cannot get etcd members"),
-					},
-				},
-			},
-			expectErr: true,
-		},
-		{
-			name:    "returns an error if the client errors removing the etcd member",
-			machine: machine,
-			objs:    []client.Object{cp1, cp2},
-			etcdClientGenerator: &fakeEtcdClientGenerator{
-				forNodesClient: &etcd.Client{
-					EtcdClient: &etcdfake.FakeEtcdClient{
-						ErrorResponse: errors.New("cannot remove etcd member"),
-						MemberListResponse: &clientv3.MemberListResponse{
-							Members: []*pb.Member{
-								{Name: "cp1", ID: uint64(1)},
-								{Name: "test-2", ID: uint64(2)},
-								{Name: "test-3", ID: uint64(3)},
-							},
-						},
-						AlarmResponse: &clientv3.AlarmResponse{
-							Alarms: []*pb.AlarmMember{},
-						},
-					},
-				},
-			},
-			expectErr: true,
-		},
-		{
-			name:    "removes the member from etcd",
-			machine: machine,
-			objs:    []client.Object{cp1, cp2},
-			etcdClientGenerator: &fakeEtcdClientGenerator{
-				forNodesClient: &etcd.Client{
-					EtcdClient: &etcdfake.FakeEtcdClient{
-						MemberListResponse: &clientv3.MemberListResponse{
-							Members: []*pb.Member{
-								{Name: "cp1", ID: uint64(1)},
-								{Name: "test-2", ID: uint64(2)},
-								{Name: "test-3", ID: uint64(3)},
-							},
-						},
-						AlarmResponse: &clientv3.AlarmResponse{
-							Alarms: []*pb.AlarmMember{},
-						},
-					},
-				},
-			},
-			expectErr: false,
-		},
-	}
+		//Explicitly test the value can contain anything, not necessarily the node name
+		node.Annotations[etcdNodeRemovedNodeNameAnnotation] = "foo"
+		Expect(patchHelper.Patch(ctx, node)).Should(Succeed())
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := NewWithT(t)
-			fakeClient := fake.NewClientBuilder().WithObjects(tt.objs...).Build()
-			w := &Workload{
-				Client:              fakeClient,
-				etcdClientGenerator: tt.etcdClientGenerator,
-			}
-			err := w.RemoveEtcdMemberForMachine(ctx, tt.machine)
-			if tt.expectErr {
-				g.Expect(err).To(HaveOccurred())
-				return
-			}
-			g.Expect(err).ToNot(HaveOccurred())
-		})
-	}
-}
+		safelyRemoved, err = w.IsEtcdMemberSafelyRemovedForMachine(ctx, machine)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(safelyRemoved).Should(BeTrue(), "etcd member is removed")
+	})
+})
 
 func TestForwardEtcdLeadership(t *testing.T) {
 	t.Run("handles errors correctly", func(t *testing.T) {
@@ -366,112 +311,6 @@ func TestForwardEtcdLeadership(t *testing.T) {
 			})
 		}
 	})
-}
-
-func TestReconcileEtcdMembers(t *testing.T) {
-	node1 := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ip-10-0-0-1.ec2.internal",
-			Namespace: "ns1",
-			Labels: map[string]string{
-				labelNodeRoleControlPlane: "true",
-			},
-		},
-	}
-	node2 := node1.DeepCopy()
-	node2.Name = "ip-10-0-0-2.ec2.internal"
-
-	fakeEtcdClient := &etcdfake.FakeEtcdClient{
-		MemberListResponse: &clientv3.MemberListResponse{
-			Members: []*pb.Member{
-				{Name: "ip-10-0-0-1.ec2.internal", ID: uint64(1)},
-				{Name: "ip-10-0-0-2.ec2.internal", ID: uint64(2)},
-				{Name: "ip-10-0-0-3.ec2.internal", ID: uint64(3)},
-			},
-		},
-		AlarmResponse: &clientv3.AlarmResponse{
-			Alarms: []*pb.AlarmMember{},
-		},
-	}
-
-	tests := []struct {
-		name                string
-		kubernetesVersion   semver.Version
-		objs                []client.Object
-		nodes               []string
-		etcdClientGenerator etcd.ClientFor
-		expectErr           bool
-		assert              func(*WithT, client.Client)
-	}{
-		{
-			// the node to be removed is ip-10-0-0-3.ec2.internal since the
-			// other two have nodes
-			name:              "successfully removes the etcd member without a node for Kubernetes version < 1.22.0",
-			kubernetesVersion: semver.MustParse("1.19.1"), // Kubernetes version < 1.22.0 has ClusterStatus
-			objs:              []client.Object{node1.DeepCopy(), node2.DeepCopy()},
-			nodes:             []string{node1.Name, node2.Name},
-			etcdClientGenerator: &fakeEtcdClientGenerator{
-				forNodesClient: &etcd.Client{
-					EtcdClient: fakeEtcdClient,
-				},
-			},
-			expectErr: false,
-			assert: func(g *WithT, c client.Client) {
-				g.Expect(fakeEtcdClient.RemovedMember).To(Equal(uint64(3)))
-			},
-		},
-		{
-			// the node to be removed is ip-10-0-0-3.ec2.internal since the
-			// other two have nodes
-			name:              "successfully removes the etcd member without a node for Kubernetes version >= 1.22.0",
-			kubernetesVersion: semver.MustParse("1.22.0"), // Kubernetes version >= 1.22.0 does not have ClusterStatus
-			objs:              []client.Object{node1.DeepCopy(), node2.DeepCopy()},
-			nodes:             []string{node1.Name, node2.Name},
-			etcdClientGenerator: &fakeEtcdClientGenerator{
-				forNodesClient: &etcd.Client{
-					EtcdClient: fakeEtcdClient,
-				},
-			},
-			expectErr: false,
-			assert: func(g *WithT, c client.Client) {
-				g.Expect(fakeEtcdClient.RemovedMember).To(Equal(uint64(3)))
-			},
-		},
-		{
-			name:  "return error if there aren't enough control plane nodes",
-			objs:  []client.Object{node1.DeepCopy()},
-			nodes: []string{node1.Name},
-			etcdClientGenerator: &fakeEtcdClientGenerator{
-				forNodesClient: &etcd.Client{
-					EtcdClient: fakeEtcdClient,
-				},
-			},
-			expectErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := NewWithT(t)
-
-			fakeClient := fake.NewClientBuilder().WithObjects(tt.objs...).Build()
-			w := &Workload{
-				Client:              fakeClient,
-				etcdClientGenerator: tt.etcdClientGenerator,
-			}
-			ctx := context.TODO()
-			_, err := w.ReconcileEtcdMembers(ctx, tt.nodes, tt.kubernetesVersion)
-			if tt.expectErr {
-				g.Expect(err).To(HaveOccurred())
-				return
-			}
-			g.Expect(err).ToNot(HaveOccurred())
-
-			if tt.assert != nil {
-				tt.assert(g, fakeClient)
-			}
-		})
-	}
 }
 
 type fakeEtcdClientGenerator struct {
