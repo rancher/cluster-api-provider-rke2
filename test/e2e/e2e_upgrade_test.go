@@ -100,7 +100,7 @@ var _ = Describe("Workload cluster creation", func() {
 					Flavor:                   "docker",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
+					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
 					ControlPlaneMachineCount: ptr.To(int64(3)),
 					WorkerMachineCount:       ptr.To(int64(1)),
 				},
@@ -166,7 +166,7 @@ var _ = Describe("Workload cluster creation", func() {
 					Flavor:                   "docker",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
+					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
 					ControlPlaneMachineCount: ptr.To(int64(2)),
 					WorkerMachineCount:       ptr.To(int64(2)),
 				},
@@ -191,7 +191,7 @@ var _ = Describe("Workload cluster creation", func() {
 					Flavor:                   "docker",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersionUpgradeTo),
+					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo),
 					ControlPlaneMachineCount: ptr.To(int64(1)),
 					WorkerMachineCount:       ptr.To(int64(1)),
 				},
@@ -204,7 +204,7 @@ var _ = Describe("Workload cluster creation", func() {
 				Reader:              bootstrapClusterProxy.GetClient(),
 				ControlPlane:        result.ControlPlane,
 				MachineDeployments:  result.MachineDeployments,
-				VersionAfterUpgrade: e2eConfig.GetVariable(KubernetesVersionUpgradeTo),
+				VersionAfterUpgrade: e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
