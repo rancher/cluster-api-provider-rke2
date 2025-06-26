@@ -117,13 +117,13 @@ var _ = Describe("Workload cluster creation", func() {
 				case "NAMESPACE":
 					return namespace.Name
 				case "KUBERNETES_VERSION":
-					return e2eConfig.GetVariable(KubernetesVersion)
+					return e2eConfig.MustGetVariable(KubernetesVersion)
 				case "KIND_IMAGE_VERSION":
-					return e2eConfig.GetVariable(KindImageVersion)
+					return e2eConfig.MustGetVariable(KindImageVersion)
 				case "CONTROL_PLANE_MACHINE_COUNT":
-					return e2eConfig.GetVariable(ControlPlaneMachineCount)
+					return e2eConfig.MustGetVariable(ControlPlaneMachineCount)
 				case "WORKER_MACHINE_COUNT":
-					return e2eConfig.GetVariable(WorkerMachineCount)
+					return e2eConfig.MustGetVariable(WorkerMachineCount)
 				default:
 					return os.Getenv(s)
 				}
