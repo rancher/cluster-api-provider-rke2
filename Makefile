@@ -129,6 +129,7 @@ CONTROLPLANE_IMAGE_NAME = $(CONTROLLER_IMAGE_NAME)-controlplane
 BOOTSTRAP_IMG ?= $(REGISTRY)/$(ORG)/$(BOOTSTRAP_IMAGE_NAME)
 CONTROLPLANE_IMG ?= $(REGISTRY)/$(ORG)/$(CONTROLPLANE_IMAGE_NAME)
 IID_FILE ?= $(shell mktemp)
+LOCAL_IMAGES = $(shell pwd)/out/images
 
 # Repo
 GH_ORG_NAME ?= $ORG
@@ -396,7 +397,7 @@ kubectl: # Download kubectl cli into tools bin folder
 
 # Allow overriding the e2e configurations
 GINKGO_FOCUS ?=
-GINKGO_SKIP ?= API Version Upgrade
+GINKGO_SKIP ?= "Pivot"
 GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
 GINKGO_ARGS ?=
@@ -408,9 +409,9 @@ SKIP_CLEANUP ?= false
 SKIP_CREATE_MGMT_CLUSTER ?= false
 
 .PHONY: test-e2e-run
-test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image inotify-check ## Run the end-to-end tests
-	CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
-	--tags=e2e --focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
+test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image e2e-image-store inotify-check ## Run the end-to-end tests
+	LOCAL_IMAGES="$(LOCAL_IMAGES)" CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
+	--tags=e2e --focus="$(GINKGO_FOCUS)" --skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
 		-e2e.artifacts-folder="$(ARTIFACTS)" \
 		-e2e.config="$(E2E_CONF_FILE)" \
@@ -432,18 +433,15 @@ inotify-check:
 		echo -e "\033[0;31mfs.inotify.max_user_watches is too low, tests may fail (sudo sysctl fs.inotify.max_user_watches=1048576)\033[0m"; \
 	 fi
 
-LOCAL_GINKGO_ARGS ?=
-LOCAL_GINKGO_ARGS += $(GINKGO_ARGS)
-.PHONY: test-e2e-local
-test-e2e-local: ## Run e2e tests
-	PULL_POLICY=IfNotPresent MANAGER_IMAGE=$(CONTROLLER_IMG):$(TAG) \
-	$(MAKE) docker-build \
-	GINKGO_ARGS='$(LOCAL_GINKGO_ARGS)' \
-	test-e2e-run
-
 .PHONY: e2e-image
 e2e-image:
 	TAG=$(TAG) $(MAKE) docker-build
+
+.PHONY: e2e-image-store
+e2e-image-store: ## This is needed by the move/pivot e2e test to load images on the workload cluster.
+	mkdir -p $(LOCAL_IMAGES)
+	docker save $(BOOTSTRAP_IMG):$(TAG) > $(LOCAL_IMAGES)/bootstrap_dev.tar
+	docker save $(CONTROLPLANE_IMG):$(TAG) > $(LOCAL_IMAGES)/controlplane_dev.tar
 
 .PHONY: compile-e2e
 compile-e2e: ## Test e2e compilation

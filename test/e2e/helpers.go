@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	pkgerrors "github.com/pkg/errors"
@@ -101,6 +102,7 @@ type ApplyClusterTemplateAndWaitResult struct {
 	Cluster            *clusterv1.Cluster
 	ControlPlane       *controlplanev1.RKE2ControlPlane
 	MachineDeployments []*clusterv1.MachineDeployment
+	KubeconfigPath     string
 }
 
 // ApplyCustomClusterTemplateAndWaitResult is the output type for ApplyCustomClusterTemplateAndWait.
@@ -109,6 +111,7 @@ type ApplyCustomClusterTemplateAndWaitResult struct {
 	Cluster            *clusterv1.Cluster
 	ControlPlane       *controlplanev1.RKE2ControlPlane
 	MachineDeployments []*clusterv1.MachineDeployment
+	KubeconfigPath     string
 }
 
 // ApplyClusterTemplateAndWait gets a managed cluster template using clusterctl, and waits for the cluster to be ready.
@@ -219,13 +222,33 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 		input.PostMachinesProvisioned()
 	}
 
-	if !input.SkipPreviousVersionChecks { //If condition can be removed after 0.15.0 is released, so that this test always runs.
-		VerifyDockerMachineTemplateOwner(ctx, VerifyDockerMachineTemplateOwnerInput{
-			Lister:      input.ClusterProxy.GetClient(),
-			ClusterName: result.Cluster.Name,
-			Namespace:   result.Cluster.Namespace,
-		})
+	VerifyDockerMachineTemplateOwner(ctx, VerifyDockerMachineTemplateOwnerInput{
+		Lister:      input.ClusterProxy.GetClient(),
+		ClusterName: result.Cluster.Name,
+		Namespace:   result.Cluster.Namespace,
+	})
+
+	// Dump the kubeconfig path if not done previously.
+	if result.KubeconfigPath == "" {
+		result.KubeconfigPath = WriteKubeconfigSecretToDisk(ctx, input.ClusterProxy.GetClient(), result.Cluster.Namespace, result.Cluster.Name+"-kubeconfig")
 	}
+}
+
+func WriteKubeconfigSecretToDisk(ctx context.Context, client framework.Getter, namespace, name string) string {
+	Byf("Dumping Cluster kubeconfig secret %s/%s", namespace, name)
+	kubeconfigSecret := &corev1.Secret{}
+	Expect(client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, kubeconfigSecret)).Should(Succeed())
+	content, ok := kubeconfigSecret.Data["value"]
+	Expect(ok).To(BeTrue(), "Failed to find expected key in kubeconfig secret")
+	cfg, err := clientcmd.Load(content)
+	Expect(err).ShouldNot(HaveOccurred(), "Failed to unmarshall data into kubeconfig")
+	tempFile, err := os.CreateTemp("", "e2e-kubeconfig")
+	Expect(err).NotTo(HaveOccurred(), "Failed to create temp file for kubeconfig")
+
+	Byf("Writing kubeconfig to temp file %s", tempFile.Name())
+	err = clientcmd.WriteToFile(*cfg, tempFile.Name())
+	Expect(err).ShouldNot(HaveOccurred(), "Failed to write kubeconfig to file %s", tempFile.Name())
+	return tempFile.Name()
 }
 
 // DiscoveryAndWaitForMachineDeployments discovers the MachineDeployments existing in a cluster and waits for them to be ready (all the machine provisioned).
