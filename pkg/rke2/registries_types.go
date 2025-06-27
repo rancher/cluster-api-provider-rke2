@@ -39,6 +39,7 @@ type Mirror struct {
 }
 
 // AuthConfig contains the config related to authentication to a specific registry.
+// See: https://github.com/rancher/wharfie/blob/main/pkg/registries/types.go
 type AuthConfig struct {
 	// Username is the username to login the registry.
 	Username string `json:"username,omitempty" toml:"username" yaml:"username,omitempty"`
@@ -49,7 +50,7 @@ type AuthConfig struct {
 	Auth string `json:"auth,omitempty" toml:"auth" yaml:"auth,omitempty"`
 	// IdentityToken is used to authenticate the user and get
 	// an access token for the registry.
-	IdentityToken string `json:"identity_token,omitempty" toml:"identitytoken" yaml:"identity_token,omitempty"`
+	IdentityToken string `json:"identitytoken,omitempty" toml:"identitytoken" yaml:"identity_token,omitempty"`
 }
 
 // TLSConfig contains the CA/Cert/Key used for a registry.
