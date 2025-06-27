@@ -103,7 +103,7 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&profilerAddress, "profiler-address", "",
 		"Bind address to expose the pprof profiler (e.g. localhost:6060)")
 
-	fs.IntVar(&concurrencyNumber, "concurrency", 1,
+	fs.IntVar(&concurrencyNumber, "concurrency", 10,
 		"Number of core resources to process simultaneously")
 
 	fs.DurationVar(&syncPeriod, "sync-period", consts.DefaultSyncPeriod,

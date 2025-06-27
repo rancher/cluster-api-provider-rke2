@@ -42,6 +42,7 @@ linters:
         - "4"
         - "3"
         - "2"
+        - "10"
     revive:
       rules:
         - name: blank-imports
