@@ -63,3 +63,4 @@ When configuring the `authSecret`, ensure the secret contains the following keys
 
 - **`username` and `password`** - When using Basic Auth credentials
 - **`identity-token`** - When using a personal access token
+- **`auth`** - Is a base64 encoded string from the concatenation of the username, a colon, and the password
