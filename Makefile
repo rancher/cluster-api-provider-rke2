@@ -397,7 +397,7 @@ kubectl: # Download kubectl cli into tools bin folder
 
 # Allow overriding the e2e configurations
 GINKGO_FOCUS ?=
-GINKGO_SKIP ?= "Pivot"
+GINKGO_SKIP ?= ""
 GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
 GINKGO_ARGS ?=

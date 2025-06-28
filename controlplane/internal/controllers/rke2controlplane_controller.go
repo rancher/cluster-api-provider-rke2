@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -666,12 +665,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		return result, err
 	}
 
-	// Ensures the number of etcd members is in sync with the number of machines/nodes.
-	// NOTE: This is usually required after a machine deletion.
-	if err := r.reconcileEtcdMembers(ctx, controlPlane); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	if result, err := r.reconcilePreTerminateHook(ctx, controlPlane); err != nil || !result.IsZero() {
 		return result, err
 	}
@@ -737,65 +730,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	}
 
 	return ctrl.Result{}, nil
-}
-
-// reconcileEtcdMembers ensures the number of etcd members is in sync with the number of machines/nodes.
-// This is usually required after a machine deletion.
-//
-// NOTE: this func uses RKE2ControlPlane conditions, it is required to call reconcileControlPlaneConditions before this.
-func (r *RKE2ControlPlaneReconciler) reconcileEtcdMembers(ctx context.Context, controlPlane *rke2.ControlPlane) error {
-	log := ctrl.LoggerFrom(ctx)
-
-	// If there is no RKE-owned control-plane machines, then control-plane has not been initialized yet.
-	if controlPlane.Machines.Len() == 0 {
-		return nil
-	}
-
-	if _, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]; found {
-		log.Info("Etcd membership disabled, found controlplane.cluster.x-k8s.io/legacy annotation")
-
-		return nil
-	}
-
-	// Collect all the node names.
-	nodeNames := []string{}
-
-	for _, machine := range controlPlane.Machines {
-		if machine.Status.NodeRef == nil {
-			// If there are provisioning machines (machines without a node yet), return.
-			return nil
-		}
-
-		nodeNames = append(nodeNames, machine.Status.NodeRef.Name)
-	}
-
-	// Potential inconsistencies between the list of members and the list of machines/nodes are
-	// surfaced using the EtcdClusterHealthyCondition; if this condition is true, meaning no inconsistencies exists, return early.
-	if conditions.IsTrue(controlPlane.RCP, controlplanev1.EtcdClusterHealthyCondition) {
-		return nil
-	}
-
-	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
-	if err != nil {
-		// Failing at connecting to the workload cluster can mean workload cluster is unhealthy for a variety of reasons such as etcd quorum loss.
-		return errors.Wrap(err, "cannot get remote client to workload cluster")
-	}
-
-	parsedVersion, err := semver.ParseTolerant(controlPlane.RCP.GetDesiredVersion())
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse kubernetes version %q", controlPlane.RCP.GetDesiredVersion())
-	}
-
-	removedMembers, err := workloadCluster.ReconcileEtcdMembers(ctx, nodeNames, parsedVersion)
-	if err != nil {
-		return errors.Wrap(err, "failed attempt to reconcile etcd members")
-	}
-
-	if len(removedMembers) > 0 {
-		log.Info("Etcd members without nodes removed from the cluster", "members", removedMembers)
-	}
-
-	return nil
 }
 
 func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
@@ -1170,6 +1104,17 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 		// Note: Removing the etcd member will lead to the etcd and the kube-apiserver Pod on the Machine shutting down.
 		if err := workloadCluster.RemoveEtcdMemberForMachine(ctx, deletingMachine); err != nil {
 			return ctrl.Result{}, errors.Wrapf(err, "failed to remove etcd member for deleting Machine %s", klog.KObj(deletingMachine))
+		}
+
+		safelyRemoved, err := workloadCluster.IsEtcdMemberSafelyRemovedForMachine(ctx, deletingMachine)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("determining if etcd member is safely removed for Machine %s: %w", klog.KObj(deletingMachine), err)
+		}
+
+		if !safelyRemoved {
+			log.Info("Waiting for etcd member for Machine to be safely removed", "machine", klog.KObj(deletingMachine))
+
+			return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 		}
 	}
 
