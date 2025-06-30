@@ -66,6 +66,9 @@ var _ = Describe("RKE2ServerConfig", func() {
 						"aws_secret_access_key": []byte("test_secret"),
 						"ca.pem":                []byte("test_ca"),
 						"audit-policy.yaml":     []byte("test_audit"),
+						"endpoint":              []byte("test_endpoint"),
+						"cert.pem":              []byte("test_cert"),
+						"key.pem":               []byte("test_key"),
 					},
 				},
 				&corev1.ConfigMap{
@@ -163,6 +166,10 @@ var _ = Describe("RKE2ServerConfig", func() {
 					ExtraMounts:   map[string]string{"testmount": "testmount"},
 				},
 				EmbeddedRegistry: true,
+				ExternalDatastoreSecret: &corev1.ObjectReference{
+					Name:      "test",
+					Namespace: "test",
+				},
 			},
 		}
 	})
@@ -223,8 +230,12 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.CloudControllerManagerExtraEnv).To(Equal(componentMapToSlice(extraEnv, serverConfig.CloudControllerManager.ExtraEnv)))
 		Expect(rke2ServerConfig.Token).To(Equal(opts.Token))
 		Expect(rke2ServerConfig.EmbeddedRegistry).To(BeTrue())
+		Expect(rke2ServerConfig.DatastoreEndpoint).To(Equal("test_endpoint"))
+		Expect(rke2ServerConfig.DatastoreCAFile).To(Equal("/etc/rancher/rke2/datastore-ca.crt"))
+		Expect(rke2ServerConfig.DatastoreCertFile).To(Equal("/etc/rancher/rke2/datastore-cert.crt"))
+		Expect(rke2ServerConfig.DatastoreKeyFile).To(Equal("/etc/rancher/rke2/datastore-key.crt"))
 
-		Expect(files).To(HaveLen(4))
+		Expect(files).To(HaveLen(7))
 
 		Expect(files[0].Path).To(Equal(rke2ServerConfig.AuditPolicyFile))
 		Expect(files[0].Content).To(Equal("test_audit"))
@@ -241,10 +252,25 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(files[2].Owner).To(Equal(consts.DefaultFileOwner))
 		Expect(files[2].Permissions).To(Equal("0640"))
 
-		Expect(files[3].Path).To(Equal(rke2ServerConfig.CloudProviderConfig))
-		Expect(files[3].Content).To(Equal("test_cloud_config"))
+		Expect(files[3].Path).To(Equal(rke2ServerConfig.DatastoreCAFile))
+		Expect(files[3].Content).To(Equal("test_ca"))
 		Expect(files[3].Owner).To(Equal(consts.DefaultFileOwner))
-		Expect(files[3].Permissions).To(Equal(consts.DefaultFileMode))
+		Expect(files[3].Permissions).To(Equal("0640"))
+
+		Expect(files[4].Path).To(Equal(rke2ServerConfig.DatastoreCertFile))
+		Expect(files[4].Content).To(Equal("test_cert"))
+		Expect(files[4].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[4].Permissions).To(Equal("0640"))
+
+		Expect(files[5].Path).To(Equal(rke2ServerConfig.DatastoreKeyFile))
+		Expect(files[5].Content).To(Equal("test_key"))
+		Expect(files[5].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[5].Permissions).To(Equal("0640"))
+
+		Expect(files[6].Path).To(Equal(rke2ServerConfig.CloudProviderConfig))
+		Expect(files[6].Content).To(Equal("test_cloud_config"))
+		Expect(files[6].Owner).To(Equal(consts.DefaultFileOwner))
+		Expect(files[6].Permissions).To(Equal(consts.DefaultFileMode))
 	})
 })
 

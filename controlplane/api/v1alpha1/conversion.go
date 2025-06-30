@@ -65,6 +65,10 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.RemediationStrategy = restored.Spec.RemediationStrategy
 	}
 
+	if restored.Spec.ServerConfig.ExternalDatastoreSecret != nil {
+		dst.Spec.ServerConfig.ExternalDatastoreSecret = restored.Spec.ServerConfig.ExternalDatastoreSecret
+	}
+
 	dst.Spec.ServerConfig.EmbeddedRegistry = restored.Spec.ServerConfig.EmbeddedRegistry
 	dst.Spec.MachineTemplate = restored.Spec.MachineTemplate
 	dst.Status = restored.Status
