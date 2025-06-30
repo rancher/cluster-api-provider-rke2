@@ -604,6 +604,7 @@ func autoConvert_v1beta1_RKE2ServerConfig_To_v1alpha1_RKE2ServerConfig(in *v1bet
 	out.CloudProviderName = in.CloudProviderName
 	out.CloudProviderConfigMap = (*v1.ObjectReference)(unsafe.Pointer(in.CloudProviderConfigMap))
 	// WARNING: in.EmbeddedRegistry requires manual conversion: does not exist in peer-type
+	// WARNING: in.ExternalDatastoreSecret requires manual conversion: does not exist in peer-type
 	return nil
 }
 
