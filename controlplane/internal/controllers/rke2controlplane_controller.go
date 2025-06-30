@@ -264,7 +264,10 @@ func patchRKE2ControlPlane(ctx context.Context, patchHelper *patch.Helper, rcp *
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, clientQPS float32, clientBurst, concurrency int) error {
+func (r *RKE2ControlPlaneReconciler) SetupWithManager(
+	ctx context.Context, mgr ctrl.Manager, clientQPS float32,
+	clientBurst, clusterCacheConcurrency, concurrency int,
+) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&controlplanev1.RKE2ControlPlane{}).
 		Owns(&clusterv1.Machine{}).
@@ -314,7 +317,9 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(ctx context.Context, mgr c
 				},
 			},
 		},
-	}, controller.Options{})
+	}, controller.Options{
+		MaxConcurrentReconciles: clusterCacheConcurrency,
+	})
 	if err != nil {
 		return errors.Wrap(err, "unable to create cluster cache tracker")
 	}

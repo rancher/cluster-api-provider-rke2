@@ -39,6 +39,9 @@ const (
 	// DefaultSyncPeriod is the default resync period for the controller manager's cache.
 	DefaultSyncPeriod = 10 * time.Minute
 
+	// DefaultClusterCacheConcurrency is the default number of clusters that the controller can process simultaneously.
+	DefaultClusterCacheConcurrency = 100
+
 	// DefaultFileOwner is the default owner of the files created by the controller.
 	DefaultFileOwner = "root:root"
 

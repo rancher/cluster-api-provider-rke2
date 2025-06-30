@@ -65,6 +65,7 @@ var (
 	syncPeriod                     time.Duration
 	clusterCacheTrackerClientQPS   float32
 	clusterCacheTrackerClientBurst int
+	clusterCacheConcurrencyNumber  int
 	watchNamespace                 string
 	webhookPort                    int
 	webhookCertDir                 string
@@ -115,6 +116,9 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&clusterCacheTrackerClientBurst, "clustercachetracker-client-burst", 30,
 		"Maximum number of queries allowed in one burst from cluster cache tracker clients "+
 			"to the Kubernetes API server of workload clusters.")
+
+	fs.IntVar(&clusterCacheConcurrencyNumber, "clustercache-concurrency", consts.DefaultClusterCacheConcurrency,
+		"Number of clusters to process simultaneously")
 
 	fs.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.") //nolint:lll
@@ -240,7 +244,10 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 		Scheme:              mgr.GetScheme(),
 		WatchFilterValue:    watchFilterValue,
 		SecretCachingClient: secretCachingClient,
-	}).SetupWithManager(ctx, mgr, clusterCacheTrackerClientQPS, clusterCacheTrackerClientBurst, concurrencyNumber); err != nil {
+	}).SetupWithManager(
+		ctx, mgr, clusterCacheTrackerClientQPS, clusterCacheTrackerClientBurst,
+		clusterCacheConcurrencyNumber, concurrencyNumber,
+	); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RKE2ControlPlane")
 		os.Exit(1)
 	}
