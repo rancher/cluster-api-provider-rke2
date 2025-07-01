@@ -112,16 +112,24 @@ var _ = Describe("Bootstrap & Pivot", func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
-			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
-				Getter:       bootstrapClusterProxy.GetClient(),
-				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
-			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
-
 			WaitForClusterReady(ctx, WaitForClusterReadyInput{
 				Getter:    bootstrapClusterProxy.GetClient(),
 				Name:      result.Cluster.Name,
 				Namespace: result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+
+			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
+				Reader:      bootstrapClusterProxy.GetClient(),
+				Version:     e2eConfig.GetVariable(KubernetesVersion),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+
+			preMoveMachineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+				Lister:      bootstrapClusterProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			})
 
 			Byf("Using pivoted proxy with kubeconfig: %s", result.KubeconfigPath)
 			pivotedProxy := framework.NewClusterProxy("pivoted", result.KubeconfigPath, initScheme())
@@ -160,6 +168,12 @@ var _ = Describe("Bootstrap & Pivot", func() {
 				Namespace: result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
 
+			EnsureNoMachineRollout(ctx, GetMachinesByClusterInput{
+				Lister:      pivotedProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			}, preMoveMachineList)
+
 			Byf("Scaling control planes to 1 and worker nodes to 3")
 			ApplyClusterTemplateAndWait(ctx, ApplyClusterTemplateAndWaitInput{
 				ClusterProxy: pivotedProxy,
@@ -180,11 +194,6 @@ var _ = Describe("Bootstrap & Pivot", func() {
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
-
-			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
-				Getter:       pivotedProxy.GetClient(),
-				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
-			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
 			WaitForClusterReady(ctx, WaitForClusterReadyInput{
 				Getter:    pivotedProxy.GetClient(),
@@ -213,15 +222,17 @@ var _ = Describe("Bootstrap & Pivot", func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
-			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
-				Getter:       pivotedProxy.GetClient(),
-				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
-			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
-
 			WaitForClusterReady(ctx, WaitForClusterReadyInput{
 				Getter:    pivotedProxy.GetClient(),
 				Name:      result.Cluster.Name,
 				Namespace: result.Cluster.Namespace,
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+
+			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
+				Reader:      pivotedProxy.GetClient(),
+				Version:     e2eConfig.GetVariable(KubernetesVersionUpgradeTo),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
 
 			Byf("Moving back the Cluster %s/%s from %s to %s", result.Cluster.Namespace, result.Cluster.Name, pivotedProxy.GetKubeconfigPath(), bootstrapClusterProxy.GetKubeconfigPath())

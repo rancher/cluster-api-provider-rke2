@@ -19,11 +19,8 @@ package rke2
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/blang/semver/v4"
 	"github.com/pkg/errors"
-	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -31,66 +28,10 @@ import (
 	etcdutil "github.com/rancher/cluster-api-provider-rke2/pkg/etcd/util"
 )
 
-// ReconcileEtcdMembers iterates over all etcd members and finds members that do not have corresponding nodes.
-// If there are any such members, it deletes them from etcd so that etcd does not run etcd health checks on them.
-func (w *Workload) ReconcileEtcdMembers(ctx context.Context, nodeNames []string, version semver.Version) ([]string, error) {
-	allRemovedMembers := []string{}
-	allErrs := []error{}
-
-	// Return early for clusters without an etcd certificate secret
-	if w.etcdClientGenerator == nil {
-		return allRemovedMembers, nil
-	}
-
-	for _, nodeName := range nodeNames {
-		removedMembers, errs := w.reconcileEtcdMember(ctx, nodeNames, nodeName, version)
-		allRemovedMembers = append(allRemovedMembers, removedMembers...)
-		allErrs = append(allErrs, errs...)
-	}
-
-	return allRemovedMembers, kerrors.NewAggregate(allErrs)
-}
-
-func (w *Workload) reconcileEtcdMember(ctx context.Context, nodeNames []string, nodeName string, _ semver.Version) ([]string, []error) {
-	// Create the etcd Client for the etcd Pod scheduled on the Node
-	etcdClient, err := w.etcdClientGenerator.ForFirstAvailableNode(ctx, []string{nodeName})
-	if err != nil {
-		return nil, nil
-	}
-	defer etcdClient.Close()
-
-	members, err := etcdClient.Members(ctx)
-	if err != nil {
-		return nil, nil
-	}
-
-	// Check if any member's node is missing from workload cluster
-	// If any, delete it with best effort
-	removedMembers := []string{}
-	errs := []error{}
-loopmembers:
-	for _, member := range members {
-		// If this member is just added, it has a empty name until the etcd pod starts. Ignore it.
-		if member.Name == "" {
-			continue
-		}
-
-		for _, nodeName := range nodeNames {
-			if strings.Contains(member.Name, nodeName) {
-				// We found the matching node, continue with the outer loop.
-				continue loopmembers
-			}
-		}
-
-		// If we're here, the node cannot be found.
-		removedMembers = append(removedMembers, member.Name)
-		if err := w.removeMemberForNode(ctx, member.Name); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	return removedMembers, errs
-}
+const (
+	etcdNodeRemoveAnnotation          = "etcd.rke2.cattle.io/remove"
+	etcdNodeRemovedNodeNameAnnotation = "etcd.rke2.cattle.io/removed-node-name"
+)
 
 // RemoveEtcdMemberForMachine removes the etcd member from the target cluster's etcd cluster.
 // Removing the last remaining member of the cluster is not supported.
@@ -106,53 +47,73 @@ func (w *Workload) RemoveEtcdMemberForMachine(ctx context.Context, machine *clus
 func (w *Workload) removeMemberForNode(ctx context.Context, name string) error {
 	controlPlaneNodes, err := w.getControlPlaneNodes(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("getting control plane nodes: %w", err)
 	}
 
-	if len(controlPlaneNodes.Items) < minimalNodeCount {
-		return ErrControlPlaneMinNodes
-	}
+	for _, node := range controlPlaneNodes.Items {
+		if node.Name == name {
+			if node.Annotations == nil {
+				node.Annotations = map[string]string{}
+			}
 
-	// Return early for clusters without an etcd certificate secret
-	if w.etcdClientGenerator == nil {
-		return nil
-	}
+			node.Annotations[etcdNodeRemoveAnnotation] = "true"
 
-	// Exclude node being removed from etcd client node list
-	var remainingNodes []string
+			if helper, ok := w.nodePatchHelpers[node.Name]; ok {
+				if err := helper.Patch(ctx, &node); err != nil {
+					return fmt.Errorf("patching node %s with etcd remove annotation: %w", node.Name, err)
+				}
+			} else {
+				return fmt.Errorf("could not find patch helper for node %s", node.Name)
+			}
 
-	for _, n := range controlPlaneNodes.Items {
-		if !strings.Contains(name, n.Name) {
-			remainingNodes = append(remainingNodes, n.Name)
+			break
 		}
 	}
 
-	etcdClient, err := w.etcdClientGenerator.ForFirstAvailableNode(ctx, remainingNodes)
-	if err != nil {
-		return errors.Wrap(err, "failed to create etcd client")
-	}
-	defer etcdClient.Close()
-
-	// List etcd members. This checks that the member is healthy, because the request goes through consensus.
-	members, err := etcdClient.Members(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to list etcd members using etcd client")
-	}
-
-	member := etcdutil.MemberForName(members, name)
-
-	// The member has already been removed, return immediately
-	if member == nil {
-		return nil
-	}
-
-	if err := etcdClient.RemoveMember(ctx, member.ID); err != nil {
-		return errors.Wrap(err, "failed to remove member from etcd")
-	}
-
-	log.FromContext(ctx).Info("Removed member: " + member.Name)
+	log.FromContext(ctx).Info("Removed member: " + name)
 
 	return nil
+}
+
+// IsEtcdMemberSafelyRemovedForMachine checks whether the node contains the `etcd.rke2.cattle.io/removed-node-name` annotation.
+func (w *Workload) IsEtcdMemberSafelyRemovedForMachine(ctx context.Context, machine *clusterv1.Machine) (bool, error) {
+	if machine == nil || machine.Status.NodeRef == nil {
+		// Nothing to do, no node for Machine
+		return true, nil
+	}
+
+	return w.isMemberRemovedForNode(ctx, machine.Status.NodeRef.Name)
+}
+
+func (w *Workload) isMemberRemovedForNode(ctx context.Context, name string) (bool, error) {
+	controlPlaneNodes, err := w.getControlPlaneNodes(ctx)
+	if err != nil {
+		return false, fmt.Errorf("getting control plane nodes: %w", err)
+	}
+
+	for _, node := range controlPlaneNodes.Items {
+		if node.Name == name {
+			if node.Annotations == nil {
+				return false, fmt.Errorf("node is missing the %s annotation", etcdNodeRemoveAnnotation)
+			}
+
+			removedNodeName, found := node.Annotations[etcdNodeRemovedNodeNameAnnotation]
+
+			if !found {
+				return false, nil
+			}
+
+			if removedNodeName != "" {
+				log.FromContext(ctx).Info("Removed member: " + name)
+
+				return true, nil
+			}
+
+			return false, nil
+		}
+	}
+
+	return false, nil
 }
 
 // ForwardEtcdLeadership forwards etcd leadership to the first follower.
