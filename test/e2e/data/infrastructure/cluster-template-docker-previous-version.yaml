@@ -1,3 +1,6 @@
+# Since a new `gzipUserData` field is not present in previous versions, we create a template with previous version to test
+# upgrade scenario. This template will be deleted and won't be needed after v0.18.0 version of CAPRKE2 is released.
+
 apiVersion: v1
 data:
   value: |-
@@ -62,8 +65,6 @@ data:
 kind: ConfigMap
 metadata:
   name: ${CLUSTER_NAME}-lb-config
-  labels:
-    clusterctl.cluster.x-k8s.io/move: "true"
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster 
@@ -103,6 +104,7 @@ metadata:
 spec: 
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   version: ${KUBERNETES_VERSION}+rke2r1
+  registrationMethod: control-plane-endpoint
   rolloutStrategy:
     type: "RollingUpdate"
     rollingUpdate:
@@ -114,6 +116,8 @@ spec:
       - anonymous-auth=true
     ntp:
       enabled: true
+    nodeAnnotations:
+      test: "true"
   serverConfig:
     disableComponents:
       pluginComponents:
@@ -124,11 +128,23 @@ spec:
       extraArgs:
       - --anonymous-auth=true
   machineTemplate:
+    metadata:
+      labels:
+        key: value
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: DockerMachineTemplate
       name: "${CLUSTER_NAME}-control-plane"
     nodeDrainTimeout: 30s
+  preRKE2Commands:
+  - touch /pre-rke2-command.sentinel
+  postRKE2Commands:
+  - touch /post-rke2-command.sentinel
+  files:
+  - content: "Just a dummy file\n"
+    owner: root:root
+    path: /control-plane-file.sentinel
+    permissions: "0755"   
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
@@ -141,11 +157,6 @@ spec:
     spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
-      extraMounts:
-      - containerPath: "/var/run/docker.sock"
-        hostPath: "/var/run/docker.sock"
-      - containerPath: "/var/lib/rancher/rke2/agent/images"
-        hostPath: "${LOCAL_IMAGES}"
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -182,11 +193,6 @@ spec:
     spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
-      extraMounts:
-      - containerPath: "/var/run/docker.sock"
-        hostPath: "/var/run/docker.sock"
-      - containerPath: "/var/lib/rancher/rke2/agent/images"
-        hostPath: "${LOCAL_IMAGES}"
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate
@@ -194,4 +200,7 @@ metadata:
   name: ${CLUSTER_NAME}-md-0
 spec: 
   template:
-    spec: {}
+    spec:
+      agentConfig:
+        nodeAnnotations:
+          test: "true"

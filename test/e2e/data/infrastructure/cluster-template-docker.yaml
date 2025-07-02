@@ -115,7 +115,7 @@ spec:
       enabled: true
     nodeAnnotations:
       test: "true"
-  gzipUserData: "false"
+  gzipUserData: false
   serverConfig:
     disableComponents:
       pluginComponents:
@@ -202,4 +202,4 @@ spec:
       agentConfig:
         nodeAnnotations:
           test: "true"
-      gzipUserData: "false"
+      gzipUserData: false
