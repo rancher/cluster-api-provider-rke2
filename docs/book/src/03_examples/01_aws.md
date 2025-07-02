@@ -2,7 +2,7 @@
 
 ## Installing the AWS provider 
 
-Refer to the [Cluster API book](https://cluster-api.sigs.k8s.io/user/quick-start#initialization-for-common-providers) for configuring AWS credentials and setting up the AWS infrastructure provider.
+Refer to the [Cluster API book](https://cluster-api.sigs.k8s.io/user/quick-start#initialization-for-common-providers) for configuring AWS credentials and setting up the AWS infrastructure provider. This involves using `clusterawsadm` to create the necessary IAM roles and to generate the `AWS_B64ENCODED_CREDENTIALS` environment variable.
 
 The next step is to run the clusterctl init command (make sure to provide valid AWS Credential using the `AWS_B64ENCODED_CREDENTIALS` environment variable):
 
@@ -35,7 +35,9 @@ Now, we can generate the YAML files from the templates using `clusterctl generat
 clusterctl generate cluster --from https://github.com/rancher/cluster-api-provider-rke2/blob/main/examples/templates/aws/cluster-template.yaml -n example-aws rke2-aws > aws-rke2-clusterctl.yaml
 ```
 
-After examining the result YAML file, you can apply to the management cluster using :
+> NOTE: The template used above is tailored for air-gapped environments. For non air-gapped environments, you should adjust the resulting YAML file by setting `airGapped: false` in the relevant`RKE2ConfigTemplate` and `RKE2ControlPlane` resources.
+
+After examining the resulting YAML file, you can apply to the management cluster using :
 
 ```bash
 kubectl apply -f aws-rke2-clusterctl.yaml

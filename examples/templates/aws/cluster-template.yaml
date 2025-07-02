@@ -59,7 +59,34 @@ spec:
       toPort: 2380
     loadBalancerType: nlb
   network:
+    cni:
+      cniIngressRules:
+        - description: BGP
+          fromPort: 179
+          protocol: tcp
+          toPort: 179
+        - description: IP-in-IP
+          fromPort: -1
+          protocol: "4"
+          toPort: 65535
+        - description: Calico Typha
+          fromPort: 5473
+          protocol: tcp
+          toPort: 5473
+        - description: Calico Typha health check
+          fromPort: 9098
+          protocol: tcp
+          toPort: 9098
+        - description: Calico health check
+          fromPort: 9099
+          protocol: tcp
+          toPort: 9099
     additionalControlPlaneIngressRules:
+    - description: RKE2 Control Plane
+      fromPort: 9345
+      natGatewaysIPsSource: true
+      protocol: tcp
+      toPort: 9345
     - description: RKE2 Control Plane additional group
       fromPort: 9345
       protocol: tcp
@@ -79,38 +106,10 @@ spec:
       natGatewaysIPsSource: true
       protocol: tcp
       toPort: 2380
-    - description: Calico Typha
-      fromPort: 5473
-      protocol: tcp
-      toPort: 5473
-      sourceSecurityGroupRoles:
-      - node
-      - controlplane
-      - apiserver-lb
-      - lb
-    - description: Calico Typha health check
-      fromPort: 9098
-      protocol: tcp
-      toPort: 9098
-      sourceSecurityGroupRoles:
-      - node
-      - controlplane
-      - apiserver-lb
-      - lb
-    - description: Calico health check
-      fromPort: 9099
-      protocol: tcp
-      toPort: 9099
-      sourceSecurityGroupRoles:
-      - node
-      - controlplane
-      - apiserver-lb
-      - lb
     vpc:
       availabilityZoneUsageLimit: 1
   region: ${AWS_REGION}
   sshKeyName: ${AWS_SSH_KEY_NAME}
-
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: RKE2ControlPlane
