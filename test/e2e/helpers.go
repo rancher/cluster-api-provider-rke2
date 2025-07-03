@@ -701,8 +701,8 @@ func CollectArtifacts(ctx context.Context, kubeconfigPath, name string, args ...
 
 	fmt.Printf("Running kubectl %s\n", strings.Join(aargs, " "))
 	err := cmd.Run()
-	fmt.Printf("stderr:\n%s\n", string(stderr.Bytes()))
-	fmt.Printf("stdout:\n%s\n", string(stdout.Bytes()))
+	fmt.Printf("stderr:\n%s\n", string(stderr.String()))
+	fmt.Printf("stdout:\n%s\n", string(stdout.String()))
 	return err
 }
 

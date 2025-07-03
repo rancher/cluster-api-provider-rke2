@@ -84,11 +84,6 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 	if spec.AgentConfig.Format == "" {
 		spec.AgentConfig.Format = CloudConfig
 	}
-
-	if spec.GzipUserData == nil {
-		spec.GzipUserData = new(bool)
-		*spec.GzipUserData = false
-	}
 }
 
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=vrke2config.kb.io,admissionReviewVersions=v1
