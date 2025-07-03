@@ -432,6 +432,10 @@ spec:
                           - path
                           type: object
                         type: array
+                      gzipUserData:
+                        description: GzipUserData specifies if the user data should
+                          be gzipped.
+                        type: boolean
                       infrastructureRef:
                         description: |-
                           InfrastructureRef is a required reference to a custom resource

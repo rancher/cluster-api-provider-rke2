@@ -46,6 +46,7 @@ spec:
   version: ${KUBERNETES_VERSION}+rke2r1
   agentConfig:
     airGapped: true
+  gzipUserData: false
   serverConfig:
     cni: calico
     kubeAPIServer:
@@ -123,6 +124,7 @@ spec:
         kubeProxy:
           extraEnv:
             hello: world
+      gzipUserData: false
 ---
 apiVersion: v1
 kind: ConfigMap

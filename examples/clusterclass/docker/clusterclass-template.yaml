@@ -151,6 +151,7 @@ metadata:
 spec:
   template:
     spec:
+      gzipUserData: false
       serverConfig:
         cni: calico
         kubeAPIServer:

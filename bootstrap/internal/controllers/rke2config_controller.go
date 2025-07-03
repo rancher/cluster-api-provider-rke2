@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"time"
@@ -50,6 +51,7 @@ import (
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition"
+	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition/butane"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/locking"
@@ -642,10 +644,6 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		return ctrl.Result{}, fmt.Errorf("unable to marshal config.yaml: %w", err)
 	}
 
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
 	scope.Logger.Info("Joining Server config marshalled successfully")
 
 	initConfigFile := bootstrapv1.File{
@@ -894,6 +892,30 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 // storeBootstrapData creates a new secret with the data passed in as input,
 // sets the reference in the configuration status and ready to true.
 func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Scope, data []byte) error {
+	if scope.Config.Spec.GzipUserData != nil && *scope.Config.Spec.GzipUserData {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+
+		if _, err := gz.Write(data); err != nil {
+			return err
+		}
+
+		if err := gz.Close(); err != nil {
+			return err
+		}
+
+		if scope.Config.Spec.AgentConfig.Format == bootstrapv1.Ignition {
+			res, err := butane.EncapsulateGzippedConfig(buf.Bytes())
+			if err != nil {
+				return err
+			}
+
+			data = res
+		} else {
+			data = buf.Bytes()
+		}
+	}
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      scope.Config.Name,

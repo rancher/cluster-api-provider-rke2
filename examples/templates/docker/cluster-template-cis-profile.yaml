@@ -50,6 +50,7 @@ spec:
       - --anonymous-auth=true
   agentConfig:
     cisProfile: ${CIS_PROFILE}
+  gzipUserData: false
   machineTemplate:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -114,6 +115,7 @@ spec:
     spec:
       agentConfig:
         cisProfile: ${CIS_PROFILE}
+      gzipUserData: false
 ---
 apiVersion: v1
 kind: ConfigMap

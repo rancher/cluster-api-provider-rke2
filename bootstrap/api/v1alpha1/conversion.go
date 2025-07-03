@@ -51,6 +51,10 @@ func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
+	if restored.Spec.GzipUserData != nil {
+		dst.Spec.GzipUserData = restored.Spec.GzipUserData
+	}
+
 	return nil
 }
 
@@ -110,6 +114,10 @@ func (src *RKE2ConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile = restored.Spec.Template.Spec.AgentConfig.PodSecurityAdmissionConfigFile
 	}
 
+	if restored.Spec.Template.Spec.GzipUserData != nil {
+		dst.Spec.Template.Spec.GzipUserData = restored.Spec.Template.Spec.GzipUserData
+	}
+
 	return nil
 }
 
@@ -153,4 +161,23 @@ func Convert_v1alpha1_RKE2AgentConfig_To_v1beta1_RKE2AgentConfig(in *RKE2AgentCo
 func Convert_v1beta1_RKE2AgentConfig_To_v1alpha1_RKE2AgentConfig(in *bootstrapv1.RKE2AgentConfig, out *RKE2AgentConfig, s apiconversion.Scope) error {
 	// We have to invoke conversion manually because of the added AirGappedChecksum field.
 	return autoConvert_v1beta1_RKE2AgentConfig_To_v1alpha1_RKE2AgentConfig(in, out, s)
+}
+
+func Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in *RKE2ConfigSpec, out *bootstrapv1.RKE2ConfigSpec, s apiconversion.Scope) error {
+	if err := autoConvert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in, out, s); err != nil {
+		return err
+	}
+
+	// Default to false during up-conversion since field doesn't exist in v1alpha1
+	out.GzipUserData = nil
+	return nil
+}
+
+func Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in *bootstrapv1.RKE2ConfigSpec, out *RKE2ConfigSpec, s apiconversion.Scope) error {
+	if err := autoConvert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in, out, s); err != nil {
+		return err
+	}
+
+	// GzipUserData does not exist in v1alpha1, so it's intentionally ignored
+	return nil
 }

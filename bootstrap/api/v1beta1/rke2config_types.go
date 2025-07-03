@@ -56,6 +56,10 @@ type RKE2ConfigSpec struct {
 	// PrivateRegistriesConfig defines the containerd configuration for private registries and local registry mirrors.
 	//+optional
 	PrivateRegistriesConfig Registry `json:"privateRegistriesConfig,omitempty"`
+
+	// GzipUserData specifies if the user data should be gzipped.
+	//+optional
+	GzipUserData *bool `json:"gzipUserData,omitempty"`
 }
 
 // RKE2AgentConfig describes some attributes that are common to agent and server nodes.

@@ -125,6 +125,7 @@ spec:
     kubelet:
       extraArgs:
       - --cloud-provider=external
+  gzipUserData: false
   machineTemplate:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
@@ -214,6 +215,7 @@ metadata:
 spec: 
   template:
     spec:
+      gzipUserData: false
       agentConfig:
         airGapped: true
         kubelet:

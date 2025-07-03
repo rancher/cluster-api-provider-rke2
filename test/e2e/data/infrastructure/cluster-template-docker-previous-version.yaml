@@ -1,3 +1,6 @@
+# Since a new `gzipUserData` field is not present in previous versions, we create a template with previous version to test
+# upgrade scenario. This template will be deleted and won't be needed after v0.18.0 version of CAPRKE2 is released.
+
 apiVersion: v1
 data:
   value: |-
@@ -115,7 +118,6 @@ spec:
       enabled: true
     nodeAnnotations:
       test: "true"
-  gzipUserData: false
   serverConfig:
     disableComponents:
       pluginComponents:
@@ -202,4 +204,3 @@ spec:
       agentConfig:
         nodeAnnotations:
           test: "true"
-      gzipUserData: false
