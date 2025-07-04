@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,6 +42,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
+	"sigs.k8s.io/cluster-api/test/infrastructure/container"
 	dockerv1 "sigs.k8s.io/cluster-api/test/infrastructure/docker/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -655,6 +657,85 @@ func EnsureNoMachineRollout(ctx context.Context, input GetMachinesByClusterInput
 		}
 		return nil
 	}).WithTimeout(2 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
+}
+
+type WaitForAllMachinesRunningWithVersionInput struct {
+	Reader      framework.GetLister
+	Version     string
+	ClusterName string
+	Namespace   string
+}
+
+func WaitForAllMachinesRunningWithVersion(ctx context.Context, input WaitForAllMachinesRunningWithVersionInput, intervals ...any) {
+	Byf("Waiting for all machines to be Running with version %s", input.Version)
+	Eventually(func() bool {
+		machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+			Lister:      input.Reader,
+			ClusterName: input.ClusterName,
+			Namespace:   input.Namespace,
+		})
+		for _, machine := range machineList.Items {
+			if machine.Status.Phase != "Running" ||
+				machine.Spec.Version == nil || !strings.Contains(*machine.Spec.Version, input.Version) {
+				return false
+			}
+		}
+		return true
+	}, intervals...).Should(BeTrue())
+}
+
+// StoreImagesInput is the input for StoreImages.
+type StoreImagesInput struct {
+	// Directory where to save the images
+	Directory string
+
+	// Images to be saved
+	Images []clusterctl.ContainerImage
+}
+
+// StoreImages will save all images to a path.
+// This can be used in the move/pivot test to pre-load images to the RKE2 workload cluster.
+func StoreImages(ctx context.Context, input StoreImagesInput) error {
+	Expect(input.Directory).ShouldNot(BeNil(), "context is required")
+	Expect(input.Images).ShouldNot(BeEmpty(), "images list can't be empty")
+	Expect(os.MkdirAll(input.Directory, os.ModePerm)).Should(Succeed())
+
+	containerRuntime, err := container.NewDockerClient()
+	if err != nil {
+		return fmt.Errorf("accessing container runtime: %w", err)
+	}
+
+	for _, image := range input.Images {
+		// in the nominal E2E scenario images have been locally built and added to cache
+		exists, err := containerRuntime.ImageExistsLocally(ctx, image.Name)
+		if err != nil {
+			return fmt.Errorf("listing local image %s: %w", image.Name, err)
+		}
+		// in some scenarios we refer to a real reference image which may not have been pre-downloaded
+		if !exists {
+			GinkgoWriter.Printf("Image %s not present in local container image cache, will pull\n", image.Name)
+			err := containerRuntime.PullContainerImage(ctx, image.Name)
+			if err != nil {
+				return fmt.Errorf("pulling image %s: %w", image.Name, err)
+			}
+		} else {
+			GinkgoWriter.Printf("Image %s is present in local container image cache\n", image.Name)
+		}
+
+		// save the image
+		parts := strings.Split(image.Name, ":")
+		Expect(len(parts)).Should(BeNumerically(">", 1), "Image should have tag")
+		replacer := strings.NewReplacer(".", "-", "/", "_")
+		imageTarPath := filepath.Join(input.Directory, fmt.Sprintf("%s.tar", replacer.Replace(parts[0])))
+
+		GinkgoWriter.Printf("Saving image to: %s\n", imageTarPath)
+		err = containerRuntime.SaveContainerImage(ctx, image.Name, imageTarPath)
+		if err != nil {
+			return fmt.Errorf("saving image %s to %s: %w", image.Name, imageTarPath, err)
+		}
+	}
+
+	return nil
 }
 
 // setDefaults sets the default values for ApplyCustomClusterTemplateAndWaitInput if not set.

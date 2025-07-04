@@ -5,11 +5,11 @@ images:
     loadBehavior: mustLoad
   - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
-  - name: quay.io/jetstack/cert-manager-cainjector:v1.15.1
+  - name: quay.io/jetstack/cert-manager-cainjector:v1.16.3
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-webhook:v1.15.1
+  - name: quay.io/jetstack/cert-manager-webhook:v1.16.3
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-controller:v1.15.1
+  - name: quay.io/jetstack/cert-manager-controller:v1.16.3
     loadBehavior: tryLoad
 
 providers:

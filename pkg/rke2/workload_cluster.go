@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blang/semver/v4"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -55,9 +54,6 @@ const (
 	rke2ServingSecretKey      = "rke2-serving" //nolint: gosec
 )
 
-// ErrControlPlaneMinNodes is returned when the control plane has fewer than 2 nodes.
-var ErrControlPlaneMinNodes = errors.New("cluster has fewer than 2 control plane nodes; removing an etcd member is not supported")
-
 // WorkloadCluster defines all behaviors necessary to upgrade kubernetes on a workload cluster.
 type WorkloadCluster interface {
 	// Basic health and status checks.
@@ -73,8 +69,8 @@ type WorkloadCluster interface {
 
 	// State recovery tasks.
 	RemoveEtcdMemberForMachine(ctx context.Context, machine *clusterv1.Machine) error
+	IsEtcdMemberSafelyRemovedForMachine(ctx context.Context, machine *clusterv1.Machine) (bool, error)
 	ForwardEtcdLeadership(ctx context.Context, machine *clusterv1.Machine, leaderCandidate *clusterv1.Machine) error
-	ReconcileEtcdMembers(ctx context.Context, nodeNames []string, version semver.Version) ([]string, error)
 	EtcdMembers(ctx context.Context) ([]string, error)
 }
 
