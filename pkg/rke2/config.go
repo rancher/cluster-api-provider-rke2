@@ -133,6 +133,10 @@ type ServerConfig struct {
 	ServiceNodePortRange              string   `yaml:"service-node-port-range,omitempty"`
 	TLSSan                            []string `yaml:"tls-san,omitempty"`
 	EmbeddedRegistry                  bool     `yaml:"embedded-registry,omitempty"`
+	DatastoreEndpoint                 string   `yaml:"datastore-endpoint,omitempty"`
+	DatastoreCAFile                   string   `yaml:"datastore-cafile,omitempty"`
+	DatastoreCertFile                 string   `yaml:"datastore-certfile,omitempty"`
+	DatastoreKeyFile                  string   `yaml:"datastore-keyfile,omitempty"`
 
 	// We don't expose these fields in the API
 	ClusterCIDR string `yaml:"cluster-cidr,omitempty"`
@@ -368,6 +372,67 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 	}
 
 	rke2ServerConfig.EmbeddedRegistry = opts.ServerConfig.EmbeddedRegistry
+
+	if opts.ServerConfig.ExternalDatastoreSecret != nil {
+		externalDatastoreSecret := &corev1.Secret{}
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.ServerConfig.ExternalDatastoreSecret.Name,
+			Namespace: opts.ServerConfig.ExternalDatastoreSecret.Namespace,
+		}, externalDatastoreSecret); err != nil {
+			return nil, nil, fmt.Errorf("failed to get external datastore secret: %w", err)
+		}
+
+		endpoint, ok := externalDatastoreSecret.Data["endpoint"]
+		if !ok {
+			return nil, nil, errors.New("external datastore secret is missing endpoint key")
+		}
+
+		rke2ServerConfig.DatastoreEndpoint = string(endpoint)
+
+		// Setting a CA file for the datastore is optional
+		caCert, ok := externalDatastoreSecret.Data["ca.pem"]
+		if ok {
+			rke2ServerConfig.DatastoreCAFile = "/etc/rancher/rke2/datastore-ca.crt"
+
+			files = append(files, bootstrapv1.File{
+				Path:        rke2ServerConfig.DatastoreCAFile,
+				Content:     string(caCert),
+				Owner:       consts.DefaultFileOwner,
+				Permissions: "0640",
+			})
+		}
+
+		// For datastores that support client certificated based authentication, `cert.pem` is expected
+		// to hold the certificate and `key.pem` is expected to hold the certificate's private key.
+		// Setting them is optional but if `cert.pem` is set then `key.pem` must also be set.
+		// https://docs.rke2.io/datastore/external#external-datastore-configuration-parameters
+		cert, ok := externalDatastoreSecret.Data["cert.pem"]
+		if ok {
+			// Ensure that the key is also present.
+			key, ok := externalDatastoreSecret.Data["key.pem"]
+			if !ok {
+				return nil, nil, errors.New("external datastore secret is missing key.pem key")
+			}
+
+			rke2ServerConfig.DatastoreCertFile = "/etc/rancher/rke2/datastore-cert.crt"
+
+			files = append(files, bootstrapv1.File{
+				Path:        rke2ServerConfig.DatastoreCertFile,
+				Content:     string(cert),
+				Owner:       consts.DefaultFileOwner,
+				Permissions: "0640",
+			})
+
+			rke2ServerConfig.DatastoreKeyFile = "/etc/rancher/rke2/datastore-key.crt"
+
+			files = append(files, bootstrapv1.File{
+				Path:        rke2ServerConfig.DatastoreKeyFile,
+				Content:     string(key),
+				Owner:       consts.DefaultFileOwner,
+				Permissions: "0640",
+			})
+		}
+	}
 
 	return rke2ServerConfig, files, nil
 }
