@@ -21,6 +21,7 @@ package e2e
 
 import (
 	"os"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -43,6 +44,10 @@ var _ = Describe("When testing RCP remediation", func() {
 
 		By("Initializing the bootstrap cluster")
 		initBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
+
+		// Since the upstream KCPRemediatonSpec test has a 10 seconds hardcoded timeout on webhooks
+		// we are waiting here a bit to mitigate flakyness. For reference caprke2 tests normally timeout after 3 minutes.
+		time.Sleep(1 * time.Minute)
 	})
 
 	capi_e2e.KCPRemediationSpec(ctx, func() capi_e2e.KCPRemediationSpecInput {
