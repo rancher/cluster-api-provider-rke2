@@ -21,11 +21,12 @@ spec:
       - command:
         - /manager
         args:
-        - --leader-elect
+        - "--leader-elect"
         - "--diagnostics-address=${CAPRKE2_DIAGNOSTICS_ADDRESS:=:8443}"
         - "--insecure-diagnostics=${CAPRKE2_INSECURE_DIAGNOSTICS:=false}"
-        - "--feature-gates=MachinePool=${EXP_MACHINE_POOL:=true}"
         - "--v=${CAPRKE2_DEBUG_LEVEL:=0}"
+        - "--feature-gates=MachinePool=${EXP_MACHINE_POOL:=true},ClusterTopology=${CLUSTER_TOPOLOGY:=true}"
+        - "--concurrency=${CONCURRENCY_NUMBER:=10}"
         image: controller:latest
         name: manager
         ports:
