@@ -8,6 +8,7 @@
     - [Node registration methods](./02_topics/02_node-registration-methods.md)
     - [CIS and PSA](./02_topics/03_cis-psa.md)
     - [Embedded registry](./02_topics/04_embedded-registry.md)
+    - [Configuring manager options](./02_topics/05_configure-manager-options.md)
 - [Examples](./03_examples/00.md)
     - [AWS](./03_examples/01_aws.md)
     - [vSphere](./03_examples/02_vsphere.md)

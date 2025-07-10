@@ -21,11 +21,16 @@ spec:
       - command:
         - /manager
         args:
-        - --leader-elect
+        - "--leader-elect"
         - "--diagnostics-address=${CAPRKE2_DIAGNOSTICS_ADDRESS:=:8443}"
         - "--insecure-diagnostics=${CAPRKE2_INSECURE_DIAGNOSTICS:=false}"
-        - "--feature-gates=MachinePool=${EXP_MACHINE_POOL:=true}"
         - "--v=${CAPRKE2_DEBUG_LEVEL:=0}"
+        - "--feature-gates=MachinePool=${EXP_MACHINE_POOL:=true},ClusterTopology=${CLUSTER_TOPOLOGY:=true}"
+        - "--namespace=$(WATCH_NAMESPACE)"
+        - "--concurrency=${CONCURRENCY_NUMBER:=10}"
+        env:
+          - name: WATCH_NAMESPACE
+            value: ${WATCH_NAMESPACE:=""}
         image: controller:latest
         name: manager
         ports:
