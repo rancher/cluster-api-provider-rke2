@@ -222,6 +222,13 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme,
 		})
 		Expect(clusterProvider).ToNot(BeNil(), "Failed to create a bootstrap cluster")
 
+		localImagesPath := e2eConfig.GetVariable(LocalImages)
+		Byf("Storing Images in %s", localImagesPath)
+		Expect(StoreImages(ctx, StoreImagesInput{
+			Directory: localImagesPath,
+			Images:    config.Images,
+		})).Should(Succeed())
+
 		kubeconfigPath = clusterProvider.GetKubeconfigPath()
 		Expect(kubeconfigPath).To(BeAnExistingFile(), "Failed to get the kubeconfig file for the bootstrap cluster")
 	} else {

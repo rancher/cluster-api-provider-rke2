@@ -5,11 +5,11 @@ images:
     loadBehavior: mustLoad
   - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
-  - name: quay.io/jetstack/cert-manager-cainjector:v1.15.1
+  - name: quay.io/jetstack/cert-manager-cainjector:v1.16.3
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-webhook:v1.15.1
+  - name: quay.io/jetstack/cert-manager-webhook:v1.16.3
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-controller:v1.15.1
+  - name: quay.io/jetstack/cert-manager-controller:v1.16.3
     loadBehavior: tryLoad
 
 providers:
@@ -101,13 +101,13 @@ providers:
           new: "--leader-elect=false"
 
 variables:
-  KUBERNETES_VERSION_MANAGEMENT: "v1.29.2"
-  KUBERNETES_VERSION: "v1.30.4"
-  KIND_IMAGE_VERSION: "v1.30.4"
+  KUBERNETES_VERSION_MANAGEMENT: "v1.32.0"
+  KUBERNETES_VERSION: "v1.32.6"
+  KIND_IMAGE_VERSION: "v1.32.0"
   NODE_DRAIN_TIMEOUT: "60s"
   WORKER_MACHINE_COUNT: "2"
   CONTROL_PLANE_MACHINE_COUNT: "1"
-  KUBERNETES_VERSION_UPGRADE_TO: "v1.31.0"
+  KUBERNETES_VERSION_UPGRADE_TO: "v1.33.2"
   IP_FAMILY: "IPv4"
   EXP_CLUSTER_RESOURCE_SET: "true"
   EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: "true"

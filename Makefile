@@ -397,7 +397,7 @@ kubectl: # Download kubectl cli into tools bin folder
 
 # Allow overriding the e2e configurations
 GINKGO_FOCUS ?=
-GINKGO_SKIP ?= "Pivot"
+GINKGO_SKIP ?= "Pivot" # See: https://github.com/rancher/cluster-api-provider-rke2/issues/691 
 GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
 GINKGO_ARGS ?=
@@ -409,7 +409,7 @@ SKIP_CLEANUP ?= false
 SKIP_CREATE_MGMT_CLUSTER ?= false
 
 .PHONY: test-e2e-run
-test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image e2e-image-store inotify-check ## Run the end-to-end tests
+test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image inotify-check ## Run the end-to-end tests
 	LOCAL_IMAGES="$(LOCAL_IMAGES)" CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
 	--tags=e2e --focus="$(GINKGO_FOCUS)" --skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
@@ -436,12 +436,6 @@ inotify-check:
 .PHONY: e2e-image
 e2e-image:
 	TAG=$(TAG) $(MAKE) docker-build
-
-.PHONY: e2e-image-store
-e2e-image-store: ## This is needed by the move/pivot e2e test to load images on the workload cluster.
-	mkdir -p $(LOCAL_IMAGES)
-	docker save $(BOOTSTRAP_IMG):$(TAG) > $(LOCAL_IMAGES)/bootstrap_dev.tar
-	docker save $(CONTROLPLANE_IMG):$(TAG) > $(LOCAL_IMAGES)/controlplane_dev.tar
 
 .PHONY: compile-e2e
 compile-e2e: ## Test e2e compilation
