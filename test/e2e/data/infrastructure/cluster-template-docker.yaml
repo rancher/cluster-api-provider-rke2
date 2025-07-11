@@ -98,6 +98,8 @@ apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
+  annotations:
+    rke2.controlplane.cluster.x-k8s.io/load-balancer-exclusion: "true"
 spec: 
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   version: ${KUBERNETES_VERSION}+rke2r1
