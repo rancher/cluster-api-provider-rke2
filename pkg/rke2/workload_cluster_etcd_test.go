@@ -102,7 +102,7 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 		Expect(node.GetAnnotations()).ShouldNot(BeNil(), "Node should have annotations")
-		value, found := node.GetAnnotations()[etcdNodeRemoveAnnotation]
+		value, found := node.GetAnnotations()[EtcdNodeRemoveAnnotation]
 		Expect(found).Should(BeTrue(), "remove annotation must be present")
 		Expect(value).Should(Equal("true"))
 	})
@@ -112,7 +112,7 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 		Expect(safelyRemoved).Should(BeFalse(), "etcd member not removed yet")
 
 		//Explicitly test the value can contain anything, not necessarily the node name
-		node.Annotations[etcdNodeRemovedNodeNameAnnotation] = "foo"
+		node.Annotations[EtcdNodeRemovedNodeNameAnnotation] = "foo"
 		Expect(patchHelper.Patch(ctx, node)).Should(Succeed())
 
 		safelyRemoved, err = w.IsEtcdMemberSafelyRemovedForMachine(ctx, machine)

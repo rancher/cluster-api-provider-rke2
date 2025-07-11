@@ -140,6 +140,7 @@ func (t *TestEnvironmentConfiguration) Build() (*TestEnvironment, error) {
 					&corev1.ConfigMap{},
 					&corev1.Secret{},
 					&corev1.Node{},
+					&clusterv1.Machine{},
 				},
 			},
 		},
