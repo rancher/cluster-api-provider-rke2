@@ -323,7 +323,12 @@ type File struct {
 // sources of data for target systems should add them here.
 type FileSource struct {
 	// SecretFileSource represents a secret that should populate this file.
+	//+optional
 	Secret SecretFileSource `json:"secret"`
+
+	// ConfigMapFileSource represents a ConfigMap that should populate this file.
+	//+optional
+	ConfigMap ConfigMapFileSource `json:"configMap"`
 }
 
 // SecretFileSource adapts a Secret into a FileSource.
@@ -335,6 +340,18 @@ type SecretFileSource struct {
 	Name string `json:"name"`
 
 	// Key is the key in the secret's data map for this value.
+	Key string `json:"key"`
+}
+
+// ConfigMapFileSource adapts a ConfigMap into a FileSource.
+//
+// The contents of the target ConfigMap's Data field will be presented
+// as files using the keys in the Data field as the file names.
+type ConfigMapFileSource struct {
+	// Name of the ConfigMap in the RKE2BootstrapConfig's namespace to use.
+	Name string `json:"name"`
+
+	// Key is the key in the ConfigMap's data map for this value.
 	Key string `json:"key"`
 }
 
