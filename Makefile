@@ -396,8 +396,8 @@ kubectl: # Download kubectl cli into tools bin folder
 ##@ e2e:
 
 # Allow overriding the e2e configurations
-GINKGO_FOCUS ?=
-GINKGO_SKIP ?= "Pivot" # See: https://github.com/rancher/cluster-api-provider-rke2/issues/691 
+GINKGO_FOCUS ?= Pivot
+GINKGO_SKIP ?=
 GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
 GINKGO_ARGS ?=
