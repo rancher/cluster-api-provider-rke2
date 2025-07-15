@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -186,29 +185,6 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 
 	// Requeue the control plane, in case there are additional operations to perform
 	return ctrl.Result{Requeue: true}, nil
-}
-
-func (r *RKE2ControlPlaneReconciler) removePreTerminateHookAnnotationFromMachine(ctx context.Context, machine *clusterv1.Machine) error {
-	if _, exists := machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation]; !exists {
-		// Nothing to do, the annotation is not set (anymore) on the Machine
-		return nil
-	}
-
-	log := ctrl.LoggerFrom(ctx)
-	log.Info("Removing pre-terminate hook from control plane Machine")
-
-	machineOriginal := machine.DeepCopy()
-	delete(machine.Annotations, controlplanev1.PreTerminateHookCleanupAnnotation)
-
-	// Mitigating inssue https://github.com/kubernetes-sigs/cluster-api/issues/11591
-	machine.Annotations[clusterv1.ExcludeNodeDrainingAnnotation] = "true"
-	machine.Annotations[clusterv1.ExcludeWaitForNodeVolumeDetachAnnotation] = "true"
-
-	if err := r.Patch(ctx, machine, client.MergeFrom(machineOriginal)); err != nil {
-		return errors.Wrapf(err, "failed to remove pre-terminate hook from control plane Machine %s", klog.KObj(machine))
-	}
-
-	return nil
 }
 
 // preflightChecks checks if the control plane is stable before proceeding with a scale up/scale down operation,

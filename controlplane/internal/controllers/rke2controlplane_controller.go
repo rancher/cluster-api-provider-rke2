@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -670,7 +669,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		return result, err
 	}
 
-	if result, err := r.reconcilePreTerminateHook(ctx, controlPlane); err != nil || !result.IsZero() {
+	if result, err := r.reconcileLifecycleHooks(ctx, controlPlane); err != nil || !result.IsZero() {
 		return result, err
 	}
 
@@ -814,6 +813,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 		// Also in this case the reconcileDelete code of the Machine controller won't execute Node drain
 		// and wait for volume detach.
 		if err := r.removePreTerminateHookAnnotationFromMachine(ctx, m); err != nil {
+			errs = append(errs, err)
+
+			continue
+		}
+
+		if err := r.removeHookAnnotationFromMachine(ctx, m, controlplanev1.PreDrainLoadbalancerExclusionAnnotation); err != nil {
 			errs = append(errs, err)
 
 			continue
@@ -1025,122 +1030,6 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 
 		return ctrl.Result{}, nil
 	}
-}
-
-func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Context, controlPlane *rke2.ControlPlane) (ctrl.Result, error) {
-	// Ensure that every active machine has the drain hook set
-	patchHookAnnotation := false
-
-	for _, machine := range controlPlane.Machines.Filter(collections.ActiveMachines) {
-		if _, exists := machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation]; !exists {
-			machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation] = ""
-			patchHookAnnotation = true
-		}
-	}
-
-	if patchHookAnnotation {
-		// Patch machine annoations
-		if err := controlPlane.PatchMachines(ctx); err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-
-	if !controlPlane.HasDeletingMachine() {
-		return ctrl.Result{}, nil
-	}
-
-	log := ctrl.LoggerFrom(ctx)
-
-	// Return early, if there is already a deleting Machine without the pre-terminate hook.
-	// We are going to wait until this Machine goes away before running the pre-terminate hook on other Machines.
-	for _, deletingMachine := range controlPlane.DeletingMachines() {
-		if _, exists := deletingMachine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation]; !exists {
-			return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
-		}
-	}
-
-	// Pick the Machine with the oldest deletionTimestamp to keep this function deterministic / reentrant
-	// so we only remove the pre-terminate hook from one Machine at a time.
-	deletingMachines := controlPlane.DeletingMachines()
-	deletingMachine := controlPlane.SortedByDeletionTimestamp(deletingMachines)[0]
-
-	log = log.WithValues("Machine", klog.KObj(deletingMachine))
-	ctx = ctrl.LoggerInto(ctx, log)
-
-	// Return early if there are other pre-terminate hooks for the Machine.
-	// The CAPRKE2 pre-terminate hook should be the one executed last, so that kubelet
-	// is still working while other pre-terminate hooks are run.
-	if machineHasOtherPreTerminateHooks(deletingMachine) {
-		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
-	}
-
-	// Return early because the Machine controller is not yet waiting for the pre-terminate hook.
-	c := conditions.Get(deletingMachine, clusterv1.PreTerminateDeleteHookSucceededCondition)
-	if c == nil || c.Status != corev1.ConditionFalse || c.Reason != clusterv1.WaitingExternalHookReason {
-		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
-	}
-
-	// The following will execute and remove the pre-terminate hook from the Machine.
-
-	// Skip leader change for legacy CP
-	_, found := controlPlane.RCP.Annotations[controlplanev1.LegacyRKE2ControlPlane]
-
-	// If we have more than 1 Machine and etcd is managed we forward etcd leadership and remove the member
-	// to keep the etcd cluster healthy.
-	if controlPlane.Machines.Len() > 1 && !found {
-		workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
-		if err != nil {
-			return ctrl.Result{}, errors.Wrapf(err,
-				"failed to remove etcd member for deleting Machine %s: failed to create client to workload cluster", klog.KObj(deletingMachine))
-		}
-
-		// Note: In regular deletion cases (remediation, scale down) the leader should have been already moved.
-		// We're doing this again here in case the Machine became leader again or the Machine deletion was
-		// triggered in another way (e.g. a user running kubectl delete machine)
-		etcdLeaderCandidate := controlPlane.Machines.Filter(collections.Not(collections.HasDeletionTimestamp)).Newest()
-		if etcdLeaderCandidate != nil {
-			if err := workloadCluster.ForwardEtcdLeadership(ctx, deletingMachine, etcdLeaderCandidate); err != nil {
-				return ctrl.Result{}, errors.Wrapf(err, "failed to move leadership to candidate Machine %s", etcdLeaderCandidate.Name)
-			}
-		} else {
-			log.Info("Skip forwarding etcd leadership, because there is no other control plane Machine without a deletionTimestamp")
-		}
-
-		// Note: Removing the etcd member will lead to the etcd and the kube-apiserver Pod on the Machine shutting down.
-		if err := workloadCluster.RemoveEtcdMemberForMachine(ctx, deletingMachine); err != nil {
-			return ctrl.Result{}, errors.Wrapf(err, "failed to remove etcd member for deleting Machine %s", klog.KObj(deletingMachine))
-		}
-
-		safelyRemoved, err := workloadCluster.IsEtcdMemberSafelyRemovedForMachine(ctx, deletingMachine)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("determining if etcd member is safely removed for Machine %s: %w", klog.KObj(deletingMachine), err)
-		}
-
-		if !safelyRemoved {
-			log.Info("Waiting for etcd member for Machine to be safely removed", "machine", klog.KObj(deletingMachine))
-
-			return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
-		}
-	}
-
-	if err := r.removePreTerminateHookAnnotationFromMachine(ctx, deletingMachine); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	log.Info("Waiting for Machines to be deleted", "machines",
-		strings.Join(controlPlane.Machines.Filter(collections.HasDeletionTimestamp).Names(), ", "))
-
-	return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
-}
-
-func machineHasOtherPreTerminateHooks(machine *clusterv1.Machine) bool {
-	for k := range machine.Annotations {
-		if strings.HasPrefix(k, clusterv1.PreTerminateDeleteHookAnnotationPrefix) && k != controlplanev1.PreTerminateHookCleanupAnnotation {
-			return true
-		}
-	}
-
-	return false
 }
 
 // syncMachines updates Machines, InfrastructureMachines and Rke2Configs to propagate in-place mutable fields from RKE2ControlPlane.

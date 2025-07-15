@@ -29,8 +29,10 @@ import (
 )
 
 const (
-	etcdNodeRemoveAnnotation          = "etcd.rke2.cattle.io/remove"
-	etcdNodeRemovedNodeNameAnnotation = "etcd.rke2.cattle.io/removed-node-name"
+	// EtcdNodeRemoveAnnotation is a Node annotation used to notify RKE2 of removing the etcd member for a node.
+	EtcdNodeRemoveAnnotation = "etcd.rke2.cattle.io/remove"
+	// EtcdNodeRemovedNodeNameAnnotation is a Node annotation used by RKE2 to notify the etcd member has been successfully removed.
+	EtcdNodeRemovedNodeNameAnnotation = "etcd.rke2.cattle.io/removed-node-name"
 )
 
 // RemoveEtcdMemberForMachine removes the etcd member from the target cluster's etcd cluster.
@@ -56,7 +58,7 @@ func (w *Workload) removeMemberForNode(ctx context.Context, name string) error {
 				node.Annotations = map[string]string{}
 			}
 
-			node.Annotations[etcdNodeRemoveAnnotation] = "true"
+			node.Annotations[EtcdNodeRemoveAnnotation] = "true"
 
 			if helper, ok := w.nodePatchHelpers[node.Name]; ok {
 				if err := helper.Patch(ctx, &node); err != nil {
@@ -94,10 +96,10 @@ func (w *Workload) isMemberRemovedForNode(ctx context.Context, name string) (boo
 	for _, node := range controlPlaneNodes.Items {
 		if node.Name == name {
 			if node.Annotations == nil {
-				return false, fmt.Errorf("node is missing the %s annotation", etcdNodeRemoveAnnotation)
+				return false, fmt.Errorf("node is missing the %s annotation", EtcdNodeRemoveAnnotation)
 			}
 
-			removedNodeName, found := node.Annotations[etcdNodeRemovedNodeNameAnnotation]
+			removedNodeName, found := node.Annotations[EtcdNodeRemovedNodeNameAnnotation]
 
 			if !found {
 				return false, nil
