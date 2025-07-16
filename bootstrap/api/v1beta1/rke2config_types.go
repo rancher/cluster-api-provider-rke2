@@ -321,37 +321,26 @@ type File struct {
 // FileSource is a union of all possible external source types for file data.
 // Only one field may be populated in any given instance. Developers adding new
 // sources of data for target systems should add them here.
+// +kubebuilder:validation:XValidation:rule="has(self.secret) && has(self.configMap)", message="Only configMap or secret can be populated at once"
 type FileSource struct {
 	// SecretFileSource represents a secret that should populate this file.
 	//+optional
-	Secret SecretFileSource `json:"secret"`
+	Secret FileSourceRef `json:"secret"`
 
-	// ConfigMapFileSource represents a ConfigMap that should populate this file.
+	// ConfigMapFileSource represents a config map that should populate this file.
 	//+optional
-	ConfigMap ConfigMapFileSource `json:"configMap"`
+	ConfigMap FileSourceRef `json:"configMap"`
 }
 
-// SecretFileSource adapts a Secret into a FileSource.
+// FileSourceRef adapts a Secret/ConfigMap into a FileSource.
 //
-// The contents of the target Secret's Data field will be presented
+// The contents of the target Secret or ConfigMap's Data field will be presented
 // as files using the keys in the Data field as the file names.
-type SecretFileSource struct {
-	// Name of the secret in the RKE2BootstrapConfig's namespace to use.
+type FileSourceRef struct {
+	// Name of the secret/configmap in the RKE2BootstrapConfig's namespace to use.
 	Name string `json:"name"`
 
-	// Key is the key in the secret's data map for this value.
-	Key string `json:"key"`
-}
-
-// ConfigMapFileSource adapts a ConfigMap into a FileSource.
-//
-// The contents of the target ConfigMap's Data field will be presented
-// as files using the keys in the Data field as the file names.
-type ConfigMapFileSource struct {
-	// Name of the ConfigMap in the RKE2BootstrapConfig's namespace to use.
-	Name string `json:"name"`
-
-	// Key is the key in the ConfigMap's data map for this value.
+	// Key is the key in the secret or config map's data map for this value.
 	Key string `json:"key"`
 }
 

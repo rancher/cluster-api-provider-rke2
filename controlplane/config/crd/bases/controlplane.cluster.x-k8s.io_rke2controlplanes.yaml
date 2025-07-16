@@ -324,22 +324,6 @@ spec:
                       description: ContentFrom is a referenced source of content to
                         populate the file.
                       properties:
-                        configMap:
-                          description: ConfigMapFileSource represents a ConfigMap
-                            that should populate this file.
-                          properties:
-                            key:
-                              description: Key is the key in the ConfigMap's data
-                                map for this value.
-                              type: string
-                            name:
-                              description: Name of the ConfigMap in the RKE2BootstrapConfig's
-                                namespace to use.
-                              type: string
-                          required:
-                          - key
-                          - name
-                          type: object
                         secret:
                           description: SecretFileSource represents a secret that should
                             populate this file.
@@ -356,6 +340,8 @@ spec:
                           - key
                           - name
                           type: object
+                      required:
+                      - secret
                       type: object
                     encoding:
                       description: Encoding specifies the encoding of the file contents.
@@ -1564,15 +1550,15 @@ spec:
                         populate the file.
                       properties:
                         configMap:
-                          description: ConfigMapFileSource represents a ConfigMap
+                          description: ConfigMapFileSource represents a config map
                             that should populate this file.
                           properties:
                             key:
-                              description: Key is the key in the ConfigMap's data
-                                map for this value.
+                              description: Key is the key in the secret or config
+                                map's data map for this value.
                               type: string
                             name:
-                              description: Name of the ConfigMap in the RKE2BootstrapConfig's
+                              description: Name of the secret/configmap in the RKE2BootstrapConfig's
                                 namespace to use.
                               type: string
                           required:
@@ -1584,11 +1570,11 @@ spec:
                             populate this file.
                           properties:
                             key:
-                              description: Key is the key in the secret's data map
-                                for this value.
+                              description: Key is the key in the secret or config
+                                map's data map for this value.
                               type: string
                             name:
-                              description: Name of the secret in the RKE2BootstrapConfig's
+                              description: Name of the secret/configmap in the RKE2BootstrapConfig's
                                 namespace to use.
                               type: string
                           required:
@@ -1596,6 +1582,9 @@ spec:
                           - name
                           type: object
                       type: object
+                      x-kubernetes-validations:
+                      - message: Only configMap or secret can be populated at once
+                        rule: has(self.secret) && has(self.configMap)
                     encoding:
                       description: Encoding specifies the encoding of the file contents.
                       enum:
