@@ -589,8 +589,9 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 				file.Content = fileContent
 				file.ContentFrom = nil
 			}
-			additionalFiles = append(additionalFiles, file)
 		}
+
+		additionalFiles = append(additionalFiles, file)
 	}
 
 	files := configFiles

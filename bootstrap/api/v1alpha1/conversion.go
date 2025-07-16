@@ -56,6 +56,9 @@ func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.GzipUserData = restored.Spec.GzipUserData
 	}
 
+	// ConfigMap does not exist in v1alpha1, and Secret has a changed struct type so it needs to be restored manually
+	dst.Spec.Files = restored.Spec.Files
+
 	return nil
 }
 
@@ -119,6 +122,8 @@ func (src *RKE2ConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.Template.Spec.GzipUserData = restored.Spec.Template.Spec.GzipUserData
 	}
 
+	// ConfigMap does not exist in v1alpha1, and Secret has a changed struct type so it needs to be restored manually
+	dst.Spec.Template.Spec.Files = restored.Spec.Template.Spec.Files
 	return nil
 }
 
