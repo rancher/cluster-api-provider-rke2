@@ -72,11 +72,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.FileSource)(nil), (*FileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_FileSource_To_v1alpha1_FileSource(a.(*v1beta1.FileSource), b.(*FileSource), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*Mirror)(nil), (*v1beta1.Mirror)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_Mirror_To_v1beta1_Mirror(a.(*Mirror), b.(*v1beta1.Mirror), scope)
 	}); err != nil {
@@ -204,6 +199,21 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*RKE2ConfigSpec)(nil), (*v1beta1.RKE2ConfigSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(a.(*RKE2ConfigSpec), b.(*v1beta1.RKE2ConfigSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*SecretFileSource)(nil), (*v1beta1.FileSourceRef)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_SecretFileSource_To_v1beta1_FileSourceRef(a.(*SecretFileSource), b.(*v1beta1.FileSourceRef), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.FileSourceRef)(nil), (*SecretFileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_FileSourceRef_To_v1alpha1_SecretFileSource(a.(*v1beta1.FileSourceRef), b.(*SecretFileSource), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.FileSource)(nil), (*FileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_FileSource_To_v1alpha1_FileSource(a.(*v1beta1.FileSource), b.(*FileSource), scope)
 	}); err != nil {
 		return err
 	}
