@@ -72,6 +72,9 @@ type WorkloadCluster interface {
 	IsEtcdMemberSafelyRemovedForMachine(ctx context.Context, machine *clusterv1.Machine) (bool, error)
 	ForwardEtcdLeadership(ctx context.Context, machine *clusterv1.Machine, leaderCandidate *clusterv1.Machine) error
 	EtcdMembers(ctx context.Context) ([]string, error)
+
+	// Common tasks.
+	ApplyLabelOnNode(ctx context.Context, machine *clusterv1.Machine, label, value string) error
 }
 
 // Workload defines operations on workload clusters.
@@ -427,6 +430,46 @@ func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *Control
 	}
 
 	return w.PatchNodes(ctx, controlPlane)
+}
+
+// ApplyLabelOnNode applies a label key and value to the Node associated to the Machine, if any.
+func (w *Workload) ApplyLabelOnNode(ctx context.Context, machine *clusterv1.Machine, key, value string) error {
+	logger := log.FromContext(ctx)
+	if machine == nil || machine.Status.NodeRef == nil {
+		// Nothing to do, no node for Machine
+		logger.Info("Nothing to do, no node for Machine")
+
+		return nil
+	}
+
+	controlPlaneNodes, err := w.getControlPlaneNodes(ctx)
+	if err != nil {
+		return fmt.Errorf("getting control plane nodes: %w", err)
+	}
+
+	for _, node := range controlPlaneNodes.Items {
+		if node.Name == machine.Status.NodeRef.Name {
+			if node.Labels == nil {
+				node.Labels = map[string]string{}
+			}
+
+			node.Labels[key] = value
+
+			if helper, ok := w.nodePatchHelpers[node.Name]; ok {
+				if err := helper.Patch(ctx, &node); err != nil {
+					return fmt.Errorf("patching node %s with %s label: %w", node.Name, key, err)
+				}
+			} else {
+				return fmt.Errorf("could not find patch helper for node %s", node.Name)
+			}
+
+			break
+		}
+	}
+
+	logger.Info(fmt.Sprintf("Applied label %s on node %s", key, machine.Status.NodeRef.Name))
+
+	return nil
 }
 
 // UpdateEtcdConditions is responsible for updating machine conditions reflecting the status of all the etcd members.

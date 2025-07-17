@@ -59,6 +59,11 @@ const (
 	// DefaultMinHealthyPeriod defines the default minimum period before we consider a remediation on a
 	// machine unrelated from the previous remediation.
 	DefaultMinHealthyPeriod = 1 * time.Hour
+
+	// LoadBalancerExclusionAnnotation is an annotation applicable to RKE2ControlPlanes, which will trigger the application
+	// of the `node.kubernetes.io/exclude-from-external-load-balancers` label on control plane Nodes during Machine deletion.
+	// This label can be consumed by load balancers to stop advertising a Node.
+	LoadBalancerExclusionAnnotation = "rke2.controlplane.cluster.x-k8s.io/load-balancer-exclusion"
 )
 
 // RKE2ControlPlaneSpec defines the desired state of RKE2ControlPlane.
@@ -553,6 +558,13 @@ const (
 	// ensure it runs last (thus ensuring that kubelet is still working while other pre-terminate hooks run
 	// as it uses kubelet local mode).
 	PreTerminateHookCleanupAnnotation = clusterv1.PreTerminateDeleteHookAnnotationPrefix + "/rke2-cleanup"
+
+	// PreDrainLoadbalancerExclusionAnnotation is the annotation set on Machines to ensure the downstream
+	// Node is labeled with `node.kubernetes.io/exclude-from-external-load-balancers`.
+	// This allows load balancers as MetalLB to stop advertising this node.
+	// The label is added on pre-drain hook to give enough time for the load balancer to react to the change,
+	// before the Machine is actually terminated.
+	PreDrainLoadbalancerExclusionAnnotation = clusterv1.PreDrainDeleteHookAnnotationPrefix + "/rke2-lb-exclusion"
 )
 
 func init() { //nolint:gochecknoinits
