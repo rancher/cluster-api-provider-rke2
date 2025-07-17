@@ -238,6 +238,11 @@ type RKE2ServerConfig struct {
 	// EmbeddedRegistry enables the embedded registry.
 	//+optional
 	EmbeddedRegistry bool `json:"embeddedRegistry,omitempty"`
+
+	// ExternalDatastoreSecret is a reference to a Secret that contains configuration about connecting to an external datastore.
+	// The secret must contain a key named "endpoint" that contains the connection string for the external datastore.
+	// +optional
+	ExternalDatastoreSecret *corev1.ObjectReference `json:"externalDatastoreSecret,omitempty"`
 }
 
 // RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane.
