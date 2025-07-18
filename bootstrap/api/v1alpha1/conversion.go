@@ -23,8 +23,9 @@ import (
 
 	apiconversion "k8s.io/apimachinery/pkg/conversion"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
+
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 )
 
 func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
@@ -54,6 +55,9 @@ func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
 	if restored.Spec.GzipUserData != nil {
 		dst.Spec.GzipUserData = restored.Spec.GzipUserData
 	}
+
+	// ConfigMap does not exist in v1alpha1, and Secret has a changed struct type so it needs to be restored manually
+	dst.Spec.Files = restored.Spec.Files
 
 	return nil
 }
@@ -118,6 +122,8 @@ func (src *RKE2ConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.Template.Spec.GzipUserData = restored.Spec.Template.Spec.GzipUserData
 	}
 
+	// ConfigMap does not exist in v1alpha1, and Secret has a changed struct type so it needs to be restored manually
+	dst.Spec.Template.Spec.Files = restored.Spec.Template.Spec.Files
 	return nil
 }
 
@@ -179,5 +185,30 @@ func Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in *bootstrapv1.R
 	}
 
 	// GzipUserData does not exist in v1alpha1, so it's intentionally ignored
+	return nil
+}
+
+func Convert_v1beta1_FileSource_To_v1alpha1_FileSource(in *bootstrapv1.FileSource, out *FileSource, s apiconversion.Scope) error {
+	// Only Secret is supported in v1alpha1.
+	// If ConfigMap is set in v1beta1, it will be ignored during this conversion since it does not exist in v1alpha1.
+	if in.ConfigMap.Name != "" || in.ConfigMap.Key != "" {
+		in.ConfigMap = bootstrapv1.FileSourceRef{}
+	}
+
+	if err := autoConvert_v1beta1_FileSource_To_v1alpha1_FileSource(in, out, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Convert_v1alpha1_SecretFileSource_To_v1beta1_FileSourceRef(in *SecretFileSource, out *bootstrapv1.FileSourceRef, s apiconversion.Scope) error {
+	out.Name = in.Name
+	out.Key = in.Key
+	return nil
+}
+
+func Convert_v1beta1_FileSourceRef_To_v1alpha1_SecretFileSource(in *bootstrapv1.FileSourceRef, out *SecretFileSource, s apiconversion.Scope) error {
+	out.Name = in.Name
+	out.Key = in.Key
 	return nil
 }
