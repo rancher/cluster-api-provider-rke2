@@ -139,6 +139,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateCreate(_ context.Context, obj
 	allErrs = append(allErrs, rcp.validateCNI()...)
 	allErrs = append(allErrs, rcp.validateRegistrationMethod()...)
 	allErrs = append(allErrs, rcp.validateMachineTemplate()...)
+	allErrs = append(allErrs, rcp.validateSpec()...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
@@ -166,6 +167,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateUpdate(_ context.Context, old
 	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(newControlplane.Name, &newControlplane.Spec.RKE2ConfigSpec)...)
 	allErrs = append(allErrs, newControlplane.validateCNI()...)
 	allErrs = append(allErrs, newControlplane.validateMachineTemplate()...)
+	allErrs = append(allErrs, newControlplane.validateSpec()...)
 
 	oldSet := oldControlplane.Spec.RegistrationMethod != ""
 	if oldSet && newControlplane.Spec.RegistrationMethod != oldControlplane.Spec.RegistrationMethod {
@@ -275,6 +277,30 @@ func (r *RKE2ControlPlane) validateMachineTemplate() field.ErrorList {
 		allErrs = append(allErrs,
 			field.Invalid(field.NewPath("spec", "machineTemplate", "nodeDeletionTimeout"),
 				r.Spec.MachineTemplate.NodeDeletionTimeout.Duration, "must be non-negative"))
+	}
+
+	return allErrs
+}
+
+func (r *RKE2ControlPlane) validateSpec() field.ErrorList {
+	var allErrs field.ErrorList
+
+	if r.Spec.Replicas == nil {
+		allErrs = append(
+			allErrs,
+			field.Required(
+				field.NewPath("spec", "replicas"),
+				"is required",
+			),
+		)
+	} else if *r.Spec.Replicas <= 0 {
+		allErrs = append(
+			allErrs,
+			field.Forbidden(
+				field.NewPath("spec", "replicas"),
+				"cannot be less than or equal to 0",
+			),
+		)
 	}
 
 	return allErrs
