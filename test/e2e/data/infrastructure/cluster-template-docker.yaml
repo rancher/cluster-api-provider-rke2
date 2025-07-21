@@ -63,6 +63,22 @@ kind: ConfigMap
 metadata:
   name: ${CLUSTER_NAME}-lb-config
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-init-config-data-secret
+stringData:
+  cloud-init-config-data-secret: |
+    This content is from a secret.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloud-init-config-data-cm
+data:
+  cloud-init-config-data-cm: |
+    This content is from a configmap.
+---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster 
 metadata:
@@ -142,7 +158,19 @@ spec:
   - content: "Just a dummy file\n"
     owner: root:root
     path: /control-plane-file.sentinel
-    permissions: "0755"   
+    permissions: "0755"
+  - contentFrom:
+      secret:
+        name: cloud-init-config-data-secret
+        key: cloud-init-config-data-secret
+    path: /cloud-init-config-data-secret.yaml
+    owner: root:root
+  - contentFrom:
+      configMap:
+        name: cloud-init-config-data-cm
+        key: cloud-init-config-data-cm
+    path: /cloud-init-config-data-cm.yaml
+    owner: root:root
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
