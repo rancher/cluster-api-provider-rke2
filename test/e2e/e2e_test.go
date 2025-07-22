@@ -238,7 +238,7 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
-			By("checking if the cloud-init config contentFrom a secret has been applied to machine's bootstrap secret")
+			By("Checking if the cloud-init config contentFrom a secret and configmap has been applied")
 			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
 				Lister:      bootstrapClusterProxy.GetClient(),
 				ClusterName: result.Cluster.Name,
@@ -274,7 +274,7 @@ var _ = Describe("Workload cluster creation", func() {
 						pathContentMap[file.Path] = file.Content
 					}
 
-					// Check content from all the sources exists
+					// Check content from all the source exists
 					for key, value := range map[string]string{
 						"/cloud-init-config-data-secret.yaml": "This content is from a secret.",
 						"/cloud-init-config-data-cm.yaml":     "This content is from a configmap.",

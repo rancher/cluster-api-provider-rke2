@@ -67,6 +67,73 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		{
+			name: "contentFrom has both Secret and ConfigMap",
+			spec: &RKE2ConfigSpec{
+				Files: []File{
+					{
+						Path: "/etc/kubernetes/cloud.json",
+						ContentFrom: &FileSource{
+							Secret: FileSourceRef{
+								Name: "${CLUSTER_NAME}-md-0-cloud-json-secret",
+								Key:  "node-cloud.json",
+							},
+							ConfigMap: FileSourceRef{
+								Name: "${CLUSTER_NAME}-md-0-cloud-json-cm",
+								Key:  "node-cloud.json",
+							},
+						},
+					},
+				},
+			},
+			expectErr: true,
+		},
+		{
+			name: "contentFrom has ConfigMap",
+			spec: &RKE2ConfigSpec{
+				Files: []File{
+					{
+						Path: "/etc/kubernetes/cloud.json",
+						ContentFrom: &FileSource{
+							ConfigMap: FileSourceRef{
+								Name: "${CLUSTER_NAME}-md-0-cloud-json-cm",
+								Key:  "node-cloud.json",
+							},
+						},
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "contentFrom has Secret",
+			spec: &RKE2ConfigSpec{
+				Files: []File{
+					{
+						Path: "/etc/kubernetes/cloud.json",
+						ContentFrom: &FileSource{
+							Secret: FileSourceRef{
+								Name: "${CLUSTER_NAME}-md-0-cloud-json-secret",
+								Key:  "node-cloud.json",
+							},
+						},
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "contentFrom has neither Secret nor ConfigMap",
+			spec: &RKE2ConfigSpec{
+				Files: []File{
+					{
+						Path:        "/etc/kubernetes/cloud.json",
+						ContentFrom: &FileSource{},
+					},
+				},
+			},
+			expectErr: true,
+		},
 	}
 
 	validator := RKE2ConfigCustomValidator{}

@@ -325,11 +325,11 @@ type File struct {
 type FileSource struct {
 	// SecretFileSource represents a secret that should populate this file.
 	//+optional
-	Secret FileSourceRef `json:"secret"`
+	Secret FileSourceRef `json:"secret,omitempty"`
 
 	// ConfigMapFileSource represents a config map that should populate this file.
 	//+optional
-	ConfigMap FileSourceRef `json:"configMap"`
+	ConfigMap FileSourceRef `json:"configMap,omitempty"`
 }
 
 // FileSourceRef adapts a Secret/ConfigMap into a FileSource.
