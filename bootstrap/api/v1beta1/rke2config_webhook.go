@@ -163,9 +163,10 @@ func (s *RKE2ConfigSpec) validate(pathPrefix *field.Path) field.ErrorList {
 	return allErrs
 }
 
-// validateFileSource ensures that either ConfigMap or Secret FileSource is provided; it raises error if both or none are provided
+// validateFileSource ensures that either ConfigMap or Secret FileSource is provided; it raises error if both or none are provided.
 func (s *RKE2ConfigSpec) validateFileSource(pathPrefix *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
+
 	for i, file := range s.Files {
 		if file.ContentFrom != nil {
 			if file.ContentFrom.ConfigMap != (FileSourceRef{}) && file.ContentFrom.Secret != (FileSourceRef{}) {
@@ -183,6 +184,7 @@ func (s *RKE2ConfigSpec) validateFileSource(pathPrefix *field.Path) field.ErrorL
 			}
 		}
 	}
+
 	return allErrs
 }
 
