@@ -233,7 +233,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 		// Remediation MUST preserve etcd quorum. This rule ensures that RKE2ControlPlane will not remove a member that would result in etcd
 		// losing a majority of members and thus become unable to field new requests.
-		if controlPlane.IsEtcdManaged() {
+		if controlPlane.IsEtcdManaged() && controlPlane.UsesEmbeddedEtcd() {
 			canSafelyRemediate, err := r.canSafelyRemoveEtcdMember(ctx, controlPlane, machineToBeRemediated)
 			if err != nil {
 				conditions.MarkFalse(
@@ -276,7 +276,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 		// If the machine that is about to be deleted is the etcd leader, move it to the newest member available.
 		// NOTE: etcd member removal will be performed by the rke2-cleanup hook after machine completes drain & all volumes are detached.
-		if controlPlane.IsEtcdManaged() {
+		if controlPlane.IsEtcdManaged() && controlPlane.UsesEmbeddedEtcd() {
 			etcdLeaderCandidate := controlPlane.HealthyMachines().Newest()
 			if etcdLeaderCandidate == nil {
 				log.Info("A control plane machine needs remediation, but there is no healthy machine to forward etcd leadership to")
