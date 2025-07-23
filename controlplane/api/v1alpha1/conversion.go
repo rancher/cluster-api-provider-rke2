@@ -22,10 +22,11 @@ import (
 	apiconversion "k8s.io/apimachinery/pkg/conversion"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
+
 	bootstrapv1alpha1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 	bootstrapv1beta1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
@@ -68,6 +69,7 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.ServerConfig.EmbeddedRegistry = restored.Spec.ServerConfig.EmbeddedRegistry
 	dst.Spec.MachineTemplate = restored.Spec.MachineTemplate
 	dst.Status = restored.Status
+	dst.Spec.Files = restored.Spec.Files
 
 	return nil
 }
@@ -149,6 +151,7 @@ func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.Template.Spec.MachineTemplate.NodeDeletionTimeout = restored.Spec.Template.Spec.MachineTemplate.NodeDeletionTimeout
 	dst.Spec.Template.Spec.MachineTemplate.NodeVolumeDetachTimeout = restored.Spec.Template.Spec.MachineTemplate.NodeVolumeDetachTimeout
 
+	dst.Spec.Template.Spec.Files = restored.Spec.Template.Spec.Files
 	return nil
 }
 
