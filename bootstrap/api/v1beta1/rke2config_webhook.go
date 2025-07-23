@@ -158,32 +158,6 @@ func (s *RKE2ConfigSpec) validate(pathPrefix *field.Path) field.ErrorList {
 
 	allErrs = append(allErrs, s.validateIgnition(pathPrefix)...)
 	allErrs = append(allErrs, s.validateRegistries(pathPrefix)...)
-	allErrs = append(allErrs, s.validateFileSource(pathPrefix)...)
-
-	return allErrs
-}
-
-// validateFileSource ensures that either ConfigMap or Secret FileSource is provided; it raises error if both or none are provided.
-func (s *RKE2ConfigSpec) validateFileSource(pathPrefix *field.Path) field.ErrorList {
-	var allErrs field.ErrorList
-
-	for i, file := range s.Files {
-		if file.ContentFrom != nil {
-			if file.ContentFrom.ConfigMap != (FileSourceRef{}) && file.ContentFrom.Secret != (FileSourceRef{}) {
-				allErrs = append(
-					allErrs,
-					field.Invalid(pathPrefix.Child("files").Index(i).Child("contentFrom"),
-						file,
-						"cannot provide both ConfigMap and Secret, must only provide one way to obtain content from file"))
-			} else if file.ContentFrom.ConfigMap == (FileSourceRef{}) && file.ContentFrom.Secret == (FileSourceRef{}) {
-				allErrs = append(
-					allErrs,
-					field.Invalid(pathPrefix.Child("files").Index(i).Child("contentFrom"),
-						file,
-						"need either configmap or secret to fetch content from file"))
-			}
-		}
-	}
 
 	return allErrs
 }

@@ -548,7 +548,7 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 
 	for _, file := range scope.Config.Spec.Files {
 		if file.ContentFrom != nil {
-			if file.ContentFrom.Secret != (bootstrapv1.FileSourceRef{}) {
+			if file.ContentFrom.Secret != nil {
 				scope.Logger.V(5).Info("File content is coming from a Secret, getting the content...")
 
 				fileContentSecret := &corev1.Secret{}
@@ -568,7 +568,7 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 
 				file.Content = string(fileContent)
 				file.ContentFrom = nil
-			} else if file.ContentFrom.ConfigMap != (bootstrapv1.FileSourceRef{}) {
+			} else if file.ContentFrom.ConfigMap != nil {
 				scope.Logger.V(5).Info("File content is coming from a ConfigMap, getting the content...")
 
 				fileContentConfigMap := &corev1.ConfigMap{}

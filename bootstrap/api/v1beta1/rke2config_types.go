@@ -321,15 +321,15 @@ type File struct {
 // FileSource is a union of all possible external source types for file data.
 // Only one field may be populated in any given instance. Developers adding new
 // sources of data for target systems should add them here.
-// +kubebuilder:validation:XValidation:rule="has(self.secret) && has(self.configMap)", message="Only configMap or secret can be populated at once"
+// +kubebuilder:validation:XValidation:rule="!(has(self.secret) && has(self.configMap))", message="Only configMap or secret can be populated at once"
 type FileSource struct {
 	// SecretFileSource represents a secret that should populate this file.
 	//+optional
-	Secret FileSourceRef `json:"secret,omitempty"`
+	Secret *FileSourceRef `json:"secret,omitempty"`
 
 	// ConfigMapFileSource represents a config map that should populate this file.
 	//+optional
-	ConfigMap FileSourceRef `json:"configMap,omitempty"`
+	ConfigMap *FileSourceRef `json:"configMap,omitempty"`
 }
 
 // FileSourceRef adapts a Secret/ConfigMap into a FileSource.

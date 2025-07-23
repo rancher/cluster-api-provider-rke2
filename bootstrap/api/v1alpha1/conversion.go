@@ -174,7 +174,7 @@ func Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in *RKE2ConfigSpe
 		return err
 	}
 
-	// Default to false during up-conversion since field doesn't exist in v1alpha1
+	// Default to false during up-conversion since the field doesn't exist in v1alpha1
 	out.GzipUserData = nil
 	return nil
 }
@@ -189,26 +189,33 @@ func Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in *bootstrapv1.R
 }
 
 func Convert_v1beta1_FileSource_To_v1alpha1_FileSource(in *bootstrapv1.FileSource, out *FileSource, s apiconversion.Scope) error {
-	// Only Secret is supported in v1alpha1.
-	// If ConfigMap is set in v1beta1, it will be ignored during this conversion since it does not exist in v1alpha1.
-	if in.ConfigMap.Name != "" || in.ConfigMap.Key != "" {
-		in.ConfigMap = bootstrapv1.FileSourceRef{}
-	}
-
 	if err := autoConvert_v1beta1_FileSource_To_v1alpha1_FileSource(in, out, s); err != nil {
 		return err
 	}
+
+	if in.Secret != nil {
+		out.Secret.Name = in.Secret.Name
+		out.Secret.Key = in.Secret.Key
+	}
+
+	// ConfigMap does not exist in v1alpha1, so it's intentionally ignored
 	return nil
 }
 
-func Convert_v1alpha1_SecretFileSource_To_v1beta1_FileSourceRef(in *SecretFileSource, out *bootstrapv1.FileSourceRef, s apiconversion.Scope) error {
-	out.Name = in.Name
-	out.Key = in.Key
-	return nil
-}
+func Convert_v1alpha1_FileSource_To_v1beta1_FileSource(in *FileSource, out *bootstrapv1.FileSource, s apiconversion.Scope) error {
+	if err := autoConvert_v1alpha1_FileSource_To_v1beta1_FileSource(in, out, s); err != nil {
+		return err
+	}
 
-func Convert_v1beta1_FileSourceRef_To_v1alpha1_SecretFileSource(in *bootstrapv1.FileSourceRef, out *SecretFileSource, s apiconversion.Scope) error {
-	out.Name = in.Name
-	out.Key = in.Key
+	if in.Secret.Key != "" || in.Secret.Name != "" {
+		out.Secret = &bootstrapv1.FileSourceRef{
+			Name: in.Secret.Name,
+			Key:  in.Secret.Key,
+		}
+	}
+
+	// Default to false during up-conversion since the field doesn't exist in v1alpha1
+	out.ConfigMap = nil
+
 	return nil
 }

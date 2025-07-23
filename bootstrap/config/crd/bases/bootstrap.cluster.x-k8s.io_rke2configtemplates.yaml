@@ -929,7 +929,7 @@ spec:
                               x-kubernetes-validations:
                               - message: Only configMap or secret can be populated
                                   at once
-                                rule: has(self.secret) && has(self.configMap)
+                                rule: '!(has(self.secret) && has(self.configMap))'
                             encoding:
                               description: Encoding specifies the encoding of the
                                 file contents.
