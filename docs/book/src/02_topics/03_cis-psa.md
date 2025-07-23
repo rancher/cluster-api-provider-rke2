@@ -48,6 +48,8 @@ spec:
     ...
 ```
 
+> **_NOTE:_**: You can also use a ConfigMap instead of a Secret for the above configuration by using `.contentFrom.configMap` instead of `.contentFrom.secret`.
+
 ## Example of PSA to allow Rancher components to run in the cluster:
 
 ```yaml 

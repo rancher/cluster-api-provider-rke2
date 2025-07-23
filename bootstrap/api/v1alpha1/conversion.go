@@ -23,8 +23,9 @@ import (
 
 	apiconversion "k8s.io/apimachinery/pkg/conversion"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
+
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 )
 
 func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
@@ -54,6 +55,9 @@ func (src *RKE2Config) ConvertTo(dstRaw conversion.Hub) error {
 	if restored.Spec.GzipUserData != nil {
 		dst.Spec.GzipUserData = restored.Spec.GzipUserData
 	}
+
+	// ConfigMap does not exist in v1alpha1, and Secret has a changed struct type so it needs to be restored manually
+	dst.Spec.Files = restored.Spec.Files
 
 	return nil
 }
@@ -118,6 +122,8 @@ func (src *RKE2ConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.Template.Spec.GzipUserData = restored.Spec.Template.Spec.GzipUserData
 	}
 
+	// ConfigMap does not exist in v1alpha1, and Secret has a changed struct type so it needs to be restored manually
+	dst.Spec.Template.Spec.Files = restored.Spec.Template.Spec.Files
 	return nil
 }
 
@@ -168,7 +174,7 @@ func Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in *RKE2ConfigSpe
 		return err
 	}
 
-	// Default to false during up-conversion since field doesn't exist in v1alpha1
+	// Default to false during up-conversion since the field doesn't exist in v1alpha1
 	out.GzipUserData = nil
 	return nil
 }
@@ -179,5 +185,37 @@ func Convert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in *bootstrapv1.R
 	}
 
 	// GzipUserData does not exist in v1alpha1, so it's intentionally ignored
+	return nil
+}
+
+func Convert_v1beta1_FileSource_To_v1alpha1_FileSource(in *bootstrapv1.FileSource, out *FileSource, s apiconversion.Scope) error {
+	if err := autoConvert_v1beta1_FileSource_To_v1alpha1_FileSource(in, out, s); err != nil {
+		return err
+	}
+
+	if in.Secret != nil {
+		out.Secret.Name = in.Secret.Name
+		out.Secret.Key = in.Secret.Key
+	}
+
+	// ConfigMap does not exist in v1alpha1, so it's intentionally ignored
+	return nil
+}
+
+func Convert_v1alpha1_FileSource_To_v1beta1_FileSource(in *FileSource, out *bootstrapv1.FileSource, s apiconversion.Scope) error {
+	if err := autoConvert_v1alpha1_FileSource_To_v1beta1_FileSource(in, out, s); err != nil {
+		return err
+	}
+
+	if in.Secret.Key != "" || in.Secret.Name != "" {
+		out.Secret = &bootstrapv1.FileSourceRef{
+			Name: in.Secret.Name,
+			Key:  in.Secret.Key,
+		}
+	}
+
+	// Default to false during up-conversion since the field doesn't exist in v1alpha1
+	out.ConfigMap = nil
+
 	return nil
 }
