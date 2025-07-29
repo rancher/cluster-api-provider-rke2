@@ -204,32 +204,34 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 				fmt.Errorf("removing etcd member for deleting Machine %s: failed to create client to workload cluster", klog.KObj(deletingMachine))
 		}
 
-		// Note: In regular deletion cases (remediation, scale down) the leader should have been already moved.
-		// We're doing this again here in case the Machine became leader again or the Machine deletion was
-		// triggered in another way (e.g. a user running kubectl delete machine)
-		etcdLeaderCandidate := controlPlane.Machines.Filter(collections.Not(collections.HasDeletionTimestamp)).Newest()
-		if etcdLeaderCandidate != nil {
-			if err := workloadCluster.ForwardEtcdLeadership(ctx, deletingMachine, etcdLeaderCandidate); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to move leadership to candidate Machine %s: %w", etcdLeaderCandidate.Name, err)
+		if controlPlane.UsesEmbeddedEtcd() {
+			// Note: In regular deletion cases (remediation, scale down) the leader should have been already moved.
+			// We're doing this again here in case the Machine became leader again or the Machine deletion was
+			// triggered in another way (e.g. a user running kubectl delete machine)
+			etcdLeaderCandidate := controlPlane.Machines.Filter(collections.Not(collections.HasDeletionTimestamp)).Newest()
+			if etcdLeaderCandidate != nil {
+				if err := workloadCluster.ForwardEtcdLeadership(ctx, deletingMachine, etcdLeaderCandidate); err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to move leadership to candidate Machine %s: %w", etcdLeaderCandidate.Name, err)
+				}
+			} else {
+				log.Info("Skip forwarding etcd leadership, because there is no other control plane Machine without a deletionTimestamp")
 			}
-		} else {
-			log.Info("Skip forwarding etcd leadership, because there is no other control plane Machine without a deletionTimestamp")
-		}
 
-		// Note: Removing the etcd member will lead to the etcd and the kube-apiserver Pod on the Machine shutting down.
-		if err := workloadCluster.RemoveEtcdMemberForMachine(ctx, deletingMachine); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to remove etcd member for deleting Machine %s: %w", klog.KObj(deletingMachine), err)
-		}
+			// Note: Removing the etcd member will lead to the etcd and the kube-apiserver Pod on the Machine shutting down.
+			if err := workloadCluster.RemoveEtcdMemberForMachine(ctx, deletingMachine); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to remove etcd member for deleting Machine %s: %w", klog.KObj(deletingMachine), err)
+			}
 
-		safelyRemoved, err := workloadCluster.IsEtcdMemberSafelyRemovedForMachine(ctx, deletingMachine)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("determining if etcd member is safely removed for Machine %s: %w", klog.KObj(deletingMachine), err)
-		}
+			safelyRemoved, err := workloadCluster.IsEtcdMemberSafelyRemovedForMachine(ctx, deletingMachine)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("determining if etcd member is safely removed for Machine %s: %w", klog.KObj(deletingMachine), err)
+			}
 
-		if !safelyRemoved {
-			log.Info("Waiting for etcd member for Machine to be safely removed", "machine", klog.KObj(deletingMachine))
+			if !safelyRemoved {
+				log.Info("Waiting for etcd member for Machine to be safely removed", "machine", klog.KObj(deletingMachine))
 
-			return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
+				return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
+			}
 		}
 	}
 
