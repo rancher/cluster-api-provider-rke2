@@ -67,16 +67,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*FileSource)(nil), (*v1beta1.FileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_FileSource_To_v1beta1_FileSource(a.(*FileSource), b.(*v1beta1.FileSource), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.FileSource)(nil), (*FileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_FileSource_To_v1alpha1_FileSource(a.(*v1beta1.FileSource), b.(*FileSource), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*Mirror)(nil), (*v1beta1.Mirror)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_Mirror_To_v1beta1_Mirror(a.(*Mirror), b.(*v1beta1.Mirror), scope)
 	}); err != nil {
@@ -187,16 +177,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*SecretFileSource)(nil), (*v1beta1.SecretFileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_SecretFileSource_To_v1beta1_SecretFileSource(a.(*SecretFileSource), b.(*v1beta1.SecretFileSource), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.SecretFileSource)(nil), (*SecretFileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_SecretFileSource_To_v1alpha1_SecretFileSource(a.(*v1beta1.SecretFileSource), b.(*SecretFileSource), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*TLSConfig)(nil), (*v1beta1.TLSConfig)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_TLSConfig_To_v1beta1_TLSConfig(a.(*TLSConfig), b.(*v1beta1.TLSConfig), scope)
 	}); err != nil {
@@ -207,6 +187,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddConversionFunc((*FileSource)(nil), (*v1beta1.FileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_FileSource_To_v1beta1_FileSource(a.(*FileSource), b.(*v1beta1.FileSource), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddConversionFunc((*RKE2AgentConfig)(nil), (*v1beta1.RKE2AgentConfig)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_RKE2AgentConfig_To_v1beta1_RKE2AgentConfig(a.(*RKE2AgentConfig), b.(*v1beta1.RKE2AgentConfig), scope)
 	}); err != nil {
@@ -214,6 +199,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*RKE2ConfigSpec)(nil), (*v1beta1.RKE2ConfigSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(a.(*RKE2ConfigSpec), b.(*v1beta1.RKE2ConfigSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.FileSource)(nil), (*FileSource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_FileSource_To_v1alpha1_FileSource(a.(*v1beta1.FileSource), b.(*FileSource), scope)
 	}); err != nil {
 		return err
 	}
@@ -286,7 +276,15 @@ func autoConvert_v1alpha1_File_To_v1beta1_File(in *File, out *v1beta1.File, s co
 	out.Permissions = in.Permissions
 	out.Encoding = v1beta1.Encoding(in.Encoding)
 	out.Content = in.Content
-	out.ContentFrom = (*v1beta1.FileSource)(unsafe.Pointer(in.ContentFrom))
+	if in.ContentFrom != nil {
+		in, out := &in.ContentFrom, &out.ContentFrom
+		*out = new(v1beta1.FileSource)
+		if err := Convert_v1alpha1_FileSource_To_v1beta1_FileSource(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.ContentFrom = nil
+	}
 	return nil
 }
 
@@ -301,7 +299,15 @@ func autoConvert_v1beta1_File_To_v1alpha1_File(in *v1beta1.File, out *File, s co
 	out.Permissions = in.Permissions
 	out.Encoding = Encoding(in.Encoding)
 	out.Content = in.Content
-	out.ContentFrom = (*FileSource)(unsafe.Pointer(in.ContentFrom))
+	if in.ContentFrom != nil {
+		in, out := &in.ContentFrom, &out.ContentFrom
+		*out = new(FileSource)
+		if err := Convert_v1beta1_FileSource_To_v1alpha1_FileSource(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.ContentFrom = nil
+	}
 	return nil
 }
 
@@ -311,27 +317,14 @@ func Convert_v1beta1_File_To_v1alpha1_File(in *v1beta1.File, out *File, s conver
 }
 
 func autoConvert_v1alpha1_FileSource_To_v1beta1_FileSource(in *FileSource, out *v1beta1.FileSource, s conversion.Scope) error {
-	if err := Convert_v1alpha1_SecretFileSource_To_v1beta1_SecretFileSource(&in.Secret, &out.Secret, s); err != nil {
-		return err
-	}
+	// WARNING: in.Secret requires manual conversion: inconvertible types (github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1.SecretFileSource vs *github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1.FileSourceRef)
 	return nil
-}
-
-// Convert_v1alpha1_FileSource_To_v1beta1_FileSource is an autogenerated conversion function.
-func Convert_v1alpha1_FileSource_To_v1beta1_FileSource(in *FileSource, out *v1beta1.FileSource, s conversion.Scope) error {
-	return autoConvert_v1alpha1_FileSource_To_v1beta1_FileSource(in, out, s)
 }
 
 func autoConvert_v1beta1_FileSource_To_v1alpha1_FileSource(in *v1beta1.FileSource, out *FileSource, s conversion.Scope) error {
-	if err := Convert_v1beta1_SecretFileSource_To_v1alpha1_SecretFileSource(&in.Secret, &out.Secret, s); err != nil {
-		return err
-	}
+	// WARNING: in.Secret requires manual conversion: inconvertible types (*github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1.FileSourceRef vs github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1.SecretFileSource)
+	// WARNING: in.ConfigMap requires manual conversion: does not exist in peer-type
 	return nil
-}
-
-// Convert_v1beta1_FileSource_To_v1alpha1_FileSource is an autogenerated conversion function.
-func Convert_v1beta1_FileSource_To_v1alpha1_FileSource(in *v1beta1.FileSource, out *FileSource, s conversion.Scope) error {
-	return autoConvert_v1beta1_FileSource_To_v1alpha1_FileSource(in, out, s)
 }
 
 func autoConvert_v1alpha1_Mirror_To_v1beta1_Mirror(in *Mirror, out *v1beta1.Mirror, s conversion.Scope) error {
@@ -512,7 +505,17 @@ func Convert_v1beta1_RKE2ConfigList_To_v1alpha1_RKE2ConfigList(in *v1beta1.RKE2C
 }
 
 func autoConvert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in *RKE2ConfigSpec, out *v1beta1.RKE2ConfigSpec, s conversion.Scope) error {
-	out.Files = *(*[]v1beta1.File)(unsafe.Pointer(&in.Files))
+	if in.Files != nil {
+		in, out := &in.Files, &out.Files
+		*out = make([]v1beta1.File, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_File_To_v1beta1_File(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Files = nil
+	}
 	out.PreRKE2Commands = *(*[]string)(unsafe.Pointer(&in.PreRKE2Commands))
 	out.PostRKE2Commands = *(*[]string)(unsafe.Pointer(&in.PostRKE2Commands))
 	if err := Convert_v1alpha1_RKE2AgentConfig_To_v1beta1_RKE2AgentConfig(&in.AgentConfig, &out.AgentConfig, s); err != nil {
@@ -525,7 +528,17 @@ func autoConvert_v1alpha1_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(in *RKE2Confi
 }
 
 func autoConvert_v1beta1_RKE2ConfigSpec_To_v1alpha1_RKE2ConfigSpec(in *v1beta1.RKE2ConfigSpec, out *RKE2ConfigSpec, s conversion.Scope) error {
-	out.Files = *(*[]File)(unsafe.Pointer(&in.Files))
+	if in.Files != nil {
+		in, out := &in.Files, &out.Files
+		*out = make([]File, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta1_File_To_v1alpha1_File(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Files = nil
+	}
 	out.PreRKE2Commands = *(*[]string)(unsafe.Pointer(&in.PreRKE2Commands))
 	out.PostRKE2Commands = *(*[]string)(unsafe.Pointer(&in.PostRKE2Commands))
 	if err := Convert_v1beta1_RKE2AgentConfig_To_v1alpha1_RKE2AgentConfig(&in.AgentConfig, &out.AgentConfig, s); err != nil {
@@ -730,28 +743,6 @@ func autoConvert_v1beta1_RegistryConfig_To_v1alpha1_RegistryConfig(in *v1beta1.R
 // Convert_v1beta1_RegistryConfig_To_v1alpha1_RegistryConfig is an autogenerated conversion function.
 func Convert_v1beta1_RegistryConfig_To_v1alpha1_RegistryConfig(in *v1beta1.RegistryConfig, out *RegistryConfig, s conversion.Scope) error {
 	return autoConvert_v1beta1_RegistryConfig_To_v1alpha1_RegistryConfig(in, out, s)
-}
-
-func autoConvert_v1alpha1_SecretFileSource_To_v1beta1_SecretFileSource(in *SecretFileSource, out *v1beta1.SecretFileSource, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Key = in.Key
-	return nil
-}
-
-// Convert_v1alpha1_SecretFileSource_To_v1beta1_SecretFileSource is an autogenerated conversion function.
-func Convert_v1alpha1_SecretFileSource_To_v1beta1_SecretFileSource(in *SecretFileSource, out *v1beta1.SecretFileSource, s conversion.Scope) error {
-	return autoConvert_v1alpha1_SecretFileSource_To_v1beta1_SecretFileSource(in, out, s)
-}
-
-func autoConvert_v1beta1_SecretFileSource_To_v1alpha1_SecretFileSource(in *v1beta1.SecretFileSource, out *SecretFileSource, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Key = in.Key
-	return nil
-}
-
-// Convert_v1beta1_SecretFileSource_To_v1alpha1_SecretFileSource is an autogenerated conversion function.
-func Convert_v1beta1_SecretFileSource_To_v1alpha1_SecretFileSource(in *v1beta1.SecretFileSource, out *SecretFileSource, s conversion.Scope) error {
-	return autoConvert_v1beta1_SecretFileSource_To_v1alpha1_SecretFileSource(in, out, s)
 }
 
 func autoConvert_v1alpha1_TLSConfig_To_v1beta1_TLSConfig(in *TLSConfig, out *v1beta1.TLSConfig, s conversion.Scope) error {

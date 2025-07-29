@@ -27,8 +27,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -235,6 +237,53 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
+
+			By("Checking if the cloud-init config contentFrom a secret and configmap has been applied")
+			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+				Lister:      bootstrapClusterProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			})
+			Expect(machineList.Items).ToNot(BeEmpty())
+			for _, machine := range machineList.Items {
+				if _, exists := machine.Labels["cluster.x-k8s.io/control-plane"]; exists {
+					bootstrapSecret := &corev1.Secret{}
+					Expect(bootstrapClusterProxy.GetClient().Get(ctx, types.NamespacedName{Namespace: namespace.Name, Name: *machine.Spec.Bootstrap.DataSecretName}, bootstrapSecret)).Should(Succeed())
+					content, ok := bootstrapSecret.Data["value"]
+					Expect(ok).To(BeTrue())
+
+					// define local structures to make YAML unmarshalling easy
+					type writeFile struct {
+						Path        string `yaml:"path"`
+						Owner       string `yaml:"owner"`
+						Permissions string `yaml:"permissions"`
+						Content     string `yaml:"content"`
+					}
+
+					type cloudConfig struct {
+						RunCmd     []string    `yaml:"runcmd"`
+						WriteFiles []writeFile `yaml:"write_files"`
+					}
+
+					var cloudConfigData cloudConfig
+					err := yaml.Unmarshal(content, &cloudConfigData)
+					Expect(err).To(BeNil())
+
+					var pathContentMap = map[string]string{}
+					for _, file := range cloudConfigData.WriteFiles {
+						pathContentMap[file.Path] = file.Content
+					}
+
+					// Check content from all the source exists
+					for key, value := range map[string]string{
+						"/cloud-init-config-data-secret.yaml": "This content is from a secret.",
+						"/cloud-init-config-data-cm.yaml":     "This content is from a configmap.",
+						"/control-plane-file.sentinel":        "Just a dummy file",
+					} {
+						Expect(pathContentMap[key]).To(ContainSubstring(value))
+					}
+				}
+			}
 		})
 	})
 })

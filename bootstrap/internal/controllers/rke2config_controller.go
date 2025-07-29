@@ -548,25 +548,47 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 
 	for _, file := range scope.Config.Spec.Files {
 		if file.ContentFrom != nil {
-			scope.Logger.V(5).Info("File content is coming from a Secret, getting the content...")
+			if file.ContentFrom.Secret != nil {
+				scope.Logger.V(5).Info("File content is coming from a Secret, getting the content...")
 
-			fileContentSecret := &corev1.Secret{}
+				fileContentSecret := &corev1.Secret{}
 
-			if err := r.Get(ctx, types.NamespacedName{
-				Name:      file.ContentFrom.Secret.Name,
-				Namespace: scope.Config.Namespace,
-			}, fileContentSecret); err != nil {
-				return nil, fmt.Errorf("unable to get secret %s/%s: %w", scope.Config.Namespace, file.ContentFrom.Secret.Name, err)
+				if err := r.Get(ctx, types.NamespacedName{
+					Name:      file.ContentFrom.Secret.Name,
+					Namespace: scope.Config.Namespace,
+				}, fileContentSecret); err != nil {
+					return nil, fmt.Errorf("unable to get secret %s/%s: %w", scope.Config.Namespace, file.ContentFrom.Secret.Name, err)
+				}
+
+				fileContent := fileContentSecret.Data[file.ContentFrom.Secret.Key]
+				if fileContent == nil {
+					return nil, fmt.Errorf("file content is empty for secret %s/%s, secret key %s",
+						scope.Config.Namespace, file.ContentFrom.Secret.Name, file.ContentFrom.Secret.Key)
+				}
+
+				file.Content = string(fileContent)
+				file.ContentFrom = nil
+			} else if file.ContentFrom.ConfigMap != nil {
+				scope.Logger.V(5).Info("File content is coming from a ConfigMap, getting the content...")
+
+				fileContentConfigMap := &corev1.ConfigMap{}
+
+				if err := r.Get(ctx, types.NamespacedName{
+					Name:      file.ContentFrom.ConfigMap.Name,
+					Namespace: scope.Config.Namespace,
+				}, fileContentConfigMap); err != nil {
+					return nil, fmt.Errorf("unable to get config map %s/%s: %w", scope.Config.Namespace, file.ContentFrom.ConfigMap.Name, err)
+				}
+
+				fileContent := fileContentConfigMap.Data[file.ContentFrom.ConfigMap.Key]
+				if fileContent == "" {
+					return nil, fmt.Errorf("file content is empty for config map %s/%s, config map key %s",
+						scope.Config.Namespace, file.ContentFrom.ConfigMap.Name, file.ContentFrom.ConfigMap.Key)
+				}
+
+				file.Content = fileContent
+				file.ContentFrom = nil
 			}
-
-			fileContent := fileContentSecret.Data[file.ContentFrom.Secret.Key]
-			if fileContent == nil {
-				return nil, fmt.Errorf("file content is empty for secret %s/%s, secret key %s",
-					scope.Config.Namespace, file.ContentFrom.Secret.Name, file.ContentFrom.Secret.Key)
-			}
-
-			file.Content = string(fileContent)
-			file.ContentFrom = nil
 		}
 
 		additionalFiles = append(additionalFiles, file)
