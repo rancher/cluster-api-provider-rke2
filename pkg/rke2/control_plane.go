@@ -535,3 +535,8 @@ func (c *ControlPlane) ReconcileExternalReference(ctx context.Context, cl client
 
 	return patchHelper.Patch(ctx, obj)
 }
+
+// UsesEmbeddedEtcd returns true if the control plane does not define an external datastore configuration.
+func (c *ControlPlane) UsesEmbeddedEtcd() bool {
+	return c.RCP.Spec.ServerConfig.ExternalDatastoreSecret == nil
+}

@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	dockerinfrav1 "sigs.k8s.io/cluster-api/test/infrastructure/docker/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/kind/pkg/apis/config/v1alpha4"
 )
 
 // Test suite flags
@@ -219,6 +220,12 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme,
 			Images:             config.Images,
 			IPFamily:           config.GetVariable(IPFamily),
 			LogFolder:          filepath.Join(artifactFolder, "kind"),
+			ExtraPortMappings: []v1alpha4.PortMapping{
+				{
+					HostPort: 30000,
+					Protocol: "TCP",
+				},
+			},
 		})
 		Expect(clusterProvider).ToNot(BeNil(), "Failed to create a bootstrap cluster")
 
