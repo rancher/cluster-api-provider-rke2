@@ -171,46 +171,11 @@ func cleanupAdditionalCloudInit(cloudInitData string) (string, error) {
 }
 
 func cleanupArbitraryData(arbitraryData map[string]string) error {
-	// Remove ignored fields from the map
-	for _, field := range ignoredCloudInitFields {
-		delete(arbitraryData, field)
-	}
-
 	if len(arbitraryData) == 0 {
 		return nil
 	}
 
 	m := make(map[string]interface{})
-
-	// Make individual corrections to each value
-	for k, v := range arbitraryData {
-		b := bytes.Buffer{}
-		en := yaml.NewEncoder(&b)
-		en.SetIndent(defaultYamlIndent)
-
-		mapping := map[string]interface{}{}
-		if err := yaml.Unmarshal([]byte(v), &mapping); err == nil {
-			if err := en.Encode(&mapping); err != nil {
-				return fmt.Errorf("invalid map value provided: '%s', error: %w", v, err)
-			}
-
-			ident := "\n  "
-			arbitraryData[k] = ident + strings.ReplaceAll(b.String(), "\n", ident)
-
-			continue
-		}
-
-		list := []interface{}{}
-		if err := yaml.Unmarshal([]byte(v), &list); err == nil {
-			if err := en.Encode(&list); err != nil {
-				return fmt.Errorf("invalid list value provided: '%s', error: %w", v, err)
-			}
-
-			arbitraryData[k] = "\n" + b.String()
-
-			continue
-		}
-	}
 
 	kind := "arbitrary_prepare"
 	tm := template.New(kind).Funcs(defaultTemplateFuncMap)
