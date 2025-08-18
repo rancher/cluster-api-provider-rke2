@@ -11,7 +11,7 @@ jobs:
     runs-on: runs-on,runner=4cpu-linux-x64,run-id=${{ github.run_id }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Install Go
