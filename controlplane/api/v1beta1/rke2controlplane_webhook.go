@@ -117,6 +117,8 @@ func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, obj runtim
 		replicas := int32(1)
 		rcp.Spec.Replicas = &replicas
 	}
+
+	// Correct the additional user data by making it YAML compliant if provided
 	if rcp.Spec.AgentConfig.AdditionalUserData.Data == nil {
 		if err := bootstrapv1.CorrectArbitraryData(rcp.Spec.AgentConfig.AdditionalUserData.Data); err != nil {
 			return errors.Wrap(err, "failed to correct additional user data for RKE2ControlPlane")

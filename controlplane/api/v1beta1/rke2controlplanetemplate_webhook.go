@@ -74,6 +74,8 @@ func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, obj
 	rke2ControlPlaneTemplateLogger.Info("defaulting", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
 
 	bootstrapv1.DefaultRKE2ConfigSpec(&rcpt.Spec.Template.Spec.RKE2ConfigSpec)
+
+	// Correct the additional user data by making it YAML compliant if provided
 	if rcpt.Spec.Template.Spec.AgentConfig.AdditionalUserData.Data != nil {
 		if err := bootstrapv1.CorrectArbitraryData(rcpt.Spec.Template.Spec.AgentConfig.AdditionalUserData.Data); err != nil {
 			return errorsPkg.Wrapf(err, "failed to correct additional user data for RKE2ControlPlaneTemplate")
