@@ -17,11 +17,14 @@ limitations under the License.
 package v1beta1
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/coreos/butane/config/common"
 	fcos "github.com/coreos/butane/config/fcos/v1_4"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -84,6 +87,47 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 	if spec.AgentConfig.Format == "" {
 		spec.AgentConfig.Format = CloudConfig
 	}
+
+	if spec.AgentConfig.AdditionalUserData.Data != nil {
+		if err := CorrectArbitraryData(spec.AgentConfig.AdditionalUserData.Data); err != nil {
+			rke2ConfigLogger.Error(err, "failed to cleanup additional user data")
+		}
+	}
+}
+
+// CorrectArbitraryData removes command that should be ignored and makes individual corrections to the rest of data.
+func CorrectArbitraryData(arbitraryData map[string]string) error {
+	// Make individual corrections to each value
+	for k, v := range arbitraryData {
+		b := bytes.Buffer{}
+		en := yaml.NewEncoder(&b)
+		en.SetIndent(2)
+
+		mapping := map[string]interface{}{}
+		if err := yaml.Unmarshal([]byte(v), &mapping); err == nil {
+			if err := en.Encode(&mapping); err != nil {
+				return fmt.Errorf("invalid map value provided: '%s', error: %w", v, err)
+			}
+
+			ident := "\n  "
+			arbitraryData[k] = ident + strings.ReplaceAll(b.String(), "\n", ident)
+
+			continue
+		}
+
+		list := []interface{}{}
+		if err := yaml.Unmarshal([]byte(v), &list); err == nil {
+			if err := en.Encode(&list); err != nil {
+				return fmt.Errorf("invalid list value provided: '%s', error: %w", v, err)
+			}
+
+			arbitraryData[k] = "\n" + b.String()
+
+			continue
+		}
+	}
+
+	return nil
 }
 
 //+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=vrke2config.kb.io,admissionReviewVersions=v1
