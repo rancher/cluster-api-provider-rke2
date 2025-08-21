@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured" //nolint: gci,goimports
+	"k8s.io/utils/diff"                                 //nolint: gci
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/controller-runtime/pkg/log" //nolint: gci,goimports
@@ -103,7 +104,8 @@ func matchesRKE2BootstrapConfig(ctx context.Context,
 		// Check if RCP AgentConfig and machineBootstrapConfig matches
 		match := reflect.DeepEqual(machineConfig.Spec, rcp.Spec.RKE2ConfigSpec)
 		if !match {
-			logger.V(5).Info("Machine bootstrap configuration does not match RKE2Config. Needs rollout.")
+			logger.V(5).Info("Machine bootstrap configuration does not match RKE2Config. Needs rollout.",
+				"Difference", diff.ObjectDiff(machineConfig.Spec, rcp.Spec.RKE2ConfigSpec))
 		}
 
 		return match

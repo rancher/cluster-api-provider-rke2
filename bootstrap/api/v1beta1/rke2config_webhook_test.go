@@ -88,3 +88,65 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 		})
 	}
 }
+
+func Test_correctArbitraryData(t *testing.T) {
+	type args struct {
+		arbitraryData map[string]string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    map[string]string
+		wantErr bool
+	}{
+		{
+			name: "valid data",
+			args: args{
+				arbitraryData: map[string]string{
+					"bootcmd": `
+- touch /bootcmd.sentinel
+- echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
+- [cloud-init-per, once, mymkfs, mkfs, /dev/vdb]`,
+					"ntp": `
+  enabled: true
+  ntp_client: chrony`,
+					"device_aliases:": "{my_alias: /dev/sdb, swap_disk: /dev/sdc}",
+					"resize_rootfs":   "noblock",
+					"list":            "['data']",
+					"users": `
+- name: capv
+  ssh_authorized_keys:
+  - ssh-rsa ABCDEFGHIJKLMNOPQRSTUVWXYZ caprke2@localhost.localdomain
+  - ssh-rsa ABCDEFGHIJKLMNOPQRSTUVWXYZ turtles@localhost.localdomain
+  sudo: ALL=(ALL) NOPASSWD:ALL`,
+					"disk_setup": `ephemeral0:
+  table_type: mbr
+  layout: False
+  overwrite: False`,
+				},
+			},
+			want: map[string]string{
+				"bootcmd":         "\n- touch /bootcmd.sentinel\n- echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts\n- - cloud-init-per\n  - once\n  - mymkfs\n  - mkfs\n  - /dev/vdb\n",
+				"ntp":             "\n  enabled: true\n  ntp_client: chrony\n  ",
+				"device_aliases:": "\n  my_alias: /dev/sdb\n  swap_disk: /dev/sdc\n  ",
+				"resize_rootfs":   "noblock",
+				"users":           "\n- name: capv\n  ssh_authorized_keys:\n    - ssh-rsa ABCDEFGHIJKLMNOPQRSTUVWXYZ caprke2@localhost.localdomain\n    - ssh-rsa ABCDEFGHIJKLMNOPQRSTUVWXYZ turtles@localhost.localdomain\n  sudo: ALL=(ALL) NOPASSWD:ALL\n",
+				"list":            "\n- data\n",
+				"disk_setup":      "\n  ephemeral0:\n    layout: false\n    overwrite: false\n    table_type: mbr\n  ",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RegisterTestingT(t)
+
+			if err := CorrectArbitraryData(tt.args.arbitraryData); (err != nil) != tt.wantErr {
+				t.Errorf("CorrectArbitraryData() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr {
+				Expect(tt.args.arbitraryData).To(Equal(tt.want))
+			}
+		})
+	}
+}
