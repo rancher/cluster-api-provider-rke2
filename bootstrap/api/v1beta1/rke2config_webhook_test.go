@@ -141,8 +141,8 @@ func Test_correctArbitraryData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			RegisterTestingT(t)
 
-			if err := correctArbitraryData(tt.args.arbitraryData); (err != nil) != tt.wantErr {
-				t.Errorf("correctArbitraryData() error = %v, wantErr %v", err, tt.wantErr)
+			if err := CorrectArbitraryData(tt.args.arbitraryData); (err != nil) != tt.wantErr {
+				t.Errorf("CorrectArbitraryData() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
 				Expect(tt.args.arbitraryData).To(Equal(tt.want))

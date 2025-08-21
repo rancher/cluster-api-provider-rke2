@@ -89,14 +89,17 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 	}
 
 	if spec.AgentConfig.AdditionalUserData.Data != nil {
-		if err := correctArbitraryData(spec.AgentConfig.AdditionalUserData.Data); err != nil {
-			rke2ConfigLogger.Error(err, "failed to correct the additional user data")
+		if err := CorrectArbitraryData(spec.AgentConfig.AdditionalUserData.Data); err != nil {
+			rke2ConfigLogger.Error(err, "failed to correct the additional user data for RKE2ConfigSpec")
 		}
 	}
 }
 
-// correctArbitraryData makes individual corrections to data and makes it YAML compliant.
-func correctArbitraryData(arbitraryData map[string]string) error {
+var ignoredCloudInitFields = []string{"runcmd", "write_files", "ntp"}
+
+// CorrectArbitraryData makes individual corrections to data and makes it YAML compliant.
+func CorrectArbitraryData(arbitraryData map[string]string) error {
+
 	// Make individual corrections to each value
 	for k, v := range arbitraryData {
 		b := bytes.Buffer{}

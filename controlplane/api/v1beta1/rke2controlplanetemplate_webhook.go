@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 
+	errorsPkg "github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -73,6 +74,11 @@ func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, obj
 	rke2ControlPlaneTemplateLogger.Info("defaulting", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
 
 	bootstrapv1.DefaultRKE2ConfigSpec(&rcpt.Spec.Template.Spec.RKE2ConfigSpec)
+	if rcpt.Spec.Template.Spec.AgentConfig.AdditionalUserData.Data != nil {
+		if err := bootstrapv1.CorrectArbitraryData(rcpt.Spec.Template.Spec.AgentConfig.AdditionalUserData.Data); err != nil {
+			return errorsPkg.Wrapf(err, "failed to correct additional user data for RKE2ControlPlaneTemplate")
+		}
+	}
 
 	return nil
 }
