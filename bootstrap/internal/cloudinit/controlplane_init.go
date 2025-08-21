@@ -28,7 +28,6 @@ const (
 {{template "files" .WriteFiles}}
 {{template "ntp" .NTPServers}}
 {{template "arbitrary" .AdditionalArbitraryData}}
-
 runcmd:
 {{- template "commands" .PreRKE2Commands }}
 {{- if .AirGappedChecksum }}

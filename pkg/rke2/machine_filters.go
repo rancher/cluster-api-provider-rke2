@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured" //nolint: gci,goimports
-	"k8s.io/utils/diff"                                 //nolint: gci
+	"k8s.io/utils/diff"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/controller-runtime/pkg/log" //nolint: gci,goimports

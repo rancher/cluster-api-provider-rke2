@@ -194,10 +194,6 @@ func cleanupArbitraryData(arbitraryData map[string]string) error {
 		return errors.Wrap(err, "failed to parse arbitrary template")
 	}
 
-	if err := bootstrapv1.CorrectArbitraryData(arbitraryData); err != nil {
-		return errors.Wrap(err, "failed to correct arbitrary data")
-	}
-
 	var out bytes.Buffer
 	if err := t.Execute(&out, BaseUserData{
 		AdditionalArbitraryData: arbitraryData,

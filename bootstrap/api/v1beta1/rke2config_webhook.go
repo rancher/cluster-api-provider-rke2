@@ -89,14 +89,14 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 	}
 
 	if spec.AgentConfig.AdditionalUserData.Data != nil {
-		if err := CorrectArbitraryData(spec.AgentConfig.AdditionalUserData.Data); err != nil {
-			rke2ConfigLogger.Error(err, "failed to cleanup additional user data")
+		if err := correctArbitraryData(spec.AgentConfig.AdditionalUserData.Data); err != nil {
+			rke2ConfigLogger.Error(err, "failed to correct the additional user data")
 		}
 	}
 }
 
-// CorrectArbitraryData removes command that should be ignored and makes individual corrections to the rest of data.
-func CorrectArbitraryData(arbitraryData map[string]string) error {
+// correctArbitraryData makes individual corrections to data and makes it YAML compliant.
+func correctArbitraryData(arbitraryData map[string]string) error {
 	// Make individual corrections to each value
 	for k, v := range arbitraryData {
 		b := bytes.Buffer{}
