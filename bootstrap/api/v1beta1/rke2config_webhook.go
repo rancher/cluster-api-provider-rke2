@@ -95,8 +95,15 @@ func DefaultRKE2ConfigSpec(spec *RKE2ConfigSpec) {
 	}
 }
 
+var ignoredCloudInitFields = []string{"write_files", "ntp", "runcmd"}
+
 // CorrectArbitraryData makes individual corrections to data and makes it YAML compliant.
 func CorrectArbitraryData(arbitraryData map[string]string) error {
+	// Remove ignored fields from the map
+	for _, key := range ignoredCloudInitFields {
+		delete(arbitraryData, key)
+	}
+
 	// Make individual corrections to each value
 	for k, v := range arbitraryData {
 		b := bytes.Buffer{}

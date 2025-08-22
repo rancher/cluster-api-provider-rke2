@@ -127,7 +127,6 @@ func Test_correctArbitraryData(t *testing.T) {
 			},
 			want: map[string]string{
 				"bootcmd":         "\n- touch /bootcmd.sentinel\n- echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts\n- - cloud-init-per\n  - once\n  - mymkfs\n  - mkfs\n  - /dev/vdb\n",
-				"ntp":             "\n  enabled: true\n  ntp_client: chrony\n  ",
 				"device_aliases:": "\n  my_alias: /dev/sdb\n  swap_disk: /dev/sdc\n  ",
 				"resize_rootfs":   "noblock",
 				"users":           "\n- name: capv\n  ssh_authorized_keys:\n    - ssh-rsa ABCDEFGHIJKLMNOPQRSTUVWXYZ caprke2@localhost.localdomain\n    - ssh-rsa ABCDEFGHIJKLMNOPQRSTUVWXYZ turtles@localhost.localdomain\n  sudo: ALL=(ALL) NOPASSWD:ALL\n",

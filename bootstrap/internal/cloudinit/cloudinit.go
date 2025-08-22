@@ -171,11 +171,6 @@ func cleanupAdditionalCloudInit(cloudInitData string) (string, error) {
 }
 
 func cleanupArbitraryData(arbitraryData map[string]string) error {
-	// Remove ignored fields from the map
-	for _, field := range ignoredCloudInitFields {
-		delete(arbitraryData, field)
-	}
-
 	if len(arbitraryData) == 0 {
 		return nil
 	}
