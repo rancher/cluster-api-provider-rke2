@@ -25,7 +25,7 @@ jobs:
     - name: setupGo
       uses: actions/setup-go@v5
       with:
-        go-version: '=1.23.0'
+        go-version-file: go.mod
     - name: Docker login ghcr.io
       uses: docker/login-action@v3
       with:
@@ -62,7 +62,7 @@ jobs:
     - name: setupGo
       uses: actions/setup-go@v5
       with:
-        go-version: '=1.23.0'
+        go-version-file: go.mod
     - name: Update manifests
       run: |
         make release RELEASE_TAG=${{ env.TAG }} REGISTRY=${{ env.GHCR_REGISTRY }}
