@@ -68,6 +68,8 @@ func (r *RKE2ConfigTemplateCustomDefaulter) Default(_ context.Context, obj runti
 
 	rke2ConfigTemplateLogger.Info("defaulting", "RKE2ConfigTemplate", klog.KObj(rct))
 
+	DefaultRKE2ConfigSpec(&rct.Spec.Template.Spec)
+
 	return nil
 }
 

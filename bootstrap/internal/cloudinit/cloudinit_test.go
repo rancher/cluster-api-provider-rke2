@@ -256,7 +256,6 @@ runcmd:
 		arbitraryData = map[string]string{
 			"disk_setup":     "\n  ephemeral0:\n    layout: false\n    overwrite: false\n    table_type: mbr\n  ",
 			"device_aliases": "\n  ephemeral0: /dev/vdb\n  ",
-			"runcmd":         "\n- print hello world\n",
 			"users":          "\n- name: capv\n  sudo: ALL=(ALL) NOPASSWD:ALL\n",
 			"list":           "\n- data\n",
 		}
