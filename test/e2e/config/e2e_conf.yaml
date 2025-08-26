@@ -36,7 +36,6 @@ providers:
       contract: v1beta1
       files:
         - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
-        - sourcePath: "../data/infrastructure/cluster-template-docker-previous-version.yaml"
         - sourcePath: "../data/infrastructure/cluster-template-docker-move.yaml"
         - sourcePath: "../data/infrastructure/cluster-template-kcp-remediation.yaml"
         - sourcePath: "../data/shared/v1beta1/metadata.yaml"
