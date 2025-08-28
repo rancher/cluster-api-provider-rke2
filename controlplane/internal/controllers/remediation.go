@@ -241,7 +241,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 					clusterv1.MachineOwnerRemediatedCondition,
 					clusterv1.RemediationFailedReason,
 					clusterv1.ConditionSeverityError,
-					err.Error(),
+					"%s", err.Error(),
 				)
 
 				return ctrl.Result{}, err
@@ -298,7 +298,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 					clusterv1.MachineOwnerRemediatedCondition,
 					clusterv1.RemediationFailedReason,
 					clusterv1.ConditionSeverityError,
-					err.Error(),
+					"%s", err.Error(),
 				)
 
 				return ctrl.Result{}, err
@@ -313,7 +313,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			clusterv1.MachineOwnerRemediatedCondition,
 			clusterv1.RemediationFailedReason,
 			clusterv1.ConditionSeverityError,
-			err.Error(),
+			"%s", err.Error(),
 		)
 
 		return ctrl.Result{}, errors.Wrapf(err, "failed to delete unhealthy machine %s", machineToBeRemediated.Name)
@@ -520,7 +520,8 @@ func (r *RKE2ControlPlaneReconciler) checkRetryLimits(
 			clusterv1.MachineOwnerRemediatedCondition,
 			clusterv1.WaitingForRemediationReason,
 			clusterv1.ConditionSeverityWarning,
-			fmt.Sprintf("RKE2ControlPlane can't remediate this machine because the operation already failed in the latest %s (RetryPeriod)", retryPeriod),
+			"RKE2ControlPlane can't remediate this machine because the operation already failed in the latest %s (RetryPeriod)",
+			retryPeriod,
 		)
 
 		return remediationInProgressData, false, nil

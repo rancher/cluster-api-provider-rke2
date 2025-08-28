@@ -224,7 +224,7 @@ func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
 				conditions.MarkUnknown(
 					machine,
 					controlplanev1.NodeMetadataUpToDate,
-					controlplanev1.NodePatchFailedReason, err.Error())
+					controlplanev1.NodePatchFailedReason, "%s", err.Error())
 
 				errList = append(errList, err)
 			}
@@ -411,7 +411,9 @@ func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *Control
 			conditions.MarkUnknown(
 				machine,
 				controlplanev1.NodeMetadataUpToDate,
-				controlplanev1.NodePatchFailedReason, fmt.Sprintf("node object is missing %s annotation", clusterv1.MachineAnnotation))
+				controlplanev1.NodePatchFailedReason,
+				"node object is missing %s annotation",
+				clusterv1.MachineAnnotation)
 
 			continue
 		}
@@ -552,7 +554,7 @@ func aggregateFromMachinesToRCP(input aggregateFromMachinesToRCPInput) {
 			input.condition,
 			input.unhealthyReason,
 			clusterv1.ConditionSeverityError,
-			strings.Join(input.rcpErrors, "; "))
+			"%s", strings.Join(input.rcpErrors, "; "))
 
 		return
 	}
