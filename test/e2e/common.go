@@ -117,16 +117,17 @@ func cleanupInstallation(ctx context.Context, clusterctlLogFolder, clusterctlCon
 }
 
 type cleanupInput struct {
-	SpecName          string
-	ClusterProxy      framework.ClusterProxy
-	ArtifactFolder    string
-	Namespace         *corev1.Namespace
-	CancelWatches     context.CancelFunc
-	Cluster           *clusterv1.Cluster
-	KubeconfigPath    string
-	IntervalsGetter   func(spec, key string) []interface{}
-	SkipCleanup       bool
-	AdditionalCleanup func()
+	SpecName             string
+	ClusterProxy         framework.ClusterProxy
+	ArtifactFolder       string
+	Namespace            *corev1.Namespace
+	CancelWatches        context.CancelFunc
+	Cluster              *clusterv1.Cluster
+	KubeconfigPath       string
+	IntervalsGetter      func(spec, key string) []interface{}
+	SkipCleanup          bool
+	AdditionalCleanup    func()
+	ClusterctlConfigPath string
 }
 
 func dumpSpecResourcesAndCleanup(ctx context.Context, input cleanupInput) {
@@ -144,9 +145,11 @@ func dumpSpecResourcesAndCleanup(ctx context.Context, input cleanupInput) {
 	Byf("Dumping all the Cluster API resources in the %q namespace", input.Namespace.Name)
 	// Dump all Cluster API related resources to artifacts before deleting them.
 	framework.DumpAllResources(ctx, framework.DumpAllResourcesInput{
-		Lister:    input.ClusterProxy.GetClient(),
-		Namespace: input.Namespace.Name,
-		LogPath:   filepath.Join(input.ArtifactFolder, "clusters", input.ClusterProxy.GetName(), "resources"),
+		Lister:               input.ClusterProxy.GetClient(),
+		KubeConfigPath:       input.ClusterProxy.GetKubeconfigPath(),
+		ClusterctlConfigPath: input.ClusterctlConfigPath,
+		Namespace:            input.Namespace.Name,
+		LogPath:              filepath.Join(input.ArtifactFolder, "clusters", input.ClusterProxy.GetName(), "resources"),
 	})
 
 	if input.SkipCleanup {
@@ -158,8 +161,9 @@ func dumpSpecResourcesAndCleanup(ctx context.Context, input cleanupInput) {
 	// that cluster variable is not set even if the cluster exists, so we are calling DeleteAllClustersAndWait
 	// instead of DeleteClusterAndWait
 	framework.DeleteAllClustersAndWait(ctx, framework.DeleteAllClustersAndWaitInput{
-		Client:    input.ClusterProxy.GetClient(),
-		Namespace: input.Namespace.Name,
+		ClusterProxy:         input.ClusterProxy,
+		ClusterctlConfigPath: input.ClusterctlConfigPath,
+		Namespace:            input.Namespace.Name,
 	}, input.IntervalsGetter(input.SpecName, "wait-delete-cluster")...)
 
 	Byf("Removing downstream Cluster kubeconfig: %s", input.KubeconfigPath)

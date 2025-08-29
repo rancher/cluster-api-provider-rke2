@@ -215,21 +215,23 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme,
 		By("Creating the bootstrap cluster")
 		clusterProvider = bootstrap.CreateKindBootstrapClusterAndLoadImages(ctx, bootstrap.CreateKindBootstrapClusterAndLoadImagesInput{
 			Name:               config.ManagementClusterName,
-			KubernetesVersion:  config.GetVariable(KubernetesVersionManagement),
+			KubernetesVersion:  config.MustGetVariable(KubernetesVersionManagement),
 			RequiresDockerSock: config.HasDockerProvider(),
 			Images:             config.Images,
-			IPFamily:           config.GetVariable(IPFamily),
+			IPFamily:           config.MustGetVariable(IPFamily),
 			LogFolder:          filepath.Join(artifactFolder, "kind"),
 			ExtraPortMappings: []v1alpha4.PortMapping{
 				{
-					HostPort: 30000,
-					Protocol: "TCP",
+					// This is used by postgresql for the external datastore tests.
+					ContainerPort: 30000,
+					HostPort:      30000,
+					Protocol:      v1alpha4.PortMappingProtocolTCP,
 				},
 			},
 		})
 		Expect(clusterProvider).ToNot(BeNil(), "Failed to create a bootstrap cluster")
 
-		localImagesPath := e2eConfig.GetVariable(LocalImages)
+		localImagesPath := e2eConfig.MustGetVariable(LocalImages)
 		Byf("Storing Images in %s", localImagesPath)
 		Expect(StoreImages(ctx, StoreImagesInput{
 			Directory: localImagesPath,
