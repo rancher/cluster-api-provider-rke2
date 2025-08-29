@@ -78,16 +78,17 @@ var _ = Describe("In-place propagation", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		cleanInput := cleanupInput{
-			SpecName:          specName,
-			Cluster:           result.Cluster,
-			KubeconfigPath:    result.KubeconfigPath,
-			ClusterProxy:      bootstrapClusterProxy,
-			Namespace:         namespace,
-			CancelWatches:     cancelWatches,
-			IntervalsGetter:   e2eConfig.GetIntervals,
-			SkipCleanup:       skipCleanup,
-			ArtifactFolder:    artifactFolder,
-			AdditionalCleanup: cleanupInstallation(ctx, clusterctlLogFolder, clusterctlConfigPath, bootstrapClusterProxy),
+			SpecName:             specName,
+			Cluster:              result.Cluster,
+			KubeconfigPath:       result.KubeconfigPath,
+			ClusterProxy:         bootstrapClusterProxy,
+			Namespace:            namespace,
+			CancelWatches:        cancelWatches,
+			IntervalsGetter:      e2eConfig.GetIntervals,
+			SkipCleanup:          skipCleanup,
+			ArtifactFolder:       artifactFolder,
+			AdditionalCleanup:    cleanupInstallation(ctx, clusterctlLogFolder, clusterctlConfigPath, bootstrapClusterProxy),
+			ClusterctlConfigPath: clusterctlConfigPath,
 		}
 
 		dumpSpecResourcesAndCleanup(ctx, cleanInput)
@@ -106,7 +107,7 @@ var _ = Describe("In-place propagation", func() {
 					Flavor:                   "docker",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
+					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
 					ControlPlaneMachineCount: ptr.To(int64(3)),
 					WorkerMachineCount:       ptr.To(int64(0)),
 				},
