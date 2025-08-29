@@ -13,7 +13,7 @@ SHELL = /usr/bin/env bash -o pipefail
 #
 # Go.
 #
-GO_VERSION ?= 1.23.0
+GO_VERSION ?= $(shell grep "go " go.mod | head -1 |awk '{print $$NF}')
 GO_CONTAINER_IMAGE ?= docker.io/library/golang:$(GO_VERSION)
 
 # Use GOPROXY environment variable if set

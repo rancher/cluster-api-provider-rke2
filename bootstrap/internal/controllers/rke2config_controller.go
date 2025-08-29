@@ -368,7 +368,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			bootstrapv1.CertificatesAvailableCondition,
 			bootstrapv1.CertificatesGenerationFailedReason,
 			clusterv1.ConditionSeverityWarning,
-			err.Error())
+			"%s", err.Error())
 
 		return ctrl.Result{}, err
 	}
