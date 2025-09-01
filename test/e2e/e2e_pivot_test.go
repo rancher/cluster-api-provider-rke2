@@ -74,16 +74,17 @@ var _ = Describe("Bootstrap & Pivot", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		cleanInput := cleanupInput{
-			SpecName:          specName,
-			Cluster:           result.Cluster,
-			KubeconfigPath:    result.KubeconfigPath,
-			ClusterProxy:      bootstrapClusterProxy,
-			Namespace:         namespace,
-			CancelWatches:     cancelWatches,
-			IntervalsGetter:   e2eConfig.GetIntervals,
-			SkipCleanup:       skipCleanup,
-			ArtifactFolder:    artifactFolder,
-			AdditionalCleanup: cleanupInstallation(ctx, clusterctlLogFolder, clusterctlConfigPath, bootstrapClusterProxy),
+			SpecName:             specName,
+			Cluster:              result.Cluster,
+			KubeconfigPath:       result.KubeconfigPath,
+			ClusterProxy:         bootstrapClusterProxy,
+			Namespace:            namespace,
+			CancelWatches:        cancelWatches,
+			IntervalsGetter:      e2eConfig.GetIntervals,
+			SkipCleanup:          skipCleanup,
+			ArtifactFolder:       artifactFolder,
+			AdditionalCleanup:    cleanupInstallation(ctx, clusterctlLogFolder, clusterctlConfigPath, bootstrapClusterProxy),
+			ClusterctlConfigPath: clusterctlConfigPath,
 		}
 
 		dumpSpecResourcesAndCleanup(ctx, cleanInput)
@@ -102,10 +103,10 @@ var _ = Describe("Bootstrap & Pivot", func() {
 					Flavor:                   "docker-move",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
+					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
 					ControlPlaneMachineCount: ptr.To(int64(3)),
 					WorkerMachineCount:       ptr.To(int64(1)),
-					ClusterctlVariables:      map[string]string{"LOCAL_IMAGES": e2eConfig.GetVariable(LocalImages)},
+					ClusterctlVariables:      map[string]string{"LOCAL_IMAGES": e2eConfig.MustGetVariable(LocalImages)},
 				},
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
@@ -120,7 +121,7 @@ var _ = Describe("Bootstrap & Pivot", func() {
 
 			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
 				Reader:      bootstrapClusterProxy.GetClient(),
-				Version:     e2eConfig.GetVariable(KubernetesVersion),
+				Version:     e2eConfig.MustGetVariable(KubernetesVersion),
 				ClusterName: result.Cluster.Name,
 				Namespace:   result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
@@ -185,10 +186,10 @@ var _ = Describe("Bootstrap & Pivot", func() {
 					Flavor:                   "docker-move",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersion),
+					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
 					ControlPlaneMachineCount: ptr.To(int64(1)),
 					WorkerMachineCount:       ptr.To(int64(3)),
-					ClusterctlVariables:      map[string]string{"LOCAL_IMAGES": e2eConfig.GetVariable(LocalImages)},
+					ClusterctlVariables:      map[string]string{"LOCAL_IMAGES": e2eConfig.MustGetVariable(LocalImages)},
 				},
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
@@ -212,10 +213,10 @@ var _ = Describe("Bootstrap & Pivot", func() {
 					Flavor:                   "docker-move",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.GetVariable(KubernetesVersionUpgradeTo),
+					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo),
 					ControlPlaneMachineCount: ptr.To(int64(3)),
 					WorkerMachineCount:       ptr.To(int64(1)),
-					ClusterctlVariables:      map[string]string{"LOCAL_IMAGES": e2eConfig.GetVariable(LocalImages)},
+					ClusterctlVariables:      map[string]string{"LOCAL_IMAGES": e2eConfig.MustGetVariable(LocalImages)},
 				},
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
@@ -230,7 +231,7 @@ var _ = Describe("Bootstrap & Pivot", func() {
 
 			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
 				Reader:      pivotedProxy.GetClient(),
-				Version:     e2eConfig.GetVariable(KubernetesVersionUpgradeTo),
+				Version:     e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo),
 				ClusterName: result.Cluster.Name,
 				Namespace:   result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
