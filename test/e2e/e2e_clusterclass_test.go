@@ -73,16 +73,17 @@ var _ = Describe("Cluster Class provisioning", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		cleanInput := cleanupInput{
-			SpecName:          specName,
-			Cluster:           result.Cluster,
-			KubeconfigPath:    result.KubeconfigPath,
-			ClusterProxy:      bootstrapClusterProxy,
-			Namespace:         namespace,
-			CancelWatches:     cancelWatches,
-			IntervalsGetter:   e2eConfig.GetIntervals,
-			SkipCleanup:       skipCleanup,
-			ArtifactFolder:    artifactFolder,
-			AdditionalCleanup: cleanupInstallation(ctx, clusterctlLogFolder, clusterctlConfigPath, bootstrapClusterProxy),
+			SpecName:             specName,
+			Cluster:              result.Cluster,
+			KubeconfigPath:       result.KubeconfigPath,
+			ClusterProxy:         bootstrapClusterProxy,
+			Namespace:            namespace,
+			CancelWatches:        cancelWatches,
+			IntervalsGetter:      e2eConfig.GetIntervals,
+			SkipCleanup:          skipCleanup,
+			ArtifactFolder:       artifactFolder,
+			AdditionalCleanup:    cleanupInstallation(ctx, clusterctlLogFolder, clusterctlConfigPath, bootstrapClusterProxy),
+			ClusterctlConfigPath: clusterctlConfigPath,
 		}
 
 		dumpSpecResourcesAndCleanup(ctx, cleanInput)
@@ -118,13 +119,13 @@ var _ = Describe("Cluster Class provisioning", func() {
 				case "NAMESPACE":
 					return namespace.Name
 				case "KUBERNETES_VERSION":
-					return e2eConfig.GetVariable(KubernetesVersion)
+					return e2eConfig.MustGetVariable(KubernetesVersion)
 				case "KIND_IMAGE_VERSION":
-					return e2eConfig.GetVariable(KindImageVersion)
+					return e2eConfig.MustGetVariable(KindImageVersion)
 				case "CONTROL_PLANE_MACHINE_COUNT":
-					return e2eConfig.GetVariable(ControlPlaneMachineCount)
+					return e2eConfig.MustGetVariable(ControlPlaneMachineCount)
 				case "WORKER_MACHINE_COUNT":
-					return e2eConfig.GetVariable(WorkerMachineCount)
+					return e2eConfig.MustGetVariable(WorkerMachineCount)
 				default:
 					return os.Getenv(s)
 				}
