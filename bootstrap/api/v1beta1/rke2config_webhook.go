@@ -60,7 +60,7 @@ func SetupRKE2ConfigWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&RKE2Config{}).
 		WithValidator(&RKE2ConfigCustomValidator{}).
-		WithDefaulter(&RKE2ConfigCustomDefaulter{}).
+		WithDefaulter(&RKE2ConfigCustomDefaulter{}, admission.DefaulterRemoveUnknownOrOmitableFields).
 		Complete()
 }
 
