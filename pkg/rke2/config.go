@@ -467,6 +467,8 @@ type rke2AgentConfig struct {
 	PauseImage      string `yaml:"pause-image,omitempty"`
 	PrivateRegistry string `yaml:"private-registry,omitempty"`
 
+	SystemDefaultRegistry string `yaml:"system-default-registry,omitempty"`
+
 	NodeExternalIp string `yaml:"node-external-ip,omitempty"`
 	NodeIp         string `yaml:"node-ip,omitempty"`
 	NodeName       string `yaml:"node-name,omitempty"`
@@ -610,6 +612,7 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 	}
 
 	rke2AgentConfig.Token = opts.Token
+	rke2AgentConfig.SystemDefaultRegistry = opts.AgentConfig.SystemDefaultRegistry
 
 	return rke2AgentConfig, files, nil
 }
