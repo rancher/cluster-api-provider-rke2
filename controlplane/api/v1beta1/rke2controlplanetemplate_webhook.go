@@ -56,7 +56,7 @@ func SetupRKE2ControlPlaneTemplateWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&RKE2ControlPlaneTemplate{}).
 		WithValidator(&RKE2ControlPlaneTemplateCustomValidator{}).
-		WithDefaulter(&RKE2ControlPlaneTemplateCustomDefaulter{}).
+		WithDefaulter(&RKE2ControlPlaneTemplateCustomDefaulter{}, admission.DefaulterRemoveUnknownOrOmitableFields).
 		Complete()
 }
 
