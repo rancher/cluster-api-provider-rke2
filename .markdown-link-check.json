@@ -1,7 +1,10 @@
 {
-    "ignorePatterns": [
-        {
-          "pattern": "^http://localhost:3000/$"
-        }
-      ]
+  "retryOn429": true,
+  "retryCount": 10,
+  "fallbackRetryDelay": "10s",
+  "ignorePatterns": [
+    {
+      "pattern": "^http://localhost:3000/$"
+    }
+  ]
 }
