@@ -302,7 +302,8 @@ var _ = Describe("RKE2 Agent Config", func() {
 					Name:      "test",
 					Namespace: "test",
 				},
-				KubeletPath: "testpath",
+				SystemDefaultRegistry: "testregistry",
+				KubeletPath:           "testpath",
 				Kubelet: &bootstrapv1.ComponentConfig{
 					ExtraArgs: []string{"testarg"},
 				},
@@ -329,7 +330,7 @@ var _ = Describe("RKE2 Agent Config", func() {
 		}
 	})
 
-	It("should succefully generate an agent config", func() {
+	It("should successfully generate an agent config", func() {
 		agentConfig, files, err := GenerateWorkerConfig(*opts)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -354,6 +355,7 @@ var _ = Describe("RKE2 Agent Config", func() {
 		Expect(agentConfig.KubeProxyExtraMounts).To(Equal(componentMapToSlice(extraMount, opts.AgentConfig.KubeProxy.ExtraMounts)))
 		Expect(agentConfig.KubeProxyExtraEnv).To(Equal(componentMapToSlice(extraEnv, opts.AgentConfig.KubeProxy.ExtraEnv)))
 		Expect(agentConfig.Token).To(Equal(opts.Token))
+		Expect(agentConfig.SystemDefaultRegistry).To(Equal(opts.AgentConfig.SystemDefaultRegistry))
 
 		Expect(files).To(HaveLen(3))
 
