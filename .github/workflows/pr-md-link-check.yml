@@ -12,5 +12,5 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - run: |
-        npm install -g markdown-link-check@3.12.2
-        find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check --quiet --config .markdown-link-check.json
+        npm install -g markdown-link-check@3.13.7
+        find . -name \*.md -print0 | xargs -0 -n1 -P1 markdown-link-check --quiet --config .markdown-link-check.json
