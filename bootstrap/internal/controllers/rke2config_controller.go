@@ -404,6 +404,13 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		registrationAddress = scope.ControlPlane.Spec.RegistrationAddress
 	}
 
+	version, err := scope.GetDesiredVersion()
+	if err != nil {
+		scope.Logger.Error(err, "RKE2 version does not seem to be set")
+
+		return ctrl.Result{}, err
+	}
+
 	configStruct, configFiles, err := rke2.GenerateInitControlPlaneConfig(
 		rke2.ServerConfigOpts{
 			Cluster:              *scope.Cluster,
@@ -414,7 +421,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
 			Client:               r.Client,
-			Version:              scope.GetDesiredVersion(),
+			Version:              version,
 		})
 	if err != nil {
 		return ctrl.Result{}, err
@@ -476,7 +483,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 			ConfigFile:              initConfigFile,
-			RKE2Version:             scope.GetDesiredVersion(),
+			RKE2Version:             version,
 			WriteFiles:              files,
 			NTPServers:              ntpServers,
 			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
@@ -638,6 +645,13 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}
 
+	version, err := scope.GetDesiredVersion()
+	if err != nil {
+		scope.Logger.Error(err, "RKE2 version does not seem to be set")
+
+		return ctrl.Result{}, err
+	}
+
 	configStruct, configFiles, err := rke2.GenerateJoinControlPlaneConfig(
 		rke2.ServerConfigOpts{
 			Cluster:              *scope.Cluster,
@@ -648,7 +662,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
 			Client:               r.Client,
-			Version:              scope.GetDesiredVersion(),
+			Version:              version,
 		},
 	)
 	if err != nil {
@@ -713,7 +727,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
 			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 			ConfigFile:              initConfigFile,
-			RKE2Version:             scope.GetDesiredVersion(),
+			RKE2Version:             version,
 			WriteFiles:              files,
 			NTPServers:              ntpServers,
 			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
@@ -774,6 +788,13 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		return ctrl.Result{RequeueAfter: DefaultRequeueAfter}, nil
 	}
 
+	version, err := scope.GetDesiredVersion()
+	if err != nil {
+		scope.Logger.Error(err, "RKE2 version does not seem to be set")
+
+		return ctrl.Result{}, err
+	}
+
 	configStruct, configFiles, err := rke2.GenerateWorkerConfig(
 		rke2.AgentConfigOpts{
 			ServerURL:              fmt.Sprintf(serverURLFormat, scope.ControlPlane.Status.AvailableServerIPs[0], registrationPort),
@@ -783,7 +804,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 			Client:                 r.Client,
 			CloudProviderName:      scope.ControlPlane.Spec.ServerConfig.CloudProviderName,
 			CloudProviderConfigMap: scope.ControlPlane.Spec.ServerConfig.CloudProviderConfigMap,
-			Version:                scope.GetDesiredVersion(),
+			Version:                version,
 		})
 	if err != nil {
 		return ctrl.Result{}, err
@@ -826,7 +847,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
 		PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
 		ConfigFile:              wkJoinConfigFile,
-		RKE2Version:             scope.GetDesiredVersion(),
+		RKE2Version:             version,
 		WriteFiles:              files,
 		NTPServers:              ntpServers,
 		AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
