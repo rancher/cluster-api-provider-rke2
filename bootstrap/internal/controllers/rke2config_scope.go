@@ -42,6 +42,8 @@ var (
 	ErrRKE2ConfigNotFound = errors.New("RKE2Config is not found")
 	// ErrNoRKE2ConfigOwner describes the RKE2Config has no Machine or MachinePool owner.
 	ErrNoRKE2ConfigOwner = errors.New("RKE2Config has no owner")
+	// ErrVersionNotFound describes the desired K8S version can not be found.
+	ErrVersionNotFound = errors.New("RKE2 version can not be found")
 )
 
 // Scope is a scoped struct used during reconciliation.
@@ -143,10 +145,14 @@ func (s *Scope) HasControlPlaneOwner() bool {
 }
 
 // GetDesiredVersion returns the K8S version associated to the RKE2Config owner.
-func (s *Scope) GetDesiredVersion() string {
-	if s.MachinePool != nil {
-		return *s.MachinePool.Spec.Template.Spec.Version
+func (s *Scope) GetDesiredVersion() (string, error) {
+	if s.MachinePool != nil && s.MachinePool.Spec.Template.Spec.Version != nil {
+		return *s.MachinePool.Spec.Template.Spec.Version, nil
 	}
 
-	return *s.Machine.Spec.Version
+	if s.Machine != nil && s.Machine.Spec.Version != nil {
+		return *s.Machine.Spec.Version, nil
+	}
+
+	return "", ErrVersionNotFound
 }
