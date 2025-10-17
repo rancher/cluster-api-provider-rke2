@@ -41,6 +41,9 @@ const (
 	// DefaultRKE2CloudProviderConfigLocation is the default location for the RKE2 cloud provider config file.
 	DefaultRKE2CloudProviderConfigLocation = "/etc/rancher/rke2/cloud-provider-config"
 
+	// EncryptionConfigurationLocation a location where rke2 looks up for encryption config.
+	EncryptionConfigurationLocation = "/var/lib/rancher/rke2/server/cred/encryption-config.json"
+
 	// DefaultRKE2JoinPort is the default port used for joining nodes to the cluster. It is open on the control plane nodes.
 	DefaultRKE2JoinPort = 9345
 
@@ -83,6 +86,8 @@ fi
 # Applying kernel parameters
 sysctl -p /etc/sysctl.d/90-rke2-cis.conf
 `
+	//nolint:lll //intentionally compacted to a single line
+	encptionConfigTemplate = `{"kind":"EncryptionConfiguration","apiVersion":"apiserver.config.k8s.io/v1","resources":[{"resources":["secrets"],"providers":[{"%s":{"keys":[{"name":"enckey","secret":"%s"}]}},{"identity":{}}]}]}`
 )
 
 // ServerConfig is a struct that contains the information needed to generate a RKE2 server config.
@@ -137,6 +142,7 @@ type ServerConfig struct {
 	DatastoreCAFile                   string   `yaml:"datastore-cafile,omitempty"`
 	DatastoreCertFile                 string   `yaml:"datastore-certfile,omitempty"`
 	DatastoreKeyFile                  string   `yaml:"datastore-keyfile,omitempty"`
+	SecretsEncryptionProvider         string   `yaml:"secrets-encryption-provider"`
 
 	// We don't expose these fields in the API
 	ClusterCIDR string `yaml:"cluster-cidr,omitempty"`
@@ -357,6 +363,30 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 		rke2ServerConfig.KubeSchedulerImage = opts.ServerConfig.KubeScheduler.OverrideImage
 		rke2ServerConfig.KubeSchedulerExtraMounts = componentMapToSlice(extraMount, opts.ServerConfig.KubeScheduler.ExtraMounts)
 		rke2ServerConfig.KubeSchedulerExtraEnv = componentMapToSlice(extraEnv, opts.ServerConfig.KubeScheduler.ExtraEnv)
+	}
+
+	if opts.ServerConfig.SecretsEncryptionProvider != nil {
+		rke2ServerConfig.SecretsEncryptionProvider = opts.ServerConfig.SecretsEncryptionProvider.Provider
+		encryptionSecret := &corev1.Secret{}
+
+		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
+			Name:      opts.ServerConfig.SecretsEncryptionProvider.EncryptionKeySecret.Name,
+			Namespace: opts.ServerConfig.SecretsEncryptionProvider.EncryptionKeySecret.Namespace,
+		}, encryptionSecret); err != nil {
+			return nil, nil, fmt.Errorf("failed to get encryptionKey secret: %w", err)
+		}
+
+		key, ok := encryptionSecret.Data["encryptionKey"]
+		if !ok {
+			return nil, nil, errors.New("encryptionKey secret missing 'encryptionKey' key")
+		}
+
+		files = append(files, bootstrapv1.File{
+			Path:        EncryptionConfigurationLocation,
+			Content:     generateEncryptionConfig(opts.ServerConfig.SecretsEncryptionProvider.Provider, string(key)),
+			Owner:       consts.DefaultFileOwner,
+			Permissions: "0400",
+		})
 	}
 
 	if opts.ServerConfig.KubeControllerManager != nil {
@@ -726,4 +756,8 @@ func componentMapToSlice(componentType componentType, input map[string]string) [
 	}
 
 	return result
+}
+
+func generateEncryptionConfig(provider, key string) string {
+	return fmt.Sprintf(encptionConfigTemplate, provider, key)
 }
