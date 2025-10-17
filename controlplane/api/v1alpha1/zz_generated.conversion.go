@@ -597,6 +597,7 @@ func autoConvert_v1beta1_RKE2ServerConfig_To_v1alpha1_RKE2ServerConfig(in *v1bet
 	if err := Convert_v1beta1_EtcdConfig_To_v1alpha1_EtcdConfig(&in.Etcd, &out.Etcd, s); err != nil {
 		return err
 	}
+	// WARNING: in.SecretsEncryptionProvider requires manual conversion: does not exist in peer-type
 	out.KubeAPIServer = (*apiv1alpha1.ComponentConfig)(unsafe.Pointer(in.KubeAPIServer))
 	out.KubeControllerManager = (*apiv1alpha1.ComponentConfig)(unsafe.Pointer(in.KubeControllerManager))
 	out.KubeScheduler = (*apiv1alpha1.ComponentConfig)(unsafe.Pointer(in.KubeScheduler))
