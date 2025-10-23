@@ -211,6 +211,10 @@ type RKE2ServerConfig struct {
 	//+optional
 	Etcd EtcdConfig `json:"etcd,omitempty"`
 
+	// SecretsEncrytion defines encryption at rest configuration
+	//+optional
+	SecretsEncryptionProvider *SecretsEncryption `json:"secretsEncryption,omitempty"`
+
 	// KubeAPIServer defines optional custom configuration of the Kube API Server.
 	//+optional
 	KubeAPIServer *bootstrapv1.ComponentConfig `json:"kubeAPIServer,omitempty"`
@@ -400,6 +404,15 @@ type EtcdS3 struct {
 	// Folder S3 folder.
 	//+optional
 	Folder string `json:"folder,omitempty"`
+}
+
+// SecretsEncryption defines encryption configuration.
+type SecretsEncryption struct {
+	// EncyptionKey secret reference
+	EncryptionKeySecret *corev1.ObjectReference `json:"encryptionKeySecret,omitempty"`
+	// Encryption provider
+	// +kubebuilder:validation:Enum=aescbc;secretbox
+	Provider string `json:"provider,omitempty"`
 }
 
 // CNI defines the Cni options for deploying RKE2.

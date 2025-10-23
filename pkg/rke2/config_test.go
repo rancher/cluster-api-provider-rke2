@@ -31,6 +31,10 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
 )
 
+const (
+	expEncryptionConfig = `{"kind":"EncryptionConfiguration","apiVersion":"apiserver.config.k8s.io/v1","resources":[{"resources":["secrets"],"providers":[{"secretbox":{"keys":[{"name":"enckey","secret":"dGVzdF9lbmNyeXB0aW9uX2tleQ=="}]}},{"identity":{}}]}]}`
+)
+
 var _ = Describe("RKE2ServerConfig", func() {
 	var opts *ServerConfigOpts
 
@@ -271,6 +275,67 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(files[6].Content).To(Equal("test_cloud_config"))
 		Expect(files[6].Owner).To(Equal(consts.DefaultFileOwner))
 		Expect(files[6].Permissions).To(Equal(consts.DefaultFileMode))
+	})
+})
+
+var _ = Describe("RKE2 Server Config with secretbox encryption", func() {
+	var opts *ServerConfigOpts
+
+	BeforeEach(func() {
+
+		opts = &ServerConfigOpts{
+			Token: "token",
+			Cluster: v1beta1.Cluster{
+				Spec: v1beta1.ClusterSpec{
+					ClusterNetwork: &v1beta1.ClusterNetwork{
+						Pods: &v1beta1.NetworkRanges{
+							CIDRBlocks: []string{
+								"192.168.0.0/16",
+							},
+						},
+						Services: &v1beta1.NetworkRanges{
+							CIDRBlocks: []string{
+								"192.169.0.0/16",
+							},
+						},
+					},
+				},
+			},
+			ControlPlaneEndpoint: "testendpoint",
+			Ctx:                  context.Background(),
+			Client: fake.NewClientBuilder().WithObjects(
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "encryption-key",
+						Namespace: "test",
+					},
+					Data: map[string][]byte{
+						"encryptionKey": []byte("test_encryption_key"),
+					},
+				},
+			).Build(),
+			ServerConfig: controlplanev1.RKE2ServerConfig{
+				BindAddress:   "testbindaddress",
+				CNI:           controlplanev1.Cilium,
+				ClusterDNS:    "testdns",
+				ClusterDomain: "testdomain",
+				SecretsEncryptionProvider: &controlplanev1.SecretsEncryption{
+					Provider: "secretbox",
+					EncryptionKeySecret: &corev1.ObjectReference{
+						Name:      "encryption-key",
+						Namespace: "test",
+					},
+				},
+			},
+		}
+	})
+
+	It("should succefully generate a server config with secretbox key provider", func() {
+		rke2ServerConfig, files, err := GenerateInitControlPlaneConfig(*opts)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(rke2ServerConfig.SecretsEncryptionProvider).To(Equal("secretbox"))
+		Expect(files[0].Content).To(Equal(expEncryptionConfig))
 	})
 })
 
