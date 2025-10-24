@@ -210,7 +210,7 @@ data:
             k8s-app: aws-cloud-controller-manager
         spec:
           nodeSelector:
-            node-role.kubernetes.io/master: "true"
+            node-role.kubernetes.io/control-plane: "true"
           tolerations:
             - key: node.cloudprovider.kubernetes.io/uninitialized
               value: "true"
