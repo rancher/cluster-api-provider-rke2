@@ -192,7 +192,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: nodeName,
 				Labels: map[string]string{
-					"node-role.kubernetes.io/master": "true",
+					"node-role.kubernetes.io/control-plane": "true",
 				},
 				Annotations: map[string]string{
 					clusterv1.MachineAnnotation: nodeName,
@@ -259,7 +259,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: nodeRefName,
 				Labels: map[string]string{
-					"node-role.kubernetes.io/master": "true",
+					"node-role.kubernetes.io/control-plane": "true",
 				},
 				Annotations: map[string]string{
 					clusterv1.MachineAnnotation: machineWithRef.Name,
@@ -279,7 +279,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 		orphanedNode = &corev1.Node{ObjectMeta: metav1.ObjectMeta{
 			Name: "missing-machine",
 			Labels: map[string]string{
-				"node-role.kubernetes.io/master": "true",
+				"node-role.kubernetes.io/control-plane": "true",
 			},
 		}}
 		Expect(testEnv.Create(ctx, orphanedNode)).To(Succeed())

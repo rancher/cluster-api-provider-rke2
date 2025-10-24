@@ -46,7 +46,7 @@ var _ = Describe("Node metadata propagation", func() {
 		node = &corev1.Node{ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 			Labels: map[string]string{
-				"node-role.kubernetes.io/master": "true",
+				"node-role.kubernetes.io/control-plane": "true",
 			},
 			Annotations: map[string]string{
 				clusterv1.MachineAnnotation: nodeName,
@@ -436,7 +436,7 @@ var _ = Describe("ClusterStatus validation", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "node1",
 				Labels: map[string]string{
-					"node-role.kubernetes.io/master": "true",
+					"node-role.kubernetes.io/control-plane": "true",
 				},
 				Annotations: map[string]string{
 					clusterv1.MachineAnnotation: "node1",
@@ -454,7 +454,7 @@ var _ = Describe("ClusterStatus validation", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "node2",
 				Labels: map[string]string{
-					"node-role.kubernetes.io/master": "true",
+					"node-role.kubernetes.io/control-plane": "true",
 				},
 				Annotations: map[string]string{
 					clusterv1.MachineAnnotation: "node2",

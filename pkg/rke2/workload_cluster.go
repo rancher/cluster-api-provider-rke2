@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	labelNodeRoleControlPlane = "node-role.kubernetes.io/master"
+	labelNodeRoleControlPlane = "node-role.kubernetes.io/control-plane"
 	remoteEtcdTimeout         = 30 * time.Second
 	etcdDialTimeout           = 10 * time.Second
 	etcdCallTimeout           = 15 * time.Second
