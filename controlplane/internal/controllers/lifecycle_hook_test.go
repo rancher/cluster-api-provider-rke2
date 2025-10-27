@@ -63,7 +63,7 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					"node-role.kubernetes.io/master": "true",
+					"node-role.kubernetes.io/control-plane": "true",
 				},
 				Annotations: map[string]string{
 					clusterv1.MachineAnnotation: "test-node",
