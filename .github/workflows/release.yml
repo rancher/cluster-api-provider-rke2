@@ -38,17 +38,17 @@ jobs:
       uses: rancher-eio/read-vault-secrets@main
       with:
         secrets: |
-          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials username |  PRIME-REGISTRY-USERNAME;
-          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password |  PRIME-REGISTRY-PASSWORD;
-          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry |  PRIME-REGISTRY-REGISTRY;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials username |  PRIME_REGISTRY_USERNAME;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password |  PRIME_REGISTRY_PASSWORD;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry |  PRIME_REGISTRY;
     - name: Docker login to prime registry
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.PRIME-REGISTRY-REGISTRY }}
-        username: ${{ env.PRIME-REGISTRY-USERNAME }}
-        password: ${{ env.PRIME-REGISTRY-PASSWORD }}
+        registry: ${{ env.PRIME_REGISTRY }}
+        username: ${{ env.PRIME_REGISTRY_USERNAME }}
+        password: ${{ env.PRIME_REGISTRY_PASSWORD }}
     - name: Build and push docker image to prime registry
-      run: make docker-build-and-push TAG=${{ env.TAG }} REGISTRY=${{ env.PRIME-REGISTRY-REGISTRY }}
+      run: make docker-build-and-push TAG=${{ env.TAG }} REGISTRY=${{ env.PRIME_REGISTRY }}
   release:
     runs-on: ubuntu-latest
     permissions:
@@ -63,9 +63,60 @@ jobs:
       uses: actions/setup-go@v6
       with:
         go-version-file: go.mod
+    - name: Read prime registry secrets
+      uses: rancher-eio/read-vault-secrets@main
+      with:
+        secrets: |
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials username |  PRIME_REGISTRY_USERNAME;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password |  PRIME_REGISTRY_PASSWORD;
+          secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry |  PRIME_REGISTRY;
     - name: Update manifests
       run: |
         make release RELEASE_TAG=${{ env.TAG }} REGISTRY=${{ env.GHCR_REGISTRY }}
+    - name: Package and publish release manifests as OCI artifacts
+      env:
+        ORAS_VERSION: 1.2.3
+        ARTIFACT_NAME: ${{ env.PRIME_REGISTRY }}/rancher/cluster-api-provider-rke2-components
+        REGISTRY_PASSWORD: ${{ env.PRIME_REGISTRY_PASSWORD }}
+        REGISTRY_USERNAME: ${{ env.PRIME_REGISTRY_USERNAME }}
+        REGISTRY_HOST: ${{ env.PRIME_REGISTRY }}
+      run: |
+        set -e
+
+        # Install oras
+        (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
+            && wget -q https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz \
+            && tar -xzf oras_${ORAS_VERSION}_linux_amd64.tar.gz \
+            && sudo install -D -m 755 oras /usr/local/bin/
+        
+        echo "Authenticating with registry..."
+        echo "${REGISTRY_PASSWORD}" | oras login "${REGISTRY_HOST}" --username "${REGISTRY_USERNAME}" --password-stdin
+        
+        cd out
+        echo "Pushing artifacts to registry: ${ARTIFACT_NAME}:${{ env.TAG }}"
+        echo "Files in out directory:"
+        ls -la
+        
+        FILES_TO_PUSH="metadata.yaml bootstrap-components.yaml control-plane-components.yaml"
+        
+        MISSING_FILES=""
+        for file in $FILES_TO_PUSH; do
+          if [ ! -f "$file" ]; then
+            MISSING_FILES="$MISSING_FILES $file"
+          fi
+        done
+        
+        if [ -n "$MISSING_FILES" ]; then
+          echo "ERROR: Missing files:$MISSING_FILES"
+          exit 1
+        fi
+        
+        if oras push "${ARTIFACT_NAME}:${{ env.TAG }}" $FILES_TO_PUSH; then
+          echo "Successfully pushed artifacts"
+        else
+          echo "ERROR: Failed to push artifacts"
+          exit 1
+        fi
     - name: Release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
