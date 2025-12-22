@@ -17,8 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	fuzz "github.com/google/gofuzz"
 	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
+	"sigs.k8s.io/randfill"
 )
 
 // FuzzFuncsv1beta1 exposes fuzzers for testing conversion logic.
@@ -30,15 +30,15 @@ func FuzzFuncsv1beta1(_ runtimeserializer.CodecFactory) []interface{} {
 }
 
 // RKE2ConfigFuzzer is fuzzer for v1beta1 RKE2Config (hub).
-func RKE2ConfigFuzzer(obj *RKE2Config, c fuzz.Continue) {
-	c.FuzzNoCustom(obj)
-	val := c.RandBool()
+func RKE2ConfigFuzzer(obj *RKE2Config, c randfill.Continue) {
+	c.FillNoCustom(obj)
+	val := c.Bool()
 	obj.Spec.GzipUserData = &val
 }
 
 // RKE2ConfigTemplateFuzzer is fuzzer for v1beta1 RKE2ConfigTemplate (hub).
-func RKE2ConfigTemplateFuzzer(obj *RKE2ConfigTemplate, c fuzz.Continue) {
-	c.FuzzNoCustom(obj)
-	val := c.RandBool()
+func RKE2ConfigTemplateFuzzer(obj *RKE2ConfigTemplate, c randfill.Continue) {
+	c.FillNoCustom(obj)
+	val := c.Bool()
 	obj.Spec.Template.Spec.GzipUserData = &val
 }

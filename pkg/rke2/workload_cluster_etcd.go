@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kubernetes Authors.
+Copyright 2023 - 2025 SUSE.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	etcdutil "github.com/rancher/cluster-api-provider-rke2/pkg/etcd/util"
 )
@@ -38,7 +38,7 @@ const (
 // RemoveEtcdMemberForMachine removes the etcd member from the target cluster's etcd cluster.
 // Removing the last remaining member of the cluster is not supported.
 func (w *Workload) RemoveEtcdMemberForMachine(ctx context.Context, machine *clusterv1.Machine) error {
-	if machine == nil || machine.Status.NodeRef == nil {
+	if machine == nil || machine.Status.NodeRef.Name == "" {
 		// Nothing to do, no node for Machine
 		return nil
 	}
@@ -79,7 +79,7 @@ func (w *Workload) removeMemberForNode(ctx context.Context, name string) error {
 
 // IsEtcdMemberSafelyRemovedForMachine checks whether the node contains the `etcd.rke2.cattle.io/removed-node-name` annotation.
 func (w *Workload) IsEtcdMemberSafelyRemovedForMachine(ctx context.Context, machine *clusterv1.Machine) (bool, error) {
-	if machine == nil || machine.Status.NodeRef == nil {
+	if machine == nil || machine.Status.NodeRef.Name == "" {
 		// Nothing to do, no node for Machine
 		return true, nil
 	}
@@ -120,7 +120,7 @@ func (w *Workload) isMemberRemovedForNode(ctx context.Context, name string) (boo
 
 // ForwardEtcdLeadership forwards etcd leadership to the first follower.
 func (w *Workload) ForwardEtcdLeadership(ctx context.Context, machine *clusterv1.Machine, leaderCandidate *clusterv1.Machine) error {
-	if machine == nil || machine.Status.NodeRef == nil {
+	if machine == nil || machine.Status.NodeRef.Name == "" {
 		return nil
 	}
 
@@ -128,7 +128,7 @@ func (w *Workload) ForwardEtcdLeadership(ctx context.Context, machine *clusterv1
 		return errors.New("leader candidate cannot be nil")
 	}
 
-	if leaderCandidate.Status.NodeRef == nil {
+	if leaderCandidate.Status.NodeRef.Name == "" {
 		return errors.New("leader has no node reference")
 	}
 

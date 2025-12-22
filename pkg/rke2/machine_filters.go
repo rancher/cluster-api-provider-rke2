@@ -8,7 +8,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured" //nolint: gci,goimports
 	"k8s.io/utils/diff"                                 //nolint: gci
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/controller-runtime/pkg/log" //nolint: gci,goimports
 
@@ -50,7 +50,7 @@ func matchesRKE2BootstrapConfig(ctx context.Context,
 		}
 
 		bootstrapRef := machine.Spec.Bootstrap.ConfigRef
-		if bootstrapRef == nil {
+		if bootstrapRef.Name == "" {
 			// Missing bootstrap reference should not be considered as unmatching.
 			// This is a safety precaution to avoid selecting machines that are broken, which in the future should be remediated separately.
 			return true
@@ -227,17 +227,17 @@ func matchesKubernetesOrRKE2Version(ctx context.Context, rke2Version string) fun
 
 		logger = logger.WithValues("Machine", machine.Name)
 
-		if machine.Spec.Version == nil {
+		if machine.Spec.Version == "" {
 			logger.V(5).Info("Machine is missing k8s version. Needs rollout.")
 
 			return false
 		}
 
-		if bsutil.IsRKE2Version(*machine.Spec.Version) {
-			match := bsutil.CompareVersions(*machine.Spec.Version, rke2Version)
+		if bsutil.IsRKE2Version(machine.Spec.Version) {
+			match := bsutil.CompareVersions(machine.Spec.Version, rke2Version)
 			if !match {
 				logger.V(5).Info(fmt.Sprintf("Machine RKE2 version '%s' does not match desired version '%s'. Needs rollout.",
-					*machine.Spec.Version,
+					machine.Spec.Version,
 					rke2Version),
 				)
 			}
@@ -250,10 +250,10 @@ func matchesKubernetesOrRKE2Version(ctx context.Context, rke2Version string) fun
 			return true
 		}
 
-		match := bsutil.CompareVersions(*machine.Spec.Version, rcpKubeVersion)
+		match := bsutil.CompareVersions(machine.Spec.Version, rcpKubeVersion)
 		if !match {
 			logger.V(5).Info(fmt.Sprintf("Machine k8s version '%s' does not match desired version '%s'. Needs rollout.",
-				*machine.Spec.Version,
+				machine.Spec.Version,
 				rcpKubeVersion),
 			)
 		}

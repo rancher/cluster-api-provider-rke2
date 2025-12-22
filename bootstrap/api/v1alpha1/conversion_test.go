@@ -19,8 +19,8 @@ package v1alpha1
 import (
 	"testing"
 
-	fuzz "github.com/google/gofuzz"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/randfill"
 
 	"k8s.io/apimachinery/pkg/api/apitesting/fuzzer"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -64,14 +64,14 @@ func fuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func rke2ConfigFuzzer(obj *RKE2Config, c fuzz.Continue) {
-	c.FuzzNoCustom(obj)
+func rke2ConfigFuzzer(obj *RKE2Config, c randfill.Continue) {
+	c.FillNoCustom(obj)
 
 	obj.Spec.AgentConfig.Version = ""
 }
 
-func rke2ConfigTemplateFuzzer(obj *RKE2ConfigTemplate, c fuzz.Continue) {
-	c.FuzzNoCustom(obj)
+func rke2ConfigTemplateFuzzer(obj *RKE2ConfigTemplate, c randfill.Continue) {
+	c.FillNoCustom(obj)
 
 	obj.Spec.Template.Spec.AgentConfig.Version = ""
 }

@@ -16,7 +16,7 @@ import (
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/test/helpers"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 var (
@@ -39,6 +39,7 @@ func setup() {
 	testEnvConfig := helpers.NewTestEnvironmentConfiguration([]string{
 		path.Join("bootstrap", "config", "crd", "bases"),
 		path.Join("controlplane", "config", "crd", "bases"),
+		path.Join("test", "crd"),
 	},
 	)
 	var err error

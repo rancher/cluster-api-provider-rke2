@@ -29,8 +29,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterexpv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
+	clusterexpv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
@@ -83,7 +83,7 @@ var _ = Describe("RKE2Config Scope", func() {
 				ClusterName: cluster.Name,
 				Template: clusterv1.MachineTemplateSpec{
 					Spec: clusterv1.MachineSpec{
-						Version: &k8sVersion,
+						Version: k8sVersion,
 					},
 				},
 			},
@@ -115,7 +115,7 @@ var _ = Describe("RKE2Config Scope", func() {
 			},
 			Spec: clusterv1.MachineSpec{
 				ClusterName: cluster.Name,
-				Version:     &k8sVersion,
+				Version:     k8sVersion,
 			},
 		}
 		Expect(fakeClient.Create(ctx, machine)).Should(Succeed())

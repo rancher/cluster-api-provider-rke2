@@ -23,7 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 )
@@ -156,6 +157,32 @@ type RKE2ControlPlaneMachineTemplate struct {
 	// If no value is provided, the default value for this property of the Machine resource will be used.
 	// +optional
 	NodeDeletionTimeout *metav1.Duration `json:"nodeDeletionTimeout,omitempty"`
+
+	// DeletionSpec
+	// TODO: this needs to become the source of truth for deletion timeouts, but for now let's keep the three independent fields
+	// as it would break the api.
+	Deletion RKE2ControlPlaneMachineTemplateDeletionSpec `json:"deletion,omitempty,omitzero"`
+}
+
+// RKE2ControlPlaneMachineTemplateDeletionSpec contains configuration options for Machine deletion.
+// +kubebuilder:validation:MinProperties=1
+type RKE2ControlPlaneMachineTemplateDeletionSpec struct {
+	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// +optional
+	NodeDrainTimeoutSeconds *int32 `json:"nodeDrainTimeoutSeconds,omitempty"`
+
+	// nodeVolumeDetachTimeout is the total amount of time that the controller will spend on waiting for all volumes
+	// to be detached. The default value is 0, meaning that the volumes can be detached without any time limitations.
+	// +optional
+	NodeVolumeDetachTimeoutSeconds *int32 `json:"nodeVolumeDetachTimeoutSeconds,omitempty"`
+
+	// nodeDeletionTimeout defines how long the machine controller will attempt to delete the Node that the Machine
+	// hosts after the Machine is marked for deletion. A duration of 0 will retry deletion indefinitely.
+	// If no value is provided, the default value for this property of the Machine resource will be used.
+	// +optional
+	NodeDeletionTimeoutSeconds *int32 `json:"nodeDeletionTimeoutSeconds,omitempty"`
 }
 
 // RKE2ServerConfig specifies configuration for the agent nodes.
@@ -267,10 +294,16 @@ type RKE2ControlPlaneStatus struct {
 	DataSecretName *string `json:"dataSecretName,omitempty"`
 
 	// FailureReason will be set on non-retryable errors.
+	//
+	// Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please see https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more details.
+	//
 	// +optional
 	FailureReason string `json:"failureReason,omitempty"`
 
 	// FailureMessage will be set on non-retryable errors.
+	//
+	// Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please see https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more details.
+	//
 	// +optional
 	FailureMessage string `json:"failureMessage,omitempty"`
 
@@ -280,7 +313,7 @@ type RKE2ControlPlaneStatus struct {
 
 	// Conditions defines current service state of the RKE2Config.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions clusterv1beta1.Conditions `json:"conditions,omitempty"`
 
 	// Replicas is the number of replicas current attached to this ControlPlane Resource.
 	Replicas int32 `json:"replicas,omitempty"`
@@ -297,6 +330,10 @@ type RKE2ControlPlaneStatus struct {
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 
 	// UnavailableReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config.
+	//
+	// Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please see https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more details.
+	//
+	// +optional
 	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
 
 	// AvailableServerIPs is a list of the Control Plane IP adds that can be used to register further nodes.
@@ -306,6 +343,40 @@ type RKE2ControlPlaneStatus struct {
 	// lastRemediation stores info about last remediation performed.
 	// +optional
 	LastRemediation *LastRemediationStatus `json:"lastRemediation,omitempty"`
+
+	// v1Beta2 groups all the fields that will be added or modified in
+	// RKE2ControlPlane's status with the V1Beta2 version.
+	// +optional
+	V1Beta2 *RKE2ControlPlaneV1Beta2Status `json:"v1beta2,omitempty"`
+}
+
+// RKE2ControlPlaneV1Beta2Status Groups all the fields that will be added or
+// modified in RKE2ControlPlane with the V1Beta2 version.
+type RKE2ControlPlaneV1Beta2Status struct {
+	// conditions represents the observations of a RKE2ControlPlane's current state.
+	// Known condition types are Available, CertificatesAvailable,
+	// EtcdClusterAvailable, MachinesReady, MachinesUpToDate,
+	// ScalingUp, ScalingDown, Remediating, Deleting, Paused.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// readyReplicas is the number of ready replicas for this RKE2ControlPlane.
+	// A machine is considered ready when Machine's Ready condition is true.
+	// +optional
+	ReadyReplicas *int32 `json:"readyReplicas,omitempty"`
+
+	// availableReplicas is the number of available replicas targeted by this
+	// RKE2ControlPlane. A machine is considered available when Machine's
+	// Available condition is true.
+	// +optional
+	AvailableReplicas *int32 `json:"availableReplicas,omitempty"`
+
+	// upToDateReplicas is the number of up-to-date replicas targeted by this RKE2ControlPlane. A machine is considered up-to-date when Machine's UpToDate condition is true.
+	// +optional
+	UpToDateReplicas *int32 `json:"upToDateReplicas,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -327,7 +398,8 @@ type RKE2ControlPlane struct {
 type RKE2ControlPlaneList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RKE2ControlPlane `json:"items"`
+
+	Items []RKE2ControlPlane `json:"items"`
 }
 
 // EtcdConfig regroups the ETCD-specific configuration of the control plane.
@@ -589,17 +661,35 @@ func init() { //nolint:gochecknoinits
 	objectTypes = append(objectTypes, &RKE2ControlPlane{}, &RKE2ControlPlaneList{})
 }
 
+// GetV1Beta2Conditions returns the set of conditions for this object.
+func (in *RKE2ControlPlane) GetV1Beta2Conditions() []metav1.Condition {
+	if in.Status.V1Beta2 == nil {
+		return nil
+	}
+
+	return in.Status.V1Beta2.Conditions
+}
+
+// SetV1Beta2Conditions sets the conditions on this object.
+func (in *RKE2ControlPlane) SetV1Beta2Conditions(conditions []metav1.Condition) {
+	if in.Status.V1Beta2 == nil {
+		in.Status.V1Beta2 = &RKE2ControlPlaneV1Beta2Status{}
+	}
+
+	in.Status.V1Beta2.Conditions = conditions
+}
+
 // GetConditions returns the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) GetConditions() clusterv1.Conditions {
-	return r.Status.Conditions
+func (in *RKE2ControlPlane) GetConditions() clusterv1beta1.Conditions {
+	return in.Status.Conditions
 }
 
 // SetConditions sets the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
-	r.Status.Conditions = conditions
+func (in *RKE2ControlPlane) SetConditions(conditions clusterv1beta1.Conditions) {
+	in.Status.Conditions = conditions
 }
 
 // GetDesiredVersion returns the desired version of the RKE2ControlPlane using Spec.Version field as a default field.
-func (r *RKE2ControlPlane) GetDesiredVersion() string {
-	return r.Spec.Version
+func (in *RKE2ControlPlane) GetDesiredVersion() string {
+	return in.Spec.Version
 }

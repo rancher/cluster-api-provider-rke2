@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
@@ -222,4 +222,19 @@ func SafeInt32(n int) int32 {
 	}
 
 	return int32(n) //nolint:gosec
+}
+
+// DurationToInt32Seconds converts a metav1.Duration to a pointer to int32 seconds.
+func DurationToInt32Seconds(d *metav1.Duration) *int32 {
+	var int32Secs int32
+	secs := d.Seconds()
+	if secs < 0 {
+		int32Secs = 0
+	} else if secs > float64(math.MaxInt32) {
+		int32Secs = math.MaxInt32
+	} else {
+		int32Secs = int32(secs)
+	}
+
+	return &int32Secs
 }

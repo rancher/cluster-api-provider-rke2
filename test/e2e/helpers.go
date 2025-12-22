@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -39,12 +40,13 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/test/infrastructure/container"
-	dockerv1 "sigs.k8s.io/cluster-api/test/infrastructure/docker/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	dockerv1 "sigs.k8s.io/cluster-api/test/infrastructure/docker/api/v1beta2"
+	v1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -199,11 +201,11 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 		Name:      input.ClusterName,
 	}, input.WaitForClusterIntervals...)
 
-	if result.Cluster.Spec.Topology != nil {
+	if result.Cluster.Spec.Topology.IsDefined() {
 		result.ClusterClass = framework.GetClusterClassByName(ctx, framework.GetClusterClassByNameInput{
 			Getter:    input.ClusterProxy.GetClient(),
 			Namespace: input.Namespace,
-			Name:      result.Cluster.Spec.Topology.Class,
+			Name:      result.Cluster.Spec.Topology.ClassRef.Name,
 		})
 	}
 
@@ -426,7 +428,7 @@ func WaitForRKE2ControlPlaneMachinesToExist(ctx context.Context, input WaitForRK
 		}
 		count := 0
 		for _, machine := range machineList.Items {
-			if machine.Status.NodeRef != nil {
+			if machine.Status.NodeRef.IsDefined() {
 				count++
 			}
 		}
@@ -445,7 +447,6 @@ func WaitForRKE2ControlPlaneMachinesToExist(ctx context.Context, input WaitForRK
 			Expect(machineLabels[k]).To(Equal(controlPlaneMachineTemplateLabels[k]))
 		}
 	}
-
 }
 
 // WaitForControlPlaneToBeReadyInput is the input for WaitForControlPlaneToBeReady.
@@ -491,8 +492,8 @@ func WaitForControlPlaneToBeReady(ctx context.Context, input WaitForControlPlane
 type WaitForMachineConditionsInput struct {
 	Getter    framework.Getter
 	Machine   *clusterv1.Machine
-	Checker   func(_ conditions.Getter, _ clusterv1.ConditionType) bool
-	Condition clusterv1.ConditionType
+	Checker   func(_ v1beta1conditions.Getter, _ clusterv1beta1.ConditionType) bool
+	Condition clusterv1beta1.ConditionType
 }
 
 func WaitForMachineConditions(ctx context.Context, input WaitForMachineConditionsInput, intervals ...interface{}) {
@@ -540,7 +541,7 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 
 		for _, machine := range machineList.Items {
 			expectedVersion := input.VersionAfterUpgrade + "+rke2r1"
-			if machine.Spec.Version == nil || *machine.Spec.Version != expectedVersion {
+			if machine.Spec.Version == "" || machine.Spec.Version != expectedVersion {
 				return fmt.Errorf("Expected machine version to match %s, got %v", expectedVersion, machine.Spec.Version)
 			}
 		}
@@ -556,7 +557,7 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 		}
 
 		for _, md := range updatedDeployments {
-			if md.Spec.Replicas == nil || *md.Spec.Replicas != md.Status.ReadyReplicas {
+			if md.Spec.Replicas == nil || md.Spec.Replicas != md.Status.ReadyReplicas {
 				return fmt.Errorf("Not all machine deployments are updated yet expected %v!=%d", md.Spec.Replicas, md.Status.ReadyReplicas)
 			}
 		}
@@ -584,16 +585,16 @@ func WaitForClusterReady(ctx context.Context, input WaitForClusterReadyInput, in
 			return fmt.Errorf("getting Cluster %s/%s: %w", input.Namespace, input.Name, err)
 		}
 
-		readyCondition := conditions.Get(cluster, clusterv1.ReadyCondition)
+		readyCondition := v1beta1conditions.Get(cluster, clusterv1.ReadyCondition)
 		if readyCondition == nil {
 			return fmt.Errorf("Cluster Ready condition is not found")
 		}
 
 		switch readyCondition.Status {
-		case corev1.ConditionTrue:
-			//Cluster is ready
+		case metav1.ConditionTrue:
+			// Cluster is ready
 			return nil
-		case corev1.ConditionFalse:
+		case metav1.ConditionFalse:
 			return fmt.Errorf("Cluster is not Ready")
 		default:
 			return fmt.Errorf("Cluster Ready condition is unknown")
@@ -676,7 +677,7 @@ func WaitForAllMachinesRunningWithVersion(ctx context.Context, input WaitForAllM
 		})
 		for _, machine := range machineList.Items {
 			if machine.Status.Phase != "Running" ||
-				machine.Spec.Version == nil || !strings.Contains(*machine.Spec.Version, input.Version) {
+				machine.Spec.Version == "" || !strings.Contains(machine.Spec.Version, input.Version) {
 				return false
 			}
 		}

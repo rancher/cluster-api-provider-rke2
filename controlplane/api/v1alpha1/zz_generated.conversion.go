@@ -31,7 +31,7 @@ import (
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
-	clusterapiapiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	corev1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 )
 
 func init() {
@@ -439,7 +439,7 @@ func autoConvert_v1alpha1_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStat
 	out.FailureReason = in.FailureReason
 	out.FailureMessage = in.FailureMessage
 	out.ObservedGeneration = in.ObservedGeneration
-	out.Conditions = *(*clusterapiapiv1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	out.Conditions = *(*corev1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
 	out.Replicas = in.Replicas
 	out.ReadyReplicas = in.ReadyReplicas
 	out.UpdatedReplicas = in.UpdatedReplicas
@@ -455,7 +455,7 @@ func autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStat
 	out.FailureReason = in.FailureReason
 	out.FailureMessage = in.FailureMessage
 	out.ObservedGeneration = in.ObservedGeneration
-	out.Conditions = *(*clusterapiapiv1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	out.Conditions = *(*corev1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
 	out.Replicas = in.Replicas
 	// WARNING: in.Version requires manual conversion: does not exist in peer-type
 	out.ReadyReplicas = in.ReadyReplicas
@@ -463,6 +463,7 @@ func autoConvert_v1beta1_RKE2ControlPlaneStatus_To_v1alpha1_RKE2ControlPlaneStat
 	out.UnavailableReplicas = in.UnavailableReplicas
 	out.AvailableServerIPs = *(*[]string)(unsafe.Pointer(&in.AvailableServerIPs))
 	// WARNING: in.LastRemediation requires manual conversion: does not exist in peer-type
+	// WARNING: in.V1Beta2 requires manual conversion: does not exist in peer-type
 	return nil
 }
 

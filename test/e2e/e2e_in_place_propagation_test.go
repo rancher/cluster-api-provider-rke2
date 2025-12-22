@@ -33,11 +33,12 @@ import (
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
+	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/collections"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	v1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -55,7 +56,7 @@ var _ = Describe("In-place propagation", func() {
 		Expect(e2eConfig).ToNot(BeNil(), "Invalid argument. e2eConfig can't be nil when calling %s spec", specName)
 		Expect(clusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. clusterctlConfigPath must be an existing file when calling %s spec", specName)
 		Expect(bootstrapClusterProxy).ToNot(BeNil(), "Invalid argument. bootstrapClusterProxy can't be nil when calling %s spec", specName)
-		Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
+		Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 
@@ -161,11 +162,9 @@ var _ = Describe("In-place propagation", func() {
 			rke2ControlPlane.Spec.MachineTemplate.ObjectMeta.Annotations["test-annotation"] = "test-annotation-value"
 
 			// Set new timeouts for NodeDrainTimeout, NodeDeletionTimeout and NodeVolumeDetachTimeout.
-			duration240s := &metav1.Duration{Duration: 240 * time.Second}
-			duration480s := &metav1.Duration{Duration: 480 * time.Second}
-			rke2ControlPlane.Spec.MachineTemplate.NodeDrainTimeout = duration240s
-			rke2ControlPlane.Spec.MachineTemplate.NodeDeletionTimeout = duration240s
-			rke2ControlPlane.Spec.MachineTemplate.NodeVolumeDetachTimeout = duration480s
+			rke2ControlPlane.Spec.MachineTemplate.NodeDrainTimeout = &duration240s
+			rke2ControlPlane.Spec.MachineTemplate.NodeDeletionTimeout = &duration240s
+			rke2ControlPlane.Spec.MachineTemplate.NodeVolumeDetachTimeout = &duration480s
 
 			// Patch the RKE2 control plane
 			By("Patching RKE2 control plane with new labels, annotations, and timeouts")
@@ -189,13 +188,13 @@ var _ = Describe("In-place propagation", func() {
 				})
 				Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
 				for _, machine := range machineList.Items {
-					if machine.Spec.NodeDrainTimeout != nil && machine.Spec.NodeDrainTimeout.Duration != duration240s.Duration {
+					if machine.Spec.Deletion.NodeDrainTimeoutSeconds != nil && machine.Spec.Deletion.NodeDrainTimeoutSeconds != bsutil.DurationToInt32Seconds(&duration240s) {
 						return fmt.Errorf("NodeDrainTimeout value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
 					}
-					if machine.Spec.NodeDeletionTimeout != nil && machine.Spec.NodeDeletionTimeout.Duration != duration240s.Duration {
+					if machine.Spec.Deletion.NodeDeletionTimeoutSeconds != nil && machine.Spec.Deletion.NodeDeletionTimeoutSeconds != bsutil.DurationToInt32Seconds(&duration240s) {
 						return fmt.Errorf("NodeDeletionTimeout value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
 					}
-					if machine.Spec.NodeVolumeDetachTimeout != nil && machine.Spec.NodeVolumeDetachTimeout.Duration != duration480s.Duration {
+					if machine.Spec.Deletion.NodeVolumeDetachTimeoutSeconds != nil && machine.Spec.Deletion.NodeVolumeDetachTimeoutSeconds != bsutil.DurationToInt32Seconds(&duration480s) {
 						return fmt.Errorf("NodeVolumeDetachTimeout value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
 					}
 				}
@@ -280,12 +279,10 @@ var _ = Describe("In-place propagation", func() {
 
 			By("Waiting for machines to have propagated metadata")
 			for _, machine := range machineList.Items {
-				machine := machine
-
 				WaitForMachineConditions(ctx, WaitForMachineConditionsInput{
 					Getter:    bootstrapClusterProxy.GetClient(),
 					Machine:   &machine,
-					Checker:   conditions.IsTrue,
+					Checker:   v1beta1conditions.IsTrue,
 					Condition: controlplanev1.NodeMetadataUpToDate,
 				}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 			}

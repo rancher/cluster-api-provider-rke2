@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
@@ -206,15 +206,12 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 		})
 	}
 
-	if opts.Cluster.Spec.ClusterNetwork != nil &&
-		opts.Cluster.Spec.ClusterNetwork.Pods != nil &&
-		len(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks) > 0 {
+	// TODO: ClusterNetwork is no longer a pointer to a struct but a struct
+	if len(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks) > 0 {
 		rke2ServerConfig.ClusterCIDR = strings.Join(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks, ",")
 	}
 
-	if opts.Cluster.Spec.ClusterNetwork != nil &&
-		opts.Cluster.Spec.ClusterNetwork.Services != nil &&
-		len(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks) > 0 {
+	if len(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks) > 0 {
 		rke2ServerConfig.ServiceCIDR = strings.Join(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks, ",")
 	}
 

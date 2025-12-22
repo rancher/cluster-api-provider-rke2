@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 )
 
 // Format specifies the output format of the bootstrap data
@@ -227,7 +227,7 @@ type RKE2ConfigStatus struct {
 
 	// Conditions defines current service state of the RKE2Config.
 	//+optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions clusterv1beta1.Conditions `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -243,14 +243,24 @@ type RKE2Config struct {
 	Status RKE2ConfigStatus `json:"status,omitempty"`
 }
 
+// GetV1Beta1Conditions returns the set of conditions for this object.
+func (in *RKE2Config) GetV1Beta1Conditions() clusterv1beta1.Conditions {
+	return in.Status.Conditions
+}
+
+// SetV1Beta1Conditions sets the conditions on this object.
+func (in *RKE2Config) SetV1Beta1Conditions(conditions clusterv1beta1.Conditions) {
+	in.Status.Conditions = conditions
+}
+
 // GetConditions returns the list of conditions for a RKE2Config.
-func (r *RKE2Config) GetConditions() clusterv1.Conditions {
-	return r.Status.Conditions
+func (in *RKE2Config) GetConditions() clusterv1beta1.Conditions {
+	return in.Status.Conditions
 }
 
 // SetConditions sets the conditions for a RKE2Config.
-func (r *RKE2Config) SetConditions(conditions clusterv1.Conditions) {
-	r.Status.Conditions = conditions
+func (in *RKE2Config) SetConditions(conditions clusterv1beta1.Conditions) {
+	in.Status.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true
@@ -259,7 +269,8 @@ func (r *RKE2Config) SetConditions(conditions clusterv1.Conditions) {
 type RKE2ConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RKE2Config `json:"items"`
+
+	Items []RKE2Config `json:"items"`
 }
 
 // CISProfile defines the CIS Benchmark profile to be activated in RKE2.

@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 
 	bootstrapv1alpha1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
 )
@@ -183,7 +183,7 @@ type RKE2ControlPlaneStatus struct {
 
 	// Conditions defines current service state of the RKE2Config.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions clusterv1beta1.Conditions `json:"conditions,omitempty"`
 
 	// Replicas is the number of replicas current attached to this ControlPlane Resource.
 	Replicas int32 `json:"replicas,omitempty"`
@@ -389,11 +389,11 @@ func init() { //nolint:gochecknoinits
 }
 
 // GetConditions returns the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) GetConditions() clusterv1.Conditions {
+func (r *RKE2ControlPlane) GetConditions() clusterv1beta1.Conditions {
 	return r.Status.Conditions
 }
 
 // SetConditions sets the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
+func (r *RKE2ControlPlane) SetConditions(conditions clusterv1beta1.Conditions) {
 	r.Status.Conditions = conditions
 }

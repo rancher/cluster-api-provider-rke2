@@ -27,7 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
-	apiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	corev1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 )
 
 func init() {
@@ -557,7 +557,7 @@ func autoConvert_v1alpha1_RKE2ConfigStatus_To_v1beta1_RKE2ConfigStatus(in *RKE2C
 	out.FailureReason = in.FailureReason
 	out.FailureMessage = in.FailureMessage
 	out.ObservedGeneration = in.ObservedGeneration
-	out.Conditions = *(*apiv1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	out.Conditions = *(*corev1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
 	return nil
 }
 
@@ -572,7 +572,7 @@ func autoConvert_v1beta1_RKE2ConfigStatus_To_v1alpha1_RKE2ConfigStatus(in *v1bet
 	out.FailureReason = in.FailureReason
 	out.FailureMessage = in.FailureMessage
 	out.ObservedGeneration = in.ObservedGeneration
-	out.Conditions = *(*apiv1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	out.Conditions = *(*corev1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
 	return nil
 }
 

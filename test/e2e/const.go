@@ -21,6 +21,9 @@ package e2e
 
 import (
 	_ "embed"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -32,4 +35,9 @@ var (
 	ClusterTemplateDockerExternalDatastore []byte
 	//go:embed data/infrastructure/postgres.yaml
 	Postgres []byte
+)
+
+var (
+	duration240s = metav1.Duration{Duration: 240 * time.Second}
+	duration480s = metav1.Duration{Duration: 480 * time.Second}
 )

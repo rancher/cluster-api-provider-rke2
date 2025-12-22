@@ -24,7 +24,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,8 +38,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	etcdfake "github.com/rancher/cluster-api-provider-rke2/pkg/etcd/fake"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/patch"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	v1beta1patch "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
 )
 
 var _ = Describe("ETCD safe member removal", Ordered, func() {
@@ -48,7 +50,7 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 		nodeName    = "test-node"
 		machine     *clusterv1.Machine
 		w           *Workload
-		patchHelper *patch.Helper
+		patchHelper *v1beta1patch.Helper
 	)
 	BeforeAll(func() {
 		ns, err = testEnv.CreateNamespace(ctx, "ns")
@@ -66,20 +68,24 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 			},
 			Spec: clusterv1.MachineSpec{
 				ClusterName: "foo",
-				InfrastructureRef: corev1.ObjectReference{
-					Kind:       "Pod",
-					APIVersion: "v1",
-					Name:       "stub",
-					Namespace:  ns.Name,
+				Bootstrap: clusterv1.Bootstrap{
+					ConfigRef: clusterv1.ContractVersionedObjectReference{
+						Kind:     "RKE2Config",
+						Name:     "rke2-config",
+						APIGroup: bootstrapv1.GroupVersion.Group,
+					},
+				},
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     "FakeMachine",
+					APIGroup: infrastructure.GroupVersion.Group,
+					Name:     "mock-machine",
 				},
 			},
 		}
 
 		machineStatus := clusterv1.MachineStatus{
-			NodeRef: &corev1.ObjectReference{
-				Kind:       "Node",
-				APIVersion: "v1",
-				Name:       nodeName,
+			NodeRef: clusterv1.MachineNodeReference{
+				Name: nodeName,
 			},
 		}
 		Expect(testEnv.Create(ctx, node)).Should(Succeed())
@@ -91,12 +97,12 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 		testEnv.Cleanup(ctx, node, machine, ns)
 	})
 	It("Should mark the node for etcd member removal", func() {
-		patchHelper, err = patch.NewHelper(node, testEnv.GetClient())
+		patchHelper, err = v1beta1patch.NewHelper(node, testEnv.GetClient())
 		Expect(err).ShouldNot(HaveOccurred())
 		w = &Workload{
 			Client:           testEnv.GetClient(),
 			Nodes:            map[string]*corev1.Node{node.Name: node},
-			nodePatchHelpers: map[string]*patch.Helper{node.Name: patchHelper},
+			nodePatchHelpers: map[string]*v1beta1patch.Helper{node.Name: patchHelper},
 		}
 		Expect(w.RemoveEtcdMemberForMachine(ctx, machine)).Should(Succeed())
 
@@ -111,7 +117,7 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(safelyRemoved).Should(BeFalse(), "etcd member not removed yet")
 
-		//Explicitly test the value can contain anything, not necessarily the node name
+		// Explicitly test the value can contain anything, not necessarily the node name
 		node.Annotations[EtcdNodeRemovedNodeNameAnnotation] = "foo"
 		Expect(patchHelper.Patch(ctx, node)).Should(Succeed())
 
@@ -137,9 +143,9 @@ func TestForwardEtcdLeadership(t *testing.T) {
 				expectErr: false,
 			},
 			{
-				name: "does nothing if machine's NodeRef is nil",
+				name: "does nothing if machine's NodeRef is empty",
 				machine: defaultMachine(func(m *clusterv1.Machine) {
-					m.Status.NodeRef = nil
+					m.Status.NodeRef.Name = ""
 				}),
 				expectErr: false,
 			},
@@ -150,10 +156,10 @@ func TestForwardEtcdLeadership(t *testing.T) {
 				expectErr:       true,
 			},
 			{
-				name:    "returns an error if the leader candidate's noderef is nil",
+				name:    "returns an error if the leader candidate's noderef is empty",
 				machine: defaultMachine(),
 				leaderCandidate: defaultMachine(func(m *clusterv1.Machine) {
-					m.Status.NodeRef = nil
+					m.Status.NodeRef.Name = ""
 				}),
 				expectErr: true,
 			},
@@ -334,10 +340,10 @@ func (c *fakeEtcdClientGenerator) ForLeader(_ context.Context, _ []string) (*etc
 
 type fakeClient struct {
 	client.Client
-	list interface{}
+	list any
 
 	createErr    error
-	get          map[string]interface{}
+	get          map[string]any
 	getCalled    bool
 	updateCalled bool
 	getErr       error
@@ -415,7 +421,7 @@ func (f *fakeClient) Update(_ context.Context, _ client.Object, _ ...client.Upda
 func defaultMachine(transforms ...func(m *clusterv1.Machine)) *clusterv1.Machine {
 	m := &clusterv1.Machine{
 		Status: clusterv1.MachineStatus{
-			NodeRef: &corev1.ObjectReference{
+			NodeRef: clusterv1.MachineNodeReference{
 				Name: "machine-node",
 			},
 		},

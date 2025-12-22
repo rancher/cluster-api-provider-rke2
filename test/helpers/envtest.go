@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	logf "sigs.k8s.io/cluster-api/cmd/clusterctl/log"
 )
 
@@ -63,6 +63,7 @@ type TestEnvironmentConfiguration struct {
 type TestEnvironment struct {
 	manager.Manager
 	client.Client
+
 	Config *rest.Config
 	env    *envtest.Environment
 	cancel context.CancelFunc

@@ -1669,6 +1669,33 @@ spec:
                   MachineTemplate contains information about how machines
                   should be shaped when creating or updating a control plane.
                 properties:
+                  deletion:
+                    description: |-
+                      DeletionSpec
+                      as it would break the api.
+                    minProperties: 1
+                    properties:
+                      nodeDeletionTimeoutSeconds:
+                        description: |-
+                          nodeDeletionTimeout defines how long the machine controller will attempt to delete the Node that the Machine
+                          hosts after the Machine is marked for deletion. A duration of 0 will retry deletion indefinitely.
+                          If no value is provided, the default value for this property of the Machine resource will be used.
+                        format: int32
+                        type: integer
+                      nodeDrainTimeoutSeconds:
+                        description: |-
+                          NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
+                          The default value is 0, meaning that the node can be drained without any time limitations.
+                          NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+                        format: int32
+                        type: integer
+                      nodeVolumeDetachTimeoutSeconds:
+                        description: |-
+                          nodeVolumeDetachTimeout is the total amount of time that the controller will spend on waiting for all volumes
+                          to be detached. The default value is 0, meaning that the volumes can be detached without any time limitations.
+                        format: int32
+                        type: integer
+                    type: object
                   infrastructureRef:
                     description: |-
                       InfrastructureRef is a required reference to a custom resource
@@ -1718,6 +1745,7 @@ spec:
                     description: |-
                       Standard object's metadata.
                       More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+                    minProperties: 1
                     properties:
                       annotations:
                         additionalProperties:
@@ -2696,10 +2724,16 @@ spec:
                   the bootstrap data script.
                 type: string
               failureMessage:
-                description: FailureMessage will be set on non-retryable errors.
+                description: |-
+                  FailureMessage will be set on non-retryable errors.
+
+                  Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please see https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more details.
                 type: string
               failureReason:
-                description: FailureReason will be set on non-retryable errors.
+                description: |-
+                  FailureReason will be set on non-retryable errors.
+
+                  Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please see https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more details.
                 type: string
               initialized:
                 description: Initialized indicates the target cluster has completed
@@ -2753,9 +2787,10 @@ spec:
                 format: int32
                 type: integer
               unavailableReplicas:
-                description: UnavailableReplicas is the number of replicas current
-                  attached to this ControlPlane Resource and that are up-to-date with
-                  Control Plane config.
+                description: |-
+                  UnavailableReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config.
+
+                  Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please see https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more details.
                 format: int32
                 type: integer
               updatedReplicas:
@@ -2764,6 +2799,97 @@ spec:
                   Plane config.
                 format: int32
                 type: integer
+              v1beta2:
+                description: |-
+                  v1Beta2 groups all the fields that will be added or modified in
+                  RKE2ControlPlane's status with the V1Beta2 version.
+                properties:
+                  availableReplicas:
+                    description: |-
+                      availableReplicas is the number of available replicas targeted by this
+                      RKE2ControlPlane. A machine is considered available when Machine's
+                      Available condition is true.
+                    format: int32
+                    type: integer
+                  conditions:
+                    description: |-
+                      conditions represents the observations of a RKE2ControlPlane's current state.
+                      Known condition types are Available, CertificatesAvailable,
+                      EtcdClusterAvailable, MachinesReady, MachinesUpToDate,
+                      ScalingUp, ScalingDown, Remediating, Deleting, Paused.
+                    items:
+                      description: Condition contains details for one aspect of the
+                        current state of this API Resource.
+                      properties:
+                        lastTransitionTime:
+                          description: |-
+                            lastTransitionTime is the last time the condition transitioned from one status to another.
+                            This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                          format: date-time
+                          type: string
+                        message:
+                          description: |-
+                            message is a human readable message indicating details about the transition.
+                            This may be an empty string.
+                          maxLength: 32768
+                          type: string
+                        observedGeneration:
+                          description: |-
+                            observedGeneration represents the .metadata.generation that the condition was set based upon.
+                            For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                            with respect to the current state of the instance.
+                          format: int64
+                          minimum: 0
+                          type: integer
+                        reason:
+                          description: |-
+                            reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                            Producers of specific condition types may define expected values and meanings for this field,
+                            and whether the values are considered a guaranteed API.
+                            The value should be a CamelCase string.
+                            This field may not be empty.
+                          maxLength: 1024
+                          minLength: 1
+                          pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                          type: string
+                        status:
+                          description: status of the condition, one of True, False,
+                            Unknown.
+                          enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                          type: string
+                        type:
+                          description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                          maxLength: 316
+                          pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                          type: string
+                      required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                      type: object
+                    maxItems: 32
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - type
+                    x-kubernetes-list-type: map
+                  readyReplicas:
+                    description: |-
+                      readyReplicas is the number of ready replicas for this RKE2ControlPlane.
+                      A machine is considered ready when Machine's Ready condition is true.
+                    format: int32
+                    type: integer
+                  upToDateReplicas:
+                    description: upToDateReplicas is the number of up-to-date replicas
+                      targeted by this RKE2ControlPlane. A machine is considered up-to-date
+                      when Machine's UpToDate condition is true.
+                    format: int32
+                    type: integer
+                type: object
               version:
                 description: |-
                   Version represents the minimum Kubernetes version for the control plane machines

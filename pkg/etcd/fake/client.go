@@ -60,7 +60,7 @@ func (c *FakeEtcdClient) AlarmList(_ context.Context) (*clientv3.AlarmResponse, 
 }
 
 // MemberList returnl a list of etcd members for the cluster.
-func (c *FakeEtcdClient) MemberList(_ context.Context) (*clientv3.MemberListResponse, error) {
+func (c *FakeEtcdClient) MemberList(_ context.Context, _ ...clientv3.OpOption) (*clientv3.MemberListResponse, error) {
 	return c.MemberListResponse, c.ErrorResponse
 }
 
