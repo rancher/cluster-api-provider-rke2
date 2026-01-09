@@ -176,6 +176,7 @@ generate-manifests-rke2-bootstrap: $(CONTROLLER_GEN) ## Generate manifests e.g. 
 		output:rbac:dir=./bootstrap/config/rbac \
 		output:webhook:dir=./bootstrap/config/webhook \
 		webhook
+	rm ./bootstrap/config/crd/bases/_.yaml # this is temporarily used to delete the empty yaml definition that's generated for the non-served api `v1beta2`. This should be remove when `v1beta2` is promoted
 
 .PHONY: generate-manifests-rke2-control-plane
 generate-manifests-rke2-control-plane: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc. for RKE2 control plane provider
