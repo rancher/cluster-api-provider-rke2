@@ -43,7 +43,8 @@ import (
 	"sigs.k8s.io/cluster-api/util/flags"
 
 	bootstrapv1alpha1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1alpha1"
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1beta1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/controllers"
 	controlplanev1alpha1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1alpha1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
@@ -79,6 +80,7 @@ func init() {
 	utilruntime.Must(controlplanev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
 	utilruntime.Must(clusterexpv1.AddToScheme(scheme))
+	utilruntime.Must(bootstrapv1beta1.AddToScheme(scheme))
 	utilruntime.Must(bootstrapv1.AddToScheme(scheme))
 	utilruntime.Must(bootstrapv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -229,12 +231,12 @@ func setupReconcilers(mgr ctrl.Manager) {
 }
 
 func setupWebhooks(mgr ctrl.Manager) {
-	if err := bootstrapv1.SetupRKE2ConfigTemplateWebhookWithManager(mgr); err != nil {
+	if err := bootstrapv1beta1.SetupRKE2ConfigTemplateWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ConfigTemplate")
 		os.Exit(1)
 	}
 
-	if err := bootstrapv1.SetupRKE2ConfigWebhookWithManager(mgr); err != nil {
+	if err := bootstrapv1beta1.SetupRKE2ConfigWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2Config")
 		os.Exit(1)
 	}
