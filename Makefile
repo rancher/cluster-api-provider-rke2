@@ -192,6 +192,7 @@ generate-manifests-rke2-control-plane: $(CONTROLLER_GEN) ## Generate manifests e
 		output:rbac:dir=./controlplane/config/rbac \
 		output:webhook:dir=./controlplane/config/webhook \
 		webhook
+	rm ./controlplane/config/crd/bases/_.yaml # this is temporarily used to delete the empty yaml definition that's generated for the non-served api `v1beta2`. This should be remove when `v1beta2` is promoted
 
 .PHONY: generate-go-deepcopy
 generate-go-deepcopy:  ## Run all generate-go-deepcopy-* targets
