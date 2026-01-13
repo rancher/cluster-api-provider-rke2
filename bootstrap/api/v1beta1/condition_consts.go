@@ -17,7 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1" // nolint:staticcheck
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 	// NOTE: When the DataSecret generation starts the process completes immediately and within the
 	// same reconciliation, so the user will always see a transition from Wait to Generated without having
 	// to wait for the next reconciliation.
-	DataSecretAvailableCondition clusterv1.ConditionType = "Available"
+	DataSecretAvailableCondition clusterv1beta1.ConditionType = "Available"
 )
 
 const (
@@ -44,7 +44,7 @@ const (
 
 const (
 	// CertificatesAvailableCondition documents the status of the certificates generation process.
-	CertificatesAvailableCondition clusterv1.ConditionType = "CertificatesAvailable"
+	CertificatesAvailableCondition clusterv1beta1.ConditionType = "CertificatesAvailable"
 
 	// CertificatesGenerationFailedReason documents a RKE2Config controller detecting
 	// an error while generating certificates; those kind of errors are usually due to misconfigurations

@@ -17,4 +17,6 @@ limitations under the License.
 // Package v1beta2 contains a v1beta2 api for bootstrap resources.
 //
 // +k8s:deepcopy-gen=package
+// +kubebuilder:object:generate=true
+// +groupName=bootstrap.cluster.x-k8s.io
 package v1beta2

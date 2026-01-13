@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition/butane"
 )

@@ -40,19 +40,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	kubeyaml "sigs.k8s.io/yaml"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterexpv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	v1beta1conditions "sigs.k8s.io/cluster-api/util/conditions/deprecated/v1beta1"
 	"sigs.k8s.io/cluster-api/util/patch"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/ignition/butane"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/locking"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
@@ -69,9 +69,10 @@ const (
 
 // RKE2ConfigReconciler reconciles a Rke2Config object.
 type RKE2ConfigReconciler struct {
-	RKE2InitLock RKE2InitLock
 	client.Client
-	Scheme *runtime.Scheme
+
+	RKE2InitLock RKE2InitLock
+	Scheme       *runtime.Scheme
 }
 
 const (
@@ -125,11 +126,33 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Attempt to Patch the RKE2Config object and status after each reconciliation if no error occurs.
 	defer func() {
-		conditions.SetSummary(scope.Config,
-			conditions.WithConditions(
-				bootstrapv1.DataSecretAvailableCondition,
+		v1beta1conditions.SetSummary(scope.Config,
+			v1beta1conditions.WithConditions(
+				bootstrapv1.DataSecretAvailableV1Beta1Condition,
+				bootstrapv1.CertificatesAvailableV1Beta1Condition,
 			),
 		)
+
+		if err := conditions.SetSummaryCondition(scope.Config, scope.Config, bootstrapv1.RKE2ConfigReadyCondition,
+			conditions.ForConditionTypes{
+				bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+				bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+			},
+			// Using a custom merge strategy to override reasons applied during merge and to ignore some
+			// info message so the ready condition aggregation in other resources is less noisy.
+			conditions.CustomMergeStrategy{
+				MergeStrategy: conditions.DefaultMergeStrategy(
+					// Use custom reasons.
+					conditions.ComputeReasonFunc(conditions.GetDefaultComputeMergeReasonFunc(
+						bootstrapv1.RKE2ConfigNotReadyReason,
+						bootstrapv1.RKE2ConfigReadyUnknownReason,
+						bootstrapv1.RKE2ConfigReadyReason,
+					)),
+				),
+			},
+		); err != nil {
+			rerr = kerrors.NewAggregate([]error{rerr, err})
+		}
 
 		patchOpts := []patch.Option{}
 		if rerr == nil {
@@ -141,43 +164,61 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 	}()
 
-	if !scope.Cluster.Status.InfrastructureReady {
+	if !ptr.Deref(scope.Cluster.Status.Initialization.InfrastructureProvisioned, false) {
 		logger.Info("Infrastructure machine not yet ready")
-		conditions.MarkFalse(
+		v1beta1conditions.MarkFalse(
 			scope.Config,
-			bootstrapv1.DataSecretAvailableCondition,
-			bootstrapv1.WaitingForClusterInfrastructureReason,
+			bootstrapv1.DataSecretAvailableV1Beta1Condition,
+			bootstrapv1.WaitingForClusterInfrastructureV1Beta1Reason,
 			clusterv1.ConditionSeverityInfo,
 			"")
+		conditions.Set(scope.Config, metav1.Condition{
+			Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  bootstrapv1.RKE2ConfigDataSecretNotAvailableReason,
+			Message: "Waiting for Cluster status.initialization.infrastructureProvisioned to be true",
+		})
 
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if scope.HasMachineOwner() {
-		if scope.Machine.Spec.Bootstrap.DataSecretName != nil &&
-			(!scope.Config.Status.Ready || scope.Config.Status.DataSecretName == nil) {
-			scope.Config.Status.Ready = true
+		dataSecretCreated := ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false)
+		if scope.Machine.Spec.Bootstrap.DataSecretName != nil && (!dataSecretCreated || scope.Config.Status.DataSecretName == nil) {
+			scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
 			scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
-			conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
+			conditions.Set(scope.Config, metav1.Condition{
+				Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+				Status:  metav1.ConditionTrue,
+				Reason:  bootstrapv1.RKE2ConfigDataSecretAvailableReason,
+				Message: "Bootstrap data secret is available and the corresponding RKE2Config has an owner machine",
+			})
 		}
 	}
 
 	if scope.HasMachinePoolOwner() {
 		if scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName != nil &&
-			(!scope.Config.Status.Ready || scope.Config.Status.DataSecretName == nil) {
-			scope.Config.Status.Ready = true
+			(!ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false) || scope.Config.Status.DataSecretName == nil) {
+			scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
 			scope.Config.Status.DataSecretName = scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName
-			conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
+			conditions.Set(scope.Config, metav1.Condition{
+				Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+				Status:  metav1.ConditionTrue,
+				Reason:  bootstrapv1.RKE2ConfigDataSecretAvailableReason,
+				Message: "Bootstrap data secret is available and the corresponding RKE2Config has an owner machine pool",
+			})
 		}
 	}
 	// Status is ready means a config has been generated.
-	if scope.Config.Status.Ready {
+	if ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false) {
 		// In any other case just return as the config is already generated and need not be generated again.
 		return ctrl.Result{}, nil
 	}
 
 	// Note: can't use IsFalse here because we need to handle the absence of the condition as well as false.
-	if !conditions.IsTrue(scope.Cluster, clusterv1.ControlPlaneInitializedCondition) {
+	if !conditions.IsTrue(scope.Cluster, clusterv1.ClusterControlPlaneInitializedCondition) {
 		return r.handleClusterNotInitialized(ctx, scope)
 	}
 
@@ -194,7 +235,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	wkControlPlane := controlplanev1.RKE2ControlPlane{}
 
 	err = r.Get(ctx, types.NamespacedName{
-		Namespace: scope.Cluster.Spec.ControlPlaneRef.Namespace,
+		Namespace: scope.Cluster.Namespace,
 		Name:      scope.Cluster.Spec.ControlPlaneRef.Name,
 	}, &wkControlPlane)
 	if err != nil {
@@ -230,7 +271,7 @@ func (r *RKE2ConfigReconciler) SetupWithManager(mgr ctrl.Manager, concurrency in
 
 	if feature.Gates.Enabled(feature.MachinePool) {
 		builder = builder.Watches(
-			&clusterexpv1.MachinePool{},
+			&clusterv1.MachinePool{},
 			handler.EnqueueRequestsFromMapFunc(r.MachinePoolToBootstrapMapFunc),
 		)
 	}
@@ -248,7 +289,7 @@ func (r *RKE2ConfigReconciler) MachineToBootstrapMapFunc(_ context.Context, o cl
 
 	result := []ctrl.Request{}
 
-	if m.Spec.Bootstrap.ConfigRef != nil && m.Spec.Bootstrap.ConfigRef.GroupVersionKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config") {
+	if m.Spec.Bootstrap.ConfigRef.IsDefined() && m.Spec.Bootstrap.ConfigRef.GroupKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config").GroupKind() {
 		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Bootstrap.ConfigRef.Name}
 		result = append(result, ctrl.Request{NamespacedName: name})
 	}
@@ -259,7 +300,7 @@ func (r *RKE2ConfigReconciler) MachineToBootstrapMapFunc(_ context.Context, o cl
 // MachinePoolToBootstrapMapFunc is a handler.ToRequestsFunc to be used to enqueue
 // request for reconciliation of RKE2Config.
 func (r *RKE2ConfigReconciler) MachinePoolToBootstrapMapFunc(_ context.Context, o client.Object) []ctrl.Request {
-	m, ok := o.(*clusterexpv1.MachinePool)
+	m, ok := o.(*clusterv1.MachinePool)
 	if !ok {
 		panic(fmt.Sprintf("Expected a Machine but got a %T", o))
 	}
@@ -268,7 +309,7 @@ func (r *RKE2ConfigReconciler) MachinePoolToBootstrapMapFunc(_ context.Context, 
 
 	spec := m.Spec.Template.Spec
 
-	if spec.Bootstrap.ConfigRef != nil && spec.Bootstrap.ConfigRef.GroupVersionKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config") {
+	if spec.Bootstrap.ConfigRef.IsDefined() && spec.Bootstrap.ConfigRef.GroupKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config").GroupKind() {
 		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Template.Spec.Bootstrap.ConfigRef.Name}
 		result = append(result, ctrl.Request{NamespacedName: name})
 	}
@@ -299,7 +340,7 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 	}
 
 	for _, machine := range machineList.Items {
-		if machine.Spec.Bootstrap.ConfigRef != nil {
+		if machine.Spec.Bootstrap.ConfigRef.IsDefined() {
 			if machine.Spec.Bootstrap.ConfigRef.Kind == "RKE2Config" {
 				result = append(result, ctrl.Request{NamespacedName: types.NamespacedName{
 					Namespace: machine.Namespace,
@@ -310,13 +351,13 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 	}
 
 	if feature.Gates.Enabled(feature.MachinePool) {
-		machinePoolList := &clusterexpv1.MachinePoolList{}
+		machinePoolList := &clusterv1.MachinePoolList{}
 		if err := r.List(ctx, machinePoolList, selectors...); err != nil {
 			return nil
 		}
 
 		for _, machinePool := range machinePoolList.Items {
-			if machinePool.Spec.Template.Spec.Bootstrap.ConfigRef != nil {
+			if machinePool.Spec.Template.Spec.Bootstrap.ConfigRef.IsDefined() {
 				if machinePool.Spec.Template.Spec.Bootstrap.ConfigRef.Kind == "RKE2Config" {
 					result = append(result, ctrl.Request{NamespacedName: types.NamespacedName{
 						Namespace: machinePool.Namespace,
@@ -363,24 +404,36 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		util.ObjectKey(scope.Cluster),
 		*metav1.NewControllerRef(scope.Config, bootstrapv1.GroupVersion.WithKind("RKE2Config")),
 	); err != nil {
-		conditions.MarkFalse(
+		v1beta1conditions.MarkFalse(
 			scope.Config,
-			bootstrapv1.CertificatesAvailableCondition,
-			bootstrapv1.CertificatesGenerationFailedReason,
+			bootstrapv1.CertificatesAvailableV1Beta1Condition,
+			bootstrapv1.CertificatesGenerationFailedV1Beta1Reason,
 			clusterv1.ConditionSeverityWarning,
 			"%s", err.Error())
+		conditions.Set(scope.Config, metav1.Condition{
+			Type:    bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  bootstrapv1.RKE2ConfigCertificatesAvailableInternalErrorReason,
+			Message: "Failed to generate or retrieve certificate: check controller log for errors",
+		})
 
 		return ctrl.Result{}, err
 	}
 
-	conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableCondition)
+	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
+	conditions.Set(scope.Config, metav1.Condition{
+		Type:    bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  bootstrapv1.RKE2ConfigCertificatesAvailableReason,
+		Message: "Failed to generate or retrieve certificate: check controller log for errors",
+	})
 
 	// RKE2 server token must only be generated once, so all nodes join the cluster with the same registration token.
 	var token string
 
 	tokenName := bsutil.TokenName(scope.Cluster.Name)
-	token, err := r.generateAndStoreToken(ctx, scope, tokenName)
 
+	token, err := r.generateAndStoreToken(ctx, scope, tokenName)
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			scope.Logger.Error(err, "unable to generate and store an RKE2 server token")
@@ -428,6 +481,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	}
 
 	var buf bytes.Buffer
+
 	yamlEncoder := yaml.NewEncoder(&buf)
 	yamlEncoder.SetIndent(2)
 
@@ -672,6 +726,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	}
 
 	var buf bytes.Buffer
+
 	yamlEncoder := yaml.NewEncoder(&buf)
 	yamlEncoder.SetIndent(2)
 
@@ -811,6 +866,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	}
 
 	var buf bytes.Buffer
+
 	yamlEncoder := yaml.NewEncoder(&buf)
 	yamlEncoder.SetIndent(2)
 
@@ -937,6 +993,7 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Scope, data []byte) error {
 	if scope.Config.Spec.GzipUserData != nil && *scope.Config.Spec.GzipUserData {
 		var buf bytes.Buffer
+
 		gz := gzip.NewWriter(&buf)
 
 		if _, err := gz.Write(data); err != nil {
@@ -988,9 +1045,15 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 	}
 
 	scope.Config.Status.DataSecretName = ptr.To(secret.Name)
-	scope.Config.Status.Ready = true
+	scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
 
-	conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableCondition)
+	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
+	conditions.Set(scope.Config, metav1.Condition{
+		Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  bootstrapv1.RKE2ConfigDataSecretAvailableReason,
+		Message: "Bootstrap data secret is available",
+	})
 
 	return nil
 }

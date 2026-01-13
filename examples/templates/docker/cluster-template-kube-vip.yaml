@@ -21,7 +21,7 @@ spec:
     host: "${REGISTRATION_VIP}"
     port: 6443
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
@@ -39,7 +39,7 @@ spec:
     customHAProxyConfigTemplateRef:
       name: ${CLUSTER_NAME}-lb-config
 ---
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane

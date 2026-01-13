@@ -27,6 +27,10 @@ type RKE2ConfigTemplateSpec struct {
 	Template RKE2ConfigTemplateResource `json:"template"`
 }
 
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+
 // RKE2ConfigTemplate is the Schema for the RKE2configtemplates API.
 type RKE2ConfigTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -35,6 +39,8 @@ type RKE2ConfigTemplate struct {
 	// Spec details the RKE2ConfigTemplate specification.
 	Spec RKE2ConfigTemplateSpec `json:"spec"`
 }
+
+//+kubebuilder:object:root=true
 
 // RKE2ConfigTemplateList contains a list of RKE2ConfigTemplate.
 type RKE2ConfigTemplateList struct {

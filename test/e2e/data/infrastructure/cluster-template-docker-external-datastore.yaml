@@ -64,7 +64,7 @@ metadata:
   name: ${CLUSTER_NAME}-lb-config
   namespace: ${NAMESPACE}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster 
 metadata:
   name: ${CLUSTER_NAME} 
@@ -79,15 +79,15 @@ spec:
       - 10.46.0.0/16
     serviceDomain: cluster.local
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    apiGroup: controlplane.cluster.x-k8s.io
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: DockerCluster
     name: ${CLUSTER_NAME}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerCluster
 metadata:
   name: ${CLUSTER_NAME}
@@ -97,7 +97,7 @@ spec:
     customHAProxyConfigTemplateRef:
       name: ${CLUSTER_NAME}-lb-config
 ---
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
@@ -136,11 +136,13 @@ spec:
     metadata:
       labels:
         key: value
-    infrastructureRef:
-      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      kind: DockerMachineTemplate
-      name: "${CLUSTER_NAME}-control-plane"
-    nodeDrainTimeout: 30s
+    spec:
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: DockerMachineTemplate
+        name: "${CLUSTER_NAME}-control-plane"
+      deletion:
+        nodeDrainTimeoutSeconds: 30
   preRKE2Commands:
   - touch /pre-rke2-command.sentinel
   postRKE2Commands:
@@ -151,7 +153,7 @@ spec:
     path: /control-plane-file.sentinel
     permissions: "0755"   
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate
 metadata:
   name:  "${CLUSTER_NAME}-control-plane"
@@ -164,7 +166,7 @@ spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -181,15 +183,15 @@ spec:
       clusterName: ${CLUSTER_NAME}
       bootstrap:
         configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: RKE2ConfigTemplate
           name: ${CLUSTER_NAME}-md-0
       infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: DockerMachineTemplate
         name: ${CLUSTER_NAME}-md-0
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -202,7 +204,7 @@ spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0

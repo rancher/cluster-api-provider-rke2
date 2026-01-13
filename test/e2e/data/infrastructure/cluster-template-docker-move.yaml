@@ -65,7 +65,7 @@ metadata:
   labels:
     clusterctl.cluster.x-k8s.io/move: "true"
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster 
 metadata:
   name: ${CLUSTER_NAME} 
@@ -79,15 +79,15 @@ spec:
       - 10.46.0.0/16
     serviceDomain: cluster.local
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
     kind: DockerCluster
     name: ${CLUSTER_NAME}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerCluster
 metadata:
   name: ${CLUSTER_NAME}
@@ -96,7 +96,7 @@ spec:
     customHAProxyConfigTemplateRef:
       name: ${CLUSTER_NAME}-lb-config
 ---
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
@@ -125,13 +125,15 @@ spec:
       extraArgs:
       - --anonymous-auth=true
   machineTemplate:
-    infrastructureRef:
-      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      kind: DockerMachineTemplate
-      name: "${CLUSTER_NAME}-control-plane"
-    nodeDrainTimeout: 30s
+    spec:
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: DockerMachineTemplate
+        name: "${CLUSTER_NAME}-control-plane"
+      deletion:
+        nodeDrainTimeoutSeconds: 30
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate
 metadata:
   name:  "${CLUSTER_NAME}-control-plane"
@@ -148,7 +150,7 @@ spec:
       - containerPath: "/var/lib/rancher/rke2/agent/images"
         hostPath: "${LOCAL_IMAGES}"
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -164,15 +166,15 @@ spec:
       clusterName: ${CLUSTER_NAME}
       bootstrap:
         configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
           kind: RKE2ConfigTemplate
           name: ${CLUSTER_NAME}-md-0
       infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
         kind: DockerMachineTemplate
         name: ${CLUSTER_NAME}-md-0
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -189,7 +191,7 @@ spec:
       - containerPath: "/var/lib/rancher/rke2/agent/images"
         hostPath: "${LOCAL_IMAGES}"
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0

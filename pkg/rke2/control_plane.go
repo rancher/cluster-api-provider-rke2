@@ -24,26 +24,25 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/collections"
-	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	capifd "sigs.k8s.io/cluster-api/util/failuredomains"
 	"sigs.k8s.io/cluster-api/util/patch"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 )
 
 // ControlPlane holds business logic around control planes.
@@ -89,7 +88,7 @@ func NewControlPlane(
 	for name, machine := range ownedMachines {
 		patchHelper, err := patch.NewHelper(machine, client)
 		if err != nil {
-			if machine.Status.NodeRef != nil {
+			if machine.Status.NodeRef.IsDefined() {
 				_ = machine.Status.NodeRef.Name
 			}
 
@@ -117,24 +116,32 @@ func (c *ControlPlane) Logger() logr.Logger {
 }
 
 // FailureDomains returns a slice of failure domain objects synced from the infrastructure provider into Cluster.Status.
-func (c *ControlPlane) FailureDomains() clusterv1.FailureDomains {
+func (c *ControlPlane) FailureDomains() []clusterv1.FailureDomain {
 	if c.Cluster.Status.FailureDomains == nil {
-		return clusterv1.FailureDomains{}
+		return nil
 	}
 
-	return c.Cluster.Status.FailureDomains
+	var res []clusterv1.FailureDomain
+
+	for _, spec := range c.Cluster.Status.FailureDomains {
+		if ptr.Deref(spec.ControlPlane, false) {
+			res = append(res, spec)
+		}
+	}
+
+	return res
 }
 
 // Version returns the RKE2ControlPlane's version.
-func (c *ControlPlane) Version() *string {
+func (c *ControlPlane) Version() string {
 	version := c.RCP.GetDesiredVersion()
 
-	return &version
+	return version
 }
 
 // InfrastructureRef returns the RKE2ControlPlane's infrastructure template.
-func (c *ControlPlane) InfrastructureRef() *corev1.ObjectReference {
-	return &c.RCP.Spec.MachineTemplate.InfrastructureRef
+func (c *ControlPlane) InfrastructureRef() clusterv1.ContractVersionedObjectReference {
+	return c.RCP.Spec.MachineTemplate.Spec.InfrastructureRef
 }
 
 // AsOwnerReference returns an owner reference to the RKE2ControlPlane.
@@ -170,10 +177,10 @@ func (c *ControlPlane) MachineWithDeleteAnnotation(machines collections.Machines
 
 // FailureDomainWithMostMachines returns a fd which exists both in machines and control-plane machines and has the most
 // control-plane machines on it.
-func (c *ControlPlane) FailureDomainWithMostMachines(ctx context.Context, machines collections.Machines) *string {
+func (c *ControlPlane) FailureDomainWithMostMachines(ctx context.Context, machines collections.Machines) string {
 	// See if there are any Machines that are not in currently defined failure domains first.
 	notInFailureDomains := machines.Filter(
-		collections.Not(collections.InFailureDomains(c.FailureDomains().FilterControlPlane().GetIDs()...)),
+		collections.Not(collections.InFailureDomains(getFailureDomainIDs(c.FailureDomains())...)),
 	)
 	if len(notInFailureDomains) > 0 {
 		// return the failure domain for the oldest Machine not in the current list of failure domains
@@ -182,16 +189,25 @@ func (c *ControlPlane) FailureDomainWithMostMachines(ctx context.Context, machin
 		return notInFailureDomains.Oldest().Spec.FailureDomain
 	}
 
-	return capifd.PickMost(ctx, c.Cluster.Status.FailureDomains.FilterControlPlane(), c.Machines, machines)
+	return capifd.PickMost(ctx, c.FailureDomains(), c.Machines, machines)
 }
 
 // NextFailureDomainForScaleUp returns the failure domain with the fewest number of up-to-date machines.
-func (c *ControlPlane) NextFailureDomainForScaleUp(ctx context.Context) *string {
-	if len(c.Cluster.Status.FailureDomains.FilterControlPlane()) == 0 {
-		return nil
+func (c *ControlPlane) NextFailureDomainForScaleUp(ctx context.Context) (string, error) {
+	if len(c.FailureDomains()) == 0 {
+		return "", nil
 	}
 
-	return capifd.PickFewest(ctx, c.FailureDomains().FilterControlPlane(), c.Machines, c.UpToDateMachines(ctx))
+	return capifd.PickFewest(ctx, c.FailureDomains(), c.Machines, c.UpToDateMachines(ctx).Filter(collections.Not(collections.HasDeletionTimestamp))), nil
+}
+
+func getFailureDomainIDs(failureDomains []clusterv1.FailureDomain) []string {
+	ids := make([]string, 0, len(failureDomains))
+	for _, fd := range failureDomains {
+		ids = append(ids, fd.Name)
+	}
+
+	return ids
 }
 
 // InitialControlPlaneConfig returns a new RKE2ConfigSpec that is to be used for an initializing control plane.
@@ -242,7 +258,7 @@ func ControlPlaneLabelsForCluster(clusterName string) map[string]string {
 }
 
 // NewMachine returns a machine configured to be a part of the control plane.
-func (c *ControlPlane) NewMachine(infraRef, bootstrapRef *corev1.ObjectReference, failureDomain *string) *clusterv1.Machine {
+func (c *ControlPlane) NewMachine(infraRef, bootstrapRef clusterv1.ContractVersionedObjectReference, failureDomain string) *clusterv1.Machine {
 	return &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.SimpleNameGenerator.GenerateName(c.RCP.Name + "-"),
@@ -255,14 +271,16 @@ func (c *ControlPlane) NewMachine(infraRef, bootstrapRef *corev1.ObjectReference
 		Spec: clusterv1.MachineSpec{
 			ClusterName:       c.Cluster.Name,
 			Version:           c.Version(),
-			InfrastructureRef: *infraRef,
+			InfrastructureRef: infraRef,
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
-			FailureDomain:           failureDomain,
-			NodeDrainTimeout:        c.RCP.Spec.MachineTemplate.NodeDrainTimeout,
-			NodeVolumeDetachTimeout: c.RCP.Spec.MachineTemplate.NodeVolumeDetachTimeout,
-			NodeDeletionTimeout:     c.RCP.Spec.MachineTemplate.NodeDeletionTimeout,
+			FailureDomain: failureDomain,
+			Deletion: clusterv1.MachineDeletionSpec{
+				NodeDrainTimeoutSeconds:        c.RCP.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds,
+				NodeVolumeDetachTimeoutSeconds: c.RCP.Spec.MachineTemplate.Spec.Deletion.NodeVolumeDetachTimeoutSeconds,
+				NodeDeletionTimeoutSeconds:     c.RCP.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds,
+			},
 		},
 	}
 }
@@ -331,7 +349,7 @@ func GetInfraResources(ctx context.Context, cl client.Client, machines collectio
 	result := map[string]*unstructured.Unstructured{}
 
 	for _, m := range machines {
-		infraObj, err := external.Get(ctx, cl, &m.Spec.InfrastructureRef)
+		infraObj, err := external.GetObjectFromContractVersionedRef(ctx, cl, m.Spec.InfrastructureRef, m.Namespace)
 		if err != nil {
 			if apierrors.IsNotFound(errors.Cause(err)) {
 				continue
@@ -352,7 +370,7 @@ func GetRKE2Configs(ctx context.Context, cl client.Client, machines collections.
 
 	for name, m := range machines {
 		bootstrapRef := m.Spec.Bootstrap.ConfigRef
-		if bootstrapRef == nil {
+		if !bootstrapRef.IsDefined() {
 			continue
 		}
 
@@ -363,7 +381,7 @@ func GetRKE2Configs(ctx context.Context, cl client.Client, machines collections.
 				continue
 			}
 
-			if m.Status.NodeRef != nil {
+			if m.Status.NodeRef.IsDefined() {
 				name = m.Status.NodeRef.Name
 			}
 
@@ -408,12 +426,17 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 	for name := range c.Machines {
 		machine := c.Machines[name]
 		if helper, ok := c.machinesPatchHelpers[name]; ok {
-			if err := helper.Patch(ctx, machine, patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
-				controlplanev1.MachineAgentHealthyCondition,
-				controlplanev1.MachineEtcdMemberHealthyCondition,
-				controlplanev1.NodeMetadataUpToDate,
-			}}); err != nil {
-				if machine.Status.NodeRef != nil {
+			if err := helper.Patch(ctx, machine, patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
+				controlplanev1.MachineAgentHealthyV1Beta1Condition,
+				controlplanev1.MachineEtcdMemberHealthyV1Beta1Condition,
+				controlplanev1.NodeMetadataUpToDateV1Beta1Condition,
+			}}, patch.WithOwnedConditions{Conditions: []string{
+				controlplanev1.RKE2ControlPlaneMachineAgentHealthyCondition,
+				controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
+				controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition,
+			}},
+			); err != nil {
+				if machine.Status.NodeRef.IsDefined() {
 					_ = machine.Status.NodeRef.Name
 				}
 
@@ -423,7 +446,7 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 			continue
 		}
 
-		if machine.Status.NodeRef != nil {
+		if machine.Status.NodeRef.IsDefined() {
 			name = machine.Status.NodeRef.Name
 		}
 
@@ -489,28 +512,22 @@ func (c *ControlPlane) SetPatchHelpers(patchHelpers map[string]*patch.Helper) {
 // ReconcileExternalReference reconciles Cluster ownership on (Infra)MachineTemplates.
 func (c *ControlPlane) ReconcileExternalReference(ctx context.Context, cl client.Client) error {
 	logger := log.FromContext(ctx)
-	ref := &c.RCP.Spec.MachineTemplate.InfrastructureRef
 
+	ref := c.RCP.Spec.MachineTemplate.Spec.InfrastructureRef
 	if !strings.HasSuffix(ref.Kind, clusterv1.TemplateSuffix) {
 		return nil
 	}
 
-	if err := utilconversion.UpdateReferenceAPIContract(ctx, cl, ref); err != nil {
-		return fmt.Errorf("updating reference API contract: %w", err)
-	}
-
-	obj, err := external.Get(ctx, cl, ref)
+	obj, err := external.GetObjectFromContractVersionedRef(ctx, cl, ref, c.RCP.Namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info(fmt.Sprintf("Could not find external object %s %s/%s.",
 				obj.GroupVersionKind().Kind,
 				obj.GetNamespace(),
 				obj.GetName()))
-
-			return nil
 		}
 
-		return fmt.Errorf("getting external object: %w", err)
+		return err
 	}
 
 	// Note: We intentionally do not handle checking for the paused label on an external template reference

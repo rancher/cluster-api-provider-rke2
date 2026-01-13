@@ -50,7 +50,7 @@ var _ = Describe("Provider upgrade", func() {
 		Expect(e2eConfig).ToNot(BeNil(), "Invalid argument. e2eConfig can't be nil when calling %s spec", specName)
 		Expect(clusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. clusterctlConfigPath must be an existing file when calling %s spec", specName)
 		Expect(bootstrapClusterProxy).ToNot(BeNil(), "Invalid argument. bootstrapClusterProxy can't be nil when calling %s spec", specName)
-		Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
+		Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 
@@ -88,7 +88,7 @@ var _ = Describe("Provider upgrade", func() {
 
 	Context("Creating a single control-plane cluster", func() {
 		It("Should create a cluster with v0.21.0 and perform upgrade to latest version", func() {
-			By("Installing v0.21.0 boostrap/controlplane provider version")
+			By("Installing v0.21.0 bootstrap/controlplane provider version")
 			initUpgradableBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
 			By("Initializing the cluster")
@@ -99,7 +99,7 @@ var _ = Describe("Provider upgrade", func() {
 					ClusterctlConfigPath:     clusterctlConfigPath,
 					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
 					InfrastructureProvider:   "docker",
-					Flavor:                   "docker",
+					Flavor:                   "docker-v1beta1",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
 					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
@@ -131,7 +131,7 @@ var _ = Describe("Provider upgrade", func() {
 			})
 			Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
 
-			By("Upgrading to next boostrap/controlplane provider version")
+			By("Upgrading to next bootstrap/controlplane provider version")
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:          bootstrapClusterProxy,
 				ClusterctlConfigPath:  clusterctlConfigPath,
@@ -165,7 +165,7 @@ var _ = Describe("Provider upgrade", func() {
 					ClusterctlConfigPath:     clusterctlConfigPath,
 					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
 					InfrastructureProvider:   "docker",
-					Flavor:                   "docker",
+					Flavor:                   "docker-v1beta1",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
 					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
@@ -190,7 +190,7 @@ var _ = Describe("Provider upgrade", func() {
 					ClusterctlConfigPath:     clusterctlConfigPath,
 					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
 					InfrastructureProvider:   "docker",
-					Flavor:                   "docker",
+					Flavor:                   "docker-v1beta1",
 					Namespace:                namespace.Name,
 					ClusterName:              clusterName,
 					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo),

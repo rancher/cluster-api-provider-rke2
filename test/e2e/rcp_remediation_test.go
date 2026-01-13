@@ -30,15 +30,13 @@ import (
 )
 
 var _ = Describe("When testing RCP remediation", func() {
-	var (
-		specName = "kcp-remediation"
-	)
+	specName := "kcp-remediation"
 
 	BeforeEach(func() {
 		Expect(e2eConfig).ToNot(BeNil(), "Invalid argument. e2eConfig can't be nil when calling %s spec", specName)
 		Expect(clusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. clusterctlConfigPath must be an existing file when calling %s spec", specName)
 		Expect(bootstrapClusterProxy).ToNot(BeNil(), "Invalid argument. bootstrapClusterProxy can't be nil when calling %s spec", specName)
-		Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
+		Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 
@@ -57,7 +55,7 @@ var _ = Describe("When testing RCP remediation", func() {
 			BootstrapClusterProxy:  bootstrapClusterProxy,
 			ArtifactFolder:         artifactFolder,
 			SkipCleanup:            skipCleanup,
-			InfrastructureProvider: ptr.To("docker:v1.10.5"),
+			InfrastructureProvider: ptr.To("docker:v1.11.4"),
 			Flavor:                 ptr.To("kcp-remediation"),
 		}
 	})

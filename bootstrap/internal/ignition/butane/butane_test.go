@@ -26,7 +26,7 @@ import (
 
 	ignition "github.com/coreos/ignition/v2/config/v3_3"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 )
 
@@ -176,6 +176,5 @@ version: 1.0.0
 		Expect(ign.Ignition.Version).To(Equal("3.3.0"))
 
 		Expect(ign.Storage.Filesystems).To(HaveLen(0))
-
 	})
 })

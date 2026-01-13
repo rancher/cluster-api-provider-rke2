@@ -158,8 +158,7 @@ ALL_GENERATE_MODULES = rke2-bootstrap rke2-control-plane
 
 .PHONY: generate
 generate: ## Run all generate-manifests-*, generate-go-deepcopy-* targets
-	# TODO: enable generate-go-conversions once v1beta2 is available and served.
-	$(MAKE) generate-modules generate-manifests generate-go-deepcopy # generate-go-conversions -> remove this temporarily as there's only one version available after deprecating v1alpha1.
+	$(MAKE) generate-modules generate-manifests generate-go-deepcopy generate-go-conversions
 
 .PHONY: generate-manifests
 generate-manifests: $(addprefix generate-manifests-,$(ALL_GENERATE_MODULES)) ## Run all generate-manifests-* targets
@@ -177,7 +176,6 @@ generate-manifests-rke2-bootstrap: $(CONTROLLER_GEN) ## Generate manifests e.g. 
 		output:rbac:dir=./bootstrap/config/rbac \
 		output:webhook:dir=./bootstrap/config/webhook \
 		webhook
-	rm ./bootstrap/config/crd/bases/_.yaml # this is temporarily used to delete the empty yaml definition that's generated for the non-served api `v1beta2`. This should be remove when `v1beta2` is promoted
 
 .PHONY: generate-manifests-rke2-control-plane
 generate-manifests-rke2-control-plane: $(CONTROLLER_GEN) ## Generate manifests e.g. CRD, RBAC etc. for RKE2 control plane provider
@@ -193,7 +191,6 @@ generate-manifests-rke2-control-plane: $(CONTROLLER_GEN) ## Generate manifests e
 		output:rbac:dir=./controlplane/config/rbac \
 		output:webhook:dir=./controlplane/config/webhook \
 		webhook
-	rm ./controlplane/config/crd/bases/_.yaml # this is temporarily used to delete the empty yaml definition that's generated for the non-served api `v1beta2`. This should be remove when `v1beta2` is promoted
 
 .PHONY: generate-go-deepcopy
 generate-go-deepcopy:  ## Run all generate-go-deepcopy-* targets
@@ -220,19 +217,19 @@ generate-go-conversions: ## Run all generate-go-conversions-* targets
 
 .PHONY: generate-go-conversions-rke2-bootstrap
 generate-go-conversions-rke2-bootstrap: $(CONVERSION_GEN) ## Generate conversions go code for the rke2 bootstrap
-	$(MAKE) clean-generated-conversions SRC_DIRS="./bootstrap/api/v1alpha1"
+	$(MAKE) clean-generated-conversions SRC_DIRS="./bootstrap/api/v1beta1"
 	$(CONVERSION_GEN) \
 		--output-file=zz_generated.conversion.go $(ROOT_DIR)/$(CAPBPR_DIR) \
 		--go-header-file=./hack/boilerplate.go.txt \
-		./bootstrap/api/v1alpha1
+		./bootstrap/api/v1beta1
 
 .PHONY: generate-go-conversions-rke2-control-plane
 generate-go-conversions-rke2-control-plane: $(CONVERSION_GEN) ## Generate conversions go code for the rke2 control plane
-	$(MAKE) clean-generated-conversions SRC_DIRS="./controlplane/api/v1alpha1"
+	$(MAKE) clean-generated-conversions SRC_DIRS="./controlplane/api/v1beta1"
 	$(CONVERSION_GEN) \
 		--output-file=zz_generated.conversion.go $(ROOT_DIR)/$(CAPRKE2_DIR) \
 		--go-header-file=./hack/boilerplate.go.txt \
-		./controlplane/api/v1alpha1
+		./controlplane/api/v1beta1
 
 .PHONY: generate-modules
 generate-modules: ## Run go mod tidy to ensure modules are up to date

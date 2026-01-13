@@ -22,9 +22,9 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/collections"
 )
 

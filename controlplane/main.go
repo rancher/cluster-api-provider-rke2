@@ -30,6 +30,7 @@ import (
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	klog "k8s.io/klog/v2"
@@ -38,11 +39,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/flags"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1beta1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1beta1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/controllers"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
 	"github.com/rancher/cluster-api-provider-rke2/version"
@@ -73,10 +76,11 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(clusterv1.AddToScheme(scheme))
 	utilruntime.Must(controlplanev1.AddToScheme(scheme))
+	utilruntime.Must(controlplanev1beta1.AddToScheme(scheme))
 	utilruntime.Must(bootstrapv1.AddToScheme(scheme))
+	utilruntime.Must(bootstrapv1beta1.AddToScheme(scheme))
+	utilruntime.Must(clusterv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 } //nolint:wsl
 
@@ -250,6 +254,19 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 }
 
 func setupWebhooks(mgr ctrl.Manager) {
+	// Setup the func to retrieve apiVersion for a GroupKind for conversion webhooks.
+	apiVersionGetter := func(gk schema.GroupKind) (string, error) {
+		// CAPI's util function for fetching apiVersions `contract.GetAPIVersion` is now internal,
+		// so we use a RESTMapper instead.
+		mapping, err := mgr.GetRESTMapper().RESTMapping(gk)
+		if err != nil {
+			return "", err
+		}
+
+		return mapping.GroupVersionKind.GroupVersion().String(), nil
+	}
+	controlplanev1beta1.SetAPIVersionGetter(apiVersionGetter)
+
 	if err := controlplanev1.SetupRKE2ControlPlaneTemplateWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RKE2ControlPlaneTemplate")
 		os.Exit(1)

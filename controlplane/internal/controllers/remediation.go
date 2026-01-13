@@ -31,13 +31,14 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	v1beta1conditions "sigs.k8s.io/cluster-api/util/conditions/deprecated/v1beta1"
 	"sigs.k8s.io/cluster-api/util/patch"
 
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 )
 
@@ -77,7 +78,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 		conditions.Delete(m, clusterv1.MachineOwnerRemediatedCondition)
 
-		if err := patchHelper.Patch(ctx, m, patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
+		if err := patchHelper.Patch(ctx, m, patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
 			clusterv1.MachineOwnerRemediatedCondition,
 		}}); err != nil {
 			errList = append(errList, errors.Wrapf(err, "failed to patch machine %s", m.Name))
@@ -113,7 +114,9 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		return ctrl.Result{}, nil
 	}
 
-	log = log.WithValues("Machine", klog.KObj(machineToBeRemediated), "initialized", controlPlane.RCP.Status.Initialized)
+	log = log.WithValues("Machine",
+		klog.KObj(machineToBeRemediated),
+		"initialized", ptr.Deref(controlPlane.RCP.Status.Initialization.ControlPlaneInitialized, false))
 
 	// Returns if another remediation is in progress but the new Machine is not yet created.
 	// Note: This condition is checked after we check for machines to be remediated and if machineToBeRemediated
@@ -154,7 +157,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 	defer func() {
 		// Always attempt to Patch the Machine conditions after each reconcileUnhealthyMachines.
-		if err := patchHelper.Patch(ctx, machineToBeRemediated, patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
+		if err := patchHelper.Patch(ctx, machineToBeRemediated, patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
 			clusterv1.MachineOwnerRemediatedCondition,
 		}}); err != nil {
 			log.Error(err, "Failed to patch control plane Machine", "Machine", machineToBeRemediated.Name)
@@ -184,17 +187,17 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	// Executes checks that apply only if the control plane is already initialized; in this case RKE2ControlPlane can
 	// remediate only if it can safely assume that the operation preserves the operation state of the
 	// existing cluster (or at least it doesn't make it worse).
-	if controlPlane.RCP.Status.Initialized {
+	if ptr.Deref(controlPlane.RCP.Status.Initialization.ControlPlaneInitialized, false) {
 		// The cluster MUST have more than one replica, because this is the smallest cluster size that allows any etcd failure tolerance.
 		if controlPlane.Machines.Len() <= 1 {
 			log.Info(
 				"A control plane machine needs remediation, but the number of current replicas is less or equal to 1. Skipping remediation",
 				"replicas", controlPlane.Machines.Len(),
 			)
-			conditions.MarkFalse(
+			v1beta1conditions.MarkFalse(
 				machineToBeRemediated,
 				clusterv1.MachineOwnerRemediatedCondition,
-				clusterv1.WaitingForRemediationReason,
+				clusterv1.WaitingForRemediationV1Beta1Reason,
 				clusterv1.ConditionSeverityWarning,
 				"RKE2ControlPlane can't remediate if current replicas are less or equal to 1",
 			)
@@ -206,10 +209,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		// This rule prevents RKE2ControlPlane taking actions while the cluster is in a transitional state.
 		if controlPlane.HasHealthyMachineStillProvisioning() {
 			log.Info("A control plane machine needs remediation, but there are other control-plane machines being provisioned. Skipping remediation")
-			conditions.MarkFalse(
+			v1beta1conditions.MarkFalse(
 				machineToBeRemediated,
 				clusterv1.MachineOwnerRemediatedCondition,
-				clusterv1.WaitingForRemediationReason,
+				clusterv1.WaitingForRemediationV1Beta1Reason,
 				clusterv1.ConditionSeverityWarning,
 				"RKE2ControlPlane waiting for control plane machine provisioning to complete before triggering remediation",
 			)
@@ -220,10 +223,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		// The cluster MUST have no machines with a deletion timestamp. This rule prevents RKE2ControlPlane taking actions while the cluster is in a transitional state.
 		if controlPlane.HasDeletingMachine() {
 			log.Info("A control plane machine needs remediation, but there are other control-plane machines being deleted. Skipping remediation")
-			conditions.MarkFalse(
+			v1beta1conditions.MarkFalse(
 				machineToBeRemediated,
 				clusterv1.MachineOwnerRemediatedCondition,
-				clusterv1.WaitingForRemediationReason,
+				clusterv1.WaitingForRemediationV1Beta1Reason,
 				clusterv1.ConditionSeverityWarning,
 				"RKE2ControlPlane waiting for control plane machine deletion to complete before triggering remediation",
 			)
@@ -236,10 +239,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		if controlPlane.IsEtcdManaged() && controlPlane.UsesEmbeddedEtcd() {
 			canSafelyRemediate, err := r.canSafelyRemoveEtcdMember(ctx, controlPlane, machineToBeRemediated)
 			if err != nil {
-				conditions.MarkFalse(
+				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
 					clusterv1.MachineOwnerRemediatedCondition,
-					clusterv1.RemediationFailedReason,
+					clusterv1.RemediationFailedV1Beta1Reason,
 					clusterv1.ConditionSeverityError,
 					"%s", err.Error(),
 				)
@@ -249,10 +252,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 			if !canSafelyRemediate {
 				log.Info("A control plane machine needs remediation, but removing this machine could result in etcd quorum loss. Skipping remediation")
-				conditions.MarkFalse(
+				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
 					clusterv1.MachineOwnerRemediatedCondition,
-					clusterv1.WaitingForRemediationReason,
+					clusterv1.WaitingForRemediationV1Beta1Reason,
 					clusterv1.ConditionSeverityWarning,
 					"RKE2ControlPlane can't remediate this machine because this could result in etcd loosing quorum",
 				)
@@ -280,10 +283,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			etcdLeaderCandidate := controlPlane.HealthyMachines().Newest()
 			if etcdLeaderCandidate == nil {
 				log.Info("A control plane machine needs remediation, but there is no healthy machine to forward etcd leadership to")
-				conditions.MarkFalse(
+				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
 					clusterv1.MachineOwnerRemediatedCondition,
-					clusterv1.RemediationFailedReason,
+					clusterv1.RemediationFailedV1Beta1Reason,
 					clusterv1.ConditionSeverityWarning,
 					"A control plane machine needs remediation, but there is no healthy machine to forward etcd leadership to. Skipping remediation",
 				)
@@ -293,10 +296,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 			if err := workloadCluster.ForwardEtcdLeadership(ctx, machineToBeRemediated, etcdLeaderCandidate); err != nil {
 				log.Error(err, "Failed to move etcd leadership to candidate machine", "candidate", klog.KObj(etcdLeaderCandidate))
-				conditions.MarkFalse(
+				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
 					clusterv1.MachineOwnerRemediatedCondition,
-					clusterv1.RemediationFailedReason,
+					clusterv1.RemediationFailedV1Beta1Reason,
 					clusterv1.ConditionSeverityError,
 					"%s", err.Error(),
 				)
@@ -308,10 +311,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 	// Delete the machine
 	if err := r.Delete(ctx, machineToBeRemediated); err != nil {
-		conditions.MarkFalse(
+		v1beta1conditions.MarkFalse(
 			machineToBeRemediated,
 			clusterv1.MachineOwnerRemediatedCondition,
-			clusterv1.RemediationFailedReason,
+			clusterv1.RemediationFailedV1Beta1Reason,
 			clusterv1.ConditionSeverityError,
 			"%s", err.Error(),
 		)
@@ -323,10 +326,10 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	// Note: We intentionally log after Delete because we want this log line to show up only after DeletionTimestamp has been set.
 	// Also, setting DeletionTimestamp doesn't mean the Machine is actually deleted (deletion takes some time).
 	log.Info("Remediating unhealthy machine")
-	conditions.MarkFalse(
+	v1beta1conditions.MarkFalse(
 		machineToBeRemediated,
 		clusterv1.MachineOwnerRemediatedCondition,
-		clusterv1.RemediationInProgressReason,
+		clusterv1.RemediationInProgressV1Beta1Reason,
 		clusterv1.ConditionSeverityWarning,
 		"",
 	)
@@ -388,23 +391,23 @@ func pickMachineToBeRemediated(i, j *clusterv1.Machine, isEtcdManaged bool) bool
 
 	// if one machine does not have a node ref, we assume that provisioning failed and there is no CP components at all,
 	// so remediate first; also without a node, it is not possible to get further info about status.
-	if i.Status.NodeRef == nil && j.Status.NodeRef != nil {
+	if i.Status.NodeRef.IsDefined() && j.Status.NodeRef.IsDefined() {
 		return true
 	}
 
-	if i.Status.NodeRef != nil && j.Status.NodeRef == nil {
+	if i.Status.NodeRef.IsDefined() && j.Status.NodeRef.IsDefined() {
 		return false
 	}
 
 	// if one machine has unhealthy etcd member or pod, remediate first.
 	if isEtcdManaged {
-		if p := pickMachineToBeRemediatedByConditionState(i, j, controlplanev1.MachineEtcdMemberHealthyCondition); p != nil {
+		if p := pickMachineToBeRemediatedByConditionState(i, j, controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition); p != nil {
 			return *p
 		}
 	}
 
 	// if one machine has unhealthy agent, remediate first.
-	if p := pickMachineToBeRemediatedByConditionState(i, j, controlplanev1.MachineAgentHealthyCondition); p != nil {
+	if p := pickMachineToBeRemediatedByConditionState(i, j, controlplanev1.RKE2ControlPlaneMachineAgentHealthyCondition); p != nil {
 		return *p
 	}
 
@@ -419,8 +422,8 @@ func pickMachineToBeRemediated(i, j *clusterv1.Machine, isEtcdManaged bool) bool
 // pickMachineToBeRemediatedByConditionState returns true if condition t report issue on machine i and not on machine j,
 // false if the vice-versa apply, or nil if condition t doesn't provide a discriminating criteria for picking one machine or another for remediation.
 func pickMachineToBeRemediatedByConditionState(i, j *clusterv1.Machine, t clusterv1.ConditionType) *bool {
-	iCondition := conditions.IsTrue(i, t)
-	jCondition := conditions.IsTrue(j, t)
+	iCondition := v1beta1conditions.IsTrue(i, t)
+	jCondition := v1beta1conditions.IsTrue(j, t)
 
 	if !iCondition && jCondition {
 		return ptr.To(true)
@@ -515,10 +518,10 @@ func (r *RKE2ControlPlaneReconciler) checkRetryLimits(
 				retryPeriod,
 			),
 		)
-		conditions.MarkFalse(
+		v1beta1conditions.MarkFalse(
 			machineToBeRemediated,
 			clusterv1.MachineOwnerRemediatedCondition,
-			clusterv1.WaitingForRemediationReason,
+			clusterv1.WaitingForRemediationV1Beta1Reason,
 			clusterv1.ConditionSeverityWarning,
 			"RKE2ControlPlane can't remediate this machine because the operation already failed in the latest %s (RetryPeriod)",
 			retryPeriod,
@@ -538,10 +541,10 @@ func (r *RKE2ControlPlaneReconciler) checkRetryLimits(
 					maxRetry,
 				),
 			)
-			conditions.MarkFalse(
+			v1beta1conditions.MarkFalse(
 				machineToBeRemediated,
 				clusterv1.MachineOwnerRemediatedCondition,
-				clusterv1.WaitingForRemediationReason,
+				clusterv1.WaitingForRemediationV1Beta1Reason,
 				clusterv1.ConditionSeverityWarning,
 				"RKE2ControlPlane can't remediate this machine because the operation already failed %d times (MaxRetry)",
 				maxRetry,
@@ -606,7 +609,7 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 
 	for _, etcdMember := range etcdMembers {
 		// Skip the machine to be deleted because it won't be part of the target etcd cluster.
-		if machineToBeRemediated.Status.NodeRef != nil && machineToBeRemediated.Status.NodeRef.Name == etcdMember {
+		if machineToBeRemediated.Status.NodeRef.IsDefined() && machineToBeRemediated.Status.NodeRef.Name == etcdMember {
 			continue
 		}
 
@@ -617,7 +620,7 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 		var machine *clusterv1.Machine
 
 		for _, m := range controlPlane.Machines {
-			if m.Status.NodeRef != nil && m.Status.NodeRef.Name == etcdMember {
+			if m.Status.NodeRef.IsDefined() && m.Status.NodeRef.Name == etcdMember {
 				machine = m
 
 				break
@@ -639,7 +642,7 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 		}
 
 		// Check member health as reported by machine's health conditions
-		if !conditions.IsTrue(machine, controlplanev1.MachineEtcdMemberHealthyCondition) {
+		if !v1beta1conditions.IsTrue(machine, controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition) {
 			targetUnhealthyMembers++
 
 			unhealthyMembers = append(unhealthyMembers, fmt.Sprintf("%s (%s)", etcdMember, machine.Name))
@@ -683,7 +686,7 @@ type RemediationData struct {
 func RemediationDataFromAnnotation(value string) (*RemediationData, error) {
 	ret := &RemediationData{}
 	if err := json.Unmarshal([]byte(value), ret); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal value %s for %s annotation", value, clusterv1.RemediationInProgressReason)
+		return nil, errors.Wrapf(err, "failed to unmarshal value %s for %s annotation", value, clusterv1.RemediationInProgressV1Beta1Reason)
 	}
 
 	return ret, nil
@@ -693,7 +696,7 @@ func RemediationDataFromAnnotation(value string) (*RemediationData, error) {
 func (r *RemediationData) Marshal() (string, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to marshal value for %s annotation", clusterv1.RemediationInProgressReason)
+		return "", errors.Wrapf(err, "failed to marshal value for %s annotation", clusterv1.RemediationInProgressV1Beta1Reason)
 	}
 
 	return string(b), nil

@@ -24,10 +24,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/consts"
 )
 
@@ -41,15 +41,15 @@ var _ = Describe("RKE2ServerConfig", func() {
 	BeforeEach(func() {
 		opts = &ServerConfigOpts{
 			Token: "just-a-test-token",
-			Cluster: v1beta1.Cluster{
-				Spec: v1beta1.ClusterSpec{
-					ClusterNetwork: &v1beta1.ClusterNetwork{
-						Pods: &v1beta1.NetworkRanges{
+			Cluster: clusterv1.Cluster{
+				Spec: clusterv1.ClusterSpec{
+					ClusterNetwork: clusterv1.ClusterNetwork{
+						Pods: clusterv1.NetworkRanges{
 							CIDRBlocks: []string{
 								"192.168.0.0/16",
 							},
 						},
-						Services: &v1beta1.NetworkRanges{
+						Services: clusterv1.NetworkRanges{
 							CIDRBlocks: []string{
 								"192.169.0.0/16",
 							},
@@ -282,18 +282,17 @@ var _ = Describe("RKE2 Server Config with secretbox encryption", func() {
 	var opts *ServerConfigOpts
 
 	BeforeEach(func() {
-
 		opts = &ServerConfigOpts{
 			Token: "token",
-			Cluster: v1beta1.Cluster{
-				Spec: v1beta1.ClusterSpec{
-					ClusterNetwork: &v1beta1.ClusterNetwork{
-						Pods: &v1beta1.NetworkRanges{
+			Cluster: clusterv1.Cluster{
+				Spec: clusterv1.ClusterSpec{
+					ClusterNetwork: clusterv1.ClusterNetwork{
+						Pods: clusterv1.NetworkRanges{
 							CIDRBlocks: []string{
 								"192.168.0.0/16",
 							},
 						},
-						Services: &v1beta1.NetworkRanges{
+						Services: clusterv1.NetworkRanges{
 							CIDRBlocks: []string{
 								"192.169.0.0/16",
 							},

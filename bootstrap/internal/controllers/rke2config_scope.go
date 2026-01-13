@@ -27,13 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterexpv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	exputil "sigs.k8s.io/cluster-api/exp/util"
 	"sigs.k8s.io/cluster-api/util"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 )
 
@@ -51,7 +50,7 @@ type Scope struct {
 	Logger       logr.Logger
 	Config       *bootstrapv1.RKE2Config
 	Machine      *clusterv1.Machine
-	MachinePool  *clusterexpv1.MachinePool
+	MachinePool  *clusterv1.MachinePool
 	Cluster      *clusterv1.Cluster
 	ControlPlane *controlplanev1.RKE2ControlPlane
 }
@@ -146,12 +145,12 @@ func (s *Scope) HasControlPlaneOwner() bool {
 
 // GetDesiredVersion returns the K8S version associated to the RKE2Config owner.
 func (s *Scope) GetDesiredVersion() (string, error) {
-	if s.MachinePool != nil && s.MachinePool.Spec.Template.Spec.Version != nil {
-		return *s.MachinePool.Spec.Template.Spec.Version, nil
+	if s.MachinePool != nil && s.MachinePool.Spec.Template.Spec.Version != "" {
+		return s.MachinePool.Spec.Template.Spec.Version, nil
 	}
 
-	if s.Machine != nil && s.Machine.Spec.Version != nil {
-		return *s.Machine.Spec.Version, nil
+	if s.Machine != nil && s.Machine.Spec.Version != "" {
+		return s.Machine.Spec.Version, nil
 	}
 
 	return "", ErrVersionNotFound

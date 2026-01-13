@@ -13,7 +13,7 @@ spec:
       - 10.0.0.0/16
     serviceDomain: cluster.local
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}
   infrastructureRef:
@@ -36,7 +36,7 @@ spec:
   server: ${VSPHERE_SERVER}
   thumbprint: ${VSPHERE_TLS_THUMBPRINT}
 ---
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1 
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2 
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}
