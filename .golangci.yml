@@ -85,9 +85,6 @@ linters:
           - testpackage
         path: _test\.go
       - linters:
-          - gochecknoglobals
-        path: controlplane/api/v1alpha1/*
-      - linters:
           - lll
         source: '^//\+kubebuilder:'
       - linters:
@@ -104,16 +101,12 @@ linters:
           - gosec
         text: G114
       - linters:
-          - gosec
-        path: api/v1alpha1
-        text: G402
-      - linters:
           - revive
         path: pkg/rke2
         text: unexported-return
       - linters:
           - revive
-        text: 'package-comments: should have a package comment'
+        text: "package-comments: should have a package comment"
     paths:
       - zz_generated.*\.go$
       - conversion\.go

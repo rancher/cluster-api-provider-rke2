@@ -158,7 +158,8 @@ ALL_GENERATE_MODULES = rke2-bootstrap rke2-control-plane
 
 .PHONY: generate
 generate: ## Run all generate-manifests-*, generate-go-deepcopy-* targets
-	$(MAKE) generate-modules generate-manifests generate-go-deepcopy generate-go-conversions
+	# TODO: enable generate-go-conversions once v1beta2 is available and served.
+	$(MAKE) generate-modules generate-manifests generate-go-deepcopy # generate-go-conversions -> remove this temporarily as there's only one version available after deprecating v1alpha1.
 
 .PHONY: generate-manifests
 generate-manifests: $(addprefix generate-manifests-,$(ALL_GENERATE_MODULES)) ## Run all generate-manifests-* targets
