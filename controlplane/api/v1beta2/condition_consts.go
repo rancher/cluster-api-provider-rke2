@@ -41,6 +41,22 @@ const (
 const (
 	// RKE2ControlPlaneMachinesReadyCondition reports an aggregate of current status of the machines controlled by the RKE2ControlPlane.
 	RKE2ControlPlaneMachinesReadyCondition = "MachinesReady"
+
+	// RKE2ControlPlaneMachinesReadyReason surfaces when all the controlled machine's Ready conditions are true.
+	RKE2ControlPlaneMachinesReadyReason = clusterv1.ReadyReason
+
+	// RKE2ControlPlaneMachinesNotReadyReason surfaces when at least one of the controlled machine's Ready conditions is false.
+	RKE2ControlPlaneMachinesNotReadyReason = clusterv1.NotReadyReason
+
+	// RKE2ControlPlaneMachinesReadyUnknownReason surfaces when at least one of the controlled machine's Ready conditions is unknown
+	// and no one of the controlled machine's Ready conditions is false.
+	RKE2ControlPlaneMachinesReadyUnknownReason = clusterv1.ReadyUnknownReason
+
+	// RKE2ControlPlaneMachinesReadyNoReplicasReason surfaces when no machines exist for the RKE2ControlPlane.
+	RKE2ControlPlaneMachinesReadyNoReplicasReason = clusterv1.NoReplicasReason
+
+	// RKE2ControlPlaneMachinesReadyInternalErrorReason surfaces unexpected failures when computing the MachinesReady condition.
+	RKE2ControlPlaneMachinesReadyInternalErrorReason = clusterv1.InternalErrorReason
 )
 
 // RKE2ControlPlaneAvailable Condition and Reasons.
@@ -230,6 +246,27 @@ const (
 
 	// RKE2ControlPlaneRemediatingInternalErrorReason surfaces unexpected failures when computing the Remediating condition.
 	RKE2ControlPlaneRemediatingInternalErrorReason = clusterv1.InternalErrorReason
+)
+
+// Reasons that will be used for the OwnerRemediated condition set by MachineHealthCheck on RKE2ControlPlane controlled machines
+// being remediated in v1Beta2 API version.
+const (
+	// RKE2ControlPlaneMachineRemediationInternalErrorReason surfaces unexpected failures while remediating a control plane machine.
+	RKE2ControlPlaneMachineRemediationInternalErrorReason = clusterv1.InternalErrorReason
+
+	// RKE2ControlPlaneMachineCannotBeRemediatedReason surfaces when remediation of a control plane machine can't be started.
+	RKE2ControlPlaneMachineCannotBeRemediatedReason = "CannotBeRemediated"
+
+	// RKE2ControlPlaneMachineRemediationDeferredReason surfaces when remediation of a control plane machine must be deferred.
+	RKE2ControlPlaneMachineRemediationDeferredReason = "RemediationDeferred"
+
+	// RKE2ControlPlaneMachineRemediationMachineDeletingReason surfaces when remediation of a control plane machine
+	// has been completed by deleting the unhealthy machine.
+	// Note: After an unhealthy machine is deleted, a new one is created by the RKE2ControlPlaneMachine as part of the
+	// regular reconcile loop that ensures the correct number of replicas exist; RKE2ControlPlane machine waits for
+	// the new machine to exists before removing the controlplane.cluster.x-k8s.io/remediation-in-progress annotation.
+	// This is part of a series of safeguards to ensure that operation are performed sequentially on control plane machines.
+	RKE2ControlPlaneMachineRemediationMachineDeletingReason = "MachineDeleting"
 )
 
 // RKE2ControlPlane's Deleting condition and corresponding reasons.

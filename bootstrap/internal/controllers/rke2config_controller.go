@@ -154,7 +154,19 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			rerr = kerrors.NewAggregate([]error{rerr, err})
 		}
 
-		patchOpts := []patch.Option{}
+		patchOpts := []patch.Option{
+			patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
+				clusterv1.ReadyV1Beta1Condition,
+				bootstrapv1.DataSecretAvailableV1Beta1Condition,
+				bootstrapv1.CertificatesAvailableV1Beta1Condition,
+			}},
+			patch.WithOwnedConditions{Conditions: []string{
+				clusterv1.PausedCondition,
+				bootstrapv1.RKE2ConfigReadyCondition,
+				bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+				bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+			}},
+		}
 		if rerr == nil {
 			patchOpts = append(patchOpts, patch.WithStatusObservedGeneration{})
 		}
@@ -163,6 +175,11 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			rerr = kerrors.NewAggregate([]error{rerr, err})
 		}
 	}()
+
+	// Ignore deleted RKE2Configs.
+	if !scope.Config.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
 
 	if !ptr.Deref(scope.Cluster.Status.Initialization.InfrastructureProvisioned, false) {
 		logger.Info("Infrastructure machine not yet ready")

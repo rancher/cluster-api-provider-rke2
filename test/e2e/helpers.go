@@ -215,6 +215,7 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 	input.WaitForControlPlaneMachinesReady(ctx, input, result)
 
 	By(fmt.Sprintf("Waiting for the machine deployments of cluster %s to be provisioned", klog.KRef(input.Namespace, input.ClusterName)))
+	// result.MachineDeployments = framework.DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
 	result.MachineDeployments = DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
 		Lister:  input.ClusterProxy.GetClient(),
 		Cluster: result.Cluster,
@@ -469,18 +470,15 @@ func WaitForControlPlaneToBeReady(ctx context.Context, input WaitForControlPlane
 
 		desiredReplicas := controlplane.Spec.Replicas
 		statusReplicas := controlplane.Status.Replicas
-		updatedReplicas := controlplane.Status.Deprecated.V1Beta1.UpdatedReplicas
+		upToDateReplicas := controlplane.Status.UpToDateReplicas
 		readyReplicas := controlplane.Status.ReadyReplicas
-		unavailableReplicas := controlplane.Status.Deprecated.V1Beta1.UnavailableReplicas
 
 		// Control plane is still rolling out (and thus not ready) if:
-		// * .spec.replicas, .status.replicas, .status.updatedReplicas,
-		//   .status.readyReplicas are not equal and
-		// * unavailableReplicas > 0
+		// * .spec.replicas, .status.replicas, .status.upToDatedReplicas,
+		//   .status.readyReplicas are not equal
 		if !ptr.Equal(statusReplicas, desiredReplicas) ||
-			updatedReplicas != *desiredReplicas ||
-			!ptr.Equal(readyReplicas, desiredReplicas) ||
-			unavailableReplicas > 0 {
+			!ptr.Equal(upToDateReplicas, desiredReplicas) ||
+			!ptr.Equal(readyReplicas, desiredReplicas) {
 			return false, nil
 		}
 

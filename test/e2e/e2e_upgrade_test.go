@@ -87,8 +87,8 @@ var _ = Describe("Provider upgrade", func() {
 	})
 
 	Context("Creating a single control-plane cluster", func() {
-		It("Should create a cluster with v0.21.0 and perform upgrade to latest version", func() {
-			By("Installing v0.21.0 bootstrap/controlplane provider version")
+		It("Should create a cluster with v0.21.1 and perform upgrade to latest version", func() {
+			By("Installing v0.21.1 bootstrap/controlplane provider version")
 			initUpgradableBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
 			By("Initializing the cluster")

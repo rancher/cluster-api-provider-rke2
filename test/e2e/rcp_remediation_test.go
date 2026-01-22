@@ -30,7 +30,9 @@ import (
 )
 
 var _ = Describe("When testing RCP remediation", func() {
-	specName := "kcp-remediation"
+	specName := "rcp-remediation"
+
+	// NOTE: This reuses the upstream KCPRemediationSpec test but we use RCP as control plane instead.
 
 	BeforeEach(func() {
 		Expect(e2eConfig).ToNot(BeNil(), "Invalid argument. e2eConfig can't be nil when calling %s spec", specName)
@@ -55,7 +57,7 @@ var _ = Describe("When testing RCP remediation", func() {
 			BootstrapClusterProxy:  bootstrapClusterProxy,
 			ArtifactFolder:         artifactFolder,
 			SkipCleanup:            skipCleanup,
-			InfrastructureProvider: ptr.To("docker:v1.11.4"),
+			InfrastructureProvider: ptr.To("docker:v1.11.5"),
 			Flavor:                 ptr.To("kcp-remediation"),
 		}
 	})

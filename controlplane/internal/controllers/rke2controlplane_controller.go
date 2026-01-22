@@ -645,6 +645,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
+	fmt.Println("### calculating machines to delete")
 
 	// Delete control plane machines in parallel
 	machinesToDelete := ownedMachines
@@ -769,6 +770,27 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 ) (res ctrl.Result, retErr error) {
 	logger := log.FromContext(ctx)
 
+	// If the cluster is not yet initialized, there is no way to connect to the workload cluster and fetch information
+	// for updating conditions. Return early.
+	// We additionally check for the ControlPlaneInitialized condition. The ControlPlaneInitialized condition is set at the same time
+	// as .status.initialization.controlPlaneInitialized and is never changed to false again. Below we'll need the transition time of the
+	// ControlPlaneInitialized condition to check if the remote conditions grace period is already reached.
+	controlPlaneInitialized := conditions.Get(controlPlane.RCP, controlplanev1.RKE2ControlPlaneInitializedCondition)
+	if !ptr.Deref(controlPlane.RCP.Status.Initialization.ControlPlaneInitialized, false) ||
+		controlPlaneInitialized == nil || controlPlaneInitialized.Status != metav1.ConditionTrue {
+		setConditionsToUnknown(setConditionsToUnknownInput{
+			ControlPlane:                        controlPlane,
+			Overwrite:                           true,
+			EtcdClusterHealthyReason:            controlplanev1.RKE2ControlPlaneEtcdClusterInspectionFailedReason,
+			ControlPlaneComponentsHealthyReason: controlplanev1.RKE2ControlPlaneControlPlaneComponentsInspectionFailedReason,
+			StaticPodReason:                     controlplanev1.RKE2ControlPlaneMachinePodInspectionFailedReason,
+			EtcdMemberHealthyReason:             controlplanev1.RKE2ControlPlaneMachineEtcdMemberInspectionFailedReason,
+			Message:                             "Waiting for Cluster control plane to be initialized",
+		})
+
+		return ctrl.Result{}, nil
+	}
+
 	readyCPMachines := controlPlane.Machines.Filter(collections.IsReady())
 
 	if readyCPMachines.Len() == 0 {
@@ -799,7 +821,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 			Type:    controlplanev1.RKE2ControlPlaneMachinesReadyCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  controlplanev1.RKE2ControlPlaneWaitingForRKE2ServerReason,
-			Message: "Waiting for at least machine to be ready for control plane " + controlPlane.RCP.Name,
+			Message: "Waiting for control plane machines ",
 		})
 	}
 
@@ -1031,6 +1053,53 @@ func reconcileMachineUpToDateCondition(ctx context.Context, controlPlane *rke2.C
 			Type:   clusterv1.MachineUpToDateCondition,
 			Status: metav1.ConditionTrue,
 			Reason: clusterv1.MachineUpToDateReason,
+		})
+	}
+}
+
+type setConditionsToUnknownInput struct {
+	ControlPlane                        *rke2.ControlPlane
+	Overwrite                           bool
+	EtcdClusterHealthyReason            string
+	ControlPlaneComponentsHealthyReason string
+	StaticPodReason                     string
+	EtcdMemberHealthyReason             string
+	Message                             string
+}
+
+func setConditionsToUnknown(input setConditionsToUnknownInput) {
+	// Note: We are not checking if conditions on the Machines are already set, we just check the RCP conditions instead.
+	// This means if Overwrite is set to false, we only set the EtcdMemberHealthy condition if the EtcdClusterHealthy condition is not set.
+	// The same applies to ControlPlaneComponentsHealthy and the control plane component conditions on the Machines.
+	etcdClusterHealthySet := conditions.Has(input.ControlPlane.RCP, controlplanev1.RKE2ControlPlaneEtcdClusterHealthyCondition)
+	controlPlaneComponentsHealthySet := conditions.Has(input.ControlPlane.RCP, controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition)
+
+	if input.Overwrite || !etcdClusterHealthySet {
+		conditions.Set(input.ControlPlane.RCP, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneEtcdClusterHealthyCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  input.EtcdClusterHealthyReason,
+			Message: input.Message,
+		})
+
+		for _, machine := range input.ControlPlane.Machines {
+			if input.ControlPlane.IsEtcdManaged() {
+				conditions.Set(machine, metav1.Condition{
+					Type:    controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
+					Status:  metav1.ConditionUnknown,
+					Reason:  input.EtcdMemberHealthyReason,
+					Message: input.Message,
+				})
+			}
+		}
+	}
+
+	if input.Overwrite || !controlPlaneComponentsHealthySet {
+		conditions.Set(input.ControlPlane.RCP, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  input.ControlPlaneComponentsHealthyReason,
+			Message: input.Message,
 		})
 	}
 }

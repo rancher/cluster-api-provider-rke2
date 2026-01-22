@@ -64,17 +64,17 @@ metadata:
   name: ${CLUSTER_NAME}-lb-config
 ---
 apiVersion: cluster.x-k8s.io/v1beta2
-kind: Cluster 
+kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
 spec:
   clusterNetwork:
     pods:
       cidrBlocks:
-      - 10.45.0.0/16
+        - 10.45.0.0/16
     services:
       cidrBlocks:
-      - 10.46.0.0/16
+        - 10.46.0.0/16
     serviceDomain: cluster.local
   controlPlaneRef:
     apiGroup: controlplane.cluster.x-k8s.io
@@ -98,38 +98,38 @@ apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
-spec: 
+spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   version: ${KUBERNETES_VERSION}+rke2r1
-  preRKE2Commands: 
-  - ./wait-signal.sh "${TOKEN}" "${SERVER}" "${NAMESPACE}"
+  preRKE2Commands:
+    - ./wait-signal.sh "${TOKEN}" "${SERVER}" "${NAMESPACE}"
   files:
-  - path: /wait-signal.sh
-    content: |
-      #!/bin/bash
-  
-      set -o errexit
-      set -o pipefail
-        
-      echo "Waiting for signal..."
-        
-      TOKEN=$1
-      SERVER=$2
-      NAMESPACE=$3
-        
-      while true;
-      do
-        sleep 1s
-  
-        signal=$(curl -k -s --header "Authorization: Bearer $TOKEN" $SERVER/api/v1/namespaces/$NAMESPACE/configmaps/mhc-test | jq -r .data.signal?)
-        echo "signal $signal"
-  
-        if [ "$signal" == "pass" ]; then
-           curl -k -s --header "Authorization: Bearer $TOKEN" -XPATCH -H "Content-Type: application/strategic-merge-patch+json" --data '{"data": {"signal": "ack-pass"}}' $SERVER/api/v1/namespaces/$NAMESPACE/configmaps/mhc-test
-           exit 0
-        fi
-      done
-    permissions: "0777"
+    - path: /wait-signal.sh
+      content: |
+        #!/bin/bash
+
+        set -o errexit
+        set -o pipefail
+          
+        echo "Waiting for signal..."
+          
+        TOKEN=$1
+        SERVER=$2
+        NAMESPACE=$3
+          
+        while true;
+        do
+          sleep 1s
+
+          signal=$(curl -k -s --header "Authorization: Bearer $TOKEN" $SERVER/api/v1/namespaces/$NAMESPACE/configmaps/mhc-test | jq -r .data.signal?)
+          echo "signal $signal"
+
+          if [ "$signal" == "pass" ]; then
+             curl -k -s --header "Authorization: Bearer $TOKEN" -XPATCH -H "Content-Type: application/strategic-merge-patch+json" --data '{"data": {"signal": "ack-pass"}}' $SERVER/api/v1/namespaces/$NAMESPACE/configmaps/mhc-test
+             exit 0
+          fi
+        done
+      permissions: "0777"
   rolloutStrategy:
     type: "RollingUpdate"
     rollingUpdate:
@@ -138,23 +138,23 @@ spec:
   serverConfig:
     disableComponents:
       pluginComponents:
-      - rke2-ingress-nginx
+        - rke2-ingress-nginx
       kubernetesComponents:
-      - cloudController
+        - cloudController
     kubeAPIServer:
       extraArgs:
-      - --anonymous-auth=true
+        - --anonymous-auth=true
   machineTemplate:
     spec:
       infrastructureRef:
         apiGroup: infrastructure.cluster.x-k8s.io
         kind: DockerMachineTemplate
-        name:  "${CLUSTER_NAME}-control-plane"
+        name: "${CLUSTER_NAME}-control-plane"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate
 metadata:
-  name:  "${CLUSTER_NAME}-control-plane"
+  name: "${CLUSTER_NAME}-control-plane"
   labels:
     cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
 spec:
@@ -203,7 +203,7 @@ apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-mhc-0
-spec: 
+spec:
   template:
     spec:
       gzipUserData: false
@@ -217,13 +217,14 @@ spec:
   clusterName: ${CLUSTER_NAME}
   remediation:
     triggerIf:
-      unhealthyLessThanOrEqual: 100%
-  nodeStartupTimeout: 30s
+      unhealthyLessThanOrEqualTo: 100%
+  checks:
+    nodeStartupTimeoutSeconds: 30
+    unhealthyNodeConditions:
+      - status: "False"
+        timeoutSeconds: 10
+        type: e2e.remediation.condition
   selector:
     matchLabels:
       cluster.x-k8s.io/control-plane: ""
       mhc-test: fail
-  unhealthyConditions:
-  - status: "False"
-    timeout: 10s
-    type: e2e.remediation.condition

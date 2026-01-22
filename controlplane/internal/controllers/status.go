@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -91,6 +92,8 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	}
 
 	setReplicas(ctx, rcp, ownedMachines)
+	setInitializedCondition(ctx, controlPlane.RCP)
+	setMachinesReadyCondition(ctx, controlPlane.RCP, controlPlane.Machines)
 
 	kubeconfigSecret := corev1.Secret{}
 
@@ -476,4 +479,44 @@ func setInitializedCondition(_ context.Context, rcp *controlplanev1.RKE2ControlP
 		Status: metav1.ConditionFalse,
 		Reason: controlplanev1.RKE2ControlPlaneNotInitializedReason,
 	})
+}
+
+func setMachinesReadyCondition(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, machines collections.Machines) {
+	if len(machines) == 0 {
+		conditions.Set(rcp, metav1.Condition{
+			Type:   controlplanev1.RKE2ControlPlaneMachinesReadyCondition,
+			Status: metav1.ConditionTrue,
+			Reason: controlplanev1.RKE2ControlPlaneMachinesReadyNoReplicasReason,
+		})
+		return
+	}
+
+	readyCondition, err := conditions.NewAggregateCondition(
+		machines.UnsortedList(), clusterv1.MachineReadyCondition,
+		conditions.TargetConditionType(controlplanev1.RKE2ControlPlaneMachinesReadyCondition),
+		// Using a custom merge strategy to override reasons applied during merge.
+		conditions.CustomMergeStrategy{
+			MergeStrategy: conditions.DefaultMergeStrategy(
+				conditions.ComputeReasonFunc(conditions.GetDefaultComputeMergeReasonFunc(
+					controlplanev1.RKE2ControlPlaneMachinesNotReadyReason,
+					controlplanev1.RKE2ControlPlaneMachinesReadyUnknownReason,
+					controlplanev1.RKE2ControlPlaneMachinesReadyReason,
+				)),
+			),
+		},
+	)
+	if err != nil {
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneMachinesReadyCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  controlplanev1.RKE2ControlPlaneMachinesReadyInternalErrorReason,
+			Message: "Please check controller logs for errors",
+		})
+
+		log := ctrl.LoggerFrom(ctx)
+		log.Error(err, fmt.Sprintf("Failed to aggregate Machine's %s conditions", clusterv1.MachineReadyCondition))
+		return
+	}
+
+	conditions.Set(rcp, *readyCondition)
 }

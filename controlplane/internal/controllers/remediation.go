@@ -62,10 +62,11 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			continue
 		}
 
+		shouldCleanupV1Beta1 := v1beta1conditions.IsTrue(m, clusterv1.MachineHealthCheckSucceededV1Beta1Condition) && v1beta1conditions.IsFalse(m, clusterv1.MachineOwnerRemediatedV1Beta1Condition)
 		shouldCleanup := conditions.IsTrue(m, clusterv1.MachineHealthCheckSucceededCondition) &&
 			conditions.IsFalse(m, clusterv1.MachineOwnerRemediatedCondition)
 
-		if !(shouldCleanup) {
+		if !shouldCleanupV1Beta1 && !shouldCleanup {
 			continue
 		}
 
@@ -76,11 +77,20 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			continue
 		}
 
-		conditions.Delete(m, clusterv1.MachineOwnerRemediatedCondition)
+		if shouldCleanupV1Beta1 {
+			v1beta1conditions.Delete(m, clusterv1.MachineOwnerRemediatedV1Beta1Condition)
+		}
+
+		if shouldCleanup {
+			conditions.Delete(m, clusterv1.MachineOwnerRemediatedCondition)
+		}
 
 		if err := patchHelper.Patch(ctx, m, patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
+			clusterv1.MachineOwnerRemediatedV1Beta1Condition,
+		}}, patch.WithOwnedConditions{Conditions: []string{
 			clusterv1.MachineOwnerRemediatedCondition,
 		}}); err != nil {
+			errList = append(errList, err)
 			errList = append(errList, errors.Wrapf(err, "failed to patch machine %s", m.Name))
 		}
 	}
@@ -114,9 +124,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		return ctrl.Result{}, nil
 	}
 
-	log = log.WithValues("Machine",
-		klog.KObj(machineToBeRemediated),
-		"initialized", ptr.Deref(controlPlane.RCP.Status.Initialization.ControlPlaneInitialized, false))
+	var initialized bool
+	if ptr.Deref(controlPlane.RCP.Status.Initialization.ControlPlaneInitialized, false) {
+		initialized = true
+	}
+
+	log = log.WithValues("Machine", klog.KObj(machineToBeRemediated), "initialized", initialized)
 
 	// Returns if another remediation is in progress but the new Machine is not yet created.
 	// Note: This condition is checked after we check for machines to be remediated and if machineToBeRemediated
@@ -157,9 +170,14 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 
 	defer func() {
 		// Always attempt to Patch the Machine conditions after each reconcileUnhealthyMachines.
-		if err := patchHelper.Patch(ctx, machineToBeRemediated, patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.MachineOwnerRemediatedCondition,
-		}}); err != nil {
+		if err := patchHelper.Patch(ctx, machineToBeRemediated,
+			patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
+				clusterv1.MachineOwnerRemediatedV1Beta1Condition,
+			}},
+			patch.WithOwnedConditions{Conditions: []string{
+				clusterv1.MachineOwnerRemediatedCondition,
+			}},
+		); err != nil {
 			log.Error(err, "Failed to patch control plane Machine", "Machine", machineToBeRemediated.Name)
 
 			if retErr == nil {
@@ -196,11 +214,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			)
 			v1beta1conditions.MarkFalse(
 				machineToBeRemediated,
-				clusterv1.MachineOwnerRemediatedCondition,
+				clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 				clusterv1.WaitingForRemediationV1Beta1Reason,
 				clusterv1.ConditionSeverityWarning,
 				"RKE2ControlPlane can't remediate if current replicas are less or equal to 1",
 			)
+
+			conditions.Set(machineToBeRemediated, metav1.Condition{
+				Type:    clusterv1.MachineOwnerRemediatedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  controlplanev1.RKE2ControlPlaneMachineCannotBeRemediatedReason,
+				Message: "RKE2ControlPlane can't remediate if current replicas are less or equal to 1",
+			})
 
 			return ctrl.Result{}, nil
 		}
@@ -211,11 +236,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			log.Info("A control plane machine needs remediation, but there are other control-plane machines being provisioned. Skipping remediation")
 			v1beta1conditions.MarkFalse(
 				machineToBeRemediated,
-				clusterv1.MachineOwnerRemediatedCondition,
+				clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 				clusterv1.WaitingForRemediationV1Beta1Reason,
 				clusterv1.ConditionSeverityWarning,
 				"RKE2ControlPlane waiting for control plane machine provisioning to complete before triggering remediation",
 			)
+
+			conditions.Set(machineToBeRemediated, metav1.Condition{
+				Type:    clusterv1.MachineOwnerRemediatedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationDeferredReason,
+				Message: "RKE2ControlPlane waiting for control plane Machine provisioning to complete before triggering remediation",
+			})
 
 			return ctrl.Result{}, nil
 		}
@@ -225,11 +257,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			log.Info("A control plane machine needs remediation, but there are other control-plane machines being deleted. Skipping remediation")
 			v1beta1conditions.MarkFalse(
 				machineToBeRemediated,
-				clusterv1.MachineOwnerRemediatedCondition,
+				clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 				clusterv1.WaitingForRemediationV1Beta1Reason,
 				clusterv1.ConditionSeverityWarning,
 				"RKE2ControlPlane waiting for control plane machine deletion to complete before triggering remediation",
 			)
+
+			conditions.Set(machineToBeRemediated, metav1.Condition{
+				Type:    clusterv1.MachineOwnerRemediatedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationDeferredReason,
+				Message: "RKE2ControlPlane waiting for control plane Machine deletion to complete before triggering remediation",
+			})
 
 			return ctrl.Result{}, nil
 		}
@@ -241,11 +280,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			if err != nil {
 				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
-					clusterv1.MachineOwnerRemediatedCondition,
+					clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 					clusterv1.RemediationFailedV1Beta1Reason,
 					clusterv1.ConditionSeverityError,
 					"%s", err.Error(),
 				)
+
+				conditions.Set(machineToBeRemediated, metav1.Condition{
+					Type:    clusterv1.MachineOwnerRemediatedCondition,
+					Status:  metav1.ConditionFalse,
+					Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationInternalErrorReason,
+					Message: "Please check controller logs for errors",
+				})
 
 				return ctrl.Result{}, err
 			}
@@ -254,11 +300,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 				log.Info("A control plane machine needs remediation, but removing this machine could result in etcd quorum loss. Skipping remediation")
 				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
-					clusterv1.MachineOwnerRemediatedCondition,
+					clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 					clusterv1.WaitingForRemediationV1Beta1Reason,
 					clusterv1.ConditionSeverityWarning,
 					"RKE2ControlPlane can't remediate this machine because this could result in etcd loosing quorum",
 				)
+
+				conditions.Set(machineToBeRemediated, metav1.Condition{
+					Type:    clusterv1.MachineOwnerRemediatedCondition,
+					Status:  metav1.ConditionFalse,
+					Reason:  controlplanev1.RKE2ControlPlaneMachineCannotBeRemediatedReason,
+					Message: "RKE2ControlPlane can't remediate this Machine because this could result in etcd loosing quorum",
+				})
 
 				return ctrl.Result{}, nil
 			}
@@ -285,11 +338,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 				log.Info("A control plane machine needs remediation, but there is no healthy machine to forward etcd leadership to")
 				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
-					clusterv1.MachineOwnerRemediatedCondition,
+					clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 					clusterv1.RemediationFailedV1Beta1Reason,
 					clusterv1.ConditionSeverityWarning,
 					"A control plane machine needs remediation, but there is no healthy machine to forward etcd leadership to. Skipping remediation",
 				)
+
+				conditions.Set(machineToBeRemediated, metav1.Condition{
+					Type:    clusterv1.MachineOwnerRemediatedCondition,
+					Status:  metav1.ConditionFalse,
+					Reason:  controlplanev1.RKE2ControlPlaneMachineCannotBeRemediatedReason,
+					Message: "RKE2ControlPlane can't remediate this Machine because there is no healthy Machine to forward etcd leadership to",
+				})
 
 				return ctrl.Result{}, nil
 			}
@@ -298,11 +358,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 				log.Error(err, "Failed to move etcd leadership to candidate machine", "candidate", klog.KObj(etcdLeaderCandidate))
 				v1beta1conditions.MarkFalse(
 					machineToBeRemediated,
-					clusterv1.MachineOwnerRemediatedCondition,
+					clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 					clusterv1.RemediationFailedV1Beta1Reason,
 					clusterv1.ConditionSeverityError,
 					"%s", err.Error(),
 				)
+
+				conditions.Set(machineToBeRemediated, metav1.Condition{
+					Type:    clusterv1.MachineOwnerRemediatedCondition,
+					Status:  metav1.ConditionFalse,
+					Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationInternalErrorReason,
+					Message: "Please check controller logs for errors",
+				})
 
 				return ctrl.Result{}, err
 			}
@@ -313,11 +380,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	if err := r.Delete(ctx, machineToBeRemediated); err != nil {
 		v1beta1conditions.MarkFalse(
 			machineToBeRemediated,
-			clusterv1.MachineOwnerRemediatedCondition,
+			clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 			clusterv1.RemediationFailedV1Beta1Reason,
 			clusterv1.ConditionSeverityError,
 			"%s", err.Error(),
 		)
+
+		conditions.Set(machineToBeRemediated, metav1.Condition{
+			Type:    clusterv1.MachineOwnerRemediatedCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationInternalErrorReason,
+			Message: "Please check controller logs for errors",
+		})
 
 		return ctrl.Result{}, errors.Wrapf(err, "failed to delete unhealthy machine %s", machineToBeRemediated.Name)
 	}
@@ -328,11 +402,18 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 	log.Info("Remediating unhealthy machine")
 	v1beta1conditions.MarkFalse(
 		machineToBeRemediated,
-		clusterv1.MachineOwnerRemediatedCondition,
+		clusterv1.MachineOwnerRemediatedV1Beta1Condition,
 		clusterv1.RemediationInProgressV1Beta1Reason,
 		clusterv1.ConditionSeverityWarning,
 		"",
 	)
+
+	conditions.Set(machineToBeRemediated, metav1.Condition{
+		Type:    clusterv1.MachineOwnerRemediatedCondition,
+		Status:  metav1.ConditionFalse,
+		Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationMachineDeletingReason,
+		Message: "Machine is deleting",
+	})
 
 	// Prepare the info for tracking the remediation progress into the RemediationInProgressAnnotation.
 	remediationInProgressValue, err := remediationInProgressData.Marshal()
@@ -421,9 +502,9 @@ func pickMachineToBeRemediated(i, j *clusterv1.Machine, isEtcdManaged bool) bool
 
 // pickMachineToBeRemediatedByConditionState returns true if condition t report issue on machine i and not on machine j,
 // false if the vice-versa apply, or nil if condition t doesn't provide a discriminating criteria for picking one machine or another for remediation.
-func pickMachineToBeRemediatedByConditionState(i, j *clusterv1.Machine, t clusterv1.ConditionType) *bool {
-	iCondition := v1beta1conditions.IsTrue(i, t)
-	jCondition := v1beta1conditions.IsTrue(j, t)
+func pickMachineToBeRemediatedByConditionState(i, j *clusterv1.Machine, conditionType string) *bool {
+	iCondition := conditions.IsTrue(i, conditionType)
+	jCondition := conditions.IsTrue(j, conditionType)
 
 	if !iCondition && jCondition {
 		return ptr.To(true)
@@ -642,7 +723,7 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 		}
 
 		// Check member health as reported by machine's health conditions
-		if !v1beta1conditions.IsTrue(machine, controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition) {
+		if !conditions.IsTrue(machine, controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition) {
 			targetUnhealthyMembers++
 
 			unhealthyMembers = append(unhealthyMembers, fmt.Sprintf("%s (%s)", etcdMember, machine.Name))
