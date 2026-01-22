@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	"k8s.io/utils/set"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -822,6 +823,9 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 		}
 	}()
 
+	// Always reconcile machine's UpToDate condition.
+	reconcileMachineUpToDateCondition(ctx, controlPlane)
+
 	if err := workloadCluster.InitWorkload(ctx, controlPlane); err != nil {
 		logger.Error(err, "Unable to initialize workload cluster")
 
@@ -1005,4 +1009,28 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 	controlPlane.SetPatchHelpers(patchHelpers)
 
 	return nil
+}
+
+func reconcileMachineUpToDateCondition(ctx context.Context, controlPlane *rke2.ControlPlane) {
+	machinesNeedingRollout := controlPlane.MachinesNeedingRollout(ctx)
+	machinesNeedingRolloutNames := set.New(machinesNeedingRollout.Names()...)
+
+	for _, machine := range controlPlane.Machines {
+		if machinesNeedingRolloutNames.Has(machine.Name) {
+			conditions.Set(machine, metav1.Condition{
+				Type:    clusterv1.MachineUpToDateCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  clusterv1.MachineNotUpToDateReason,
+				Message: "Machine spec is not up-to-date with RKE2ControlPlane",
+			})
+
+			continue
+		}
+
+		conditions.Set(machine, metav1.Condition{
+			Type:   clusterv1.MachineUpToDateCondition,
+			Status: metav1.ConditionTrue,
+			Reason: clusterv1.MachineUpToDateReason,
+		})
+	}
 }

@@ -161,7 +161,14 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		rcp.Status.Initialization.ControlPlaneInitialized = ptr.To(true)
 	}
 
-	v1beta1conditions.MarkTrue(rcp, controlplanev1.AvailableV1Beta1Condition)
+	if ptr.Deref(rcp.Status.Initialization.ControlPlaneInitialized, false) {
+		v1beta1conditions.MarkTrue(rcp, controlplanev1.AvailableV1Beta1Condition)
+		conditions.Set(rcp, metav1.Condition{
+			Type:   controlplanev1.RKE2ControlPlaneAvailableCondition,
+			Status: metav1.ConditionTrue,
+			Reason: controlplanev1.RKE2ControlPlaneAvailableReason,
+		})
+	}
 
 	lowestVersion := controlPlane.Machines.LowestVersion()
 	if lowestVersion != "" {
@@ -380,7 +387,14 @@ func (r *RKE2ControlPlaneReconciler) updateV1Beta1Status(ctx context.Context, rc
 		rcp.Status.Initialization.ControlPlaneInitialized = ptr.To(true)
 	}
 
-	v1beta1conditions.MarkTrue(rcp, controlplanev1.AvailableV1Beta1Condition)
+	if ptr.Deref(rcp.Status.Initialization.ControlPlaneInitialized, false) {
+		v1beta1conditions.MarkTrue(rcp, controlplanev1.AvailableV1Beta1Condition)
+		conditions.Set(rcp, metav1.Condition{
+			Type:   controlplanev1.RKE2ControlPlaneAvailableCondition,
+			Status: metav1.ConditionTrue,
+			Reason: controlplanev1.RKE2ControlPlaneAvailableReason,
+		})
+	}
 
 	lowestVersion := controlPlane.Machines.LowestVersion()
 	if lowestVersion != "" {
