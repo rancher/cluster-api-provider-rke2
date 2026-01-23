@@ -219,6 +219,7 @@ func (r *RKE2ControlPlaneReconciler) preflightChecks(
 
 	// If there are deleting machines, wait for the operation to complete.
 	if controlPlane.HasDeletingMachine() {
+		controlPlane.PreflightCheckResults.HasDeletingMachine = true
 		logger.Info("Waiting for machines to be deleted", "Machines",
 			strings.Join(controlPlane.Machines.Filter(collections.HasDeletionTimestamp).Names(),
 				", ",

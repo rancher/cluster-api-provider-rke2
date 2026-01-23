@@ -54,14 +54,42 @@ type ControlPlane struct {
 	Machines             collections.Machines
 	machinesPatchHelpers map[string]*patch.Helper
 
+	machinesNotUptoDate                  collections.Machines
+	machinesNotUptoDateLogMessages       map[string][]string
+	machinesNotUptoDateConditionMessages map[string][]string
+
 	// reconciliationTime is the time of the current reconciliation, and should be used for all "now" calculations
 	reconciliationTime metav1.Time
+
+	// InfraMachineTemplateIsNotFound is true if getting the infra machine template object failed with an NotFound err
+	InfraMachineTemplateIsNotFound bool
+
+	// PreflightChecks contains description about pre flight check results blocking machines creation or deletion.
+	PreflightCheckResults PreflightCheckResults
 
 	Rke2Configs    map[string]*bootstrapv1.RKE2Config
 	InfraResources map[string]*unstructured.Unstructured
 
 	managementCluster ManagementCluster
 	workloadCluster   WorkloadCluster
+
+	// deletingReason is the reason that should be used when setting the Deleting condition.
+	DeletingReason string
+
+	// deletingMessage is the message that should be used when setting the Deleting condition.
+	DeletingMessage string
+}
+
+// PreflightCheckResults contains description about pre flight check results blocking machines creation or deletion.
+type PreflightCheckResults struct {
+	// HasDeletingMachine reports true if preflight check detected a deleting machine.
+	HasDeletingMachine bool
+	// ControlPlaneComponentsNotHealthy reports true if preflight check detected that the control plane components are not fully healthy.
+	ControlPlaneComponentsNotHealthy bool
+	// EtcdClusterNotHealthy reports true if preflight check detected that the etcd cluster is not fully healthy.
+	EtcdClusterNotHealthy bool
+	// TopologyVersionMismatch reports true if preflight check detected that the Cluster's topology version does not match the control plane's version
+	TopologyVersionMismatch bool
 }
 
 // NewControlPlane returns an instantiated ControlPlane.
@@ -98,15 +126,38 @@ func NewControlPlane(
 		patchHelpers[name] = patchHelper
 	}
 
+	// Select machines that should be rolled out because of an outdated configuration or because rolloutAfter/Before expired.
+	reconciliationTime := metav1.Now()
+	machinesNotUptoDate := make(collections.Machines, len(ownedMachines))
+	machinesNotUptoDateLogMessages := map[string][]string{}
+	machinesNotUptoDateConditionMessages := map[string][]string{}
+
+	for _, m := range ownedMachines {
+		upToDate, logMessages, conditionMessages, err := UpToDate(ctx, m, rcp, &reconciliationTime, infraObjects, rke2Configs)
+		if err != nil {
+			return nil, err
+		}
+
+		if !upToDate {
+			machinesNotUptoDate.Insert(m)
+
+			machinesNotUptoDateLogMessages[m.Name] = logMessages
+			machinesNotUptoDateConditionMessages[m.Name] = conditionMessages
+		}
+	}
+
 	return &ControlPlane{
-		RCP:                  rcp,
-		Cluster:              cluster,
-		Machines:             ownedMachines,
-		machinesPatchHelpers: patchHelpers,
-		Rke2Configs:          rke2Configs,
-		InfraResources:       infraObjects,
-		reconciliationTime:   metav1.Now(),
-		managementCluster:    managementCluster,
+		RCP:                                  rcp,
+		Cluster:                              cluster,
+		Machines:                             ownedMachines,
+		machinesPatchHelpers:                 patchHelpers,
+		machinesNotUptoDate:                  machinesNotUptoDate,
+		machinesNotUptoDateLogMessages:       machinesNotUptoDateLogMessages,
+		machinesNotUptoDateConditionMessages: machinesNotUptoDateConditionMessages,
+		Rke2Configs:                          rke2Configs,
+		InfraResources:                       infraObjects,
+		reconciliationTime:                   reconciliationTime,
+		managementCluster:                    managementCluster,
 	}, nil
 }
 
@@ -198,7 +249,7 @@ func (c *ControlPlane) NextFailureDomainForScaleUp(ctx context.Context) (string,
 		return "", nil
 	}
 
-	return capifd.PickFewest(ctx, c.FailureDomains(), c.Machines, c.UpToDateMachines(ctx).Filter(collections.Not(collections.HasDeletionTimestamp))), nil
+	return capifd.PickFewest(ctx, c.FailureDomains(), c.Machines, c.UpToDateMachines().Filter(collections.Not(collections.HasDeletionTimestamp))), nil
 }
 
 func getFailureDomainIDs(failureDomains []clusterv1.FailureDomain) []string {
@@ -331,16 +382,14 @@ func (c *ControlPlane) MachinesNeedingRollout(ctx context.Context) collections.M
 
 // UpToDateMachines returns the machines that are up-to-date with the control
 // plane's configuration and therefore do not require rollout.
-func (c *ControlPlane) UpToDateMachines(ctx context.Context) collections.Machines {
-	// Ignore machines to be deleted.
-	machines := c.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
-	// Filter machines if they are scheduled for rollout or if with an outdated configuration.
-	machines.AnyFilter(
-		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(ctx, c.InfraResources, c.Rke2Configs, c.RCP)),
-	)
+func (c *ControlPlane) UpToDateMachines() collections.Machines {
+	return c.Machines.Difference(c.machinesNotUptoDate)
+}
 
-	return machines.Difference(c.MachinesNeedingRollout(ctx))
+// NotUpToDateMachines return a list of machines that are not up to date with the control
+// plane's configuration.
+func (c *ControlPlane) NotUpToDateMachines() (collections.Machines, map[string][]string) {
+	return c.machinesNotUptoDate, c.machinesNotUptoDateConditionMessages
 }
 
 // GetInfraResources fetches the external infrastructure resource for each machine in the collection
@@ -521,6 +570,8 @@ func (c *ControlPlane) ReconcileExternalReference(ctx context.Context, cl client
 	obj, err := external.GetObjectFromContractVersionedRef(ctx, cl, ref, c.RCP.Namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			c.InfraMachineTemplateIsNotFound = true
+
 			logger.Info(fmt.Sprintf("Could not find external object %s %s/%s.",
 				obj.GroupVersionKind().Kind,
 				obj.GetNamespace(),
@@ -556,4 +607,70 @@ func (c *ControlPlane) ReconcileExternalReference(ctx context.Context, cl client
 // UsesEmbeddedEtcd returns true if the control plane does not define an external datastore configuration.
 func (c *ControlPlane) UsesEmbeddedEtcd() bool {
 	return c.RCP.Spec.ServerConfig.ExternalDatastoreSecret == nil
+}
+
+// UpToDate checks if a Machine is up to date with the control plane's configuration.
+// If not, messages explaining why are provided with different level of detail for logs and conditions.
+func UpToDate(ctx context.Context, machine *clusterv1.Machine, rcp *controlplanev1.RKE2ControlPlane, reconciliationTime *metav1.Time, infraConfigs map[string]*unstructured.Unstructured, machineConfigs map[string]*bootstrapv1.RKE2Config) (bool, []string, []string, error) {
+	logMessages := []string{}
+	conditionMessages := []string{}
+
+	// Machines that do not match with rcp config.
+	matches, specLogMessages, specConditionMessages := matchesMachineSpec(ctx, infraConfigs, machineConfigs, rcp, machine)
+	if !matches {
+		logMessages = append(logMessages, specLogMessages...)
+		conditionMessages = append(conditionMessages, specConditionMessages...)
+	}
+
+	if len(logMessages) > 0 || len(conditionMessages) > 0 {
+		return false, logMessages, conditionMessages, nil
+	}
+
+	return true, nil, nil, nil
+}
+
+// matchesMachineSpec checks if a Machine matches any of a set of RKE2Configs and a set of infra machine configs.
+// If it doesn't, it returns the reasons why.
+// Kubernetes version, infrastructure template, and RKE2Config field need to be equivalent.
+// Note: We don't need to compare the entire MachineSpec to determine if a Machine needs to be rolled out,
+// because all the fields in the MachineSpec, except for version, the infrastructureRef and bootstrap.ConfigRef, are either:
+// - mutated in-place (ex: NodeDrainTimeoutSeconds)
+// - are not dictated by RCP (ex: ProviderID)
+// - are not relevant for the rollout decision (ex: failureDomain).
+func matchesMachineSpec(
+	ctx context.Context,
+	infraConfigs map[string]*unstructured.Unstructured,
+	machineConfigs map[string]*bootstrapv1.RKE2Config,
+	rcp *controlplanev1.RKE2ControlPlane,
+	machine *clusterv1.Machine,
+) (bool, []string, []string) {
+	logMessages := []string{}
+	conditionMessages := []string{}
+
+	if !collections.MatchesKubernetesVersion(rcp.Spec.Version)(machine) {
+		machineVersion := ""
+		if machine != nil && machine.Spec.Version != "" {
+			machineVersion = machine.Spec.Version
+		}
+
+		logMessages = append(logMessages, fmt.Sprintf("Machine version %q is not equal to RCP version %q", machineVersion, rcp.Spec.Version))
+		// Note: the code computing the message for RCP's RolloutOut condition is making assumptions on the format/content of this message.
+		conditionMessages = append(conditionMessages, fmt.Sprintf("Version %s, %s required", machineVersion, rcp.Spec.Version))
+	}
+
+	if matches := matchesRKE2BootstrapConfig(ctx, machineConfigs, rcp)(machine); !matches {
+		logMessages = append(logMessages, "RKE2Config does not match RCP's RKE2ConfigSpec")
+		conditionMessages = append(conditionMessages, "RKE2Config is not up-to-date")
+	}
+
+	if matches := matchesTemplateClonedFrom(ctx, infraConfigs, rcp)(machine); !matches {
+		logMessages = append(logMessages, "Machine InfrastructureRef does not match RCP's MachineTemplate.InfrastructureRef")
+		conditionMessages = append(conditionMessages, machine.Spec.InfrastructureRef.Kind+" is not up-to-date")
+	}
+
+	if len(logMessages) > 0 || len(conditionMessages) > 0 {
+		return false, logMessages, conditionMessages
+	}
+
+	return true, nil, nil
 }

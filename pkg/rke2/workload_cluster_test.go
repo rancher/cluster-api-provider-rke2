@@ -45,6 +45,7 @@ var _ = Describe("Node metadata propagation", func() {
 		ns                   *corev1.Namespace
 		nodeName             = "node1"
 		node                 *corev1.Node
+		rcp                  *controlplanev1.RKE2ControlPlane
 		machine              *clusterv1.Machine
 		machineDifferentNode *clusterv1.Machine
 		machineNodeRefStatus clusterv1.MachineStatus
@@ -69,6 +70,12 @@ var _ = Describe("Node metadata propagation", func() {
 				clusterv1.MachineAnnotation: nodeName,
 			},
 		}}
+
+		rcp = &controlplanev1.RKE2ControlPlane{
+			Spec: controlplanev1.RKE2ControlPlaneSpec{
+				Version: "v1.34.2+rke2r1",
+			},
+		}
 
 		config = &bootstrapv1.RKE2Config{ObjectMeta: metav1.ObjectMeta{
 			Name:      "config",
@@ -150,7 +157,7 @@ var _ = Describe("Node metadata propagation", func() {
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -180,7 +187,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -210,7 +217,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -257,7 +264,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -303,7 +310,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -352,7 +359,7 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
@@ -372,7 +379,7 @@ var _ = Describe("Node metadata propagation", func() {
 		machines = collections.FromMachineList(&clusterv1.MachineList{Items: []clusterv1.Machine{
 			*machineDifferentNode,
 		}})
-		cp, err = NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err = NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())

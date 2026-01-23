@@ -77,7 +77,9 @@ type RKE2ControlPlaneSpec struct {
 
 	// Version defines the desired Kubernetes version.
 	// +kubebuilder:validation:Pattern="(v\\d\\.\\d{2}\\.\\d+\\+rke2r\\d)|^$"
-	// +optional
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=256
 	Version string `json:"version"`
 
 	// MachineTemplate contains information about how machines
@@ -104,7 +106,7 @@ type RKE2ControlPlaneSpec struct {
 	// +optional
 	RegistrationAddress string `json:"registrationAddress,omitempty"`
 
-	// The RolloutStrategy to use to replace control plane machines with new ones.
+	// The Rollout to use to replace control plane machines with new ones.
 	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy"`
 
 	// remediationStrategy is the RemediationStrategy that controls how control plane machine remediation happens.

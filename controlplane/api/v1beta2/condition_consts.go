@@ -211,7 +211,7 @@ const (
 	RKE2ControlPlaneMachineEtcdMemberInspectionFailedReason = clusterv1.InspectionFailedReason
 )
 
-// RKE2ControlPlane's Scaling(Up|Down) Condition and Reasons.
+// RKE2ControlPlane's ScalingUp Condition and Reasons.
 const (
 	// RKE2ControlPlaneScalingUpCondition documents a RKE2ControlPlane that is scaling up the set of controlled machines.
 	RKE2ControlPlaneScalingUpCondition = clusterv1.ScalingUpCondition
@@ -222,12 +222,26 @@ const (
 	// RKE2ControlPlaneNotScalingUpReason surfaces when actual replicas >= desired replicas.
 	RKE2ControlPlaneNotScalingUpReason = clusterv1.NotScalingUpReason
 
+	// RKE2ControlPlaneScalingUpWaitingForReplicasSetReason surfaces when the .spec.replicas
+	// field of the RKE2ControlPlane is not set.
+	RKE2ControlPlaneScalingUpWaitingForReplicasSetReason = clusterv1.WaitingForReplicasSetReason
+)
+
+// RKE2ControlPlane's ScalingDown Condition and Reasons.
+const (
 	// RKE2ControlPlaneScalingDownCondition is true if actual replicas > desired replicas.
 	// Note: In case a RKE2ControlPlane preflight check is preventing scale down, this will surface in the condition message.
 	RKE2ControlPlaneScalingDownCondition = clusterv1.ScalingDownCondition
 
 	// RKE2ControlPlaneScalingDownReason surfaces when actual replicas > desired replicas.
 	RKE2ControlPlaneScalingDownReason = clusterv1.ScalingDownReason
+
+	// RKE2ControlPlaneNotScalingDownReason surfaces when actual replicas <= desired replicas.
+	RKE2ControlPlaneNotScalingDownReason = clusterv1.NotScalingDownReason
+
+	// RKE2ControlPlaneScalingDownWaitingForReplicasSetReason surfaces when the .spec.replicas
+	// field of the RKE2ControlPlane is not set.
+	RKE2ControlPlaneScalingDownWaitingForReplicasSetReason = clusterv1.WaitingForReplicasSetReason
 )
 
 // RKE2ControlPlane's Remediating condition and corresponding reasons.

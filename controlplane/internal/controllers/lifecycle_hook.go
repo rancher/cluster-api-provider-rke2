@@ -116,7 +116,7 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreDrainHook(ctx context.Context, 
 	deletingMachine := getDeletingMachineWithHook(ctx,
 		controlPlane,
 		controlplanev1.PreDrainLoadbalancerExclusionAnnotation,
-		clusterv1.MachineDeletingWaitingForPreDrainHookReason)
+		clusterv1.MachineDeletingWaitingForPreTerminateHookReason)
 	if deletingMachine == nil {
 		log.V(5).Info("Waiting on other machines to be deleted.")
 
@@ -330,7 +330,7 @@ func getDeletingMachineWithHook(ctx context.Context,
 	c := conditions.Get(deletingMachine, clusterv1.MachineDeletingCondition)
 
 	// Return early because the Machine controller is not yet waiting for the pre-terminate hook.
-	if c == nil || c.Status != metav1.ConditionFalse || c.Reason != expectedReason {
+	if c == nil || c.Status != metav1.ConditionTrue || c.Reason != expectedReason {
 		log.V(5).Info("Machine is not waiting on condition", "condition", clusterv1.MachineDeletingCondition)
 
 		return nil

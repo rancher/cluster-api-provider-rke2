@@ -69,6 +69,7 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 		if !machine.DeletionTimestamp.IsZero() {
 			v1beta1conditions.MarkFalse(
 				machine, controlplanev1.MachineEtcdMemberHealthyV1Beta1Condition, clusterv1.DeletingV1Beta1Reason, clusterv1.ConditionSeverityInfo, "")
+
 			conditions.Set(machine, metav1.Condition{
 				Type:    controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
 				Status:  metav1.ConditionFalse,
@@ -80,6 +81,7 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 		}
 
 		v1beta1conditions.MarkTrue(machine, controlplanev1.MachineEtcdMemberHealthyV1Beta1Condition)
+
 		conditions.Set(machine, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
 			Status:  metav1.ConditionTrue,
@@ -112,26 +114,26 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 		// Search for the machine corresponding to the node.
 		machine, found := controlPlane.Machines[node.Name]
 		if !found {
-			// Try to find machine by NodeRef if direct name lookup failed.
-			for _, m := range controlPlane.Machines {
-				if m.Status.NodeRef.IsDefined() && m.Status.NodeRef.Name == node.Name {
-					machine = m
-					found = true
-
-					break
-				}
-			}
-		}
-
-		if !found || machine == nil {
 			// If there are machines still provisioning, this might be a timing issue - skip for now.
 			if hasProvisioningMachine(controlPlane.Machines) {
 				continue
 			}
-			// Node exists but no machine found - this is an orphan node.
-			rcpErrors = append(rcpErrors, fmt.Sprintf("Control plane node %s does not have a corresponding machine", node.Name))
 
-			continue
+			// Try to find machine by NodeRef if direct name lookup failed.
+			for _, m := range controlPlane.Machines {
+				if m.Status.NodeRef.IsDefined() && m.Status.NodeRef.Name == node.Name {
+					machine = m
+
+					break
+				}
+			}
+
+			if machine == nil {
+				// Node exists but no machine found - this is an orphan node.
+				rcpErrors = append(rcpErrors, fmt.Sprintf("Control plane node %s does not have a corresponding machine", node.Name))
+
+				continue
+			}
 		}
 
 		// If the machine is deleting, report all the conditions as deleting
@@ -511,9 +513,7 @@ func aggregateConditionsFromMachinesToRCP(input aggregateConditionsFromMachinesT
 
 	// Append messages impacting RCP as a whole, if any
 	if len(input.rcpErrors) > 0 {
-		for _, message := range input.rcpErrors {
-			messages = append(messages, "* %s"+message)
-		}
+		messages = append(messages, input.rcpErrors...)
 	}
 
 	message := strings.Join(messages, "\n")

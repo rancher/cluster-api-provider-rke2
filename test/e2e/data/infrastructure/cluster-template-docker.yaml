@@ -216,6 +216,7 @@ spec:
         apiGroup: infrastructure.cluster.x-k8s.io
         kind: DockerMachineTemplate
         name: ${CLUSTER_NAME}-md-0
+      failureDomain: fd1
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate

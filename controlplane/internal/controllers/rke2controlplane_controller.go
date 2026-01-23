@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -31,10 +32,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-	"k8s.io/utils/set"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -645,7 +646,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
-	fmt.Println("### calculating machines to delete")
 
 	// Delete control plane machines in parallel
 	machinesToDelete := ownedMachines
@@ -846,7 +846,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 	}()
 
 	// Always reconcile machine's UpToDate condition.
-	reconcileMachineUpToDateCondition(ctx, controlPlane)
+	reconcileMachineUpToDateCondition(controlPlane)
 
 	if err := workloadCluster.InitWorkload(ctx, controlPlane); err != nil {
 		logger.Error(err, "Unable to initialize workload cluster")
@@ -1033,17 +1033,28 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 	return nil
 }
 
-func reconcileMachineUpToDateCondition(ctx context.Context, controlPlane *rke2.ControlPlane) {
-	machinesNeedingRollout := controlPlane.MachinesNeedingRollout(ctx)
-	machinesNeedingRolloutNames := set.New(machinesNeedingRollout.Names()...)
+func reconcileMachineUpToDateCondition(controlPlane *rke2.ControlPlane) {
+	machinesNotUptoDate, machinesNotUptoDateConditionMessages := controlPlane.NotUpToDateMachines()
+	machinesNotUptoDateNames := sets.New(machinesNotUptoDate.Names()...)
 
 	for _, machine := range controlPlane.Machines {
-		if machinesNeedingRolloutNames.Has(machine.Name) {
+		if machinesNotUptoDateNames.Has(machine.Name) {
+			// Note: the code computing the message for RCP's RolloutOut condition is making assumptions on the format/content of this message.
+			message := ""
+
+			if reasons, ok := machinesNotUptoDateConditionMessages[machine.Name]; ok {
+				for i := range reasons {
+					reasons[i] = "* " + reasons[i]
+				}
+
+				message = strings.Join(reasons, "\n")
+			}
+
 			conditions.Set(machine, metav1.Condition{
 				Type:    clusterv1.MachineUpToDateCondition,
 				Status:  metav1.ConditionFalse,
 				Reason:  clusterv1.MachineNotUpToDateReason,
-				Message: "Machine spec is not up-to-date with RKE2ControlPlane",
+				Message: message,
 			})
 
 			continue

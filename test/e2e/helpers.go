@@ -215,8 +215,7 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 	input.WaitForControlPlaneMachinesReady(ctx, input, result)
 
 	By(fmt.Sprintf("Waiting for the machine deployments of cluster %s to be provisioned", klog.KRef(input.Namespace, input.ClusterName)))
-	// result.MachineDeployments = framework.DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
-	result.MachineDeployments = DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
+	result.MachineDeployments = framework.DiscoveryAndWaitForMachineDeployments(ctx, framework.DiscoveryAndWaitForMachineDeploymentsInput{
 		Lister:  input.ClusterProxy.GetClient(),
 		Cluster: result.Cluster,
 	}, input.WaitForMachineDeployments...)
@@ -253,40 +252,6 @@ func WriteKubeconfigSecretToDisk(ctx context.Context, client framework.Getter, n
 	err = clientcmd.WriteToFile(*cfg, tempFile.Name())
 	Expect(err).ShouldNot(HaveOccurred(), "Failed to write kubeconfig to file %s", tempFile.Name())
 	return tempFile.Name()
-}
-
-// DiscoveryAndWaitForMachineDeployments discovers the MachineDeployments existing in a cluster and waits for them to be ready (all the machine provisioned).
-func DiscoveryAndWaitForMachineDeployments(ctx context.Context, input framework.DiscoveryAndWaitForMachineDeploymentsInput, intervals ...interface{}) []*clusterv1.MachineDeployment {
-	Expect(ctx).NotTo(BeNil(), "ctx is required for DiscoveryAndWaitForMachineDeployments")
-	Expect(input.Lister).ToNot(BeNil(), "Invalid argument. input.Lister can't be nil when calling DiscoveryAndWaitForMachineDeployments")
-	Expect(input.Cluster).ToNot(BeNil(), "Invalid argument. input.Cluster can't be nil when calling DiscoveryAndWaitForMachineDeployments")
-
-	machineDeployments := framework.GetMachineDeploymentsByCluster(ctx, framework.GetMachineDeploymentsByClusterInput{
-		Lister:      input.Lister,
-		ClusterName: input.Cluster.Name,
-		Namespace:   input.Cluster.Namespace,
-	})
-
-	for _, deployment := range machineDeployments {
-		framework.AssertMachineDeploymentFailureDomains(ctx, framework.AssertMachineDeploymentFailureDomainsInput{
-			Lister:            input.Lister,
-			Cluster:           input.Cluster,
-			MachineDeployment: deployment,
-		})
-	}
-
-	Eventually(func(g Gomega) {
-		machineDeployments := framework.GetMachineDeploymentsByCluster(ctx, framework.GetMachineDeploymentsByClusterInput{
-			Lister:      input.Lister,
-			ClusterName: input.Cluster.Name,
-			Namespace:   input.Cluster.Namespace,
-		})
-		for _, deployment := range machineDeployments {
-			g.Expect(*deployment.Spec.Replicas).To(BeEquivalentTo(deployment.Status.ReadyReplicas))
-		}
-	}, intervals...).Should(Succeed())
-
-	return machineDeployments
 }
 
 // DiscoveryAndWaitForRKE2ControlPlaneInitializedInput is the input type for DiscoveryAndWaitForRKE2ControlPlaneInitialized.

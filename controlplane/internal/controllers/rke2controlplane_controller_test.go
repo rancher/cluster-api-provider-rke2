@@ -25,8 +25,13 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	RKE2KubernetesVersion = "v1.34.2+rke2r1"
 )
 
 var _ = Describe("Rotate kubeconfig cert", func() {
@@ -219,6 +224,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			},
 			Spec: clusterv1.MachineSpec{
 				ClusterName: "cluster",
+				Version:     RKE2KubernetesVersion,
 				Bootstrap: clusterv1.Bootstrap{
 					ConfigRef: clusterv1.ContractVersionedObjectReference{
 						Kind:     "RKE2Config",
@@ -306,7 +312,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			},
 			Status: clusterv1.MachineStatus{
 				NodeRef: clusterv1.MachineNodeReference{
-					Name: nodeRefName,
+					Name: nodeName,
 				},
 				Conditions: []metav1.Condition{
 					{
@@ -354,6 +360,14 @@ var _ = Describe("Reconcile control plane conditions", func() {
 				Initialization: controlplanev1.RKE2ControlPlaneInitializationStatus{
 					ControlPlaneInitialized: ptr.To(true),
 				},
+				Conditions: []metav1.Condition{
+					{
+						Type:    controlplanev1.RKE2ControlPlaneInitializedCondition,
+						Status:  metav1.ConditionTrue,
+						Reason:  controlplanev1.RKE2ControlPlaneInitializedReason,
+						Message: "",
+					},
+				},
 			},
 		}
 
@@ -393,16 +407,15 @@ var _ = Describe("Reconcile control plane conditions", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(machineWithRef), machineWithRef)).To(Succeed())
-		// TODO: control plane conditions are not being correctly reconciled and the following checks are failing
-		// Expect(conditions.IsTrue(machine, controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(BeTrue())
-		// Expect(conditions.IsTrue(machineWithRef, controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(BeTrue())
-		// Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
-		// Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(nodeByRef), nodeByRef)).To(Succeed())
-		// Expect(node.GetAnnotations()).To(HaveKeyWithValue("test", "true"))
-		// Expect(nodeByRef.GetAnnotations()).To(HaveKeyWithValue("test", "true"))
-		// Expect(conditions.IsFalse(rcp, controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition)).To(BeTrue())
-		// Expect(conditions.GetMessage(rcp, controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition)).To(Equal(
-		// 	"Control plane node missing-machine does not have a corresponding machine"))
+		Expect(conditions.IsTrue(machine, controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(BeTrue())
+		Expect(conditions.IsTrue(machineWithRef, controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(BeTrue())
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).To(Succeed())
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(nodeByRef), nodeByRef)).To(Succeed())
+		Expect(node.GetAnnotations()).To(HaveKeyWithValue("test", "true"))
+		Expect(nodeByRef.GetAnnotations()).To(HaveKeyWithValue("test", "true"))
+		Expect(conditions.IsFalse(rcp, controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition)).To(BeTrue())
+		Expect(conditions.GetMessage(rcp, controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition)).To(Equal(
+			"Control plane node missing-machine does not have a corresponding machine"))
 	})
 })
 

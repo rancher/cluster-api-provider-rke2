@@ -289,7 +289,7 @@ func (w *Workload) ClusterStatus(ctx context.Context) ClusterStatus {
 
 func hasProvisioningMachine(machines collections.Machines) bool {
 	for _, machine := range machines {
-		if machine.Status.NodeRef.IsDefined() {
+		if !machine.Status.NodeRef.IsDefined() {
 			return true
 		}
 	}
@@ -311,10 +311,9 @@ func (w *Workload) UpdateNodeMetadata(ctx context.Context, controlPlane *Control
 
 		v1beta1conditions.MarkTrue(machine, controlplanev1.NodeMetadataUpToDateV1Beta1Condition)
 		conditions.Set(machine, metav1.Condition{
-			Type:    controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition,
-			Status:  metav1.ConditionTrue,
-			Reason:  controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateReason,
-			Message: fmt.Sprintf("node %s metadata is up to date", nodeName),
+			Type:   controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition,
+			Status: metav1.ConditionTrue,
+			Reason: controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateReason,
 		})
 
 		node, nodeFound := w.Nodes[nodeName]

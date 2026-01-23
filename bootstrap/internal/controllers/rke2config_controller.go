@@ -206,10 +206,9 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
 			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
 			conditions.Set(scope.Config, metav1.Condition{
-				Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
-				Status:  metav1.ConditionTrue,
-				Reason:  bootstrapv1.RKE2ConfigDataSecretAvailableReason,
-				Message: "Bootstrap data secret is available and the corresponding RKE2Config has an owner machine",
+				Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+				Status: metav1.ConditionTrue,
+				Reason: bootstrapv1.RKE2ConfigDataSecretAvailableReason,
 			})
 		}
 	}
@@ -221,10 +220,9 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			scope.Config.Status.DataSecretName = scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName
 			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
 			conditions.Set(scope.Config, metav1.Condition{
-				Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
-				Status:  metav1.ConditionTrue,
-				Reason:  bootstrapv1.RKE2ConfigDataSecretAvailableReason,
-				Message: "Bootstrap data secret is available and the corresponding RKE2Config has an owner machine pool",
+				Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+				Status: metav1.ConditionTrue,
+				Reason: bootstrapv1.RKE2ConfigDataSecretAvailableReason,
 			})
 		}
 	}
@@ -439,10 +437,9 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 
 	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
-		Type:    bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
-		Status:  metav1.ConditionTrue,
-		Reason:  bootstrapv1.RKE2ConfigCertificatesAvailableReason,
-		Message: "Cluster CA certificates generated",
+		Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+		Status: metav1.ConditionTrue,
+		Reason: bootstrapv1.RKE2ConfigCertificatesAvailableReason,
 	})
 
 	// RKE2 server token must only be generated once, so all nodes join the cluster with the same registration token.
@@ -832,10 +829,9 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	// cluster CA certificates during the RKE2 join process.
 	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
-		Type:    bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
-		Status:  metav1.ConditionTrue,
-		Reason:  bootstrapv1.RKE2ConfigCertificatesAvailableReason,
-		Message: "Cluster CA certificates will be retrieved during join",
+		Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+		Status: metav1.ConditionTrue,
+		Reason: bootstrapv1.RKE2ConfigCertificatesAvailableReason,
 	})
 
 	return ctrl.Result{}, nil
@@ -963,10 +959,9 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	// the registration token to join the cluster. RKE2 handles agent certificates internally.
 	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
-		Type:    bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
-		Status:  metav1.ConditionTrue,
-		Reason:  bootstrapv1.RKE2ConfigCertificatesAvailableReason,
-		Message: "CA certificates not required for worker nodes",
+		Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+		Status: metav1.ConditionTrue,
+		Reason: bootstrapv1.RKE2ConfigCertificatesAvailableReason,
 	})
 
 	return ctrl.Result{}, nil
@@ -1088,10 +1083,9 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 
 	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
-		Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
-		Status:  metav1.ConditionTrue,
-		Reason:  bootstrapv1.RKE2ConfigDataSecretAvailableReason,
-		Message: "Bootstrap data secret is available",
+		Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
+		Status: metav1.ConditionTrue,
+		Reason: bootstrapv1.RKE2ConfigDataSecretAvailableReason,
 	})
 
 	return nil

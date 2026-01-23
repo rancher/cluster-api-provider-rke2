@@ -19,11 +19,15 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -33,6 +37,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	v1beta1conditions "sigs.k8s.io/cluster-api/util/conditions/deprecated/v1beta1"
+	clog "sigs.k8s.io/cluster-api/util/log"
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/registration"
@@ -93,7 +98,12 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 
 	setReplicas(ctx, rcp, ownedMachines)
 	setInitializedCondition(ctx, controlPlane.RCP)
+	setScalingUpCondition(ctx,
+		controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.InfraMachineTemplateIsNotFound, controlPlane.PreflightCheckResults)
+	setScalingDownCondition(ctx, controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.PreflightCheckResults)
 	setMachinesReadyCondition(ctx, controlPlane.RCP, controlPlane.Machines)
+	// TODO: populate DeletingReason and DeletingMessage
+	setDeletingCondition(ctx, controlPlane.RCP, controlPlane.DeletingReason, controlPlane.DeletingMessage)
 
 	kubeconfigSecret := corev1.Secret{}
 
@@ -272,7 +282,7 @@ func (r *RKE2ControlPlaneReconciler) updateV1Beta1Status(ctx context.Context, rc
 		rcp.Status.Deprecated.V1Beta1 = &controlplanev1.RKE2ControlPlaneV1Beta1DeprecatedStatus{}
 	}
 
-	rcp.Status.Deprecated.V1Beta1.UpdatedReplicas = rke2util.SafeInt32(len(controlPlane.UpToDateMachines(ctx))) // nolint:staticcheck
+	rcp.Status.Deprecated.V1Beta1.UpdatedReplicas = rke2util.SafeInt32(len(controlPlane.UpToDateMachines())) // nolint:staticcheck
 
 	replicas := rke2util.SafeInt32(len(ownedMachines))
 	desiredReplicas := *rcp.Spec.Replicas
@@ -481,6 +491,111 @@ func setInitializedCondition(_ context.Context, rcp *controlplanev1.RKE2ControlP
 	})
 }
 
+func setScalingUpCondition(_ context.Context,
+	cluster *clusterv1.Cluster,
+	rcp *controlplanev1.RKE2ControlPlane,
+	machines collections.Machines,
+	infrastructureObjectNotFound bool,
+	preflightChecks rke2.PreflightCheckResults,
+) {
+	if rcp.Spec.Replicas == nil {
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneScalingUpCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  controlplanev1.RKE2ControlPlaneScalingUpWaitingForReplicasSetReason,
+			Message: "Waiting for spec.replicas set",
+		})
+		return
+	}
+
+	currentReplicas := int32(len(machines))
+	desiredReplicas := *rcp.Spec.Replicas
+	if !rcp.DeletionTimestamp.IsZero() {
+		desiredReplicas = 0
+	}
+
+	missingReferencesMessage := calculateMissingReferencesMessage(rcp, infrastructureObjectNotFound)
+
+	if currentReplicas >= desiredReplicas {
+		var message string
+		if missingReferencesMessage != "" {
+			message = fmt.Sprintf("Scaling up would be blocked because %s", missingReferencesMessage)
+		}
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneScalingUpCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  controlplanev1.RKE2ControlPlaneNotScalingUpReason,
+			Message: message,
+		})
+		return
+	}
+
+	message := fmt.Sprintf("Scaling up from %d to %d replicas", currentReplicas, desiredReplicas)
+
+	additionalMessages := getPreflightMessages(cluster, preflightChecks)
+	if missingReferencesMessage != "" {
+		additionalMessages = append(additionalMessages, fmt.Sprintf("* %s", missingReferencesMessage))
+	}
+
+	if len(additionalMessages) > 0 {
+		message += fmt.Sprintf(" is blocked because:\n%s", strings.Join(additionalMessages, "\n"))
+	}
+
+	conditions.Set(rcp, metav1.Condition{
+		Type:    controlplanev1.RKE2ControlPlaneScalingUpCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  controlplanev1.RKE2ControlPlaneScalingUpReason,
+		Message: message,
+	})
+}
+
+func setScalingDownCondition(_ context.Context,
+	cluster *clusterv1.Cluster, rcp *controlplanev1.RKE2ControlPlane, machines collections.Machines, preflightChecks rke2.PreflightCheckResults,
+) {
+	if rcp.Spec.Replicas == nil {
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneScalingDownCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  controlplanev1.RKE2ControlPlaneScalingDownWaitingForReplicasSetReason,
+			Message: "Waiting for spec.replicas set",
+		})
+		return
+	}
+
+	currentReplicas := int32(len(machines))
+	desiredReplicas := *rcp.Spec.Replicas
+	if !rcp.DeletionTimestamp.IsZero() {
+		desiredReplicas = 0
+	}
+
+	if currentReplicas <= desiredReplicas {
+		conditions.Set(rcp, metav1.Condition{
+			Type:   controlplanev1.RKE2ControlPlaneScalingDownCondition,
+			Status: metav1.ConditionFalse,
+			Reason: controlplanev1.RKE2ControlPlaneNotScalingDownReason,
+		})
+		return
+	}
+
+	message := fmt.Sprintf("Scaling down from %d to %d replicas", currentReplicas, desiredReplicas)
+
+	additionalMessages := getPreflightMessages(cluster, preflightChecks)
+	if staleMessage := aggregateStaleMachines(machines); staleMessage != "" {
+		additionalMessages = append(additionalMessages, fmt.Sprintf("* %s", staleMessage))
+	}
+
+	if len(additionalMessages) > 0 {
+		message += fmt.Sprintf(" is blocked because:\n%s", strings.Join(additionalMessages, "\n"))
+	}
+
+	conditions.Set(rcp, metav1.Condition{
+		Type:    controlplanev1.RKE2ControlPlaneScalingDownCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  controlplanev1.RKE2ControlPlaneScalingDownReason,
+		Message: message,
+	})
+}
+
 func setMachinesReadyCondition(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, machines collections.Machines) {
 	if len(machines) == 0 {
 		conditions.Set(rcp, metav1.Condition{
@@ -488,6 +603,7 @@ func setMachinesReadyCondition(ctx context.Context, rcp *controlplanev1.RKE2Cont
 			Status: metav1.ConditionTrue,
 			Reason: controlplanev1.RKE2ControlPlaneMachinesReadyNoReplicasReason,
 		})
+
 		return
 	}
 
@@ -515,8 +631,125 @@ func setMachinesReadyCondition(ctx context.Context, rcp *controlplanev1.RKE2Cont
 
 		log := ctrl.LoggerFrom(ctx)
 		log.Error(err, fmt.Sprintf("Failed to aggregate Machine's %s conditions", clusterv1.MachineReadyCondition))
+
 		return
 	}
 
 	conditions.Set(rcp, *readyCondition)
+}
+
+func setDeletingCondition(_ context.Context, rcp *controlplanev1.RKE2ControlPlane, deletingReason, deletingMessage string) {
+	if rcp.DeletionTimestamp.IsZero() {
+		conditions.Set(rcp, metav1.Condition{
+			Type:   controlplanev1.RKE2ControlPlaneDeletingCondition,
+			Status: metav1.ConditionFalse,
+			Reason: controlplanev1.RKE2ControlPlaneNotDeletingReason,
+		})
+		return
+	}
+
+	conditions.Set(rcp, metav1.Condition{
+		Type:    controlplanev1.RKE2ControlPlaneDeletingCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  deletingReason,
+		Message: deletingMessage,
+	})
+}
+
+func calculateMissingReferencesMessage(rcp *controlplanev1.RKE2ControlPlane, infraMachineTemplateNotFound bool) string {
+	if infraMachineTemplateNotFound {
+		return fmt.Sprintf("%s does not exist", rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Kind)
+	}
+	return ""
+}
+
+func getPreflightMessages(cluster *clusterv1.Cluster, preflightChecks rke2.PreflightCheckResults) []string {
+	additionalMessages := []string{}
+	if preflightChecks.TopologyVersionMismatch {
+		additionalMessages = append(additionalMessages, fmt.Sprintf("* waiting for a version upgrade to %s to be propagated from Cluster.spec.topology", cluster.Spec.Topology.Version))
+	}
+
+	if preflightChecks.HasDeletingMachine {
+		additionalMessages = append(additionalMessages, "* waiting for a control plane Machine to complete deletion")
+	}
+
+	if preflightChecks.ControlPlaneComponentsNotHealthy {
+		additionalMessages = append(additionalMessages, "* waiting for control plane components to become healthy")
+	}
+
+	if preflightChecks.EtcdClusterNotHealthy {
+		additionalMessages = append(additionalMessages, "* waiting for etcd cluster to become healthy")
+	}
+	return additionalMessages
+}
+
+func aggregateStaleMachines(machines collections.Machines) string {
+	if len(machines) == 0 {
+		return ""
+	}
+
+	delayReasons := sets.Set[string]{}
+	machineNames := []string{}
+
+	for _, machine := range machines {
+		if !machine.GetDeletionTimestamp().IsZero() && time.Since(machine.GetDeletionTimestamp().Time) > time.Minute*15 {
+			machineNames = append(machineNames, machine.GetName())
+
+			deletingCondition := conditions.Get(machine, clusterv1.MachineDeletingCondition)
+			if deletingCondition != nil &&
+				deletingCondition.Status == metav1.ConditionTrue &&
+				deletingCondition.Reason == clusterv1.MachineDeletingDrainingNodeReason &&
+				machine.Status.Deletion != nil &&
+				!machine.Status.Deletion.NodeDrainStartTime.IsZero() && time.Since(machine.Status.Deletion.NodeDrainStartTime.Time) > 5*time.Minute {
+				if strings.Contains(deletingCondition.Message, "cannot evict pod as it would violate the pod's disruption budget.") {
+					delayReasons.Insert("PodDisruptionBudgets")
+				}
+
+				if strings.Contains(deletingCondition.Message, "deletionTimestamp set, but still not removed from the Node") {
+					delayReasons.Insert("Pods not terminating")
+				}
+
+				if strings.Contains(deletingCondition.Message, "failed to evict Pod") {
+					delayReasons.Insert("Pod eviction errors")
+				}
+
+				if strings.Contains(deletingCondition.Message, "waiting for completion") {
+					delayReasons.Insert("Pods not completed yet")
+				}
+			}
+		}
+	}
+
+	if len(machineNames) == 0 {
+		return ""
+	}
+
+	message := "Machine"
+	if len(machineNames) > 1 {
+		message += "s"
+	}
+
+	sort.Strings(machineNames)
+	message += " " + clog.ListToString(machineNames, func(s string) string { return s }, 3)
+
+	if len(machineNames) == 1 {
+		message += " is "
+	} else {
+		message += " are "
+	}
+
+	message += "in deletion since more than 15m"
+
+	if len(delayReasons) > 0 {
+		reasonList := []string{}
+
+		for _, r := range []string{"PodDisruptionBudgets", "Pods not terminating", "Pod eviction errors", "Pods not completed yet"} {
+			if delayReasons.Has(r) {
+				reasonList = append(reasonList, r)
+			}
+		}
+		message += fmt.Sprintf(", delay likely due to %s", strings.Join(reasonList, ", "))
+	}
+
+	return message
 }

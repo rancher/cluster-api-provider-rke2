@@ -2475,8 +2475,8 @@ spec:
                         format: int32
                         type: integer
                       rolloutStrategy:
-                        description: The RolloutStrategy to use to replace control
-                          plane machines with new ones.
+                        description: The Rollout to use to replace control plane machines
+                          with new ones.
                         properties:
                           rollingUpdate:
                             description: Rolling update config params. Present only
@@ -3083,10 +3083,13 @@ spec:
                         type: object
                       version:
                         description: Version defines the desired Kubernetes version.
+                        maxLength: 256
+                        minLength: 1
                         pattern: (v\d\.\d{2}\.\d+\+rke2r\d)|^$
                         type: string
                     required:
                     - rolloutStrategy
+                    - version
                     type: object
                 required:
                 - spec
