@@ -27,11 +27,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
-	k8sversion "k8s.io/apimachinery/pkg/version"
+	apimachineryversion "k8s.io/apimachinery/pkg/version"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/contract"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NOTE: the functionality in this file is part of the `internal` package in
@@ -134,5 +134,5 @@ type kubeAwareAPIVersions []string
 func (k kubeAwareAPIVersions) Len() int      { return len(k) }
 func (k kubeAwareAPIVersions) Swap(i, j int) { k[i], k[j] = k[j], k[i] }
 func (k kubeAwareAPIVersions) Less(i, j int) bool {
-	return k8sversion.CompareKubeAwareVersionStrings(k[i], k[j]) < 0
+	return apimachineryversion.CompareKubeAwareVersionStrings(k[i], k[j]) < 0
 }

@@ -88,6 +88,12 @@ const (
 	// EtcdClusterInspectionFailedV1Beta1Reason documents a failure in inspecting the etcd cluster status.
 	EtcdClusterInspectionFailedV1Beta1Reason = "EtcdClusterInspectionFailed"
 
+	// EtcdClusterUnknownV1Beta1Reason reports an etcd cluster in unknown status.
+	EtcdClusterUnknownV1Beta1Reason = "EtcdClusterUnknown"
+
+	// EtcdClusterUnhealthyV1Beta1Reason (Severity=Error) is set when the etcd cluster is unhealthy.
+	EtcdClusterUnhealthyV1Beta1Reason = "EtcdClusterUnhealthy"
+
 	// MachineEtcdMemberHealthyV1Beta1Condition report the machine's etcd member's health status.
 	// NOTE: This conditions exists only if a stacked etcd cluster is used.
 	MachineEtcdMemberHealthyV1Beta1Condition clusterv1.ConditionType = "EtcdMemberHealthy"

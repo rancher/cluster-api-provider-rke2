@@ -80,6 +80,29 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 			continue
 		}
 
+		fmt.Println("#### RKE2ControlPlaneMachineEtcdMemberHealthyCondition: setting to true")
+
+		// Aggregate components error from machines at RCP level
+		// aggregateV1Beta1ConditionsFromMachinesToRCP(aggregateV1Beta1ConditionsFromMachinesToRCPInput{
+		// 	controlPlane:      controlPlane,
+		// 	machineConditions: []clusterv1.ConditionType{controlplanev1.MachineEtcdMemberHealthyV1Beta1Condition},
+		// 	rcpErrors:         rcpErrors,
+		// 	condition:         controlplanev1.EtcdClusterHealthyV1Beta1Condition,
+		// 	unhealthyReason:   controlplanev1.EtcdClusterUnhealthyV1Beta1Reason,
+		// 	unknownReason:     controlplanev1.EtcdClusterUnknownV1Beta1Reason,
+		// 	note:              "etcd member",
+		// })
+		//
+		// aggregateConditionsFromMachinesToRCP(aggregateConditionsFromMachinesToRCPInput{
+		// 	controlPlane:      controlPlane,
+		// 	machineConditions: []string{controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition},
+		// 	rcpErrors:         rcpErrors,
+		// 	condition:         controlplanev1.RKE2ControlPlaneEtcdClusterHealthyCondition,
+		// 	falseReason:       controlplanev1.RKE2ControlPlaneEtcdClusterNotHealthyReason,
+		// 	unknownReason:     controlplanev1.RKE2ControlPlaneEtcdClusterHealthUnknownReason,
+		// 	trueReason:        controlplanev1.RKE2ControlPlaneEtcdClusterHealthyReason,
+		// 	note:              "etcd member",
+		// })
 		v1beta1conditions.MarkTrue(machine, controlplanev1.MachineEtcdMemberHealthyV1Beta1Condition)
 
 		conditions.Set(machine, metav1.Condition{

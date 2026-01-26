@@ -109,12 +109,6 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 					Status:             metav1.ConditionTrue,
 					LastTransitionTime: metav1.Now(),
 				},
-				{
-					Type:               clusterv1.MachineDeletingCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             clusterv1.MachineDeletingWaitingForPreDrainHookReason,
-					LastTransitionTime: metav1.Now(),
-				},
 			},
 		}
 
@@ -265,7 +259,24 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 			Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&machine), &machine)).Should(Succeed())
 			return machine.DeletionTimestamp.IsZero()
 		}).WithTimeout(10*time.Second).Should(BeFalse(), "machine should have a deletion timestamp")
-		machine.Status = machineStatus
+		machine.Status = clusterv1.MachineStatus{
+			NodeRef: clusterv1.MachineNodeReference{
+				Name: node.Name,
+			},
+			Conditions: []metav1.Condition{
+				{
+					Type:               clusterv1.ReadyCondition,
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               clusterv1.MachineDeletingCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             clusterv1.MachineDeletingWaitingForPreDrainHookReason,
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		}
 
 		// Actualize the machine list since they were modified externally
 		ml := clusterv1.MachineList{Items: []clusterv1.Machine{machine, spareMachine}}
@@ -300,7 +311,7 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		machine.Status.Conditions = []metav1.Condition{
 			{
 				Type:               clusterv1.MachineDeletingCondition,
-				Status:             metav1.ConditionFalse,
+				Status:             metav1.ConditionTrue,
 				Reason:             clusterv1.MachineDeletingWaitingForPreTerminateHookReason,
 				LastTransitionTime: metav1.Now(),
 			},

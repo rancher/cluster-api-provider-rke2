@@ -76,7 +76,6 @@ type RKE2ControlPlaneSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Version defines the desired Kubernetes version.
-	// This field takes precedence over RKE2ConfigSpec.AgentConfig.Version (which is deprecated).
 	// +kubebuilder:validation:Pattern="(v\\d\\.\\d{2}\\.\\d+\\+rke2r\\d)|^$"
 	// +optional
 	Version string `json:"version"`

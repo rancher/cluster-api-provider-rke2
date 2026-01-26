@@ -77,9 +77,7 @@ type RKE2ControlPlaneSpec struct {
 
 	// Version defines the desired Kubernetes version.
 	// +kubebuilder:validation:Pattern="(v\\d\\.\\d{2}\\.\\d+\\+rke2r\\d)|^$"
-	// +required
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
+	// +optional
 	Version string `json:"version"`
 
 	// MachineTemplate contains information about how machines

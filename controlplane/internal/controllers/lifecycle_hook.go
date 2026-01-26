@@ -115,13 +115,13 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreDrainHook(ctx context.Context, 
 
 	deletingMachine := getDeletingMachineWithHook(ctx,
 		controlPlane,
-		controlplanev1.PreDrainLoadbalancerExclusionAnnotation,
-		clusterv1.MachineDeletingWaitingForPreTerminateHookReason)
+		controlplanev1.PreDrainLoadbalancerExclusionAnnotation)
 	if deletingMachine == nil {
 		log.V(5).Info("Waiting on other machines to be deleted.")
 
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
+	fmt.Println("#### found deleting machine for reconcilePreDrainHook:", deletingMachine.Name)
 
 	log = log.WithValues("Machine", klog.KObj(deletingMachine))
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -171,13 +171,13 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 
 	deletingMachine := getDeletingMachineWithHook(ctx,
 		controlPlane,
-		controlplanev1.PreTerminateHookCleanupAnnotation,
-		clusterv1.MachineDeletingWaitingForPreTerminateHookReason)
+		controlplanev1.PreTerminateHookCleanupAnnotation)
 	if deletingMachine == nil {
 		log.V(5).Info("Waiting on other machines to be deleted.")
 
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
+	fmt.Println("#### found deleting machine for reconcilePreTerminateHook:", deletingMachine.Name)
 
 	// Return early if there are other pre-terminate hooks for the Machine.
 	// The CAPRKE2 pre-terminate hook should be the one executed last, so that kubelet
@@ -309,7 +309,6 @@ func machineHasOtherHooks(machine *clusterv1.Machine, hookPrefix string, hookAnn
 func getDeletingMachineWithHook(ctx context.Context,
 	controlPlane *rke2.ControlPlane,
 	hookAnnotation string,
-	expectedReason string,
 ) *clusterv1.Machine {
 	log := ctrl.LoggerFrom(ctx)
 	// Return early, if there is already a deleting Machine without the hook.
@@ -330,7 +329,8 @@ func getDeletingMachineWithHook(ctx context.Context,
 	c := conditions.Get(deletingMachine, clusterv1.MachineDeletingCondition)
 
 	// Return early because the Machine controller is not yet waiting for the pre-terminate hook.
-	if c == nil || c.Status != metav1.ConditionTrue || c.Reason != expectedReason {
+	if c == nil || c.Status != metav1.ConditionTrue ||
+		(c.Reason != clusterv1.MachineDeletingWaitingForPreTerminateHookReason && c.Reason != clusterv1.MachineDeletingWaitingForPreDrainHookReason) {
 		log.V(5).Info("Machine is not waiting on condition", "condition", clusterv1.MachineDeletingCondition)
 
 		return nil

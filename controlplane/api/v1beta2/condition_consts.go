@@ -196,6 +196,22 @@ const (
 
 	// RKE2ControlPlaneEtcdClusterInspectionFailedReason documents a failure in inspecting the etcd cluster status.
 	RKE2ControlPlaneEtcdClusterInspectionFailedReason = clusterv1.InspectionFailedReason
+
+	// RKE2ControlPlaneEtcdClusterConnectionDownReason surfaces that the connection to the workload
+	// cluster is down.
+	RKE2ControlPlaneEtcdClusterConnectionDownReason = clusterv1.ConnectionDownReason
+
+	// RKE2ControlPlaneEtcdClusterHealthyReason surfaces when the etcd cluster hosted on RKE2ControlPlane
+	// machines is healthy.
+	RKE2ControlPlaneEtcdClusterHealthyReason = "Healthy"
+
+	// RKE2ControlPlaneEtcdClusterNotHealthyReason surfaces when the etcd cluster hosted on RKE2ControlPlane
+	// machines is not healthy.
+	RKE2ControlPlaneEtcdClusterNotHealthyReason = "NotHealthy"
+
+	// RKE2ControlPlaneEtcdClusterHealthUnknownReason surfaces when the health status of the etcd cluster hosted
+	// on RKE2ControlPlane machines is unknown.
+	RKE2ControlPlaneEtcdClusterHealthUnknownReason = "HealthUnknown"
 )
 
 // MachineEtcdMemberHealthy Condition and Reasons.
