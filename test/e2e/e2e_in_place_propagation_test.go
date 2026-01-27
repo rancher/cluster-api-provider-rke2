@@ -121,11 +121,12 @@ var _ = Describe("In-place propagation", func() {
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
-				Getter:    bootstrapClusterProxy.GetClient(),
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
+				Getter: bootstrapClusterProxy.GetClient(),  
 				Name:      result.Cluster.Name,
 				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+			})
 
 			By("Fetching all Machines")
 			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{

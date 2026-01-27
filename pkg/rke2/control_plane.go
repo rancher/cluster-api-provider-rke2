@@ -58,9 +58,6 @@ type ControlPlane struct {
 	machinesNotUptoDateLogMessages       map[string][]string
 	machinesNotUptoDateConditionMessages map[string][]string
 
-	// reconciliationTime is the time of the current reconciliation, and should be used for all "now" calculations
-	reconciliationTime metav1.Time
-
 	// InfraMachineTemplateIsNotFound is true if getting the infra machine template object failed with an NotFound err
 	InfraMachineTemplateIsNotFound bool
 
@@ -126,14 +123,12 @@ func NewControlPlane(
 		patchHelpers[name] = patchHelper
 	}
 
-	// Select machines that should be rolled out because of an outdated configuration or because rolloutAfter/Before expired.
-	reconciliationTime := metav1.Now()
 	machinesNotUptoDate := make(collections.Machines, len(ownedMachines))
 	machinesNotUptoDateLogMessages := map[string][]string{}
 	machinesNotUptoDateConditionMessages := map[string][]string{}
 
 	for _, m := range ownedMachines {
-		upToDate, logMessages, conditionMessages, err := UpToDate(ctx, m, rcp, &reconciliationTime, infraObjects, rke2Configs)
+		upToDate, logMessages, conditionMessages, err := UpToDate(ctx, m, rcp, infraObjects, rke2Configs)
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +151,6 @@ func NewControlPlane(
 		machinesNotUptoDateConditionMessages: machinesNotUptoDateConditionMessages,
 		Rke2Configs:                          rke2Configs,
 		InfraResources:                       infraObjects,
-		reconciliationTime:                   reconciliationTime,
 		managementCluster:                    managementCluster,
 	}, nil
 }
@@ -611,7 +605,9 @@ func (c *ControlPlane) UsesEmbeddedEtcd() bool {
 
 // UpToDate checks if a Machine is up to date with the control plane's configuration.
 // If not, messages explaining why are provided with different level of detail for logs and conditions.
-func UpToDate(ctx context.Context, machine *clusterv1.Machine, rcp *controlplanev1.RKE2ControlPlane, reconciliationTime *metav1.Time, infraConfigs map[string]*unstructured.Unstructured, machineConfigs map[string]*bootstrapv1.RKE2Config) (bool, []string, []string, error) {
+func UpToDate(ctx context.Context, machine *clusterv1.Machine, rcp *controlplanev1.RKE2ControlPlane,
+	infraConfigs map[string]*unstructured.Unstructured, machineConfigs map[string]*bootstrapv1.RKE2Config,
+) (bool, []string, []string, error) {
 	logMessages := []string{}
 	conditionMessages := []string{}
 

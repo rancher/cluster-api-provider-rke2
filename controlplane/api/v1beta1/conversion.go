@@ -282,6 +282,10 @@ func Convert_v1beta2_RKE2ControlPlaneSpec_To_v1beta1_RKE2ControlPlaneSpec(in *co
 	return autoConvert_v1beta2_RKE2ControlPlaneSpec_To_v1beta1_RKE2ControlPlaneSpec(in, out, s)
 }
 
+func Convert_v1beta1_RKE2ControlPlaneTemplate_To_v1beta2_RKE2ControlPlaneTemplate(in *RKE2ControlPlaneTemplate, out *controlplanev1.RKE2ControlPlaneTemplate, s apimachineryconversion.Scope) error {
+	return autoConvert_v1beta1_RKE2ControlPlaneTemplate_To_v1beta2_RKE2ControlPlaneTemplate(in, out, s)
+}
+
 func Convert_v1beta1_RKE2ControlPlaneMachineTemplate_To_v1beta2_RKE2ControlPlaneMachineTemplate(in *RKE2ControlPlaneMachineTemplate, out *controlplanev1.RKE2ControlPlaneMachineTemplate, s apimachineryconversion.Scope) error {
 	if err := autoConvert_v1beta1_RKE2ControlPlaneMachineTemplate_To_v1beta2_RKE2ControlPlaneMachineTemplate(in, out, s); err != nil {
 		return err

@@ -14,10 +14,10 @@ spec:
       cidrBlocks:
       - 10.46.0.0/16
   topology:
-    class: "${CLASS_NAME}"
+    classRef:
+      name: "${CLASS_NAME}"
     version: ${KUBERNETES_VERSION}+rke2r1
     controlPlane:
-      metadata: {}
       replicas: ${CONTROL_PLANE_MACHINE_COUNT}
     workers:
       machineDeployments:

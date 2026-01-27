@@ -546,11 +546,14 @@ func WaitForClusterReady(ctx context.Context, input WaitForClusterReadyInput, in
 		if err := input.Getter.Get(ctx, key, cluster); err != nil {
 			return fmt.Errorf("getting Cluster %s/%s: %w", input.Namespace, input.Name, err)
 		}
+		// fmt.Println("#### Cluster object:", framework.PrettyPrint(cluster))
 
 		readyCondition := conditions.Get(cluster, clusterv1.ReadyCondition)
 		if readyCondition == nil {
+			fmt.Println("#### Cluster condition", clusterv1.ReadyCondition, "not found")
 			return fmt.Errorf("Cluster Ready condition is not found")
 		}
+		fmt.Println("#### Cluster ready condition:", clusterv1.ReadyCondition, "type:", readyCondition.Type, "status:", readyCondition.Status, "reason:", readyCondition.Reason)
 
 		switch readyCondition.Status {
 		case metav1.ConditionTrue:

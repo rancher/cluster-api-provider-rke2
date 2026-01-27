@@ -102,7 +102,6 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.InfraMachineTemplateIsNotFound, controlPlane.PreflightCheckResults)
 	setScalingDownCondition(ctx, controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.PreflightCheckResults)
 	setMachinesReadyCondition(ctx, controlPlane.RCP, controlPlane.Machines)
-	// TODO: populate DeletingReason and DeletingMessage
 	setDeletingCondition(ctx, controlPlane.RCP, controlPlane.DeletingReason, controlPlane.DeletingMessage)
 
 	kubeconfigSecret := corev1.Secret{}
@@ -505,11 +504,13 @@ func setScalingUpCondition(_ context.Context,
 			Reason:  controlplanev1.RKE2ControlPlaneScalingUpWaitingForReplicasSetReason,
 			Message: "Waiting for spec.replicas set",
 		})
+
 		return
 	}
 
-	currentReplicas := int32(len(machines))
+	currentReplicas := rke2util.SafeInt32(len(machines))
 	desiredReplicas := *rcp.Spec.Replicas
+
 	if !rcp.DeletionTimestamp.IsZero() {
 		desiredReplicas = 0
 	}
@@ -519,14 +520,16 @@ func setScalingUpCondition(_ context.Context,
 	if currentReplicas >= desiredReplicas {
 		var message string
 		if missingReferencesMessage != "" {
-			message = fmt.Sprintf("Scaling up would be blocked because %s", missingReferencesMessage)
+			message = "Scaling up would be blocked because " + missingReferencesMessage
 		}
+
 		conditions.Set(rcp, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneScalingUpCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  controlplanev1.RKE2ControlPlaneNotScalingUpReason,
 			Message: message,
 		})
+
 		return
 	}
 
@@ -534,11 +537,11 @@ func setScalingUpCondition(_ context.Context,
 
 	additionalMessages := getPreflightMessages(cluster, preflightChecks)
 	if missingReferencesMessage != "" {
-		additionalMessages = append(additionalMessages, fmt.Sprintf("* %s", missingReferencesMessage))
+		additionalMessages = append(additionalMessages, "* "+missingReferencesMessage)
 	}
 
 	if len(additionalMessages) > 0 {
-		message += fmt.Sprintf(" is blocked because:\n%s", strings.Join(additionalMessages, "\n"))
+		message += " is blocked because:\n" + strings.Join(additionalMessages, "\n")
 	}
 
 	conditions.Set(rcp, metav1.Condition{
@@ -559,11 +562,13 @@ func setScalingDownCondition(_ context.Context,
 			Reason:  controlplanev1.RKE2ControlPlaneScalingDownWaitingForReplicasSetReason,
 			Message: "Waiting for spec.replicas set",
 		})
+
 		return
 	}
 
-	currentReplicas := int32(len(machines))
+	currentReplicas := rke2util.SafeInt32(len(machines))
 	desiredReplicas := *rcp.Spec.Replicas
+
 	if !rcp.DeletionTimestamp.IsZero() {
 		desiredReplicas = 0
 	}
@@ -574,6 +579,7 @@ func setScalingDownCondition(_ context.Context,
 			Status: metav1.ConditionFalse,
 			Reason: controlplanev1.RKE2ControlPlaneNotScalingDownReason,
 		})
+
 		return
 	}
 
@@ -581,11 +587,11 @@ func setScalingDownCondition(_ context.Context,
 
 	additionalMessages := getPreflightMessages(cluster, preflightChecks)
 	if staleMessage := aggregateStaleMachines(machines); staleMessage != "" {
-		additionalMessages = append(additionalMessages, fmt.Sprintf("* %s", staleMessage))
+		additionalMessages = append(additionalMessages, "* "+staleMessage)
 	}
 
 	if len(additionalMessages) > 0 {
-		message += fmt.Sprintf(" is blocked because:\n%s", strings.Join(additionalMessages, "\n"))
+		message += " is blocked because:\n" + strings.Join(additionalMessages, "\n")
 	}
 
 	conditions.Set(rcp, metav1.Condition{
@@ -645,6 +651,7 @@ func setDeletingCondition(_ context.Context, rcp *controlplanev1.RKE2ControlPlan
 			Status: metav1.ConditionFalse,
 			Reason: controlplanev1.RKE2ControlPlaneNotDeletingReason,
 		})
+
 		return
 	}
 
@@ -658,15 +665,17 @@ func setDeletingCondition(_ context.Context, rcp *controlplanev1.RKE2ControlPlan
 
 func calculateMissingReferencesMessage(rcp *controlplanev1.RKE2ControlPlane, infraMachineTemplateNotFound bool) string {
 	if infraMachineTemplateNotFound {
-		return fmt.Sprintf("%s does not exist", rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Kind)
+		return rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Kind + " does not exist"
 	}
+
 	return ""
 }
 
 func getPreflightMessages(cluster *clusterv1.Cluster, preflightChecks rke2.PreflightCheckResults) []string {
 	additionalMessages := []string{}
 	if preflightChecks.TopologyVersionMismatch {
-		additionalMessages = append(additionalMessages, fmt.Sprintf("* waiting for a version upgrade to %s to be propagated from Cluster.spec.topology", cluster.Spec.Topology.Version))
+		additionalMessages = append(additionalMessages, "* waiting for a version upgrade to"+cluster.Spec.Topology.Version+
+			"to be propagated from Cluster.spec.topology")
 	}
 
 	if preflightChecks.HasDeletingMachine {
@@ -680,6 +689,7 @@ func getPreflightMessages(cluster *clusterv1.Cluster, preflightChecks rke2.Prefl
 	if preflightChecks.EtcdClusterNotHealthy {
 		additionalMessages = append(additionalMessages, "* waiting for etcd cluster to become healthy")
 	}
+
 	return additionalMessages
 }
 
@@ -748,7 +758,8 @@ func aggregateStaleMachines(machines collections.Machines) string {
 				reasonList = append(reasonList, r)
 			}
 		}
-		message += fmt.Sprintf(", delay likely due to %s", strings.Join(reasonList, ", "))
+
+		message += ", delay likely due to " + strings.Join(reasonList, ", ")
 	}
 
 	return message

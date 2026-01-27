@@ -121,7 +121,6 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreDrainHook(ctx context.Context, 
 
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
-	fmt.Println("#### found deleting machine for reconcilePreDrainHook:", deletingMachine.Name)
 
 	log = log.WithValues("Machine", klog.KObj(deletingMachine))
 	ctx = ctrl.LoggerInto(ctx, log)
@@ -177,7 +176,6 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
-	fmt.Println("#### found deleting machine for reconcilePreTerminateHook:", deletingMachine.Name)
 
 	// Return early if there are other pre-terminate hooks for the Machine.
 	// The CAPRKE2 pre-terminate hook should be the one executed last, so that kubelet

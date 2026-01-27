@@ -36,6 +36,8 @@ type RKE2ControlPlaneTemplateResource struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=rke2controlplanetemplates,scope=Namespaced,categories=cluster-api,shortName=rke2ct
 // +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="ClusterClass",type="string", JSONPath=`.metadata.ownerReferences[?(@.kind=="ClusterClass")].name`,description="Name of the ClusterClass owning this template"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time duration since creation of RKE2ControlPlaneTemplate"
 
 // RKE2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates API.
 type RKE2ControlPlaneTemplate struct {
@@ -44,8 +46,6 @@ type RKE2ControlPlaneTemplate struct {
 
 	// Spec is the control plane specification for the template resource.
 	Spec RKE2ControlPlaneTemplateSpec `json:"spec,omitzero"`
-	// Status is the current state of the control plane.
-	Status RKE2ControlPlaneStatus `json:"status,omitzero"`
 }
 
 //+kubebuilder:object:root=true
