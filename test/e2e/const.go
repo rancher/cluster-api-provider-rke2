@@ -41,4 +41,6 @@ var (
 	ClusterTemplateDockerExternalDatastore []byte
 	//go:embed data/infrastructure/postgres.yaml
 	Postgres []byte
+	//go:embed data/infrastructure/cluster-template-docker-v1beta1.yaml
+	ClusterTemplateDockerV1Beta1 []byte
 )

@@ -16,6 +16,17 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
+      - name: "v1.10.6"
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.6/core-components.yaml"
+        type: "url"
+        contract: v1beta1
+        files:
+          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+          - old: "--leader-elect"
+            new: "--leader-elect=false"
       - name: "v1.11.5"
         value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.11.5/core-components.yaml"
         type: "url"
@@ -30,13 +41,26 @@ providers:
   - name: docker
     type: InfrastructureProvider
     versions:
+      - name: "v1.10.6"
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.6/infrastructure-components-development.yaml"
+        type: "url"
+        contract: v1beta1
+        files:
+          - sourcePath: "../data/infrastructure/cluster-template-docker-v1beta1.yaml"
+          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+          - old: "--leader-elect"
+            new: "--leader-elect=false"
+          - old: --metrics-addr=127.0.0.1:8080
+            new: --metrics-addr=:8080
       - name: "v1.11.5"
         value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.11.5/infrastructure-components-development.yaml"
         type: "url"
         contract: v1beta2
         files:
           - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
-          - sourcePath: "../data/infrastructure/cluster-template-docker-v1beta1.yaml"
           - sourcePath: "../data/infrastructure/cluster-template-docker-move.yaml"
           - sourcePath: "../data/infrastructure/cluster-template-kcp-remediation.yaml"
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -107,7 +131,7 @@ variables:
   NODE_DRAIN_TIMEOUT: "60s"
   WORKER_MACHINE_COUNT: "2"
   CONTROL_PLANE_MACHINE_COUNT: "1"
-  KUBERNETES_VERSION_UPGRADE_TO: "v1.34.2"
+  KUBERNETES_VERSION_UPGRADE_TO: "v1.34.3"
   IP_FAMILY: "IPv4"
   EXP_CLUSTER_RESOURCE_SET: "true"
   EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: "true"

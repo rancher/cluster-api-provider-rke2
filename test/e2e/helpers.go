@@ -40,6 +40,7 @@ import (
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -79,7 +80,6 @@ type ApplyCustomClusterTemplateAndWaitInput struct {
 	CustomTemplateYAML           []byte
 	ClusterName                  string
 	Namespace                    string
-	Flavor                       string
 	WaitForClusterIntervals      []interface{}
 	WaitForControlPlaneIntervals []interface{}
 	WaitForMachineDeployments    []interface{}
@@ -156,7 +156,6 @@ func ApplyClusterTemplateAndWait(ctx context.Context, input ApplyClusterTemplate
 		CustomTemplateYAML:           workloadClusterTemplate,
 		ClusterName:                  input.ConfigCluster.ClusterName,
 		Namespace:                    input.ConfigCluster.Namespace,
-		Flavor:                       input.ConfigCluster.Flavor,
 		WaitForClusterIntervals:      input.WaitForClusterIntervals,
 		WaitForControlPlaneIntervals: input.WaitForControlPlaneIntervals,
 		WaitForMachineDeployments:    input.WaitForMachineDeployments,
@@ -330,6 +329,38 @@ func GetMachinesByCluster(ctx context.Context, input GetMachinesByClusterInput) 
 	}, retryableOperationTimeout, retryableOperationInterval).Should(Succeed(), "Failed to list Machine objects for Cluster %s", klog.KRef(input.Namespace, input.ClusterName))
 
 	return machineList
+}
+
+// GetMachinesByCluster returns the Machine objects for a cluster.
+func GetMachineNamesByCluster(ctx context.Context, input GetMachinesByClusterInput) []string {
+	machineList := GetMachinesByCluster(ctx, input)
+
+	machineNames := []string{}
+	for _, machine := range machineList.Items {
+		machineNames = append(machineNames, machine.Name)
+	}
+	return machineNames
+}
+
+// GetMachinesByCluster returns the Machine objects for a cluster.
+func GetMachineNamesByClusterv1Beta1(ctx context.Context, input GetMachinesByClusterInput) []string {
+	opts := []client.ListOption{
+		client.InNamespace(input.Namespace),
+		client.MatchingLabels{
+			clusterv1.ClusterNameLabel: input.ClusterName,
+		},
+	}
+
+	machineList := &clusterv1beta1.MachineList{}
+	Eventually(func() error {
+		return input.Lister.List(ctx, machineList, opts...)
+	}, retryableOperationTimeout, retryableOperationInterval).Should(Succeed(), "Failed to list Machine objects for Cluster %s", klog.KRef(input.Namespace, input.ClusterName))
+
+	machineNames := []string{}
+	for _, machine := range machineList.Items {
+		machineNames = append(machineNames, machine.Name)
+	}
+	return machineNames
 }
 
 // WaitForControlPlaneAndMachinesReadyInput is the input type for WaitForControlPlaneAndMachinesReady.
@@ -567,6 +598,35 @@ func WaitForClusterReady(ctx context.Context, input WaitForClusterReadyInput, in
 	}, intervals...).Should(Succeed())
 }
 
+// WaitForClusterReady will wait for a Cluster to be Ready.
+func WaitForClusterReadyV1Beta1(ctx context.Context, input WaitForClusterReadyInput, intervals ...interface{}) {
+	Byf("Waiting for v1beta1 Cluster %s/%s to be Ready", input.Namespace, input.Name)
+
+	Eventually(func() error {
+		cluster := &clusterv1beta1.Cluster{}
+		key := types.NamespacedName{Name: input.Name, Namespace: input.Namespace}
+
+		if err := input.Getter.Get(ctx, key, cluster); err != nil {
+			return fmt.Errorf("getting Cluster %s/%s: %w", input.Namespace, input.Name, err)
+		}
+
+		for _, condition := range cluster.Status.Conditions {
+			if condition.Type == clusterv1beta1.ConditionType("Ready") {
+				switch condition.Status {
+				case corev1.ConditionTrue:
+					// Cluster is ready
+					return nil
+				case corev1.ConditionFalse:
+					return fmt.Errorf("Cluster is not Ready")
+				default:
+					return fmt.Errorf("Cluster Ready condition is unknown")
+				}
+			}
+		}
+		return fmt.Errorf("Cluster Ready condition is not found")
+	}, intervals...).Should(Succeed())
+}
+
 // VerifyDockerMachineTemplateOwner is the input type for VerifyDockerMachineTemplateOwner.
 type VerifyDockerMachineTemplateOwnerInput struct {
 	Lister      framework.Lister
@@ -593,33 +653,24 @@ func VerifyDockerMachineTemplateOwner(ctx context.Context, input VerifyDockerMac
 }
 
 // EnsureNoMachineRollout will consistently verify that Machine rollout did not happen, by comparing an machine list.
-func EnsureNoMachineRollout(ctx context.Context, input GetMachinesByClusterInput, machineList *clusterv1.MachineList) {
-	machinesNames := []string{}
-	for _, machine := range machineList.Items {
-		machinesNames = append(machinesNames, machine.Name)
-	}
-
+func EnsureNoMachineRollout(ctx context.Context, input GetMachinesByClusterInput, machineNames []string) {
 	By("Verifying machine rollout did not happen")
 	Consistently(func() error {
-		updatedMachineList := GetMachinesByCluster(ctx, input)
-		if len(updatedMachineList.Items) == 0 {
+		updatedMachinesNames := GetMachineNamesByCluster(ctx, input)
+		if len(updatedMachinesNames) == 0 {
 			return fmt.Errorf("There must be at least one Machine after provider upgrade")
 		}
-		updatedMachinesNames := []string{}
-		for _, machine := range updatedMachineList.Items {
-			updatedMachinesNames = append(updatedMachinesNames, machine.Name)
-		}
-		sameMachines, err := ContainElements(machinesNames).Match(updatedMachinesNames)
+		sameMachines, err := ContainElements(machineNames).Match(updatedMachinesNames)
 		if err != nil {
 			return fmt.Errorf("matching machines: %w", err)
 		}
 		if !sameMachines {
-			fmt.Printf("Pre-upgrade machines: [%s]\n", strings.Join(machinesNames, ","))
+			fmt.Printf("Pre-upgrade machines: [%s]\n", strings.Join(machineNames, ","))
 			fmt.Printf("Post-upgrade machines: [%s]\n", strings.Join(updatedMachinesNames, ","))
 			return fmt.Errorf("Machines should not have been rolled out after provider upgrade")
 		}
-		if len(updatedMachinesNames) != len(machinesNames) {
-			return fmt.Errorf("Number of Machines '%d' should match after provider upgrade '%d'", len(machinesNames), len(updatedMachinesNames))
+		if len(updatedMachinesNames) != len(machineNames) {
+			return fmt.Errorf("Number of Machines '%d' should match after provider upgrade '%d'", len(machineNames), len(updatedMachinesNames))
 		}
 		return nil
 	}).WithTimeout(2 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
@@ -635,11 +686,18 @@ type WaitForAllMachinesRunningWithVersionInput struct {
 func WaitForAllMachinesRunningWithVersion(ctx context.Context, input WaitForAllMachinesRunningWithVersionInput, intervals ...any) {
 	Byf("Waiting for all machines to be Running with version %s", input.Version)
 	Eventually(func() bool {
-		machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
-			Lister:      input.Reader,
-			ClusterName: input.ClusterName,
-			Namespace:   input.Namespace,
-		})
+		opts := []client.ListOption{
+			client.InNamespace(input.Namespace),
+			client.MatchingLabels{
+				clusterv1.ClusterNameLabel: input.ClusterName,
+			},
+		}
+
+		machineList := &clusterv1.MachineList{}
+		Eventually(func() error {
+			return input.Reader.List(ctx, machineList, opts...)
+		}, retryableOperationTimeout, retryableOperationInterval).Should(Succeed(), "Failed to list Machine objects for Cluster %s", klog.KRef(input.Namespace, input.ClusterName))
+
 		for _, machine := range machineList.Items {
 			if machine.Status.Phase != "Running" ||
 				machine.Spec.Version == "" || !strings.Contains(machine.Spec.Version, input.Version) {

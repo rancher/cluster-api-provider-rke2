@@ -24,13 +24,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/drone/envsubst/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
+
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,7 +49,6 @@ var _ = Describe("Provider upgrade", func() {
 		specName            = "provider-upgrade"
 		namespace           *corev1.Namespace
 		cancelWatches       context.CancelFunc
-		result              *ApplyClusterTemplateAndWaitResult
 		clusterName         string
 		clusterctlLogFolder string
 	)
@@ -59,8 +66,6 @@ var _ = Describe("Provider upgrade", func() {
 		// Setup a Namespace where to host objects for this spec and create a watcher for the namespace events.
 		namespace, cancelWatches = setupSpecNamespace(ctx, specName, bootstrapClusterProxy, artifactFolder)
 
-		result = new(ApplyClusterTemplateAndWaitResult)
-
 		// We need to override clusterctl apply log folder to avoid getting our credentials exposed.
 		clusterctlLogFolder = filepath.Join(os.TempDir(), "clusters", bootstrapClusterProxy.GetName())
 	})
@@ -69,10 +74,15 @@ var _ = Describe("Provider upgrade", func() {
 		err := CollectArtifacts(ctx, bootstrapClusterProxy.GetKubeconfigPath(), filepath.Join(artifactFolder, bootstrapClusterProxy.GetName(), clusterName+specName))
 		Expect(err).ToNot(HaveOccurred())
 
+		cluster := &clusterv1.Cluster{}
+		clusterKey := types.NamespacedName{Name: clusterName, Namespace: namespace.Name}
+		Expect(bootstrapClusterProxy.GetClient().Get(ctx, clusterKey, cluster)).Should(Succeed())
+		kubeConfigPath := WriteKubeconfigSecretToDisk(ctx, bootstrapClusterProxy.GetClient(), clusterKey.Namespace, clusterKey.Name+"-kubeconfig")
+
 		cleanInput := cleanupInput{
 			SpecName:             specName,
-			Cluster:              result.Cluster,
-			KubeconfigPath:       result.KubeconfigPath,
+			Cluster:              cluster,
+			KubeconfigPath:       kubeConfigPath,
 			ClusterProxy:         bootstrapClusterProxy,
 			Namespace:            namespace,
 			CancelWatches:        cancelWatches,
@@ -91,128 +101,140 @@ var _ = Describe("Provider upgrade", func() {
 			By("Installing v0.21.1 bootstrap/controlplane provider version")
 			initUpgradableBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
-			By("Initializing the cluster")
-			ApplyClusterTemplateAndWait(ctx, ApplyClusterTemplateAndWaitInput{
-				ClusterProxy: bootstrapClusterProxy,
-				ConfigCluster: clusterctl.ConfigClusterInput{
-					LogFolder:                clusterctlLogFolder,
-					ClusterctlConfigPath:     clusterctlConfigPath,
-					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
-					InfrastructureProvider:   "docker",
-					Flavor:                   "docker-v1beta1",
-					Namespace:                namespace.Name,
-					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
-					ControlPlaneMachineCount: ptr.To(int64(3)),
-					WorkerMachineCount:       ptr.To(int64(1)),
-				},
-				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
-				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
-				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
-				SkipPreviousVersionChecks:    true,
-			}, result)
+			clusterTemplate, err := envsubst.Eval(string(ClusterTemplateDockerV1Beta1), func(s string) string {
+				switch s {
+				case "CLUSTER_NAME":
+					return clusterName
+				case "CONTROL_PLANE_MACHINE_COUNT":
+					return "3"
+				case "WORKER_MACHINE_COUNT":
+					return "1"
+				default:
+					return e2eConfig.MustGetVariable(s)
+				}
+			})
+			Expect(err).ToNot(HaveOccurred())
 
-			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
-				Getter:       bootstrapClusterProxy.GetClient(),
-				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
-			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
+			Byf("Applying the cluster template yaml of cluster %s", klog.KRef(namespace.Name, clusterName))
+			Eventually(func() error {
+				return Apply(ctx, bootstrapClusterProxy, []byte(clusterTemplate), "--namespace", namespace.Name)
+			}, e2eConfig.GetIntervals(specName, "wait-cluster")...).Should(Succeed(), "Failed to apply the cluster template")
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
+			WaitForClusterReadyV1Beta1(ctx, WaitForClusterReadyInput{
 				Getter:    bootstrapClusterProxy.GetClient(),
-				Name:      result.Cluster.Name,
-				Namespace: result.Cluster.Namespace,
+				Name:      clusterName,
+				Namespace: namespace.Name,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
 
 			By("Fetching all Machines")
-			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+			machineNames := GetMachineNamesByClusterv1Beta1(ctx, GetMachinesByClusterInput{
 				Lister:      bootstrapClusterProxy.GetClient(),
-				ClusterName: result.Cluster.Name,
-				Namespace:   result.Cluster.Namespace,
+				ClusterName: clusterName,
+				Namespace:   namespace.Name,
 			})
-			Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
+			Expect(machineNames).ShouldNot(BeEmpty(), "There must be at least one Machine")
 
 			By("Upgrading to next bootstrap/controlplane provider version")
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
-				ClusterProxy:          bootstrapClusterProxy,
-				ClusterctlConfigPath:  clusterctlConfigPath,
-				BootstrapProviders:    []string{"rke2-bootstrap:v0.22.99"},
-				ControlPlaneProviders: []string{"rke2-control-plane:v0.22.99"},
-				LogFolder:             clusterctlLogFolder,
+				ClusterProxy:            bootstrapClusterProxy,
+				ClusterctlConfigPath:    clusterctlConfigPath,
+				InfrastructureProviders: []string{"docker:v1.11.5"},
+				CoreProvider:            "cluster-api:v1.11.5",
+				BootstrapProviders:      []string{"rke2-bootstrap:v0.22.99"},
+				ControlPlaneProviders:   []string{"rke2-control-plane:v0.22.99"},
+				LogFolder:               clusterctlLogFolder,
 			})
 
-			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
-				Getter:       bootstrapClusterProxy.GetClient(),
-				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
-			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
-
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
 				Getter:    bootstrapClusterProxy.GetClient(),
-				Name:      result.Cluster.Name,
-				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
 
 			EnsureNoMachineRollout(ctx, GetMachinesByClusterInput{
 				Lister:      bootstrapClusterProxy.GetClient(),
-				ClusterName: result.Cluster.Name,
-				Namespace:   result.Cluster.Namespace,
-			}, machineList)
+				ClusterName: clusterName,
+				Namespace:   namespace.Name,
+			}, machineNames)
 
-			By("Scaling down control plane to 2 and workers up to 2")
-			ApplyClusterTemplateAndWait(ctx, ApplyClusterTemplateAndWaitInput{
-				ClusterProxy: bootstrapClusterProxy,
-				ConfigCluster: clusterctl.ConfigClusterInput{
-					LogFolder:                clusterctlLogFolder,
-					ClusterctlConfigPath:     clusterctlConfigPath,
-					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
-					InfrastructureProvider:   "docker",
-					Flavor:                   "docker-v1beta1",
-					Namespace:                namespace.Name,
-					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
-					ControlPlaneMachineCount: ptr.To(int64(2)),
-					WorkerMachineCount:       ptr.To(int64(2)),
-				},
-				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
-				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
-				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
-			}, result)
+			By("Scaling down control plane to 2")
+			controlPlane := &controlplanev1.RKE2ControlPlane{}
+			controlPlanes := &controlplanev1.RKE2ControlPlaneList{}
+			Expect(bootstrapClusterProxy.GetClient().List(ctx, controlPlanes,
+				client.MatchingLabels{clusterv1.ClusterNameLabel: clusterName},
+				client.InNamespace(namespace.Name))).Should(Succeed())
+			Expect(len(controlPlanes.Items)).Should(Equal(1), "Only 1 RKE2ControlPlane is expected")
+			controlPlaneKey := client.ObjectKeyFromObject(&controlPlanes.Items[0])
+
+			Eventually(func() error {
+				Expect(bootstrapClusterProxy.GetClient().Get(ctx, controlPlaneKey, controlPlane)).Should(Succeed())
+				controlPlane.Spec.Replicas = ptr.To(int32(2))
+				return bootstrapClusterProxy.GetClient().Update(ctx, controlPlane)
+			}).WithPolling(10 * time.Second).WithTimeout(2 * time.Minute).Should(Succeed())
+
+			By("Scaling up workers to 2")
+			machineDeployment := &clusterv1.MachineDeployment{}
+			machineDeployments := &clusterv1.MachineDeploymentList{}
+			Expect(bootstrapClusterProxy.GetClient().List(ctx, machineDeployments,
+				client.MatchingLabels{clusterv1.ClusterNameLabel: clusterName},
+				client.InNamespace(namespace.Name))).Should(Succeed())
+			Expect(len(machineDeployments.Items)).Should(Equal(1), "Only 1 MachineDeployment is expected")
+			machineDeploymentKey := client.ObjectKeyFromObject(&machineDeployments.Items[0])
+
+			Eventually(func() error {
+				Expect(bootstrapClusterProxy.GetClient().Get(ctx, machineDeploymentKey, machineDeployment)).Should(Succeed())
+				machineDeployment.Spec.Replicas = ptr.To(int32(2))
+				return bootstrapClusterProxy.GetClient().Update(ctx, machineDeployment)
+			}).WithPolling(10 * time.Second).WithTimeout(2 * time.Minute).Should(Succeed())
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
 				Getter:       bootstrapClusterProxy.GetClient(),
-				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
+				ControlPlane: controlPlaneKey,
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
+				Getter:    bootstrapClusterProxy.GetClient(),
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
+
 			By("Scale down control plane and workers to 1 with kubernetes version upgrade")
-			ApplyClusterTemplateAndWait(ctx, ApplyClusterTemplateAndWaitInput{
-				ClusterProxy: bootstrapClusterProxy,
-				ConfigCluster: clusterctl.ConfigClusterInput{
-					LogFolder:                clusterctlLogFolder,
-					ClusterctlConfigPath:     clusterctlConfigPath,
-					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
-					InfrastructureProvider:   "docker",
-					Flavor:                   "docker-v1beta1",
-					Namespace:                namespace.Name,
-					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo),
-					ControlPlaneMachineCount: ptr.To(int64(1)),
-					WorkerMachineCount:       ptr.To(int64(1)),
-				},
-				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
-				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
-				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
-			}, result)
+			versionUpgradeTo := e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo)
+
+			Eventually(func() error {
+				Expect(bootstrapClusterProxy.GetClient().Get(ctx, controlPlaneKey, controlPlane)).Should(Succeed())
+				controlPlane.Spec.Replicas = ptr.To(int32(1))
+				controlPlane.Spec.Version = versionUpgradeTo + "+rke2r1"
+				return bootstrapClusterProxy.GetClient().Update(ctx, controlPlane)
+			}).WithPolling(10 * time.Second).WithTimeout(2 * time.Minute).Should(Succeed())
+
+			Eventually(func() error {
+				Expect(bootstrapClusterProxy.GetClient().Get(ctx, machineDeploymentKey, machineDeployment)).Should(Succeed())
+				machineDeployment.Spec.Replicas = ptr.To(int32(1))
+				machineDeployment.Spec.Template.Spec.Version = versionUpgradeTo + "+rke2r1"
+				return bootstrapClusterProxy.GetClient().Update(ctx, machineDeployment)
+			}).WithPolling(10 * time.Second).WithTimeout(2 * time.Minute).Should(Succeed())
 
 			WaitForClusterToUpgrade(ctx, WaitForClusterToUpgradeInput{
 				Reader:              bootstrapClusterProxy.GetClient(),
-				ControlPlane:        result.ControlPlane,
-				MachineDeployments:  result.MachineDeployments,
+				ControlPlane:        controlPlane,
+				MachineDeployments:  []*clusterv1.MachineDeployment{machineDeployment},
 				VersionAfterUpgrade: e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
 			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
 				Getter:       bootstrapClusterProxy.GetClient(),
-				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
+				ControlPlane: client.ObjectKeyFromObject(controlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
+
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
+				Getter:    bootstrapClusterProxy.GetClient(),
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
 		})
 	})
 })

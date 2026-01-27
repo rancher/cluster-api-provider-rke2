@@ -199,6 +199,8 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	// Reconcile status for machines that already have a secret reference, but our status isn't up to date.
+	// This case solves the pivoting scenario (or a backup restore) which doesn't preserve the status subresource on objects.
 	if scope.HasMachineOwner() {
 		dataSecretCreated := ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false)
 		if scope.Machine.Spec.Bootstrap.DataSecretName != nil && (!dataSecretCreated || scope.Config.Status.DataSecretName == nil) {
@@ -210,9 +212,17 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				Status: metav1.ConditionTrue,
 				Reason: bootstrapv1.RKE2ConfigDataSecretAvailableReason,
 			})
+			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
+			conditions.Set(scope.Config, metav1.Condition{
+				Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+				Status: metav1.ConditionTrue,
+				Reason: bootstrapv1.RKE2ConfigCertificatesAvailableReason,
+			})
 		}
 	}
 
+	// Reconcile status for machine pools that already have a secret reference, but our status isn't up to date.
+	// This case solves the pivoting scenario (or a backup restore) which doesn't preserve the status subresource on objects.
 	if scope.HasMachinePoolOwner() {
 		if scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName != nil &&
 			(!ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false) || scope.Config.Status.DataSecretName == nil) {
@@ -223,6 +233,12 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
 				Status: metav1.ConditionTrue,
 				Reason: bootstrapv1.RKE2ConfigDataSecretAvailableReason,
+			})
+			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
+			conditions.Set(scope.Config, metav1.Condition{
+				Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
+				Status: metav1.ConditionTrue,
+				Reason: bootstrapv1.RKE2ConfigCertificatesAvailableReason,
 			})
 		}
 	}

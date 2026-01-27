@@ -129,12 +129,12 @@ var _ = Describe("In-place propagation", func() {
 			})
 
 			By("Fetching all Machines")
-			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+			machineNames := GetMachineNamesByCluster(ctx, GetMachinesByClusterInput{
 				Lister:      bootstrapClusterProxy.GetClient(),
 				ClusterName: result.Cluster.Name,
 				Namespace:   result.Cluster.Namespace,
 			})
-			Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
+			Expect(machineNames).ShouldNot(BeEmpty(), "There must be at least one Machine")
 
 			By("Fetch RKE2 control plane")
 			rke2ControlPlane := GetRKE2ControlPlaneByCluster(ctx, GetRKE2ControlPlaneByClusterInput{
@@ -175,7 +175,7 @@ var _ = Describe("In-place propagation", func() {
 				Lister:      bootstrapClusterProxy.GetClient(),
 				ClusterName: result.Cluster.Name,
 				Namespace:   result.Cluster.Namespace,
-			}, machineList)
+			}, machineNames)
 
 			// Check NodeDrainTimeoutSeconds, NodeDeletionTimeoutSeconds and NodeVolumeDetachTimeoutSeconds values are propagated to Machines
 			By("Check NodeDrainTimeoutSeconds, NodeDeletionTimeoutSeconds and NodeVolumeDetachTimeoutSeconds values are propagated to Machines")
@@ -278,6 +278,12 @@ var _ = Describe("In-place propagation", func() {
 			}, 5*time.Minute, 10*time.Second).Should(Succeed(), "Labels/annotations not propagated or associations not correct")
 
 			By("Waiting for machines to have propagated metadata")
+			// Fetch all Machines
+			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+				Lister:      bootstrapClusterProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			})
 			for _, machine := range machineList.Items {
 				machine := machine
 
