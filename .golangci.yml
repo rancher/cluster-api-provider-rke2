@@ -86,7 +86,7 @@ linters:
         path: _test\.go
       - linters:
           - lll
-        source: '^//\+kubebuilder:'
+        source: '^//\s*\+kubebuilder:'
       - linters:
           - dupl
           - wrapcheck
