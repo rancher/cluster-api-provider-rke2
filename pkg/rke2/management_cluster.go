@@ -37,6 +37,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
+	"sigs.k8s.io/cluster-api/util/cache"
 	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
 
@@ -53,7 +54,7 @@ type ManagementCluster interface {
 	ctrlclient.Reader
 
 	GetMachinesForCluster(ctx context.Context, cluster *clusterv1.Cluster, filters ...collections.Func) (collections.Machines, error)
-	GetWorkloadCluster(ctx context.Context, clusterKey ctrlclient.ObjectKey) (WorkloadCluster, error)
+	GetWorkloadCluster(ctx context.Context, cluster *clusterv1.Cluster) (WorkloadCluster, error)
 }
 
 // Management holds operations on the management cluster.
@@ -64,6 +65,18 @@ type Management struct {
 	EtcdDialTimeout     time.Duration
 	EtcdCallTimeout     time.Duration
 	EtcdLogger          *zap.Logger
+	ClientCertCache     cache.Cache[ClientCertEntry]
+}
+
+// ClientCertEntry is an Entry for the Cache that stores the client cert.
+type ClientCertEntry struct {
+	Cluster    ctrlclient.ObjectKey
+	ClientCert *tls.Certificate
+}
+
+// Key returns the cache key of a ClientCertEntry.
+func (r ClientCertEntry) Key() string {
+	return r.Cluster.String()
 }
 
 // RemoteClusterConnectionError represents a failure to connect to a remote cluster.
@@ -102,7 +115,9 @@ const (
 
 // GetWorkloadCluster builds a cluster object.
 // The cluster comes with an etcd client generator to connect to any etcd pod living on a managed machine.
-func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclient.ObjectKey) (WorkloadCluster, error) {
+func (m *Management) GetWorkloadCluster(ctx context.Context, cluster *clusterv1.Cluster) (WorkloadCluster, error) {
+	clusterKey := ctrlclient.ObjectKeyFromObject(cluster)
+
 	restConfig, err := remote.RESTConfig(ctx, RKE2ControlPlaneControllerName, m.Client, clusterKey)
 	if err != nil {
 		return nil, &RemoteClusterConnectionError{Name: clusterKey.String(), Err: err}
@@ -116,7 +131,7 @@ func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclie
 		return nil, &RemoteClusterConnectionError{Name: clusterKey.String(), Err: err}
 	}
 
-	return m.NewWorkload(ctx, c, restConfig, clusterKey)
+	return m.NewWorkload(ctx, c, restConfig, cluster)
 }
 
 func (m *Management) getEtcdCAKeyPair(ctx context.Context, cl ctrlclient.Reader, clusterKey ctrlclient.ObjectKey) (*certs.KeyPair, error) {
@@ -145,13 +160,18 @@ func (m *Management) getEtcdCAKeyPair(ctx context.Context, cl ctrlclient.Reader,
 	return certificates[0].GetKeyPair(), nil
 }
 
-func generateClientCert(caCertEncoded, caKeyEncoded []byte, clientKey *rsa.PrivateKey) (tls.Certificate, error) {
+func generateClientCert(caCertEncoded, caKeyEncoded []byte) (tls.Certificate, error) {
 	caCert, err := certs.DecodeCertPEM(caCertEncoded)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
 
 	caKey, err := certs.DecodePrivateKeyPEM(caKeyEncoded)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	clientKey, err := certs.NewPrivateKey()
 	if err != nil {
 		return tls.Certificate{}, err
 	}

@@ -23,11 +23,15 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/controllers/clustercache"
+	"sigs.k8s.io/cluster-api/controllers/remote"
+	"sigs.k8s.io/cluster-api/util/cache"
 	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 const (
@@ -43,6 +47,7 @@ var _ = Describe("Rotate kubeconfig cert", func() {
 		ccaSecret        *corev1.Secret
 		kubeconfigSecret *corev1.Secret
 		clusterKey       client.ObjectKey
+		clusterCache     clustercache.ClusterCache
 	)
 	BeforeEach(func() {
 		kubeconfigSecret = &corev1.Secret{}
@@ -61,6 +66,21 @@ var _ = Describe("Rotate kubeconfig cert", func() {
 				Kind:       rke2ControlPlaneKind,
 			},
 		}
+
+		clusterCache, err = clustercache.SetupWithManager(ctx, testEnv.Manager, clustercache.Options{
+			SecretClient: testEnv.GetClient(),
+			Client: clustercache.ClientOptions{
+				UserAgent: remote.DefaultClusterAPIUserAgent("test-controller-manager"),
+				Cache: clustercache.ClientCacheOptions{
+					DisableFor: []client.Object{
+						// Don't cache ConfigMaps & Secrets.
+						&corev1.ConfigMap{},
+						&corev1.Secret{},
+					},
+				},
+			},
+		}, controller.Options{MaxConcurrentReconciles: 10, SkipNameValidation: ptr.To(true)})
+		Expect(err).ToNot(HaveOccurred())
 
 		// Generate new Secret Cluster CA
 		certPEM, _, err := generateCertAndKey(time.Now().Add(3650 * 24 * time.Hour)) // 10 years from now
@@ -100,10 +120,17 @@ var _ = Describe("Rotate kubeconfig cert", func() {
 	It("Should rotate kubeconfig secret if needed", func() {
 		By("Creating the first kubeconfig if not existing yet")
 		r := &RKE2ControlPlaneReconciler{
-			Client:                    testEnv.GetClient(),
-			Scheme:                    testEnv.GetScheme(),
-			managementCluster:         &rke2.Management{Client: testEnv.GetClient(), SecretCachingClient: testEnv.GetClient()},
-			managementClusterUncached: &rke2.Management{Client: testEnv.GetClient()},
+			Client: testEnv.GetClient(),
+			Scheme: testEnv.GetScheme(),
+			managementCluster: &rke2.Management{
+				Client:              testEnv.GetClient(),
+				SecretCachingClient: testEnv.GetClient(),
+				ClusterCache:        clusterCache,
+				ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
+			},
+			managementClusterUncached: &rke2.Management{
+				Client: testEnv.GetClient(),
+			},
 		}
 		endpoint := clusterv1.APIEndpoint{Host: "1.2.3.4", Port: 6443}
 
@@ -174,6 +201,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 		machine        *clusterv1.Machine
 		machineWithRef *clusterv1.Machine
 		config         *bootstrapv1.RKE2Config
+		clusterCache   clustercache.ClusterCache
 	)
 
 	BeforeEach(func() {
@@ -371,9 +399,26 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			},
 		}
 
+		clusterCache, err = clustercache.SetupWithManager(ctx, testEnv.Manager, clustercache.Options{
+			SecretClient: testEnv.GetClient(),
+			Client: clustercache.ClientOptions{
+				UserAgent: remote.DefaultClusterAPIUserAgent("test-controller-manager"),
+				Cache: clustercache.ClientCacheOptions{
+					DisableFor: []client.Object{
+						// Don't cache ConfigMaps & Secrets.
+						&corev1.ConfigMap{},
+						&corev1.Secret{},
+					},
+				},
+			},
+		}, controller.Options{MaxConcurrentReconciles: 10, SkipNameValidation: ptr.To(true)})
+		Expect(err).ToNot(HaveOccurred())
+
 		m := &rke2.Management{
-			Client:              testEnv,
-			SecretCachingClient: testEnv,
+			Client:              testEnv.GetClient(),
+			SecretCachingClient: testEnv.GetClient(),
+			ClusterCache:        clusterCache,
+			ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
 		}
 
 		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
@@ -398,9 +443,14 @@ var _ = Describe("Reconcile control plane conditions", func() {
 
 	It("should reconcile cp and machine conditions successfully", func() {
 		r := &RKE2ControlPlaneReconciler{
-			Client:                    testEnv.GetClient(),
-			Scheme:                    testEnv.GetScheme(),
-			managementCluster:         &rke2.Management{Client: testEnv.GetClient(), SecretCachingClient: testEnv.GetClient()},
+			Client: testEnv.GetClient(),
+			Scheme: testEnv.GetScheme(),
+			managementCluster: &rke2.Management{
+				Client:              testEnv.GetClient(),
+				SecretCachingClient: testEnv.GetClient(),
+				ClusterCache:        clusterCache,
+				ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
+			},
 			managementClusterUncached: &rke2.Management{Client: testEnv.GetClient()},
 		}
 		_, err := r.reconcileControlPlaneConditions(ctx, cp)

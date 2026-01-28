@@ -49,6 +49,7 @@ import (
 	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
+	"sigs.k8s.io/cluster-api/util/cache"
 	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -79,6 +80,9 @@ const (
 
 	// DefaultRequeueTime is the default requeue time for the controller.
 	DefaultRequeueTime = 20 * time.Second
+
+	// certCacheTtl is the default TTL for cached certificates.
+	certCacheTtl = 24 * time.Hour
 )
 
 // RKE2ControlPlaneReconciler reconciles a RKE2ControlPlane object.
@@ -345,6 +349,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(
 			Client:              r.Client,
 			SecretCachingClient: r.SecretCachingClient,
 			ClusterCache:        clusterCache,
+			ClientCertCache:     cache.New[rke2.ClientCertEntry](certCacheTtl),
 		}
 	}
 
@@ -480,7 +485,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		return ctrl.Result{}, err
 	}
 
-	ownedMachines := controlPlaneMachines.Filter(collections.OwnedMachines(rcp))
+	ownedMachines := controlPlaneMachines.Filter(collections.OwnedMachines(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()))
 	if len(ownedMachines) != len(controlPlaneMachines) {
 		logger.Info("Not all control plane machines are owned by this RKE2ControlPlane, refusing to operate in mixed management mode") //nolint:lll
 
@@ -598,7 +603,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 		return ctrl.Result{}, err
 	}
 
-	ownedMachines := allMachines.Filter(collections.OwnedMachines(rcp))
+	ownedMachines := allMachines.Filter(collections.OwnedMachines(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()))
 
 	// If no control plane machines remain, remove the finalizer
 	if len(ownedMachines) == 0 {
@@ -741,7 +746,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 	}
 
 	// only do rotation on owned secrets
-	if !util.IsControlledBy(configSecret, rcp) {
+	if !util.IsControlledBy(configSecret, rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()) {
 		logger.Info("Kubeconfig Secret not controlled by RKE2ControlPlane, nothing to do")
 
 		return ctrl.Result{}, nil

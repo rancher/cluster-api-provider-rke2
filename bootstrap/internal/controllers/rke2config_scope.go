@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	exputil "sigs.k8s.io/cluster-api/exp/util"
 	"sigs.k8s.io/cluster-api/util"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
@@ -84,7 +83,7 @@ func NewScope(ctx context.Context, req ctrl.Request, client client.Client) (*Sco
 		clusterName = machine.Spec.ClusterName
 	}
 
-	machinePool, err := exputil.GetOwnerMachinePool(ctx, client, config.ObjectMeta)
+	machinePool, err := util.GetOwnerMachinePool(ctx, client, config.ObjectMeta)
 	if err != nil {
 		return nil, fmt.Errorf("fetching MachinePool owner: %w", err)
 	}

@@ -30,7 +30,6 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -50,13 +49,34 @@ var _ = Describe("Node metadata propagation", func() {
 		machineDifferentNode *clusterv1.Machine
 		machineNodeRefStatus clusterv1.MachineStatus
 		config               *bootstrapv1.RKE2Config
-		clusterKey           client.ObjectKey
+		cluster              *clusterv1.Cluster
 	)
 
 	BeforeEach(func() {
 		ns, err = testEnv.CreateNamespace(ctx, "ns")
 		Expect(err).ToNot(HaveOccurred())
-		clusterKey = types.NamespacedName{Namespace: ns.Name, Name: "cluster"}
+
+		cluster = &clusterv1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test",
+				Namespace: ns.Name,
+			},
+			Spec: clusterv1.ClusterSpec{
+				ClusterNetwork: clusterv1.ClusterNetwork{
+					Pods: clusterv1.NetworkRanges{
+						CIDRBlocks: []string{
+							"192.168.0.0/16",
+						},
+					},
+					Services: clusterv1.NetworkRanges{
+						CIDRBlocks: []string{
+							"192.169.0.0/16",
+						},
+					},
+				},
+			},
+		}
+		Expect(testEnv.Client.Create(ctx, cluster)).To(Succeed())
 
 		annotations := map[string]string{
 			"test": "true",
@@ -92,7 +112,7 @@ var _ = Describe("Node metadata propagation", func() {
 				Namespace: ns.Name,
 			},
 			Spec: clusterv1.MachineSpec{
-				ClusterName: clusterKey.Name,
+				ClusterName: cluster.Name,
 				Bootstrap: clusterv1.Bootstrap{
 					ConfigRef: clusterv1.ContractVersionedObjectReference{
 						Kind:     "RKE2Config",
@@ -114,7 +134,7 @@ var _ = Describe("Node metadata propagation", func() {
 				Namespace: ns.Name,
 			},
 			Spec: clusterv1.MachineSpec{
-				ClusterName: clusterKey.Name,
+				ClusterName: cluster.Name,
 				Bootstrap: clusterv1.Bootstrap{
 					ConfigRef: clusterv1.ContractVersionedObjectReference{
 						Kind:     "RKE2Config",
@@ -154,7 +174,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), cluster)
 		Expect(err).ToNot(HaveOccurred())
 
 		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
@@ -185,7 +205,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), cluster)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
@@ -215,7 +235,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), cluster)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
@@ -262,7 +282,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), cluster)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
@@ -308,7 +328,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), cluster)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
@@ -357,7 +377,7 @@ var _ = Describe("Node metadata propagation", func() {
 			SecretCachingClient: testEnv,
 		}
 
-		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
+		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), cluster)
 		Expect(err).ToNot(HaveOccurred())
 		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())

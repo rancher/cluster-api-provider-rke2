@@ -58,7 +58,8 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
 
 	// Perform an uncached read of all the owned machines. This check is in place to make sure
 	// that the controller cache is not misbehaving and we end up initializing the cluster more than once.
-	ownedMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, cluster, collections.OwnedMachines(rcp))
+	ownedMachines, err := r.managementClusterUncached.GetMachinesForCluster(
+		ctx, cluster, collections.OwnedMachines(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()))
 	if err != nil {
 		logger.Error(err, "failed to perform an uncached read of control plane machines for cluster")
 

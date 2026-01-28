@@ -30,6 +30,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
+	"sigs.k8s.io/cluster-api/util/cache"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -212,9 +213,14 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 			ref))).To(Succeed())
 
 		r = &RKE2ControlPlaneReconciler{
-			Client:                    testEnv.GetClient(),
-			Scheme:                    testEnv.GetScheme(),
-			managementCluster:         &rke2.Management{Client: testEnv.GetClient(), SecretCachingClient: testEnv.GetClient()},
+			Client: testEnv.GetClient(),
+			Scheme: testEnv.GetScheme(),
+			managementCluster: &rke2.Management{
+				Client:              testEnv.GetClient(),
+				SecretCachingClient: testEnv.GetClient(),
+				ClusterCache:        clusterCache,
+				ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
+			},
 			managementClusterUncached: &rke2.Management{Client: testEnv.GetClient()},
 		}
 	})
