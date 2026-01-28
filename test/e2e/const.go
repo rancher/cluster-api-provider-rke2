@@ -23,6 +23,23 @@ import (
 	_ "embed"
 )
 
+const (
+	// these timeouts are used for setting control plane
+	// - `NodeDrainTimeoutSeconds`
+	// - `NodeDeletionTimeoutSeconds
+	// - `NodeVolumeDetachTimeoutSeconds`
+	timeout240s = 240
+	timeout480s = 480
+)
+
+const (
+	// DefaultTestsLabel is used for all default tests that run on the same test management cluster.
+	DefaultTestsLabel = "default"
+	// UpgradeTestsLabel is used to run upgrade tests standalone.
+	// These tests may need to install a different version of CAPI, requiring management cluster isolation.
+	UpgradeTestsLabel = "upgrade"
+)
+
 var (
 	//go:embed data/infrastructure/clusterclass-template-docker.yaml
 	ClusterClassDocker []byte
@@ -32,4 +49,6 @@ var (
 	ClusterTemplateDockerExternalDatastore []byte
 	//go:embed data/infrastructure/postgres.yaml
 	Postgres []byte
+	//go:embed data/infrastructure/cluster-template-docker-v1beta1.yaml
+	ClusterTemplateDockerV1Beta1 []byte
 )

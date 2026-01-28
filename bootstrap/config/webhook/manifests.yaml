@@ -6,18 +6,19 @@ metadata:
 webhooks:
 - admissionReviewVersions:
   - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config
+      path: /mutate-bootstrap-cluster-x-k8s-io-v1beta2-rke2config
   failurePolicy: Fail
   name: mrke2config.kb.io
   rules:
   - apiGroups:
     - bootstrap.cluster.x-k8s.io
     apiVersions:
-    - v1beta1
+    - v1beta2
     operations:
     - CREATE
     - UPDATE
@@ -26,26 +27,7 @@ webhooks:
   sideEffects: None
 - admissionReviewVersions:
   - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /mutate-bootstrap-cluster-x-k8s-io-v1beta1-rke2configtemplate
-  failurePolicy: Fail
-  name: mrke2configtemplate.kb.io
-  rules:
-  - apiGroups:
-    - bootstrap.cluster.x-k8s.io
-    apiVersions:
-    - v1beta1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - rke2configtemplates
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service
@@ -72,18 +54,19 @@ metadata:
 webhooks:
 - admissionReviewVersions:
   - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config
+      path: /validate-bootstrap-cluster-x-k8s-io-v1beta2-rke2config
   failurePolicy: Fail
   name: vrke2config.kb.io
   rules:
   - apiGroups:
     - bootstrap.cluster.x-k8s.io
     apiVersions:
-    - v1beta1
+    - v1beta2
     operations:
     - CREATE
     - UPDATE
@@ -92,26 +75,7 @@ webhooks:
   sideEffects: None
 - admissionReviewVersions:
   - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2configtemplate
-  failurePolicy: Fail
-  name: vrke2configtemplate.kb.io
-  rules:
-  - apiGroups:
-    - bootstrap.cluster.x-k8s.io
-    apiVersions:
-    - v1beta1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - rke2configtemplates
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service

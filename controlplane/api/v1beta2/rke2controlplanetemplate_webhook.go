@@ -60,6 +60,8 @@ func SetupRKE2ControlPlaneTemplateWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
+//+kubebuilder:webhook:path=/mutate-controlplane-cluster-x-k8s-io-v1beta2-rke2controlplanetemplate,mutating=true,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1beta2,name=mrke2controlplanetemplate.kb.io,admissionReviewVersions=v1;v1beta1
+
 var _ webhook.CustomDefaulter = &RKE2ControlPlaneTemplateCustomDefaulter{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
@@ -82,6 +84,8 @@ func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, obj
 
 	return nil
 }
+
+//+kubebuilder:webhook:path=/validate-controlplane-cluster-x-k8s-io-v1beta2-rke2controlplanetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=controlplane.cluster.x-k8s.io,resources=rke2controlplanetemplates,verbs=create;update,versions=v1beta2,name=vrke2controlplanetemplate.kb.io,admissionReviewVersions=v1;v1beta1
 
 var _ webhook.CustomValidator = &RKE2ControlPlaneTemplateCustomValidator{}
 

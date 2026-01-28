@@ -30,7 +30,7 @@ import (
 	ignitionTypes "github.com/coreos/ignition/v2/config/v3_3/types"
 	"github.com/pkg/errors"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 )
 

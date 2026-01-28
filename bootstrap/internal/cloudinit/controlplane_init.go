@@ -72,8 +72,8 @@ func NewInitControlPlane(input *ControlPlaneInput) ([]byte, error) {
 	}
 
 	controlPlaneCloudJoinWithVersion := fmt.Sprintf(controlPlaneCloudInit, input.RKE2Version)
-	userData, err := generate("InitControlplane", controlPlaneCloudJoinWithVersion, input)
 
+	userData, err := generate("InitControlplane", controlPlaneCloudJoinWithVersion, input)
 	if err != nil {
 		return nil, err
 	}

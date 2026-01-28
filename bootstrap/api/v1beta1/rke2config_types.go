@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1" // nolint:staticcheck
 )
 
 // Format specifies the output format of the bootstrap data
@@ -214,10 +214,16 @@ type RKE2ConfigStatus struct {
 	DataSecretName *string `json:"dataSecretName,omitempty"`
 
 	// FailureReason will be set on non-retryable errors.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
 	//+optional
 	FailureReason string `json:"failureReason,omitempty"`
 
 	// FailureMessage will be set on non-retryable errors.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
 	//+optional
 	FailureMessage string `json:"failureMessage,omitempty"`
 
@@ -227,12 +233,26 @@ type RKE2ConfigStatus struct {
 
 	// Conditions defines current service state of the RKE2Config.
 	//+optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions clusterv1beta1.Conditions `json:"conditions,omitempty"`
+
+	// v1beta2 groups all the fields that will be added or modified in RKE2Config's status with the V1Beta2 version.
+	// +optional
+	V1Beta2 *RKE2ConfigV1Beta2Status `json:"v1beta2,omitempty"`
+}
+
+// RKE2ConfigV1Beta2Status groups all the fields that will be added or modified in RKE2Config with the V1Beta2 version.
+type RKE2ConfigV1Beta2Status struct {
+	// conditions represents the observations of a RKE2Config's current state.
+	// Known condition types are Ready, DataSecretAvailable, CertificatesAvailable.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 
 // RKE2Config is the Schema for the rke2configs API.
 type RKE2Config struct {
@@ -244,13 +264,31 @@ type RKE2Config struct {
 }
 
 // GetConditions returns the list of conditions for a RKE2Config.
-func (r *RKE2Config) GetConditions() clusterv1.Conditions {
+func (r *RKE2Config) GetConditions() clusterv1beta1.Conditions {
 	return r.Status.Conditions
 }
 
 // SetConditions sets the conditions for a RKE2Config.
-func (r *RKE2Config) SetConditions(conditions clusterv1.Conditions) {
+func (r *RKE2Config) SetConditions(conditions clusterv1beta1.Conditions) {
 	r.Status.Conditions = conditions
+}
+
+// GetV1Beta2Conditions returns the set of conditions for this object.
+func (r *RKE2Config) GetV1Beta2Conditions() []metav1.Condition {
+	if r.Status.V1Beta2 == nil {
+		return nil
+	}
+
+	return r.Status.V1Beta2.Conditions
+}
+
+// SetV1Beta2Conditions sets conditions for an API object.
+func (r *RKE2Config) SetV1Beta2Conditions(conditions []metav1.Condition) {
+	if r.Status.V1Beta2 == nil {
+		r.Status.V1Beta2 = &RKE2ConfigV1Beta2Status{}
+	}
+
+	r.Status.V1Beta2.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true
@@ -259,7 +297,8 @@ func (r *RKE2Config) SetConditions(conditions clusterv1.Conditions) {
 type RKE2ConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RKE2Config `json:"items"`
+
+	Items []RKE2Config `json:"items"`
 }
 
 // CISProfile defines the CIS Benchmark profile to be activated in RKE2.

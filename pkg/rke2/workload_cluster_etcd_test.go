@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kubernetes Authors.
+Copyright 2023 - 2026 SUSE.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -35,8 +36,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	etcdfake "github.com/rancher/cluster-api-provider-rke2/pkg/etcd/fake"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/patch"
 )
 
@@ -66,20 +69,24 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 			},
 			Spec: clusterv1.MachineSpec{
 				ClusterName: "foo",
-				InfrastructureRef: corev1.ObjectReference{
-					Kind:       "Pod",
-					APIVersion: "v1",
-					Name:       "stub",
-					Namespace:  ns.Name,
+				Bootstrap: clusterv1.Bootstrap{
+					ConfigRef: clusterv1.ContractVersionedObjectReference{
+						Kind:     "RKE2Config",
+						APIGroup: bootstrapv1.GroupVersion.Group,
+						Name:     "mock-machine-rke2config",
+					},
+				},
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     infrastructure.FakeMachineKind,
+					APIGroup: infrastructure.GroupVersion.Group,
+					Name:     "mock-machine",
 				},
 			},
 		}
 
 		machineStatus := clusterv1.MachineStatus{
-			NodeRef: &corev1.ObjectReference{
-				Kind:       "Node",
-				APIVersion: "v1",
-				Name:       nodeName,
+			NodeRef: clusterv1.MachineNodeReference{
+				Name: nodeName,
 			},
 		}
 		Expect(testEnv.Create(ctx, node)).Should(Succeed())
@@ -111,7 +118,7 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(safelyRemoved).Should(BeFalse(), "etcd member not removed yet")
 
-		//Explicitly test the value can contain anything, not necessarily the node name
+		// Explicitly test the value can contain anything, not necessarily the node name
 		node.Annotations[EtcdNodeRemovedNodeNameAnnotation] = "foo"
 		Expect(patchHelper.Patch(ctx, node)).Should(Succeed())
 
@@ -137,9 +144,9 @@ func TestForwardEtcdLeadership(t *testing.T) {
 				expectErr: false,
 			},
 			{
-				name: "does nothing if machine's NodeRef is nil",
+				name: "does nothing if machine's NodeRef is empty",
 				machine: defaultMachine(func(m *clusterv1.Machine) {
-					m.Status.NodeRef = nil
+					m.Status.NodeRef = clusterv1.MachineNodeReference{}
 				}),
 				expectErr: false,
 			},
@@ -150,10 +157,10 @@ func TestForwardEtcdLeadership(t *testing.T) {
 				expectErr:       true,
 			},
 			{
-				name:    "returns an error if the leader candidate's noderef is nil",
+				name:    "returns an error if the leader candidate's noderef is empty",
 				machine: defaultMachine(),
 				leaderCandidate: defaultMachine(func(m *clusterv1.Machine) {
-					m.Status.NodeRef = nil
+					m.Status.NodeRef = clusterv1.MachineNodeReference{}
 				}),
 				expectErr: true,
 			},
@@ -415,7 +422,7 @@ func (f *fakeClient) Update(_ context.Context, _ client.Object, _ ...client.Upda
 func defaultMachine(transforms ...func(m *clusterv1.Machine)) *clusterv1.Machine {
 	m := &clusterv1.Machine{
 		Status: clusterv1.MachineStatus{
-			NodeRef: &corev1.ObjectReference{
+			NodeRef: clusterv1.MachineNodeReference{
 				Name: "machine-node",
 			},
 		},

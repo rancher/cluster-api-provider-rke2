@@ -15,3 +15,15 @@ limitations under the License.
 */
 
 package v1beta2
+
+// Hub is a conversion hub for the RKE2ControlPlane resource.
+func (*RKE2ControlPlane) Hub() {}
+
+// Hub is a conversion hub for the RKE2ControlPlaneList resource.
+func (*RKE2ControlPlaneList) Hub() {}
+
+// Hub is a conversion hub for the RKE2ControlPlaneTemplate resource.
+func (*RKE2ControlPlaneTemplate) Hub() {}
+
+// Hub is a conversion hub for the RKE2ControlPlaneTemplateList resource.
+func (*RKE2ControlPlaneTemplateList) Hub() {}

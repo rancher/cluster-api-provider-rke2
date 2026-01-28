@@ -64,8 +64,6 @@ func SetupRKE2ConfigWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=true,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=mrke2config.kb.io,admissionReviewVersions=v1
-
 var _ webhook.CustomDefaulter = &RKE2ConfigCustomDefaulter{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type.
@@ -136,8 +134,6 @@ func CorrectArbitraryData(arbitraryData map[string]string) error {
 
 	return nil
 }
-
-//+kubebuilder:webhook:path=/validate-bootstrap-cluster-x-k8s-io-v1beta1-rke2config,mutating=false,failurePolicy=fail,sideEffects=None,groups=bootstrap.cluster.x-k8s.io,resources=rke2configs,verbs=create;update,versions=v1beta1,name=vrke2config.kb.io,admissionReviewVersions=v1
 
 var _ webhook.CustomValidator = &RKE2ConfigCustomValidator{}
 

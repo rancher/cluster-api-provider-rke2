@@ -29,16 +29,16 @@ import (
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 )
 
-var _ = Describe("When testing RCP remediation", func() {
-	var (
-		specName = "kcp-remediation"
-	)
+var _ = Describe("When testing RCP remediation", Label(DefaultTestsLabel), func() {
+	specName := "rcp-remediation"
+
+	// NOTE: This reuses the upstream KCPRemediationSpec test but we use RCP as control plane instead.
 
 	BeforeEach(func() {
 		Expect(e2eConfig).ToNot(BeNil(), "Invalid argument. e2eConfig can't be nil when calling %s spec", specName)
 		Expect(clusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. clusterctlConfigPath must be an existing file when calling %s spec", specName)
 		Expect(bootstrapClusterProxy).ToNot(BeNil(), "Invalid argument. bootstrapClusterProxy can't be nil when calling %s spec", specName)
-		Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
+		Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 
@@ -57,7 +57,7 @@ var _ = Describe("When testing RCP remediation", func() {
 			BootstrapClusterProxy:  bootstrapClusterProxy,
 			ArtifactFolder:         artifactFolder,
 			SkipCleanup:            skipCleanup,
-			InfrastructureProvider: ptr.To("docker:v1.10.5"),
+			InfrastructureProvider: ptr.To("docker:v1.11.5"),
 			Flavor:                 ptr.To("kcp-remediation"),
 		}
 	})

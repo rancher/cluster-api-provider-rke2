@@ -31,3 +31,29 @@ jobs:
           name: e2e-artifacts
           path: _artifacts
           if-no-files-found: ignore
+  e2e-tests-upgrade:
+    runs-on: runs-on,runner=4cpu-linux-x64,run-id=${{ github.run_id }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Setup kind
+        uses: helm/kind-action@v1.13.0
+        with:
+          install_only: true
+      - name: Run E2E tests
+        env:
+          GINKGO_LABEL_FILTER: upgrade
+        run: make test-e2e
+      - name: Archive artifacts
+        if: always()
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: e2e-upgrade-artifacts
+          path: _artifacts
+          if-no-files-found: ignore

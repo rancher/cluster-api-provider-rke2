@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1" // nolint:staticcheck
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
 )
@@ -76,7 +76,6 @@ type RKE2ControlPlaneSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Version defines the desired Kubernetes version.
-	// This field takes precedence over RKE2ConfigSpec.AgentConfig.Version (which is deprecated).
 	// +kubebuilder:validation:Pattern="(v\\d\\.\\d{2}\\.\\d+\\+rke2r\\d)|^$"
 	// +optional
 	Version string `json:"version"`
@@ -134,7 +133,7 @@ type RKE2ControlPlaneMachineTemplate struct {
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"`
+	ObjectMeta clusterv1beta1.ObjectMeta `json:"metadata,omitempty"`
 
 	// InfrastructureRef is a required reference to a custom resource
 	// offered by an infrastructure provider.
@@ -267,10 +266,16 @@ type RKE2ControlPlaneStatus struct {
 	DataSecretName *string `json:"dataSecretName,omitempty"`
 
 	// FailureReason will be set on non-retryable errors.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
 	// +optional
 	FailureReason string `json:"failureReason,omitempty"`
 
 	// FailureMessage will be set on non-retryable errors.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
 	// +optional
 	FailureMessage string `json:"failureMessage,omitempty"`
 
@@ -280,7 +285,7 @@ type RKE2ControlPlaneStatus struct {
 
 	// Conditions defines current service state of the RKE2Config.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions clusterv1beta1.Conditions `json:"conditions,omitempty"`
 
 	// Replicas is the number of replicas current attached to this ControlPlane Resource.
 	Replicas int32 `json:"replicas,omitempty"`
@@ -306,11 +311,40 @@ type RKE2ControlPlaneStatus struct {
 	// lastRemediation stores info about last remediation performed.
 	// +optional
 	LastRemediation *LastRemediationStatus `json:"lastRemediation,omitempty"`
+
+	// v1beta2 groups all the fields that will be added or modified in RKE2ControlPlane's status with the V1Beta2 version.
+	// +optional
+	V1Beta2 *RKE2ControlPlaneV1Beta2Status `json:"v1beta2,omitempty"`
+}
+
+// RKE2ControlPlaneV1Beta2Status Groups all the fields that will be added or modified in RKE2ControlPlane with the V1Beta2 version.
+type RKE2ControlPlaneV1Beta2Status struct {
+	// conditions represents the observations of a RKE2ControlPlane's current state.
+	// Known condition types are Available, CertificatesAvailable, EtcdClusterAvailable, MachinesReady, MachinesUpToDate,
+	// ScalingUp, ScalingDown, Remediating, Deleting, Paused.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// readyReplicas is the number of ready replicas for this RKE2ControlPlane. A machine is considered ready when Machine's Ready condition is true.
+	// +optional
+	ReadyReplicas *int32 `json:"readyReplicas,omitempty"`
+
+	// availableReplicas is the number of available replicas targeted by this RKE2ControlPlane.
+	// A machine is considered available when Machine's Available condition is true.
+	// +optional
+	AvailableReplicas *int32 `json:"availableReplicas,omitempty"`
+
+	// upToDateReplicas is the number of up-to-date replicas targeted by this RKE2ControlPlane.
+	// A machine is considered up-to-date when Machine's UpToDate condition is true.
+	// +optional
+	UpToDateReplicas *int32 `json:"upToDateReplicas,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 
 // RKE2ControlPlane is the Schema for the rke2controlplanes API.
 type RKE2ControlPlane struct {
@@ -327,7 +361,8 @@ type RKE2ControlPlane struct {
 type RKE2ControlPlaneList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RKE2ControlPlane `json:"items"`
+
+	Items []RKE2ControlPlane `json:"items"`
 }
 
 // EtcdConfig regroups the ETCD-specific configuration of the control plane.
@@ -575,14 +610,14 @@ const (
 	// For RKE2 we need wait for all other pre-terminate hooks to finish to
 	// ensure it runs last (thus ensuring that kubelet is still working while other pre-terminate hooks run
 	// as it uses kubelet local mode).
-	PreTerminateHookCleanupAnnotation = clusterv1.PreTerminateDeleteHookAnnotationPrefix + "/rke2-cleanup"
+	PreTerminateHookCleanupAnnotation = clusterv1beta1.PreTerminateDeleteHookAnnotationPrefix + "/rke2-cleanup"
 
 	// PreDrainLoadbalancerExclusionAnnotation is the annotation set on Machines to ensure the downstream
 	// Node is labeled with `node.kubernetes.io/exclude-from-external-load-balancers`.
 	// This allows load balancers as MetalLB to stop advertising this node.
 	// The label is added on pre-drain hook to give enough time for the load balancer to react to the change,
 	// before the Machine is actually terminated.
-	PreDrainLoadbalancerExclusionAnnotation = clusterv1.PreDrainDeleteHookAnnotationPrefix + "/rke2-lb-exclusion"
+	PreDrainLoadbalancerExclusionAnnotation = clusterv1beta1.PreDrainDeleteHookAnnotationPrefix + "/rke2-lb-exclusion"
 )
 
 func init() { //nolint:gochecknoinits
@@ -590,12 +625,12 @@ func init() { //nolint:gochecknoinits
 }
 
 // GetConditions returns the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) GetConditions() clusterv1.Conditions {
+func (r *RKE2ControlPlane) GetConditions() clusterv1beta1.Conditions {
 	return r.Status.Conditions
 }
 
 // SetConditions sets the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
+func (r *RKE2ControlPlane) SetConditions(conditions clusterv1beta1.Conditions) {
 	r.Status.Conditions = conditions
 }
 

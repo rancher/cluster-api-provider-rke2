@@ -29,11 +29,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterexpv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 )
 
 var _ = Describe("RKE2Config Scope", func() {
@@ -41,7 +40,6 @@ var _ = Describe("RKE2Config Scope", func() {
 		ctx := context.Background()
 		scheme := runtime.NewScheme()
 		Expect(clusterv1.AddToScheme(scheme)).Should(Succeed())
-		Expect(clusterexpv1.AddToScheme(scheme)).Should(Succeed())
 		Expect(bootstrapv1.AddToScheme(scheme)).Should(Succeed())
 		Expect(controlplanev1.AddToScheme(scheme)).Should(Succeed())
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -74,16 +72,16 @@ var _ = Describe("RKE2Config Scope", func() {
 		}
 		Expect(fakeClient.Create(ctx, cluster)).Should(Succeed())
 
-		machinePool := &clusterexpv1.MachinePool{
+		machinePool := &clusterv1.MachinePool{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-machinepool",
 				Namespace: configKey.Namespace,
 			},
-			Spec: clusterexpv1.MachinePoolSpec{
+			Spec: clusterv1.MachinePoolSpec{
 				ClusterName: cluster.Name,
 				Template: clusterv1.MachineTemplateSpec{
 					Spec: clusterv1.MachineSpec{
-						Version: &k8sVersion,
+						Version: k8sVersion,
 					},
 				},
 			},
@@ -92,7 +90,7 @@ var _ = Describe("RKE2Config Scope", func() {
 
 		config.OwnerReferences = []metav1.OwnerReference{
 			{
-				APIVersion: "cluster.x-k8s.io/v1beta1",
+				APIVersion: clusterv1.GroupVersion.String(),
 				Kind:       "MachinePool",
 				Name:       machinePool.Name,
 				UID:        types.UID("foo"),
@@ -115,14 +113,14 @@ var _ = Describe("RKE2Config Scope", func() {
 			},
 			Spec: clusterv1.MachineSpec{
 				ClusterName: cluster.Name,
-				Version:     &k8sVersion,
+				Version:     k8sVersion,
 			},
 		}
 		Expect(fakeClient.Create(ctx, machine)).Should(Succeed())
 
 		config.OwnerReferences = []metav1.OwnerReference{
 			{
-				APIVersion: "cluster.x-k8s.io/v1beta1",
+				APIVersion: clusterv1.GroupVersion.String(),
 				Kind:       "Machine",
 				Name:       machine.Name,
 				UID:        types.UID("foo"),
@@ -149,7 +147,7 @@ var _ = Describe("RKE2Config Scope", func() {
 
 		machine.OwnerReferences = []metav1.OwnerReference{
 			{
-				APIVersion: "controlplane.cluster.x-k8s.io/v1beta1",
+				APIVersion: controlplanev1.GroupVersion.String(),
 				Kind:       "RKE2ControlPlane",
 				Name:       controlPlane.Name,
 				UID:        types.UID("foo"),

@@ -16,5 +16,14 @@ limitations under the License.
 
 package v1beta2
 
-// No conversion for now as this API version is not served.
-// Conversion functions will be added when this becomes the hub version.
+// Hub is a conversion hub for RKE2ConfigTemplate.
+func (*RKE2ConfigTemplate) Hub() {}
+
+// Hub is a conversion hub for RKE2ConfigTemplateList.
+func (*RKE2ConfigTemplateList) Hub() {}
+
+// Hub is a conversion hub for RKE2Config.
+func (*RKE2Config) Hub() {}
+
+// Hub is a conversion hub for RKE2ConfigList.
+func (*RKE2ConfigList) Hub() {}

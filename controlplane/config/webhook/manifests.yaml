@@ -6,18 +6,19 @@ metadata:
 webhooks:
 - admissionReviewVersions:
   - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-controlplane-cluster-x-k8s-io-v1beta1-rke2controlplane
+      path: /mutate-controlplane-cluster-x-k8s-io-v1beta2-rke2controlplane
   failurePolicy: Fail
   name: mrke2controlplane.kb.io
   rules:
   - apiGroups:
     - controlplane.cluster.x-k8s.io
     apiVersions:
-    - v1beta1
+    - v1beta2
     operations:
     - CREATE
     - UPDATE
@@ -26,18 +27,19 @@ webhooks:
   sideEffects: None
 - admissionReviewVersions:
   - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-controlplane-cluster-x-k8s-io-v1beta1-rke2controlplanetemplate
+      path: /mutate-controlplane-cluster-x-k8s-io-v1beta2-rke2controlplanetemplate
   failurePolicy: Fail
   name: mrke2controlplanetemplate.kb.io
   rules:
   - apiGroups:
     - controlplane.cluster.x-k8s.io
     apiVersions:
-    - v1beta1
+    - v1beta2
     operations:
     - CREATE
     - UPDATE
@@ -52,18 +54,19 @@ metadata:
 webhooks:
 - admissionReviewVersions:
   - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-controlplane-cluster-x-k8s-io-v1beta1-rke2controlplane
+      path: /validate-controlplane-cluster-x-k8s-io-v1beta2-rke2controlplane
   failurePolicy: Fail
   name: vrke2controlplane.kb.io
   rules:
   - apiGroups:
     - controlplane.cluster.x-k8s.io
     apiVersions:
-    - v1beta1
+    - v1beta2
     operations:
     - CREATE
     - UPDATE
@@ -72,18 +75,19 @@ webhooks:
   sideEffects: None
 - admissionReviewVersions:
   - v1
+  - v1beta1
   clientConfig:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-controlplane-cluster-x-k8s-io-v1beta1-rke2controlplanetemplate
+      path: /validate-controlplane-cluster-x-k8s-io-v1beta2-rke2controlplanetemplate
   failurePolicy: Fail
   name: vrke2controlplanetemplate.kb.io
   rules:
   - apiGroups:
     - controlplane.cluster.x-k8s.io
     apiVersions:
-    - v1beta1
+    - v1beta2
     operations:
     - CREATE
     - UPDATE

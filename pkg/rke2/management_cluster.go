@@ -28,11 +28,13 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util/certs"
@@ -50,7 +52,7 @@ const (
 type ManagementCluster interface {
 	ctrlclient.Reader
 
-	GetMachinesForCluster(ctx context.Context, cluster ctrlclient.ObjectKey, filters ...collections.Func) (collections.Machines, error)
+	GetMachinesForCluster(ctx context.Context, cluster *clusterv1.Cluster, filters ...collections.Func) (collections.Machines, error)
 	GetWorkloadCluster(ctx context.Context, clusterKey ctrlclient.ObjectKey) (WorkloadCluster, error)
 }
 
@@ -59,6 +61,9 @@ type Management struct {
 	Client              ctrlclient.Client
 	SecretCachingClient ctrlclient.Reader
 	ClusterCache        clustercache.ClusterCache
+	EtcdDialTimeout     time.Duration
+	EtcdCallTimeout     time.Duration
+	EtcdLogger          *zap.Logger
 }
 
 // RemoteClusterConnectionError represents a failure to connect to a remote cluster.
@@ -84,26 +89,10 @@ func (m *Management) List(ctx context.Context, list ctrlclient.ObjectList, opts 
 // If no filter is supplied then all machines associated with the target cluster are returned.
 func (m *Management) GetMachinesForCluster(
 	ctx context.Context,
-	cluster ctrlclient.ObjectKey,
+	cluster *clusterv1.Cluster,
 	filters ...collections.Func,
 ) (collections.Machines, error) {
-	logger := log.FromContext(ctx)
-	selector := map[string]string{
-		clusterv1.ClusterNameLabel: cluster.Name,
-	}
-	ml := &clusterv1.MachineList{}
-
-	logger.V(5).Info("Getting List of machines for Cluster")
-
-	if err := m.Client.List(ctx, ml, ctrlclient.InNamespace(cluster.Namespace), ctrlclient.MatchingLabels(selector)); err != nil {
-		return nil, errors.Wrap(err, "failed to list machines")
-	}
-
-	logger.V(5).Info("End of listing machines for cluster")
-
-	machines := collections.FromMachineList(ml)
-
-	return machines.Filter(filters...), nil
+	return collections.GetFilteredMachinesForCluster(ctx, m.Client, cluster, filters...)
 }
 
 const (
@@ -116,9 +105,10 @@ const (
 func (m *Management) GetWorkloadCluster(ctx context.Context, clusterKey ctrlclient.ObjectKey) (WorkloadCluster, error) {
 	restConfig, err := remote.RESTConfig(ctx, RKE2ControlPlaneControllerName, m.Client, clusterKey)
 	if err != nil {
-		return nil, err
+		return nil, &RemoteClusterConnectionError{Name: clusterKey.String(), Err: err}
 	}
 
+	restConfig = rest.CopyConfig(restConfig)
 	restConfig.Timeout = DefaultWorkloadTimeout
 
 	c, err := ctrlclient.New(restConfig, ctrlclient.Options{Scheme: scheme.Scheme})

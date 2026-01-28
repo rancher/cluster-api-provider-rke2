@@ -21,15 +21,19 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/controllers/clustercache"
+	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 var _ = Describe("Lifecycle Hooks", Ordered, func() {
@@ -46,6 +50,7 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		m               *rke2.Management
 		machineStatus   clusterv1.MachineStatus
 		workloadCluster rke2.WorkloadCluster
+		clusterCache    clustercache.ClusterCache
 	)
 	BeforeAll(func() {
 		ns, err = testEnv.CreateNamespace(ctx, "test-hooks")
@@ -55,6 +60,20 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test",
 				Namespace: ns.Name,
+			},
+			Spec: clusterv1.ClusterSpec{
+				ClusterNetwork: clusterv1.ClusterNetwork{
+					Pods: clusterv1.NetworkRanges{
+						CIDRBlocks: []string{
+							"192.168.0.0/16",
+						},
+					},
+					Services: clusterv1.NetworkRanges{
+						CIDRBlocks: []string{
+							"192.169.0.0/16",
+						},
+					},
+				},
 			},
 		}
 		Expect(testEnv.Client.Create(ctx, cluster)).To(Succeed())
@@ -81,27 +100,13 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		Expect(testEnv.Status().Update(ctx, node.DeepCopy())).To(Succeed())
 
 		machineStatus = clusterv1.MachineStatus{
-			NodeRef: &corev1.ObjectReference{
-				Kind:       "Node",
-				APIVersion: "v1",
-				Name:       node.Name,
+			NodeRef: clusterv1.MachineNodeReference{
+				Name: node.Name,
 			},
-			Conditions: clusterv1.Conditions{
-				clusterv1.Condition{
+			Conditions: []metav1.Condition{
+				{
 					Type:               clusterv1.ReadyCondition,
-					Status:             corev1.ConditionTrue,
-					LastTransitionTime: metav1.Now(),
-				},
-				clusterv1.Condition{
-					Type:               clusterv1.PreTerminateDeleteHookSucceededCondition,
-					Status:             corev1.ConditionFalse,
-					Reason:             clusterv1.WaitingExternalHookReason,
-					LastTransitionTime: metav1.Now(),
-				},
-				clusterv1.Condition{
-					Type:               clusterv1.PreDrainDeleteHookSucceededCondition,
-					Status:             corev1.ConditionFalse,
-					Reason:             clusterv1.WaitingExternalHookReason,
+					Status:             metav1.ConditionTrue,
 					LastTransitionTime: metav1.Now(),
 				},
 			},
@@ -119,11 +124,10 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 				Bootstrap: clusterv1.Bootstrap{
 					DataSecretName: ptr.To("dummy-secret"),
 				},
-				InfrastructureRef: corev1.ObjectReference{
-					Kind:       "Pod",
-					APIVersion: "v1",
-					Name:       "stub",
-					Namespace:  ns.Name,
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     "FakeMachine",
+					APIGroup: infrastructure.GroupVersion.Group,
+					Name:     "fakem1",
 				},
 			},
 			Status: machineStatus,
@@ -141,18 +145,15 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 				Bootstrap: clusterv1.Bootstrap{
 					DataSecretName: ptr.To("dummy-secret"),
 				},
-				InfrastructureRef: corev1.ObjectReference{
-					Kind:       "Pod",
-					APIVersion: "v1",
-					Name:       "stub",
-					Namespace:  ns.Name,
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     "FakeMachine",
+					APIGroup: infrastructure.GroupVersion.Group,
+					Name:     "fakemspare1",
 				},
 			},
 			Status: clusterv1.MachineStatus{
-				NodeRef: &corev1.ObjectReference{
-					Kind:       "Node",
-					APIVersion: "v1",
-					Name:       node.Name,
+				NodeRef: clusterv1.MachineNodeReference{
+					Name: node.Name,
 				},
 			},
 		}
@@ -165,18 +166,35 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&spareMachine), &spareMachine)).Should(Succeed())
 		Expect(testEnv.Status().Update(ctx, &spareMachine)).To(Succeed())
 
+		clusterCache, err = clustercache.SetupWithManager(ctx, testEnv.Manager, clustercache.Options{
+			SecretClient: testEnv.GetClient(),
+			Client: clustercache.ClientOptions{
+				UserAgent: remote.DefaultClusterAPIUserAgent("test-controller-manager"),
+				Cache: clustercache.ClientCacheOptions{
+					DisableFor: []client.Object{
+						// Don't cache ConfigMaps & Secrets.
+						&corev1.ConfigMap{},
+						&corev1.Secret{},
+					},
+				},
+			},
+		}, controller.Options{MaxConcurrentReconciles: 10, SkipNameValidation: ptr.To(true)})
+		Expect(err).ToNot(HaveOccurred())
+
 		ml := clusterv1.MachineList{Items: []clusterv1.Machine{machine, spareMachine}}
 
 		rcp = &controlplanev1.RKE2ControlPlane{
 			Status: controlplanev1.RKE2ControlPlaneStatus{
-				Initialized: true,
-				Ready:       true,
+				Initialization: controlplanev1.RKE2ControlPlaneInitializationStatus{
+					ControlPlaneInitialized: ptr.To(true),
+				},
 			},
 		}
 
 		m = &rke2.Management{
 			Client:              testEnv,
 			SecretCachingClient: testEnv,
+			ClusterCache:        clusterCache,
 		}
 
 		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
@@ -235,15 +253,32 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		_, found := machine.Annotations[controlplanev1.PreDrainLoadbalancerExclusionAnnotation]
 		Expect(found).Should(BeTrue(), "pre-drain annotation should have been added")
 	})
-	It("Should label the node with load balancer exclusion on machine deletion", func() {
+	It("Should reconcile pre-drain hooks and label the node with load balancer exclusion on machine deletion", func() {
 		Expect(testEnv.Delete(ctx, &machine)).Should(Succeed())
 		Eventually(func() bool {
 			Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&machine), &machine)).Should(Succeed())
 			return machine.DeletionTimestamp.IsZero()
 		}).WithTimeout(10*time.Second).Should(BeFalse(), "machine should have a deletion timestamp")
-		machine.Status = machineStatus
+		machine.Status = clusterv1.MachineStatus{
+			NodeRef: clusterv1.MachineNodeReference{
+				Name: node.Name,
+			},
+			Conditions: []metav1.Condition{
+				{
+					Type:               clusterv1.ReadyCondition,
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               clusterv1.MachineDeletingCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             clusterv1.MachineDeletingWaitingForPreDrainHookReason,
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		}
 
-		//Actualize the machine list since they were modified externally
+		// Actualize the machine list since they were modified externally
 		ml := clusterv1.MachineList{Items: []clusterv1.Machine{machine, spareMachine}}
 		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
 		Expect(err).ToNot(HaveOccurred())
@@ -251,6 +286,7 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(workloadCluster.InitWorkload(ctx, cp)).Should(Succeed())
 
+		// Validate pre-drain hook
 		result, err := r.reconcileLifecycleHooks(ctx, cp)
 		Expect(result.IsZero()).Should(BeFalse())
 		Expect(err).ShouldNot(HaveOccurred())
@@ -264,5 +300,37 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&machine), &machine)).Should(Succeed())
 		_, found = machine.Annotations[controlplanev1.PreDrainLoadbalancerExclusionAnnotation]
 		Expect(found).Should(BeFalse(), "pre-drain annotation should have been deleted")
+	})
+
+	It("Should reconcile pre-terminate hooks and remove pre-terminate annotation on deletion", func() {
+		Expect(testEnv.Delete(ctx, &machine)).Should(Succeed())
+		Eventually(func() bool {
+			Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&machine), &machine)).Should(Succeed())
+			return machine.DeletionTimestamp.IsZero()
+		}).WithTimeout(10*time.Second).Should(BeFalse(), "machine should have a deletion timestamp")
+		machine.Status.Conditions = []metav1.Condition{
+			{
+				Type:               clusterv1.MachineDeletingCondition,
+				Status:             metav1.ConditionTrue,
+				Reason:             clusterv1.MachineDeletingWaitingForPreTerminateHookReason,
+				LastTransitionTime: metav1.Now(),
+			},
+		}
+
+		// Actualize the machine list since they were modified externally
+		ml := clusterv1.MachineList{Items: []clusterv1.Machine{machine, spareMachine}}
+		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
+		Expect(err).ToNot(HaveOccurred())
+		workloadCluster, err = cp.GetWorkloadCluster(ctx)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(workloadCluster.InitWorkload(ctx, cp)).Should(Succeed())
+
+		result, err := r.reconcileLifecycleHooks(ctx, cp)
+		Expect(result.IsZero()).Should(BeFalse())
+		Expect(err).ShouldNot(HaveOccurred())
+
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&machine), &machine)).Should(Succeed())
+		_, found := machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation]
+		Expect(found).Should(BeFalse(), "pre-terminate annotation should have been deleted")
 	})
 })

@@ -30,7 +30,7 @@ import (
 
 	ignition "github.com/coreos/ignition/v2/config/v3_3"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
 )
 
@@ -164,7 +164,6 @@ var _ = Describe("NewJoinWorker", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(scriptContents).ToNot(ContainSubstring("semanage"))
 	})
-
 })
 
 var _ = Describe("NewJoinControlPlane", func() {

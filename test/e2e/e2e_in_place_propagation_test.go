@@ -31,7 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -41,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("In-place propagation", func() {
+var _ = Describe("In-place propagation", Label(DefaultTestsLabel), func() {
 	var (
 		specName            = "in-place-propagation"
 		namespace           *corev1.Namespace
@@ -55,7 +55,7 @@ var _ = Describe("In-place propagation", func() {
 		Expect(e2eConfig).ToNot(BeNil(), "Invalid argument. e2eConfig can't be nil when calling %s spec", specName)
 		Expect(clusterctlConfigPath).To(BeAnExistingFile(), "Invalid argument. clusterctlConfigPath must be an existing file when calling %s spec", specName)
 		Expect(bootstrapClusterProxy).ToNot(BeNil(), "Invalid argument. bootstrapClusterProxy can't be nil when calling %s spec", specName)
-		Expect(os.MkdirAll(artifactFolder, 0755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
+		Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid argument. artifactFolder can't be created for %s spec", specName)
 
 		Expect(e2eConfig.Variables).To(HaveKey(KubernetesVersion))
 
@@ -121,19 +121,20 @@ var _ = Describe("In-place propagation", func() {
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
 				Getter:    bootstrapClusterProxy.GetClient(),
 				Name:      result.Cluster.Name,
 				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+			})
 
 			By("Fetching all Machines")
-			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+			machineNames := GetMachineNamesByCluster(ctx, GetMachinesByClusterInput{
 				Lister:      bootstrapClusterProxy.GetClient(),
 				ClusterName: result.Cluster.Name,
 				Namespace:   result.Cluster.Namespace,
 			})
-			Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
+			Expect(machineNames).ShouldNot(BeEmpty(), "There must be at least one Machine")
 
 			By("Fetch RKE2 control plane")
 			rke2ControlPlane := GetRKE2ControlPlaneByCluster(ctx, GetRKE2ControlPlaneByClusterInput{
@@ -160,12 +161,10 @@ var _ = Describe("In-place propagation", func() {
 			rke2ControlPlane.Spec.MachineTemplate.ObjectMeta.Labels["test-label"] = "test-label-value"
 			rke2ControlPlane.Spec.MachineTemplate.ObjectMeta.Annotations["test-annotation"] = "test-annotation-value"
 
-			// Set new timeouts for NodeDrainTimeout, NodeDeletionTimeout and NodeVolumeDetachTimeout.
-			duration240s := &metav1.Duration{Duration: 240 * time.Second}
-			duration480s := &metav1.Duration{Duration: 480 * time.Second}
-			rke2ControlPlane.Spec.MachineTemplate.NodeDrainTimeout = duration240s
-			rke2ControlPlane.Spec.MachineTemplate.NodeDeletionTimeout = duration240s
-			rke2ControlPlane.Spec.MachineTemplate.NodeVolumeDetachTimeout = duration480s
+			// Set new timeouts for NodeDrainTimeoutSeconds, NodeDeletionTimeoutSeconds and NodeVolumeDetachTimeoutSeconds.
+			rke2ControlPlane.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds = ptr.To(int32(timeout240s))
+			rke2ControlPlane.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds = ptr.To(int32(timeout240s))
+			rke2ControlPlane.Spec.MachineTemplate.Spec.Deletion.NodeVolumeDetachTimeoutSeconds = ptr.To(int32(timeout480s))
 
 			// Patch the RKE2 control plane
 			By("Patching RKE2 control plane with new labels, annotations, and timeouts")
@@ -176,10 +175,10 @@ var _ = Describe("In-place propagation", func() {
 				Lister:      bootstrapClusterProxy.GetClient(),
 				ClusterName: result.Cluster.Name,
 				Namespace:   result.Cluster.Namespace,
-			}, machineList)
+			}, machineNames)
 
-			// Check NodeDrainTimeout, NodeDeletionTimeout and NodeVolumeDetachTimeout values are propagated to Machines
-			By("Check NodeDrainTimeout, NodeDeletionTimeout and NodeVolumeDetachTimeout values are propagated to Machines")
+			// Check NodeDrainTimeoutSeconds, NodeDeletionTimeoutSeconds and NodeVolumeDetachTimeoutSeconds values are propagated to Machines
+			By("Check NodeDrainTimeoutSeconds, NodeDeletionTimeoutSeconds and NodeVolumeDetachTimeoutSeconds values are propagated to Machines")
 			Eventually(func() error {
 				By("Fetching all Machines")
 				machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
@@ -189,14 +188,14 @@ var _ = Describe("In-place propagation", func() {
 				})
 				Expect(machineList.Items).ShouldNot(BeEmpty(), "There must be at least one Machine")
 				for _, machine := range machineList.Items {
-					if machine.Spec.NodeDrainTimeout != nil && machine.Spec.NodeDrainTimeout.Duration != duration240s.Duration {
-						return fmt.Errorf("NodeDrainTimeout value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
+					if machine.Spec.Deletion.NodeDrainTimeoutSeconds != nil && *machine.Spec.Deletion.NodeDrainTimeoutSeconds != timeout240s {
+						return fmt.Errorf("NodeDrainTimeoutSeconds value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
 					}
-					if machine.Spec.NodeDeletionTimeout != nil && machine.Spec.NodeDeletionTimeout.Duration != duration240s.Duration {
-						return fmt.Errorf("NodeDeletionTimeout value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
+					if machine.Spec.Deletion.NodeDeletionTimeoutSeconds != nil && *machine.Spec.Deletion.NodeDeletionTimeoutSeconds != timeout240s {
+						return fmt.Errorf("NodeDeletionTimeoutSeconds value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
 					}
-					if machine.Spec.NodeVolumeDetachTimeout != nil && machine.Spec.NodeVolumeDetachTimeout.Duration != duration480s.Duration {
-						return fmt.Errorf("NodeVolumeDetachTimeout value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
+					if machine.Spec.Deletion.NodeVolumeDetachTimeoutSeconds != nil && *machine.Spec.Deletion.NodeVolumeDetachTimeoutSeconds != timeout480s {
+						return fmt.Errorf("NodeVolumeDetachTimeoutSeconds value is not propagated to Machine %s/%s", machine.Namespace, machine.Name)
 					}
 				}
 				return nil
@@ -279,6 +278,12 @@ var _ = Describe("In-place propagation", func() {
 			}, 5*time.Minute, 10*time.Second).Should(Succeed(), "Labels/annotations not propagated or associations not correct")
 
 			By("Waiting for machines to have propagated metadata")
+			// Fetch all Machines
+			machineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+				Lister:      bootstrapClusterProxy.GetClient(),
+				ClusterName: result.Cluster.Name,
+				Namespace:   result.Cluster.Namespace,
+			})
 			for _, machine := range machineList.Items {
 				machine := machine
 
@@ -286,7 +291,7 @@ var _ = Describe("In-place propagation", func() {
 					Getter:    bootstrapClusterProxy.GetClient(),
 					Machine:   &machine,
 					Checker:   conditions.IsTrue,
-					Condition: controlplanev1.NodeMetadataUpToDate,
+					Condition: controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition,
 				}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 			}
 

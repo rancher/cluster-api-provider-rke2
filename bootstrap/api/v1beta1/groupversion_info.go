@@ -35,6 +35,9 @@ var (
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = schemeBuilder.AddToScheme
 
+	// localSchemeBuilder is used for type conversions.
+	localSchemeBuilder = &schemeBuilder
+
 	objectTypes = []runtime.Object{}
 )
 

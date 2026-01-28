@@ -17,37 +17,58 @@ limitations under the License.
 package v1beta2
 
 import (
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
+// RKE2Config's Ready Condition and Reasons.
 const (
-	// DataSecretAvailableCondition documents the status of the bootstrap secret generation process.
+	// RKE2ConfigReadyCondition is true if the RKE2Config is not deleted,
+	// and both DataSecretCreated, CertificatesAvailable conditions are true.
+	RKE2ConfigReadyCondition = clusterv1.ReadyCondition
+
+	// RKE2ConfigReadyReason surfaces when the RKE2Config is ready.
+	RKE2ConfigReadyReason = clusterv1.ReadyReason
+
+	// RKE2ConfigNotReadyReason surfaces when the RKE2Config is not ready.
+	RKE2ConfigNotReadyReason = clusterv1.NotReadyReason
+
+	// RKE2ConfigReadyUnknownReason surfaces when RKE2Config readiness is unknown.
+	RKE2ConfigReadyUnknownReason = clusterv1.ReadyUnknownReason
+)
+
+// RKE2Config's DataSecretAvailable Condition and Reasons.
+const (
+	// RKE2ConfigDataSecretAvailableCondition documents the status of the bootstrap secret generation process.
 	//
 	// NOTE: When the DataSecret generation starts the process completes immediately and within the
 	// same reconciliation, so the user will always see a transition from Wait to Generated without having
 	// to wait for the next reconciliation.
-	DataSecretAvailableCondition clusterv1.ConditionType = "Available"
+	RKE2ConfigDataSecretAvailableCondition = "DataSecretAvailable"
+
+	// RKE2ConfigDataSecretAvailableReason surfaces when the bootstrap secret is available.
+	RKE2ConfigDataSecretAvailableReason = clusterv1.AvailableReason
+
+	// RKE2ConfigDataSecretNotAvailableReason surfaces when the bootstrap secret is not available.
+	RKE2ConfigDataSecretNotAvailableReason = clusterv1.NotAvailableReason
 )
 
 const (
-	// DataSecretGenerationFailedReason (Severity=Warning) documents a RKE2Config controller detecting
-	// an error while generating a data secret; those kind of errors are usually due to misconfigurations
-	// and user intervention is required to get them fixed.
-	DataSecretGenerationFailedReason string = "DataSecretGenerationFailed"
 
-	// WaitingForClusterInfrastructureReason (Severity=Info) document a bootstrap secret generation process
+	// RKE2ConfigWaitingForClusterInfrastructureReason (Severity=Info) document a bootstrap secret generation process
 	// waiting for the cluster infrastructure to be ready.
 	//
 	// NOTE: Having the cluster infrastructure ready is a pre-condition for starting to create machines.
-	WaitingForClusterInfrastructureReason string = "WaitingForClusterInfrastructure"
+	RKE2ConfigWaitingForClusterInfrastructureReason string = "WaitingForClusterInfrastructure"
 )
 
 const (
-	// CertificatesAvailableCondition documents the status of the certificates generation process.
-	CertificatesAvailableCondition clusterv1.ConditionType = "CertificatesAvailable"
+	// RKE2ConfigCertificatesAvailableCondition documents the status of the certificates generation process.
+	RKE2ConfigCertificatesAvailableCondition = "CertificatesAvailable"
 
-	// CertificatesGenerationFailedReason documents a RKE2Config controller detecting
-	// an error while generating certificates; those kind of errors are usually due to misconfigurations
-	// and user intervention is required to get them fixed.
-	CertificatesGenerationFailedReason string = "CertificateGenerationFailed"
+	// RKE2ConfigCertificatesAvailableReason surfaces when certificates required for machine bootstrap are is available.
+	RKE2ConfigCertificatesAvailableReason = clusterv1.AvailableReason
+
+	// RKE2ConfigCertificatesAvailableInternalErrorReason surfaces unexpected failures when reading or
+	// generating certificates required for machine bootstrap.
+	RKE2ConfigCertificatesAvailableInternalErrorReason string = clusterv1.InternalErrorReason
 )

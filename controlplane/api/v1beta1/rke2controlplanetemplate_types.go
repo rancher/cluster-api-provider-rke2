@@ -33,7 +33,6 @@ type RKE2ControlPlaneTemplateResource struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=rke2controlplanetemplates,scope=Namespaced,categories=cluster-api,shortName=rke2ct
-// +kubebuilder:storageversion
 
 // RKE2ControlPlaneTemplate is the Schema for the rke2controlplanetemplates API.
 type RKE2ControlPlaneTemplate struct {

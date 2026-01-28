@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Bootstrap & Pivot", func() {
+var _ = Describe("Bootstrap & Pivot", Label(DefaultTestsLabel), func() {
 	var (
 		specName            = "bootstrap-pivot-cluster"
 		namespace           *corev1.Namespace
@@ -126,7 +126,7 @@ var _ = Describe("Bootstrap & Pivot", func() {
 				Namespace:   result.Cluster.Namespace,
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
 
-			preMoveMachineList := GetMachinesByCluster(ctx, GetMachinesByClusterInput{
+			preMoveMachineList := GetMachineNamesByCluster(ctx, GetMachinesByClusterInput{
 				Lister:      bootstrapClusterProxy.GetClient(),
 				ClusterName: result.Cluster.Name,
 				Namespace:   result.Cluster.Namespace,

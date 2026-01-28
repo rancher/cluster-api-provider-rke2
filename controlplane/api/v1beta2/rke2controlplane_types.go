@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 )
@@ -82,29 +82,29 @@ type RKE2ControlPlaneSpec struct {
 
 	// MachineTemplate contains information about how machines
 	// should be shaped when creating or updating a control plane.
-	// +required
-	MachineTemplate RKE2ControlPlaneMachineTemplate `json:"machineTemplate,omitzero"`
+	// +optional
+	MachineTemplate RKE2ControlPlaneMachineTemplate `json:"machineTemplate,omitempty,omitzero"`
 
 	// ServerConfig specifies configuration for the agent nodes.
 	//+optional
-	ServerConfig RKE2ServerConfig `json:"serverConfig,omitzero"`
+	ServerConfig RKE2ServerConfig `json:"serverConfig,omitempty,omitzero"`
 
 	// ManifestsConfigMapReference references a ConfigMap which contains Kubernetes manifests to be deployed automatically on the cluster
 	// Each data entry in the ConfigMap will be will be copied to a folder on the control plane nodes that RKE2 scans and uses to deploy manifests.
 	//+optional
-	ManifestsConfigMapReference corev1.ObjectReference `json:"manifestsConfigMapReference,omitzero"`
+	ManifestsConfigMapReference corev1.ObjectReference `json:"manifestsConfigMapReference,omitempty,omitzero"`
 
 	// RegistrationMethod is the method to use for registering nodes into the RKE2 cluster.
 	// +kubebuilder:validation:Enum=internal-first;internal-only-ips;external-only-ips;address;control-plane-endpoint;""
 	// +optional
-	RegistrationMethod RegistrationMethod `json:"registrationMethod,omitempty"`
+	RegistrationMethod RegistrationMethod `json:"registrationMethod,omitempty,omitzero"`
 
 	// RegistrationAddress is an explicit address to use when registering a node. This is required if
 	// the registration type is "address". Its for scenarios where a load-balancer or VIP is used.
 	// +optional
 	RegistrationAddress string `json:"registrationAddress,omitempty"`
 
-	// The RolloutStrategy to use to replace control plane machines with new ones.
+	// The Rollout to use to replace control plane machines with new ones.
 	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy"`
 
 	// remediationStrategy is the RemediationStrategy that controls how control plane machine remediation happens.
@@ -118,28 +118,49 @@ type RKE2ControlPlaneMachineTemplate struct {
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitzero"`
+	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty,omitzero"`
 
-	// InfrastructureRef is a required reference to a custom resource
+	// spec defines the spec for Machines
+	// in a RKE2ControlPlane object.
+	// +required
+	Spec RKE2ControlPlaneMachineTemplateSpec `json:"spec,omitempty,omitzero"`
+}
+
+// RKE2ControlPlaneMachineTemplateSpec defines the spec for Machines
+// in a RKE2ControlPlane object.
+type RKE2ControlPlaneMachineTemplateSpec struct {
+	// infrastructureRef is a required reference to a custom resource
 	// offered by an infrastructure provider.
-	InfrastructureRef corev1.ObjectReference `json:"infrastructureRef"`
+	// +required
+	InfrastructureRef clusterv1.ContractVersionedObjectReference `json:"infrastructureRef,omitempty,omitzero"`
 
-	// NodeDrainTimeout is the total amount of time that the controller will spend on draining a controlplane node
-	// The default value is 0, meaning that the node can be drained without any time limitations.
-	// NOTE: NodeDrainTimeout is different from `kubectl drain --timeout`
+	// deletion contains configuration options for Machine deletion.
 	// +optional
-	NodeDrainTimeout *metav1.Duration `json:"nodeDrainTimeout,omitempty"`
+	Deletion RKE2ControlPlaneMachineTemplateDeletionSpec `json:"deletion,omitempty,omitzero"`
+}
 
-	// nodeVolumeDetachTimeout is the total amount of time that the controller will spend on waiting for all volumes
+// RKE2ControlPlaneMachineTemplateDeletionSpec contains configuration options for Machine deletion.
+// +kubebuilder:validation:MinProperties=1
+type RKE2ControlPlaneMachineTemplateDeletionSpec struct {
+	// nodeDrainTimeoutSeconds is the total amount of time that the controller will spend on draining a controlplane node
+	// The default value is 0, meaning that the node can be drained without any time limitations.
+	// NOTE: nodeDrainTimeoutSeconds is different from `kubectl drain --timeout`
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	NodeDrainTimeoutSeconds *int32 `json:"nodeDrainTimeoutSeconds,omitempty"`
+
+	// nodeVolumeDetachTimeoutSeconds is the total amount of time that the controller will spend on waiting for all volumes
 	// to be detached. The default value is 0, meaning that the volumes can be detached without any time limitations.
 	// +optional
-	NodeVolumeDetachTimeout *metav1.Duration `json:"nodeVolumeDetachTimeout,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	NodeVolumeDetachTimeoutSeconds *int32 `json:"nodeVolumeDetachTimeoutSeconds,omitempty"`
 
-	// nodeDeletionTimeout defines how long the machine controller will attempt to delete the Node that the Machine
+	// nodeDeletionTimeoutSeconds defines how long the machine controller will attempt to delete the Node that the Machine
 	// hosts after the Machine is marked for deletion. A duration of 0 will retry deletion indefinitely.
 	// If no value is provided, the default value for this property of the Machine resource will be used.
 	// +optional
-	NodeDeletionTimeout *metav1.Duration `json:"nodeDeletionTimeout,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	NodeDeletionTimeoutSeconds *int32 `json:"nodeDeletionTimeoutSeconds,omitempty"`
 }
 
 // RKE2ServerConfig specifies configuration for the agent nodes.
@@ -174,7 +195,7 @@ type RKE2ServerConfig struct {
 
 	// DisableComponents lists Kubernetes components and RKE2 plugin components that will be disabled.
 	//+optional
-	DisableComponents DisableComponents `json:"disableComponents,omitzero"`
+	DisableComponents DisableComponents `json:"disableComponents,omitempty,omitzero"`
 
 	// CNI describes the CNI Plugins to deploy, one of none, calico, canal, cilium;
 	// optionally with multus as the first value to enable the multus meta-plugin (default: canal).
@@ -193,7 +214,7 @@ type RKE2ServerConfig struct {
 
 	// Etcd defines optional custom configuration of ETCD.
 	//+optional
-	Etcd EtcdConfig `json:"etcd,omitzero"`
+	Etcd EtcdConfig `json:"etcd,omitempty,omitzero"`
 
 	// SecretsEncrytion defines encryption at rest configuration
 	//+optional
@@ -235,53 +256,40 @@ type RKE2ServerConfig struct {
 
 // RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane.
 type RKE2ControlPlaneStatus struct {
-	// Ready denotes that the RKE2ControlPlane API Server became ready during initial provisioning
-	// to receive requests.
-	// NOTE: this field is part of the Cluster API contract and it is used to orchestrate provisioning.
-	// The value of this field is never updated after provisioning is completed. Please use conditions
-	// to check the operational state of the control plane.
+	// Conditions defines current service state of the RKE2Config.
 	// +optional
-	Ready bool `json:"ready,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Initialized indicates the target cluster has completed initialization.
-	Initialized bool `json:"initialized,omitempty"`
-
-	// DataSecretName is the name of the secret that stores the bootstrap data script.
+	// initialization provides observations of the RKE2ControlPlane initialization process.
+	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Machine provisioning.
 	// +optional
-	DataSecretName *string `json:"dataSecretName,omitempty"`
-
-	// FailureReason will be set on non-retryable errors.
-	// +optional
-	FailureReason string `json:"failureReason,omitempty"`
-
-	// FailureMessage will be set on non-retryable errors.
-	// +optional
-	FailureMessage string `json:"failureMessage,omitempty"`
+	Initialization RKE2ControlPlaneInitializationStatus `json:"initialization,omitempty,omitzero"`
 
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// Conditions defines current service state of the RKE2Config.
-	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-
 	// Replicas is the number of replicas current attached to this ControlPlane Resource.
-	Replicas int32 `json:"replicas,omitempty"`
+	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Version represents the minimum Kubernetes version for the control plane machines
 	// in the cluster.
 	// +optional
-	Version *string `json:"version,omitempty"`
+	Version string `json:"version,omitempty"`
 
 	// ReadyReplicas is the number of replicas current attached to this ControlPlane Resource and that have Ready Status.
-	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+	// +optional
+	ReadyReplicas *int32 `json:"readyReplicas,omitempty"`
 
-	// UpdatedReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config.
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+	// availableReplicas is the number of available replicas targeted by this RKE2ControlPlane.
+	// A machine is considered available when Machine's Available condition is true.
+	// +optional
+	AvailableReplicas *int32 `json:"availableReplicas,omitempty"`
 
-	// UnavailableReplicas is the number of replicas current attached to this ControlPlane Resource and that are up-to-date with Control Plane config.
-	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
+	// upToDateReplicas is the number of up-to-date replicas targeted by this RKE2ControlPlane.
+	// A machine is considered up-to-date when Machine's UpToDate condition is true.
+	// +optional
+	UpToDateReplicas *int32 `json:"upToDateReplicas,omitempty"`
 
 	// AvailableServerIPs is a list of the Control Plane IP adds that can be used to register further nodes.
 	// +optional
@@ -290,21 +298,104 @@ type RKE2ControlPlaneStatus struct {
 	// lastRemediation stores info about last remediation performed.
 	// +optional
 	LastRemediation *LastRemediationStatus `json:"lastRemediation,omitempty"`
+
+	// deprecated groups all the status fields that are deprecated and will be removed when all the nested field are removed.
+	// +optional
+	Deprecated *RKE2ControlPlaneDeprecatedStatus `json:"deprecated,omitempty"`
 }
+
+// RKE2ControlPlaneInitializationStatus provides observations of the RKE2ControlPlane initialization process.
+// +kubebuilder:validation:MinProperties=1
+type RKE2ControlPlaneInitializationStatus struct {
+	// controlPlaneInitialized is true when the RKE2ControlPlane provider reports that the Kubernetes control plane is initialized;
+	// A control plane is considered initialized when it can accept requests, no matter if this happens before
+	// the control plane is fully provisioned or not.
+	// NOTE: this field is part of the Cluster API contract, and it is used to orchestrate initial Machine provisioning.
+	// +optional
+	ControlPlaneInitialized *bool `json:"controlPlaneInitialized,omitempty"`
+}
+
+// RKE2ControlPlaneDeprecatedStatus groups all the status fields that are deprecated and will be removed in a future version.
+type RKE2ControlPlaneDeprecatedStatus struct {
+	// v1beta1 groups all the status fields that are deprecated and will be removed when support for v1beta1 will be dropped.
+	// +optional
+	V1Beta1 *RKE2ControlPlaneV1Beta1DeprecatedStatus `json:"v1beta1,omitempty"`
+}
+
+// RKE2ControlPlaneV1Beta1DeprecatedStatus groups all the status fields that are deprecated and will be removed when support for v1beta1 is dropped.
+type RKE2ControlPlaneV1Beta1DeprecatedStatus struct {
+	// conditions defines current service state of the RKE2ControlPlane.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
+	// +optional
+	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+
+	// failureReason indicates that there is a terminal problem reconciling the
+	// state, and will be set to a token value suitable for
+	// programmatic interpretation.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
+	// +optional
+	FailureReason string `json:"failureReason,omitempty"`
+
+	// failureMessage indicates that there is a terminal problem reconciling the
+	// state, and will be set to a descriptive error message.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=10240
+	FailureMessage string `json:"failureMessage,omitempty"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
+
+	// updatedReplicas is the total number of non-terminated machines targeted by this control plane
+	// that have the desired template spec.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
+	// +optional
+	UpdatedReplicas int32 `json:"updatedReplicas"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
+
+	// readyReplicas is the total number of fully running and ready control plane machines.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
+
+	// unavailableReplicas is the total number of unavailable machines targeted by this control plane.
+	// This is the total number of machines that are still required for
+	// the deployment to have 100% available capacity. They may either
+	// be machines that are running but not yet ready or machines
+	// that still have not been created.
+	//
+	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
+	//
+	// +optional
+	UnavailableReplicas int32 `json:"unavailableReplicas"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
+}
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
 
 // RKE2ControlPlane is the Schema for the rke2controlplanes API.
 type RKE2ControlPlane struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitzero"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RKE2ControlPlaneSpec   `json:"spec,omitzero"`
-	Status RKE2ControlPlaneStatus `json:"status,omitzero"`
+	Spec   RKE2ControlPlaneSpec   `json:"spec,omitempty,omitzero"`
+	Status RKE2ControlPlaneStatus `json:"status,omitempty,omitzero"`
 }
+
+//+kubebuilder:object:root=true
 
 // RKE2ControlPlaneList contains a list of RKE2ControlPlane.
 type RKE2ControlPlaneList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitzero"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 
 	Items []RKE2ControlPlane `json:"items"`
 }
@@ -319,10 +410,10 @@ type EtcdConfig struct {
 
 	// BackupConfig defines how RKE2 will snapshot ETCD: target storage, schedule, etc.
 	//+optional
-	BackupConfig EtcdBackupConfig `json:"backupConfig,omitzero"`
+	BackupConfig EtcdBackupConfig `json:"backupConfig,omitempty,omitzero"`
 
 	// CustomConfig defines the custom settings for ETCD.
-	CustomConfig *bootstrapv1.ComponentConfig `json:"customConfig,omitempty"`
+	CustomConfig *bootstrapv1.ComponentConfig `json:"customConfig,omitempty,omitzero"`
 }
 
 // EtcdBackupConfig describes the backup configuration for ETCD.
@@ -476,7 +567,7 @@ type RemediationStrategy struct {
 	//
 	// If not set, a retry will happen immediately.
 	// +optional
-	RetryPeriod metav1.Duration `json:"retryPeriod,omitzero"`
+	RetryPeriod metav1.Duration `json:"retryPeriod,omitempty"`
 
 	// minHealthyPeriod defines the duration after which RKE2ControlPlane will consider any failure to a machine unrelated
 	// from the previous one. In this case the remediation is not considered a retry anymore, and thus the retry
@@ -569,13 +660,35 @@ func init() { //nolint:gochecknoinits
 }
 
 // GetConditions returns the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) GetConditions() clusterv1.Conditions {
+func (r *RKE2ControlPlane) GetConditions() []metav1.Condition {
 	return r.Status.Conditions
 }
 
 // SetConditions sets the list of conditions for a RKE2ControlPlane object.
-func (r *RKE2ControlPlane) SetConditions(conditions clusterv1.Conditions) {
+func (r *RKE2ControlPlane) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
+}
+
+// GetV1Beta1Conditions returns the set of conditions for this object.
+func (r *RKE2ControlPlane) GetV1Beta1Conditions() clusterv1.Conditions {
+	if r.Status.Deprecated == nil || r.Status.Deprecated.V1Beta1 == nil {
+		return nil
+	}
+
+	return r.Status.Deprecated.V1Beta1.Conditions
+}
+
+// SetV1Beta1Conditions sets the conditions on this object.
+func (r *RKE2ControlPlane) SetV1Beta1Conditions(conditions clusterv1.Conditions) {
+	if r.Status.Deprecated == nil {
+		r.Status.Deprecated = &RKE2ControlPlaneDeprecatedStatus{}
+	}
+
+	if r.Status.Deprecated.V1Beta1 == nil {
+		r.Status.Deprecated.V1Beta1 = &RKE2ControlPlaneV1Beta1DeprecatedStatus{}
+	}
+
+	r.Status.Deprecated.V1Beta1.Conditions = conditions
 }
 
 // GetDesiredVersion returns the desired version of the RKE2ControlPlane using Spec.Version field as a default field.

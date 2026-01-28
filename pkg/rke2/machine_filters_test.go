@@ -6,14 +6,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/collections"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 )
 
 var (
@@ -52,14 +51,12 @@ var machine = clusterv1.Machine{
 	},
 	Spec: clusterv1.MachineSpec{
 		ClusterName:   "rke2-cluster",
-		Version:       &k8sMachineVersion,
-		FailureDomain: &regionEuCentral1,
+		Version:       k8sMachineVersion,
+		FailureDomain: regionEuCentral1,
 		Bootstrap: clusterv1.Bootstrap{
-			ConfigRef: &corev1.ObjectReference{
-				Kind:       "RKE2ConfigTemplate",
-				Namespace:  "example",
-				Name:       "rke2-cluster-config-template",
-				APIVersion: bootstrapv1.GroupVersion.Version,
+			ConfigRef: clusterv1.ContractVersionedObjectReference{
+				Kind: "RKE2ConfigTemplate",
+				Name: "rke2-cluster-config-template",
 			},
 		},
 	},
@@ -154,10 +151,10 @@ var _ = Describe("matching Kubernetes Version", func() {
 	})
 
 	It("should match when RKE2 version is set on the machine", func() {
-		machine.Spec.Version = &rke2MachineVersion
+		machine.Spec.Version = rke2MachineVersion
 		machineCollection := collections.FromMachines(&machine)
 		matches := machineCollection.AnyFilter(matchesKubernetesOrRKE2Version(context.TODO(), rcp.GetDesiredVersion()))
 		Expect(len(matches)).To(Equal(1))
-		machine.Spec.Version = &k8sMachineVersion
+		machine.Spec.Version = k8sMachineVersion
 	})
 })

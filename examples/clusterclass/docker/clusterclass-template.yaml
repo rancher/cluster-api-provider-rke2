@@ -5,7 +5,7 @@ metadata:
 spec:
   controlPlane:
     ref:
-      apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+      apiVersion: controlplane.cluster.x-k8s.io/v1beta2
       kind: RKE2ControlPlaneTemplate
       name: rke2-class-control-plane
     machineInfrastructure:
@@ -145,7 +145,7 @@ spec:
           name: rke2-class-lb-config
 ---
 kind: RKE2ControlPlaneTemplate
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 metadata:
   name: rke2-class-control-plane
 spec:

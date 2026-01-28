@@ -33,15 +33,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1beta1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1beta1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterv1exp "sigs.k8s.io/cluster-api/exp/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
-	dockerinfrav1 "sigs.k8s.io/cluster-api/test/infrastructure/docker/api/v1beta1"
+	dockerinfrav1 "sigs.k8s.io/cluster-api/test/infrastructure/docker/api/v1beta2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/kind/pkg/apis/config/v1alpha4"
 )
@@ -174,9 +176,11 @@ func initScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	framework.TryAddDefaultSchemes(scheme)
 	Expect(controlplanev1.AddToScheme(scheme)).To(Succeed())
+	Expect(controlplanev1beta1.AddToScheme(scheme)).To(Succeed())
 	Expect(bootstrapv1.AddToScheme(scheme)).To(Succeed())
+	Expect(bootstrapv1beta1.AddToScheme(scheme)).To(Succeed())
 	Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
-	Expect(clusterv1exp.AddToScheme(scheme)).To(Succeed())
+	Expect(clusterv1beta1.AddToScheme(scheme)).To(Succeed())
 	Expect(dockerinfrav1.AddToScheme(scheme)).To(Succeed())
 	return scheme
 }
@@ -269,11 +273,12 @@ func initUpgradableBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy
 	InitManagementCluster(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:              bootstrapClusterProxy,
 		ClusterctlConfigPath:      clusterctlConfig,
-		InfrastructureProviders:   config.InfrastructureProviders(),
+		InfrastructureProviders:   []string{"docker:v1.10.6"},
 		IPAMProviders:             config.IPAMProviders(),
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
-		BootstrapProviders:        []string{"rke2-bootstrap:v0.21.0"},
-		ControlPlaneProviders:     []string{"rke2-control-plane:v0.21.0"},
+		CoreProvider:              "cluster-api:v1.10.6",
+		BootstrapProviders:        []string{"rke2-bootstrap:v0.21.1"},
+		ControlPlaneProviders:     []string{"rke2-control-plane:v0.21.1"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 		DisableMetricsCollection:  true,
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)

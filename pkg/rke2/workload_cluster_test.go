@@ -1,3 +1,19 @@
+/*
+Copyright 2023 - 2026 SUSE.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package rke2
 
 import (
@@ -9,12 +25,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,6 +45,7 @@ var _ = Describe("Node metadata propagation", func() {
 		ns                   *corev1.Namespace
 		nodeName             = "node1"
 		node                 *corev1.Node
+		rcp                  *controlplanev1.RKE2ControlPlane
 		machine              *clusterv1.Machine
 		machineDifferentNode *clusterv1.Machine
 		machineNodeRefStatus clusterv1.MachineStatus
@@ -53,6 +71,12 @@ var _ = Describe("Node metadata propagation", func() {
 			},
 		}}
 
+		rcp = &controlplanev1.RKE2ControlPlane{
+			Spec: controlplanev1.RKE2ControlPlaneSpec{
+				Version: "v1.34.2+rke2r1",
+			},
+		}
+
 		config = &bootstrapv1.RKE2Config{ObjectMeta: metav1.ObjectMeta{
 			Name:      "config",
 			Namespace: ns.Name,
@@ -70,18 +94,16 @@ var _ = Describe("Node metadata propagation", func() {
 			Spec: clusterv1.MachineSpec{
 				ClusterName: clusterKey.Name,
 				Bootstrap: clusterv1.Bootstrap{
-					ConfigRef: &corev1.ObjectReference{
-						Kind:       "RKE2Config",
-						APIVersion: bootstrapv1.GroupVersion.String(),
-						Name:       config.Name,
-						Namespace:  config.Namespace,
+					ConfigRef: clusterv1.ContractVersionedObjectReference{
+						Kind:     "RKE2Config",
+						APIGroup: bootstrapv1.GroupVersion.Group,
+						Name:     config.Name,
 					},
 				},
-				InfrastructureRef: corev1.ObjectReference{
-					Kind:       "Pod",
-					APIVersion: "v1",
-					Name:       "stub",
-					Namespace:  ns.Name,
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     infrastructure.FakeMachineKind,
+					APIGroup: infrastructure.GroupVersion.Group,
+					Name:     "mock-machine",
 				},
 			},
 		}
@@ -94,27 +116,23 @@ var _ = Describe("Node metadata propagation", func() {
 			Spec: clusterv1.MachineSpec{
 				ClusterName: clusterKey.Name,
 				Bootstrap: clusterv1.Bootstrap{
-					ConfigRef: &corev1.ObjectReference{
-						Kind:       "RKE2Config",
-						APIVersion: bootstrapv1.GroupVersion.String(),
-						Name:       config.Name,
-						Namespace:  config.Namespace,
+					ConfigRef: clusterv1.ContractVersionedObjectReference{
+						Kind:     "RKE2Config",
+						APIGroup: bootstrapv1.GroupVersion.Group,
+						Name:     config.Name,
 					},
 				},
-				InfrastructureRef: corev1.ObjectReference{
-					Kind:       "Pod",
-					APIVersion: "v1",
-					Name:       "stub",
-					Namespace:  ns.Name,
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     infrastructure.FakeMachineKind,
+					APIGroup: infrastructure.GroupVersion.Group,
+					Name:     "other-mock-machine",
 				},
 			},
 		}
 
 		machineNodeRefStatus = clusterv1.MachineStatus{
-			NodeRef: &corev1.ObjectReference{
-				Kind:       "Node",
-				APIVersion: "v1",
-				Name:       nodeName,
+			NodeRef: clusterv1.MachineNodeReference{
+				Name: nodeName,
 			},
 		}
 	})
@@ -139,18 +157,18 @@ var _ = Describe("Node metadata propagation", func() {
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
 
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(0))
 		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionUnknown),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionUnknown),
 		))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Message", Equal("associated node not found"),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Message", MatchRegexp("node .+ not found"),
 		))
 	})
 
@@ -169,18 +187,18 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
 		Expect(cp.Rke2Configs).To(HaveLen(0))
 		Expect(cp.Machines).To(HaveLen(1))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionUnknown),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionUnknown),
 		))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Message", Equal("associated RKE2 config not found"),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Message", MatchRegexp("node .+ RKE2Config not found"),
 		))
 	})
 
@@ -199,18 +217,18 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(0))
 		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionUnknown),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionUnknown),
 		))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Message", Equal("associated node not found"),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Message", MatchRegexp("node .+ not found"),
 		))
 
 		Expect(testEnv.Create(ctx, node)).To(Succeed())
@@ -221,8 +239,8 @@ var _ = Describe("Node metadata propagation", func() {
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionTrue),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionTrue),
 		))
 		Expect(w.Nodes[nodeName].GetAnnotations()).To(Equal(map[string]string{
 			"test":                      "true",
@@ -246,15 +264,15 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
 		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
-		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionTrue),
+		Expect(conditions.Get(cp.Machines[machine.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionTrue),
 		))
 		Expect(w.Nodes[nodeName].GetAnnotations()).To(Equal(map[string]string{
 			"test":                      "true",
@@ -292,15 +310,15 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
 		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
-		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionTrue),
+		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionTrue),
 		))
 		Expect(w.Nodes[nodeName].GetAnnotations()).To(Equal(map[string]string{
 			"test":                      "true",
@@ -320,7 +338,6 @@ var _ = Describe("Node metadata propagation", func() {
 			}
 			return nil
 		}, 5*time.Second).Should(Succeed())
-
 	})
 
 	It("should recover from error condition on successfull node patch for arbitrary node name", func() {
@@ -342,18 +359,18 @@ var _ = Describe("Node metadata propagation", func() {
 
 		w, err := m.NewWorkload(ctx, testEnv.GetClient(), testEnv.GetConfig(), clusterKey)
 		Expect(err).ToNot(HaveOccurred())
-		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err := NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.Nodes).To(HaveLen(1))
 		Expect(cp.Rke2Configs).To(HaveLen(1))
 		Expect(cp.Machines).To(HaveLen(1))
-		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionUnknown),
+		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionUnknown),
 		))
-		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Message", Equal("associated node not found"),
+		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Message", MatchRegexp("node .+ not found"),
 		))
 
 		machineDifferentNode.Status = machineNodeRefStatus
@@ -362,13 +379,13 @@ var _ = Describe("Node metadata propagation", func() {
 		machines = collections.FromMachineList(&clusterv1.MachineList{Items: []clusterv1.Machine{
 			*machineDifferentNode,
 		}})
-		cp, err = NewControlPlane(ctx, m, testEnv.GetClient(), nil, nil, machines)
+		cp, err = NewControlPlane(ctx, m, testEnv.GetClient(), nil, rcp, machines)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(w.InitWorkload(ctx, cp)).ToNot(HaveOccurred())
 		Expect(w.UpdateNodeMetadata(ctx, cp)).ToNot(HaveOccurred())
 
-		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.NodeMetadataUpToDate)).To(HaveField(
-			"Status", Equal(corev1.ConditionTrue),
+		Expect(conditions.Get(cp.Machines[machineDifferentNode.Name], controlplanev1.RKE2ControlPlaneNodeMetadataUpToDateCondition)).To(HaveField(
+			"Status", Equal(metav1.ConditionTrue),
 		))
 		Expect(w.Nodes[nodeName].GetAnnotations()).To(Equal(map[string]string{
 			"test":                      "true",

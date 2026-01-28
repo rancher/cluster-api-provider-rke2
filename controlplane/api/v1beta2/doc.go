@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1beta2 contains a v1beta1 api for controlplane resources.
+// Package v1beta2 contains a v1beta2 api for controlplane resources.
 //
 // +k8s:deepcopy-gen=package
+// +kubebuilder:object:generate=true
+// +groupName=controlplane.cluster.x-k8s.io
 package v1beta2

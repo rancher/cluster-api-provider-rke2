@@ -16,97 +16,327 @@ limitations under the License.
 
 package v1beta2
 
-import clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+import (
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+)
 
 // Conditions and condition Reasons for the RKE2ControlPlane object.
 
+// RKE2ControlPlane's Ready Condition and Reasons.
 const (
-	// MachinesReadyCondition reports an aggregate of current status of the machines controlled by the RKE2ControlPlane.
-	MachinesReadyCondition clusterv1.ConditionType = "MachinesReady"
+	// RKE2ControlPlaneReadyCondition is true if the RKE2ControlPlane is available and ready.
+	RKE2ControlPlaneReadyCondition = clusterv1.ReadyCondition
+
+	// RKE2ControlPlaneReadyReason surfaces when the RKE2ControlPlane is ready.
+	RKE2ControlPlaneReadyReason = clusterv1.ReadyReason
+
+	// RKE2ControlPlaneNotReadyReason surfaces when the RKE2ControlPlane is not ready.
+	RKE2ControlPlaneNotReadyReason = clusterv1.NotReadyReason
+
+	// RKE2ControlPlaneReadyUnknownReason surfaces when RKE2ControlPlane readiness is unknown.
+	RKE2ControlPlaneReadyUnknownReason = clusterv1.ReadyUnknownReason
 )
 
+// RKE2ControlPlaneMachinesReady Condition and Reasons.
 const (
-	// AvailableCondition documents that the first control plane instance has completed the RKE2 initialization
+	// RKE2ControlPlaneMachinesReadyCondition reports an aggregate of current status of the machines controlled by the RKE2ControlPlane.
+	RKE2ControlPlaneMachinesReadyCondition = "MachinesReady"
+
+	// RKE2ControlPlaneMachinesReadyReason surfaces when all the controlled machine's Ready conditions are true.
+	RKE2ControlPlaneMachinesReadyReason = clusterv1.ReadyReason
+
+	// RKE2ControlPlaneMachinesNotReadyReason surfaces when at least one of the controlled machine's Ready conditions is false.
+	RKE2ControlPlaneMachinesNotReadyReason = clusterv1.NotReadyReason
+
+	// RKE2ControlPlaneMachinesReadyUnknownReason surfaces when at least one of the controlled machine's Ready conditions is unknown
+	// and no one of the controlled machine's Ready conditions is false.
+	RKE2ControlPlaneMachinesReadyUnknownReason = clusterv1.ReadyUnknownReason
+
+	// RKE2ControlPlaneMachinesReadyNoReplicasReason surfaces when no machines exist for the RKE2ControlPlane.
+	RKE2ControlPlaneMachinesReadyNoReplicasReason = clusterv1.NoReplicasReason
+
+	// RKE2ControlPlaneMachinesReadyInternalErrorReason surfaces unexpected failures when computing the MachinesReady condition.
+	RKE2ControlPlaneMachinesReadyInternalErrorReason = clusterv1.InternalErrorReason
+)
+
+// RKE2ControlPlaneAvailable Condition and Reasons.
+const (
+	// RKE2ControlPlaneAvailableCondition documents that the first control plane instance has completed the RKE2 initialization
 	// and so the control plane is available and an API server instance is ready for processing requests.
-	AvailableCondition clusterv1.ConditionType = "Available"
+	RKE2ControlPlaneAvailableCondition = clusterv1.AvailableCondition
 
-	// WaitingForRKE2ServerReason (Severity=Info) documents a RKE2ControlPlane object waiting for the first
-	// control plane instance to complete the RKE2 Server initialization.
-	WaitingForRKE2ServerReason = "WaitingForRKE2Server"
+	// RKE2ControlPlaneAvailableInspectionFailedReason documents a failure when inspecting the status of the
+	// etcd cluster hosted on RKE2ControlPlane controlled machines.
+	RKE2ControlPlaneAvailableInspectionFailedReason = clusterv1.InspectionFailedReason
+
+	// RKE2ControlPlaneAvailableReason surfaces when the RKE2ControlPlane is available.
+	RKE2ControlPlaneAvailableReason = clusterv1.AvailableReason
+
+	// RKE2ControlPlaneNotAvailableReason surfaces when the RKE2ControlPlane is not available.
+	RKE2ControlPlaneNotAvailableReason = clusterv1.NotAvailableReason
+)
+
+// RKE2ControlPlane's Initialized condition and corresponding reasons.
+const (
+	// RKE2ControlPlaneInitializedCondition is true when the control plane is functional enough to accept
+	// requests. This information is usually used as a signal for starting all the provisioning operations that
+	// depend on a functional API server, but do not require a full HA control plane to exist.
+	RKE2ControlPlaneInitializedCondition = "Initialized"
+
+	// RKE2ControlPlaneInitializedReason surfaces when the control plane is initialized.
+	RKE2ControlPlaneInitializedReason = "Initialized"
+
+	// RKE2ControlPlaneNotInitializedReason surfaces when the control plane is not initialized.
+	RKE2ControlPlaneNotInitializedReason = "NotInitialized"
 )
 
 const (
-	// ControlPlaneComponentsHealthyCondition reports the overall status of control plane components
+	// RKE2ControlPlaneWaitingForRKE2ServerReason (Severity=Info) documents a RKE2ControlPlane object waiting for the first
+	// control plane instance to complete the RKE2 Server initialization.
+	RKE2ControlPlaneWaitingForRKE2ServerReason = "WaitingForRKE2Server"
+)
+
+// RKE2ControlPlaneControlPlaneComponents Condition and Reasons.
+const (
+	// RKE2ControlPlaneControlPlaneComponentsHealthyCondition reports the overall status of control plane components
 	// implemented as static pods generated by RKE2 including kube-api-server, kube-controller manager,
 	// kube-scheduler and etcd if managed.
-	ControlPlaneComponentsHealthyCondition clusterv1.ConditionType = "ControlPlaneComponentsHealthy"
+	RKE2ControlPlaneControlPlaneComponentsHealthyCondition = "ControlPlaneComponentsHealthy"
 
-	// ControlPlaneComponentsUnhealthyReason (Severity=Error) documents a control plane component not healthy.
-	ControlPlaneComponentsUnhealthyReason = "ControlPlaneComponentsUnhealthy"
+	// RKE2ControlPlaneControlPlaneComponentsUnhealthyReason (Severity=Error) documents a control plane component not healthy.
+	RKE2ControlPlaneControlPlaneComponentsUnhealthyReason = "ControlPlaneComponentsUnhealthy"
 
-	// ControlPlaneComponentsUnknownReason reports a control plane component in unknown status.
-	ControlPlaneComponentsUnknownReason = "ControlPlaneComponentsUnknown"
+	// RKE2ControlPlaneControlPlaneComponentsUnknownReason reports a control plane component in unknown status.
+	RKE2ControlPlaneControlPlaneComponentsUnknownReason = "ControlPlaneComponentsUnknown"
 
-	// ControlPlaneComponentsInspectionFailedReason documents a failure in inspecting the control plane component status.
-	ControlPlaneComponentsInspectionFailedReason = "ControlPlaneComponentsInspectionFailed"
+	// RKE2ControlPlaneControlPlaneComponentsInspectionFailedReason documents a failure in inspecting the control plane component status.
+	RKE2ControlPlaneControlPlaneComponentsInspectionFailedReason = clusterv1.InspectionFailedReason
 
-	// MachinesSpecUpToDateCondition documents that the spec of the machines controlled by the RKE2ControlPlane
+	// RKE2ControlPlaneControlPlaneComponentsHealthyReason surfaces when the Kubernetes control plane components
+	// hosted on RKE2ControlPlane machines are healthy.
+	RKE2ControlPlaneControlPlaneComponentsHealthyReason = "Healthy"
+
+	// RKE2ControlPlaneControlPlaneComponentsNotHealthyReason surfaces when the Kubernetes control plane components
+	// hosted on RKE2ControlPlane machines are not healthy.
+	RKE2ControlPlaneControlPlaneComponentsNotHealthyReason = "NotHealthy"
+
+	// RKE2ControlPlaneControlPlaneComponentsHealthUnknownReason surfaces when the health status of the
+	// Kubernetes control plane components hosted on RKE2ControlPlane machines is unknown.
+	RKE2ControlPlaneControlPlaneComponentsHealthUnknownReason = "HealthUnknown"
+)
+
+// RKE2ControlPlaneMachines Conditions and Reasons.
+const (
+	// RKE2ControlPlaneMachinesUpToDateCondition documents that the spec of the machines controlled by the RKE2ControlPlane
 	// is up to date. Whe this condition is false, the RKE2ControlPlane is executing a rolling upgrade.
-	MachinesSpecUpToDateCondition clusterv1.ConditionType = "MachinesSpecUpToDate"
+	RKE2ControlPlaneMachinesUpToDateCondition = clusterv1.MachinesUpToDateCondition
 
-	// NodeMetadataUpToDate documents that the metadata of the nodes controlled by the RKE2 machines
-	// is up to date. When this condition is false, or missing the node metadata is not propagated.
-	NodeMetadataUpToDate clusterv1.ConditionType = "NodeMetadataUpToDate"
+	// RKE2ControlPlaneMachineAgentHealthyCondition reports a machine's rke2 agent's operational status.
+	RKE2ControlPlaneMachineAgentHealthyCondition = "AgentHealthy"
 
-	// MachineAgentHealthyCondition reports a machine's rke2 agent's operational status.
-	MachineAgentHealthyCondition clusterv1.ConditionType = "AgentHealthy"
+	// RKE2ControlPlaneMachineAgentHealthyReason reports a machine's rke2 agent's operational status.
+	RKE2ControlPlaneMachineAgentHealthyReason = "Healthy"
 
-	// NodePatchFailedReason (Severity=Error) documents reason why Node object could not be patched.
-	NodePatchFailedReason = "NodePatchFailed"
+	// RKE2ControlPlaneNodePatchFailedReason (Severity=Error) documents reason why Node object could not be patched.
+	RKE2ControlPlaneNodePatchFailedReason = "NodePatchFailed"
 
-	// PodInspectionFailedReason documents a failure in inspecting the pod status.
-	PodInspectionFailedReason = "PodInspectionFailed"
+	// RKE2ControlPlanePodInspectionFailedReason documents a failure in inspecting the pod status.
+	RKE2ControlPlanePodInspectionFailedReason = clusterv1.InspectionFailedReason
 
-	// PodMissingReason (Severity=Error) documents a pod does not exist.
-	PodMissingReason = "PodMissing" // RollingUpdateInProgressReason (Severity=Warning) documents a RKE2ControlPlane object executing a
+	// RKE2ControlPlanePodMissingReason (Severity=Error) documents a pod does not exist.
+	RKE2ControlPlanePodMissingReason = "PodMissing" // RollingUpdateInProgressReason (Severity=Warning) documents a RKE2ControlPlane object executing a
 
-	// PodFailedReason (Severity=Error) documents if a pod failed during provisioning i.e., e.g CrashLoopbackOff, ImagePullBackOff
-	// or if all the containers in a pod have terminated.
-	PodFailedReason = "PodFailed"
-
-	// RollingUpdateInProgressReason (Severity=Warning) documents a RKE2ControlPlane object executing a
+	// RKE2ControlPlaneRollingUpdateInProgressReason (Severity=Warning) documents a RKE2ControlPlane object executing a
 	// rolling upgrade for aligning the machines spec to the desired state.
-	RollingUpdateInProgressReason = "RollingUpdateInProgress"
+	RKE2ControlPlaneRollingUpdateInProgressReason = "RollingUpdateInProgress"
 )
 
+// RKE2ControlPlane's RollingOut condition and corresponding reasons.
 const (
-	// EtcdClusterHealthyCondition documents the overall etcd cluster's health.
-	EtcdClusterHealthyCondition clusterv1.ConditionType = "EtcdClusterHealthyCondition"
+	// RKE2ControlPlaneRollingOutCondition  is true if there is at least one machine not up-to-date.
+	RKE2ControlPlaneRollingOutCondition = clusterv1.RollingOutCondition
 
-	// EtcdClusterInspectionFailedReason documents a failure in inspecting the etcd cluster status.
-	EtcdClusterInspectionFailedReason = "EtcdClusterInspectionFailed"
+	// RKE2ControlPlaneRollingOutReason  surfaces when there is at least one machine not up-to-date.
+	RKE2ControlPlaneRollingOutReason = clusterv1.RollingOutReason
 
-	// MachineEtcdMemberHealthyCondition report the machine's etcd member's health status.
+	// RKE2ControlPlaneNotRollingOutReason surfaces when all the machines are up-to-date.
+	RKE2ControlPlaneNotRollingOutReason = clusterv1.NotRollingOutReason
+)
+
+// RKE2ControlPlane's NodeMetadata Condition and Reasons.
+const (
+	// RKE2ControlPlaneNodeMetadataUpToDateCondition documents that the metadata of the nodes controlled by the RKE2 machines
+	// is up to date. When this condition is false, or missing the node metadata is not propagated.
+	RKE2ControlPlaneNodeMetadataUpToDateCondition = "NodeMetadataUpToDate"
+
+	// RKE2ControlPlaneNodeMetadataUpToDateReason documents that the metadata of the nodes controller by the RKE2 machines
+	// is up to date.
+	RKE2ControlPlaneNodeMetadataUpToDateReason = clusterv1.MachineUpToDateReason
+)
+
+// RKE2ControlPlane MachinePod Reasons.
+const (
+	// RKE2ControlPlaneMachinePodDeletingReason surfaces when the machine hosting control plane components
+	// is being deleted.
+	RKE2ControlPlaneMachinePodDeletingReason = clusterv1.DeletingReason
+
+	// RKE2ControlPlaneMachinePodInspectionFailedReason documents a failure when inspecting the status of a
+	// pod hosted on a RKE2ControlPlane controlled machine.
+	RKE2ControlPlaneMachinePodInspectionFailedReason = clusterv1.InspectionFailedReason
+
+	// RKE2ControlPlaneMachinePodFailedReason surfaces a when a pod hosted on a RKE2ControlPlane controlled machine
+	// failed during provisioning, e.g. CrashLoopBackOff, ImagePullBackOff or if all the containers in a pod have terminated.
+	RKE2ControlPlaneMachinePodFailedReason = "PodFailed"
+)
+
+// RKE2ControlPlane's EtcdClusterHealthy Condition and Reasons.
+const (
+	// RKE2ControlPlaneEtcdClusterHealthyCondition documents the overall etcd cluster's health.
+	RKE2ControlPlaneEtcdClusterHealthyCondition = "EtcdClusterHealthy"
+
+	// RKE2ControlPlaneEtcdClusterInspectionFailedReason documents a failure in inspecting the etcd cluster status.
+	RKE2ControlPlaneEtcdClusterInspectionFailedReason = clusterv1.InspectionFailedReason
+
+	// RKE2ControlPlaneEtcdClusterConnectionDownReason surfaces that the connection to the workload
+	// cluster is down.
+	RKE2ControlPlaneEtcdClusterConnectionDownReason = clusterv1.ConnectionDownReason
+
+	// RKE2ControlPlaneEtcdClusterHealthyReason surfaces when the etcd cluster hosted on RKE2ControlPlane
+	// machines is healthy.
+	RKE2ControlPlaneEtcdClusterHealthyReason = "Healthy"
+
+	// RKE2ControlPlaneEtcdClusterNotHealthyReason surfaces when the etcd cluster hosted on RKE2ControlPlane
+	// machines is not healthy.
+	RKE2ControlPlaneEtcdClusterNotHealthyReason = "NotHealthy"
+
+	// RKE2ControlPlaneEtcdClusterHealthUnknownReason surfaces when the health status of the etcd cluster hosted
+	// on RKE2ControlPlane machines is unknown.
+	RKE2ControlPlaneEtcdClusterHealthUnknownReason = "HealthUnknown"
+)
+
+// MachineEtcdMemberHealthy Condition and Reasons.
+const (
+	// RKE2ControlPlaneMachineEtcdMemberHealthyCondition report the machine's etcd member's health status.
 	// NOTE: This conditions exists only if a stacked etcd cluster is used.
-	MachineEtcdMemberHealthyCondition clusterv1.ConditionType = "EtcdMemberHealthy"
+	RKE2ControlPlaneMachineEtcdMemberHealthyCondition = "EtcdMemberHealthy"
 
-	// EtcdMemberInspectionFailedReason documents a failure in inspecting the etcd member status.
-	EtcdMemberInspectionFailedReason = "MemberInspectionFailed"
+	// RKE2ControlPlaneMachineEtcdMemberHealthyReason surfaces when the etcd member hosted on a RKE2ControlPlane controlled machine is healthy.
+	RKE2ControlPlaneMachineEtcdMemberHealthyReason = "Healthy"
 
-	// ResizedCondition documents a RKE2ControlPlane that is resizing the set of controlled machines.
-	ResizedCondition clusterv1.ConditionType = "Resized"
-
-	// ScalingUpReason (Severity=Info) documents a RKE2ControlPlane that is increasing the number of replicas.
-	ScalingUpReason = "ScalingUp"
-
-	// ScalingDownReason (Severity=Info) documents a RKE2ControlPlane that is decreasing the number of replicas.
-	ScalingDownReason = "ScalingDown"
+	// RKE2ControlPlaneMachineEtcdMemberInspectionFailedReason documents a failure in inspecting the etcd member status.
+	RKE2ControlPlaneMachineEtcdMemberInspectionFailedReason = clusterv1.InspectionFailedReason
 )
 
+// RKE2ControlPlane's ScalingUp Condition and Reasons.
 const (
-	// CertificatesAvailableCondition documents the overall status of the certificates generated by the RKE2ControlPlane.
-	CertificatesAvailableCondition clusterv1.ConditionType = "CertificatesAvailable"
+	// RKE2ControlPlaneScalingUpCondition documents a RKE2ControlPlane that is scaling up the set of controlled machines.
+	RKE2ControlPlaneScalingUpCondition = clusterv1.ScalingUpCondition
 
-	// CertificatesGenerationFailedReason documents a failure in generating the certificates.
-	CertificatesGenerationFailedReason string = "CertificateGenerationFailed"
+	// RKE2ControlPlaneScalingUpReason surfaces when actual replicas < desired replicas.
+	RKE2ControlPlaneScalingUpReason = clusterv1.ScalingUpReason
+
+	// RKE2ControlPlaneNotScalingUpReason surfaces when actual replicas >= desired replicas.
+	RKE2ControlPlaneNotScalingUpReason = clusterv1.NotScalingUpReason
+
+	// RKE2ControlPlaneScalingUpWaitingForReplicasSetReason surfaces when the .spec.replicas
+	// field of the RKE2ControlPlane is not set.
+	RKE2ControlPlaneScalingUpWaitingForReplicasSetReason = clusterv1.WaitingForReplicasSetReason
+)
+
+// RKE2ControlPlane's ScalingDown Condition and Reasons.
+const (
+	// RKE2ControlPlaneScalingDownCondition is true if actual replicas > desired replicas.
+	// Note: In case a RKE2ControlPlane preflight check is preventing scale down, this will surface in the condition message.
+	RKE2ControlPlaneScalingDownCondition = clusterv1.ScalingDownCondition
+
+	// RKE2ControlPlaneScalingDownReason surfaces when actual replicas > desired replicas.
+	RKE2ControlPlaneScalingDownReason = clusterv1.ScalingDownReason
+
+	// RKE2ControlPlaneNotScalingDownReason surfaces when actual replicas <= desired replicas.
+	RKE2ControlPlaneNotScalingDownReason = clusterv1.NotScalingDownReason
+
+	// RKE2ControlPlaneScalingDownWaitingForReplicasSetReason surfaces when the .spec.replicas
+	// field of the RKE2ControlPlane is not set.
+	RKE2ControlPlaneScalingDownWaitingForReplicasSetReason = clusterv1.WaitingForReplicasSetReason
+)
+
+// RKE2ControlPlane's Remediating condition and corresponding reasons.
+const (
+	// RKE2ControlPlaneRemediatingCondition surfaces details about ongoing remediation of the controlled machines, if any.
+	// Note: RKE2ControlPlane only remediates machines with HealthCheckSucceeded set to false and with the OwnerRemediated condition set to false.
+	RKE2ControlPlaneRemediatingCondition = clusterv1.RemediatingCondition
+
+	// RKE2ControlPlaneRemediatingReason surfaces when the RKE2ControlPlane has at least one machine with HealthCheckSucceeded set to false
+	// and with the OwnerRemediated condition set to false.
+	RKE2ControlPlaneRemediatingReason = clusterv1.RemediatingReason
+
+	// RKE2ControlPlaneNotRemediatingReason surfaces when the RKE2ControlPlane does not have any machine with HealthCheckSucceeded set to false
+	// and with the OwnerRemediated condition set to false.
+	RKE2ControlPlaneNotRemediatingReason = clusterv1.NotRemediatingReason
+
+	// RKE2ControlPlaneRemediatingInternalErrorReason surfaces unexpected failures when computing the Remediating condition.
+	RKE2ControlPlaneRemediatingInternalErrorReason = clusterv1.InternalErrorReason
+)
+
+// Reasons that will be used for the OwnerRemediated condition set by MachineHealthCheck on RKE2ControlPlane controlled machines
+// being remediated in v1Beta2 API version.
+const (
+	// RKE2ControlPlaneMachineRemediationInternalErrorReason surfaces unexpected failures while remediating a control plane machine.
+	RKE2ControlPlaneMachineRemediationInternalErrorReason = clusterv1.InternalErrorReason
+
+	// RKE2ControlPlaneMachineCannotBeRemediatedReason surfaces when remediation of a control plane machine can't be started.
+	RKE2ControlPlaneMachineCannotBeRemediatedReason = "CannotBeRemediated"
+
+	// RKE2ControlPlaneMachineRemediationDeferredReason surfaces when remediation of a control plane machine must be deferred.
+	RKE2ControlPlaneMachineRemediationDeferredReason = "RemediationDeferred"
+
+	// RKE2ControlPlaneMachineRemediationMachineDeletingReason surfaces when remediation of a control plane machine
+	// has been completed by deleting the unhealthy machine.
+	// Note: After an unhealthy machine is deleted, a new one is created by the RKE2ControlPlaneMachine as part of the
+	// regular reconcile loop that ensures the correct number of replicas exist; RKE2ControlPlane machine waits for
+	// the new machine to exists before removing the controlplane.cluster.x-k8s.io/remediation-in-progress annotation.
+	// This is part of a series of safeguards to ensure that operation are performed sequentially on control plane machines.
+	RKE2ControlPlaneMachineRemediationMachineDeletingReason = "MachineDeleting"
+)
+
+// RKE2ControlPlane's Deleting condition and corresponding reasons.
+const (
+	// RKE2ControlPlaneDeletingCondition surfaces details about ongoing deletion of the controlled machines.
+	RKE2ControlPlaneDeletingCondition = clusterv1.DeletingCondition
+
+	// RKE2ControlPlaneNotDeletingReason surfaces when the KCP is not deleting because the
+	// DeletionTimestamp is not set.
+	RKE2ControlPlaneNotDeletingReason = clusterv1.NotDeletingReason
+
+	// RKE2ControlPlaneDeletingWaitingForWorkersDeletionReason surfaces when the KCP deletion
+	// waits for the workers to be deleted.
+	RKE2ControlPlaneDeletingWaitingForWorkersDeletionReason = "WaitingForWorkersDeletion"
+
+	// RKE2ControlPlaneDeletingWaitingForMachineDeletionReason surfaces when the KCP deletion
+	// waits for the control plane Machines to be deleted.
+	RKE2ControlPlaneDeletingWaitingForMachineDeletionReason = "WaitingForMachineDeletion"
+
+	// RKE2ControlPlaneDeletingDeletionCompletedReason surfaces when the KCP deletion has been completed.
+	// This reason is set right after the `kubeadm.controlplane.cluster.x-k8s.io` finalizer is removed.
+	// This means that the object will go away (i.e. be removed from etcd), except if there are other
+	// finalizers on the KCP object.
+	RKE2ControlPlaneDeletingDeletionCompletedReason = clusterv1.DeletionCompletedReason
+
+	// RKE2ControlPlaneDeletingInternalErrorReason surfaces unexpected failures when deleting a KCP object.
+	RKE2ControlPlaneDeletingInternalErrorReason = clusterv1.InternalErrorReason
+)
+
+// RKE2ControlPlane's CertificatesAvailable Condition and Reasons.
+const (
+	// RKE2ControlPlaneCertificatesAvailableCondition documents the overall status of the certificates generated by the RKE2ControlPlane.
+	RKE2ControlPlaneCertificatesAvailableCondition = "CertificatesAvailable"
+
+	// RKE2ControlPlaneCertificatesAvailableInternalErrorReason documents a failure in generating the certificates.
+	RKE2ControlPlaneCertificatesInternalErrorReason = clusterv1.InternalErrorReason
+
+	// RKE2ControlPlaneCertificatesAvailableReason surfaces when cluster certificates are available,
+	// no matter if those certificates have been provided by the user or generated by  RKE2ControlPlane itself.
+	// Cluster certificates include: certificate authorities for ca, sa, front-proxy, etcd, and if external etcd is used,
+	// also the apiserver-etcd-client client certificate.
+	RKE2ControlPlaneCertificatesAvailableReason = clusterv1.AvailableReason
 )

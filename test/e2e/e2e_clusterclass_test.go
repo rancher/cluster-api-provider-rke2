@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 )
 
-var _ = Describe("Cluster Class provisioning", func() {
+var _ = Describe("Cluster Class provisioning", Label(DefaultTestsLabel), func() {
 	var (
 		specName            = "cluster-class-provisioning"
 		namespace           *corev1.Namespace

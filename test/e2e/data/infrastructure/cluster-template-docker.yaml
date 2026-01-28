@@ -79,44 +79,49 @@ data:
   cloud-init-config-data-cm: |
     This content is from a configmap.
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
-kind: Cluster 
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
 metadata:
-  name: ${CLUSTER_NAME} 
+  name: ${CLUSTER_NAME}
 spec:
   clusterNetwork:
     pods:
       cidrBlocks:
-      - 10.45.0.0/16
+        - 10.45.0.0/16
     services:
       cidrBlocks:
-      - 10.46.0.0/16
+        - 10.46.0.0/16
     serviceDomain: cluster.local
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    apiGroup: controlplane.cluster.x-k8s.io
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: DockerCluster
     name: ${CLUSTER_NAME}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerCluster
 metadata:
   name: ${CLUSTER_NAME}
 spec:
+  failureDomains:
+    - name: fd1
+      controlPlane: true
+    - name: fd2
+      controlPlane: true
   loadBalancer:
     customHAProxyConfigTemplateRef:
       name: ${CLUSTER_NAME}-lb-config
 ---
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
   annotations:
     rke2.controlplane.cluster.x-k8s.io/load-balancer-exclusion: "true"
-spec: 
+spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   version: ${KUBERNETES_VERSION}+rke2r1
   registrationMethod: control-plane-endpoint
@@ -128,7 +133,7 @@ spec:
     format: cloud-config
     kubelet:
       extraArgs:
-      - anonymous-auth=true
+        - anonymous-auth=true
     ntp:
       enabled: true
     nodeAnnotations:
@@ -137,47 +142,49 @@ spec:
   serverConfig:
     disableComponents:
       pluginComponents:
-      - rke2-ingress-nginx
+        - rke2-ingress-nginx
       kubernetesComponents:
-      - cloudController
+        - cloudController
     kubeAPIServer:
       extraArgs:
-      - --anonymous-auth=true
+        - --anonymous-auth=true
   machineTemplate:
+    spec:
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: DockerMachineTemplate
+        name: "${CLUSTER_NAME}-control-plane"
+      deletion:
+        nodeDrainTimeoutSeconds: 30
     metadata:
       labels:
         key: value
-    infrastructureRef:
-      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      kind: DockerMachineTemplate
-      name: "${CLUSTER_NAME}-control-plane"
-    nodeDrainTimeout: 30s
   preRKE2Commands:
-  - touch /pre-rke2-command.sentinel
+    - touch /pre-rke2-command.sentinel
   postRKE2Commands:
-  - touch /post-rke2-command.sentinel
+    - touch /post-rke2-command.sentinel
   files:
-  - content: "Just a dummy file\n"
-    owner: root:root
-    path: /control-plane-file.sentinel
-    permissions: "0755"
-  - contentFrom:
-      secret:
-        name: cloud-init-config-data-secret
-        key: cloud-init-config-data-secret
-    path: /cloud-init-config-data-secret.yaml
-    owner: root:root
-  - contentFrom:
-      configMap:
-        name: cloud-init-config-data-cm
-        key: cloud-init-config-data-cm
-    path: /cloud-init-config-data-cm.yaml
-    owner: root:root
+    - content: "Just a dummy file\n"
+      owner: root:root
+      path: /control-plane-file.sentinel
+      permissions: "0755"
+    - contentFrom:
+        secret:
+          name: cloud-init-config-data-secret
+          key: cloud-init-config-data-secret
+      path: /cloud-init-config-data-secret.yaml
+      owner: root:root
+    - contentFrom:
+        configMap:
+          name: cloud-init-config-data-cm
+          key: cloud-init-config-data-cm
+      path: /cloud-init-config-data-cm.yaml
+      owner: root:root
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate
 metadata:
-  name:  "${CLUSTER_NAME}-control-plane"
+  name: "${CLUSTER_NAME}-control-plane"
   labels:
     cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
 spec:
@@ -186,7 +193,7 @@ spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -202,15 +209,16 @@ spec:
       clusterName: ${CLUSTER_NAME}
       bootstrap:
         configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: RKE2ConfigTemplate
           name: ${CLUSTER_NAME}-md-0
       infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: DockerMachineTemplate
         name: ${CLUSTER_NAME}-md-0
+      failureDomain: fd1
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: DockerMachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -222,11 +230,11 @@ spec:
       customImage: kindest/node:${KIND_IMAGE_VERSION}
       bootstrapTimeout: 15m
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
-spec: 
+spec:
   template:
     spec:
       agentConfig:

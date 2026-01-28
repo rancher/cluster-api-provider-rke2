@@ -21,9 +21,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 var _ = Describe("RKE2ControlPlane webhook", func() {
@@ -41,9 +41,10 @@ var _ = Describe("RKE2ControlPlane webhook", func() {
 			},
 			Spec: RKE2ControlPlaneSpec{
 				MachineTemplate: RKE2ControlPlaneMachineTemplate{
-					InfrastructureRef: v1.ObjectReference{
-						Name:      "foo",
-						Namespace: "bar",
+					Spec: RKE2ControlPlaneMachineTemplateSpec{
+						InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+							Name: "foo",
+						},
 					},
 				},
 			},

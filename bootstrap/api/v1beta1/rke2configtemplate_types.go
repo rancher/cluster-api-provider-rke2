@@ -29,7 +29,6 @@ type RKE2ConfigTemplateSpec struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 
 // RKE2ConfigTemplate is the Schema for the RKE2configtemplates API.
 type RKE2ConfigTemplate struct {
@@ -46,7 +45,8 @@ type RKE2ConfigTemplate struct {
 type RKE2ConfigTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RKE2ConfigTemplate `json:"items"`
+
+	Items []RKE2ConfigTemplate `json:"items"`
 }
 
 // RKE2ConfigTemplateResource is a struct that wraps the desired spec for the RKE2ConfigSpec inside the template field.

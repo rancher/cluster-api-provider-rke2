@@ -17,7 +17,6 @@ limitations under the License.
 package controllers
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -36,17 +35,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/external"
-	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/labels/format"
 
-	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
-	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
+	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
+	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/util/ssa"
 	rke2 "github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
+	rke2util "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 )
 
 func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
@@ -59,7 +58,7 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
 
 	// Perform an uncached read of all the owned machines. This check is in place to make sure
 	// that the controller cache is not misbehaving and we end up initializing the cluster more than once.
-	ownedMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, util.ObjectKey(cluster), collections.OwnedMachines(rcp))
+	ownedMachines, err := r.managementClusterUncached.GetMachinesForCluster(ctx, cluster, collections.OwnedMachines(rcp))
 	if err != nil {
 		logger.Error(err, "failed to perform an uncached read of control plane machines for cluster")
 
@@ -74,7 +73,11 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
 	}
 
 	bootstrapSpec := controlPlane.InitialControlPlaneConfig()
-	fd := controlPlane.NextFailureDomainForScaleUp(ctx)
+
+	fd, err := controlPlane.NextFailureDomainForScaleUp(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "failed to determine failure domain with the fewest number of up-to-date machines")
+	}
 
 	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
 		logger.Error(err, "Failed to create initial control plane Machine")
@@ -109,7 +112,11 @@ func (r *RKE2ControlPlaneReconciler) scaleUpControlPlane(
 
 	// Create the bootstrap configuration
 	bootstrapSpec := controlPlane.JoinControlPlaneConfig()
-	fd := controlPlane.NextFailureDomainForScaleUp(ctx)
+
+	fd, err := controlPlane.NextFailureDomainForScaleUp(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "failed to determine failure domain with the fewest number of up-to-date machines")
+	}
 
 	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
 		logger.Error(err, "Failed to create additional control plane Machine")
@@ -212,6 +219,7 @@ func (r *RKE2ControlPlaneReconciler) preflightChecks(
 
 	// If there are deleting machines, wait for the operation to complete.
 	if controlPlane.HasDeletingMachine() {
+		controlPlane.PreflightCheckResults.HasDeletingMachine = true
 		logger.Info("Waiting for machines to be deleted", "Machines",
 			strings.Join(controlPlane.Machines.Filter(collections.HasDeletionTimestamp).Names(),
 				", ",
@@ -221,9 +229,9 @@ func (r *RKE2ControlPlaneReconciler) preflightChecks(
 	}
 
 	// Check machine health conditions; if there are conditions with False or Unknown, then wait.
-	allMachineHealthConditions := []clusterv1.ConditionType{
-		controlplanev1.MachineAgentHealthyCondition,
-		controlplanev1.MachineEtcdMemberHealthyCondition,
+	allMachineHealthConditions := []string{
+		controlplanev1.RKE2ControlPlaneMachineAgentHealthyCondition,
+		controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
 	}
 	machineErrors := []error{}
 
@@ -256,18 +264,18 @@ loopmachines:
 	return ctrl.Result{}
 }
 
-func preflightCheckCondition(kind string, obj conditions.Getter, condition clusterv1.ConditionType) error {
-	c := conditions.Get(obj, condition)
+func preflightCheckCondition(kind string, obj *clusterv1.Machine, conditionType string) error {
+	c := conditions.Get(obj, conditionType)
 	if c == nil {
-		return errors.Errorf("%s %s does not have %s condition", kind, obj.GetName(), condition)
+		return errors.Errorf("%s %s does not have %s condition", kind, obj.GetName(), conditionType)
 	}
 
-	if c.Status == corev1.ConditionFalse {
-		return errors.Errorf("%s %s reports %s condition is false (%s, %s)", kind, obj.GetName(), condition, c.Severity, c.Message)
+	if c.Status == metav1.ConditionFalse {
+		return errors.Errorf("%s %s reports %s condition is false (%s)", kind, obj.GetName(), conditionType, c.Message)
 	}
 
-	if c.Status == corev1.ConditionUnknown {
-		return errors.Errorf("%s %s reports %s condition is unknown (%s)", kind, obj.GetName(), condition, c.Message)
+	if c.Status == metav1.ConditionUnknown {
+		return errors.Errorf("%s %s reports %s condition is unknown (%s)", kind, obj.GetName(), conditionType, c.Message)
 	}
 
 	return nil
@@ -303,7 +311,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 	cluster *clusterv1.Cluster,
 	rcp *controlplanev1.RKE2ControlPlane,
 	bootstrapSpec *bootstrapv1.RKE2ConfigSpec,
-	failureDomain *string,
+	failureDomain string,
 ) error {
 	var errs []error
 
@@ -316,12 +324,20 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 		UID:        rcp.UID,
 	}
 
-	rcp.Spec.MachineTemplate.InfrastructureRef.Namespace = cmp.Or(rcp.Spec.MachineTemplate.InfrastructureRef.Namespace, rcp.Namespace)
+	apiVersion, err := rke2util.GetAPIVersion(ctx, r.Client, rcp.Spec.MachineTemplate.Spec.InfrastructureRef.GroupKind())
+	if err != nil {
+		return errors.Wrap(err, "failed to get api version for kind "+rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Kind)
+	}
 
 	// Clone the infrastructure template
-	infraRef, err := external.CreateFromTemplate(ctx, &external.CreateFromTemplateInput{
-		Client:      r.Client,
-		TemplateRef: &rcp.Spec.MachineTemplate.InfrastructureRef,
+	infraMachine, infraRef, err := external.CreateFromTemplate(ctx, &external.CreateFromTemplateInput{
+		Client: r.Client,
+		TemplateRef: &corev1.ObjectReference{
+			APIVersion: apiVersion,
+			Kind:       rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Kind,
+			Name:       rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Name,
+			Namespace:  rcp.Namespace,
+		},
 		Namespace:   rcp.Namespace,
 		OwnerRef:    infraCloneOwner,
 		ClusterName: cluster.Name,
@@ -333,7 +349,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 	}
 
 	// Clone the bootstrap configuration
-	bootstrapRef, err := r.generateRKE2Config(ctx, rcp, cluster, bootstrapSpec)
+	bootstrapConfig, bootstrapRef, err := r.generateRKE2Config(ctx, rcp, cluster, bootstrapSpec)
 	if err != nil {
 		errs = append(errs, errors.Wrap(err, "failed to generate bootstrap config"))
 	}
@@ -347,7 +363,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 
 	// If we encountered any errors, attempt to clean up any dangling resources
 	if len(errs) > 0 {
-		if err := r.cleanupFromGeneration(ctx, infraRef, bootstrapRef); err != nil {
+		if err := r.cleanupFromGeneration(ctx, infraMachine, bootstrapConfig); err != nil {
 			errs = append(errs, errors.Wrap(err, "failed to cleanup generated resources"))
 		}
 
@@ -357,20 +373,16 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 	return nil
 }
 
-func (r *RKE2ControlPlaneReconciler) cleanupFromGeneration(ctx context.Context, remoteRefs ...*corev1.ObjectReference) error {
+func (r *RKE2ControlPlaneReconciler) cleanupFromGeneration(ctx context.Context, objects ...client.Object) error {
 	var errs []error
 
-	for _, ref := range remoteRefs {
-		if ref != nil {
-			config := &unstructured.Unstructured{}
-			config.SetKind(ref.Kind)
-			config.SetAPIVersion(ref.APIVersion)
-			config.SetNamespace(ref.Namespace)
-			config.SetName(ref.Name)
+	for _, obj := range objects {
+		if obj == nil {
+			continue
+		}
 
-			if err := r.Delete(ctx, config); err != nil && !apierrors.IsNotFound(err) {
-				errs = append(errs, errors.Wrap(err, "failed to cleanup generated resources after error"))
-			}
+		if err := r.Delete(ctx, obj); err != nil && !apierrors.IsNotFound(err) {
+			errs = append(errs, errors.Wrap(err, "failed to cleanup generated resources after error"))
 		}
 	}
 
@@ -382,7 +394,7 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 	rcp *controlplanev1.RKE2ControlPlane,
 	cluster *clusterv1.Cluster,
 	spec *bootstrapv1.RKE2ConfigSpec,
-) (*corev1.ObjectReference, error) {
+) (*bootstrapv1.RKE2Config, clusterv1.ContractVersionedObjectReference, error) {
 	// Create an owner reference without a controller reference because the owning controller is the machine controller
 	owner := metav1.OwnerReference{
 		APIVersion: controlplanev1.GroupVersion.String(),
@@ -402,18 +414,16 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 	}
 
 	if err := r.Create(ctx, bootstrapConfig); err != nil {
-		return nil, errors.Wrap(err, "Failed to create bootstrap configuration")
+		return nil, clusterv1.ContractVersionedObjectReference{}, errors.Wrap(err, "Failed to create bootstrap configuration")
 	}
 
-	bootstrapRef := &corev1.ObjectReference{
-		APIVersion: bootstrapv1.GroupVersion.String(),
-		Kind:       "RKE2Config",
-		Name:       bootstrapConfig.GetName(),
-		Namespace:  bootstrapConfig.GetNamespace(),
-		UID:        bootstrapConfig.GetUID(),
+	bootstrapRef := clusterv1.ContractVersionedObjectReference{
+		APIGroup: bootstrapv1.GroupVersion.Group,
+		Kind:     "RKE2Config",
+		Name:     bootstrapConfig.GetName(),
 	}
 
-	return bootstrapRef, nil
+	return bootstrapConfig, bootstrapRef, nil
 }
 
 // UpdateExternalObject updates the external object with the labels and annotations from RKE2ControlPlane.
@@ -448,8 +458,8 @@ func (r *RKE2ControlPlaneReconciler) createMachine(
 	ctx context.Context,
 	rcp *controlplanev1.RKE2ControlPlane,
 	cluster *clusterv1.Cluster,
-	infraRef, bootstrapRef *corev1.ObjectReference,
-	failureDomain *string,
+	infraRef, bootstrapRef clusterv1.ContractVersionedObjectReference,
+	failureDomain string,
 ) error {
 	machine, err := r.computeDesiredMachine(rcp, cluster, infraRef, bootstrapRef, failureDomain, nil)
 	if err != nil {
@@ -477,7 +487,7 @@ func (r *RKE2ControlPlaneReconciler) UpdateMachine(
 ) (*clusterv1.Machine, error) {
 	updatedMachine, err := r.computeDesiredMachine(
 		rcp, cluster,
-		&machine.Spec.InfrastructureRef, machine.Spec.Bootstrap.ConfigRef,
+		machine.Spec.InfrastructureRef, machine.Spec.Bootstrap.ConfigRef,
 		machine.Spec.FailureDomain, machine,
 	)
 	if err != nil {
@@ -506,14 +516,14 @@ func (r *RKE2ControlPlaneReconciler) UpdateMachine(
 func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 	rcp *controlplanev1.RKE2ControlPlane,
 	cluster *clusterv1.Cluster, infraRef,
-	bootstrapRef *corev1.ObjectReference,
-	failureDomain *string,
+	bootstrapRef clusterv1.ContractVersionedObjectReference,
+	failureDomain string,
 	existingMachine *clusterv1.Machine,
 ) (*clusterv1.Machine, error) {
 	var (
 		machineName string
 		machineUID  types.UID
-		version     *string
+		version     string
 	)
 
 	annotations := map[string]string{}
@@ -523,7 +533,7 @@ func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 		machineName = names.SimpleNameGenerator.GenerateName(rcp.Name + "-")
 
 		desiredVersion := rcp.GetDesiredVersion()
-		version = &desiredVersion
+		version = desiredVersion
 
 		// Machine's bootstrap config may be missing RKE2Config if it is not the first machine in the control plane.
 		// We store RKE2Config as annotation here to detect any changes in RCP RKE2Config and rollout the machine if any.
@@ -569,7 +579,7 @@ func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 			ClusterName:       cluster.Name,
 			Version:           version,
 			FailureDomain:     failureDomain,
-			InfrastructureRef: *infraRef,
+			InfrastructureRef: infraRef,
 			Bootstrap: clusterv1.Bootstrap{
 				ConfigRef: bootstrapRef,
 			},
@@ -595,9 +605,11 @@ func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 	}
 
 	// Set other in-place mutable fields
-	desiredMachine.Spec.NodeDrainTimeout = rcp.Spec.MachineTemplate.NodeDrainTimeout
-	desiredMachine.Spec.NodeDeletionTimeout = rcp.Spec.MachineTemplate.NodeDeletionTimeout
-	desiredMachine.Spec.NodeVolumeDetachTimeout = rcp.Spec.MachineTemplate.NodeVolumeDetachTimeout
+	desiredMachine.Spec.Deletion = clusterv1.MachineDeletionSpec{
+		NodeDrainTimeoutSeconds:        rcp.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds,
+		NodeDeletionTimeoutSeconds:     rcp.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds,
+		NodeVolumeDetachTimeoutSeconds: rcp.Spec.MachineTemplate.Spec.Deletion.NodeVolumeDetachTimeoutSeconds,
+	}
 
 	return desiredMachine, nil
 }
