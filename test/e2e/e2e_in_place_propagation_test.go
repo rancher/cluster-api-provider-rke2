@@ -41,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("In-place propagation", func() {
+var _ = Describe("In-place propagation", Label(DefaultTestsLabel), func() {
 	var (
 		specName            = "in-place-propagation"
 		namespace           *corev1.Namespace
@@ -123,7 +123,7 @@ var _ = Describe("In-place propagation", func() {
 
 			By("Verifying the cluster is available")
 			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
-				Getter: bootstrapClusterProxy.GetClient(),  
+				Getter:    bootstrapClusterProxy.GetClient(),
 				Name:      result.Cluster.Name,
 				Namespace: result.Cluster.Namespace,
 			})

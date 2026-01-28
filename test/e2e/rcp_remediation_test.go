@@ -29,7 +29,7 @@ import (
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 )
 
-var _ = Describe("When testing RCP remediation", func() {
+var _ = Describe("When testing RCP remediation", Label(DefaultTestsLabel), func() {
 	specName := "rcp-remediation"
 
 	// NOTE: This reuses the upstream KCPRemediationSpec test but we use RCP as control plane instead.

@@ -44,7 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Provider upgrade", func() {
+var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 	var (
 		specName            = "provider-upgrade"
 		namespace           *corev1.Namespace

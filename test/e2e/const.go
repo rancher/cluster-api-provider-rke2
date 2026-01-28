@@ -32,6 +32,14 @@ const (
 	timeout480s = 480
 )
 
+const (
+	// DefaultTestsLabel is used for all default tests that run on the same test management cluster.
+	DefaultTestsLabel = "default"
+	// UpgradeTestsLabel is used to run upgrade tests standalone.
+	// These tests may need to install a different version of CAPI, requiring management cluster isolation.
+	UpgradeTestsLabel = "upgrade"
+)
+
 var (
 	//go:embed data/infrastructure/clusterclass-template-docker.yaml
 	ClusterClassDocker []byte

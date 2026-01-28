@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 )
 
-var _ = Describe("External Datastore", func() {
+var _ = Describe("External Datastore", Label(DefaultTestsLabel), func() {
 	var (
 		specName            = "create-workload-cluster-with-external-datastore"
 		namespace           *corev1.Namespace

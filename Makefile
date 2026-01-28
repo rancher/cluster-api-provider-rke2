@@ -397,6 +397,7 @@ kubectl: # Download kubectl cli into tools bin folder
 
 # Allow overriding the e2e configurations
 GINKGO_FOCUS ?=
+GINKGO_LABEL_FILTER ?= "default"
 GINKGO_SKIP ?= "Pivot" # See: https://github.com/rancher/cluster-api-provider-rke2/issues/691 
 GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
@@ -411,7 +412,7 @@ SKIP_CREATE_MGMT_CLUSTER ?= false
 .PHONY: test-e2e-run
 test-e2e-run: $(GINKGO) $(KUSTOMIZE) kubectl e2e-image inotify-check ## Run the end-to-end tests
 	LOCAL_IMAGES="$(LOCAL_IMAGES)" CAPI_KUSTOMIZE_PATH="$(KUSTOMIZE)" $(GINKGO) -v -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
-	--tags=e2e --focus="$(GINKGO_FOCUS)" --skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
+	--tags=e2e --focus="$(GINKGO_FOCUS)" --label-filter="$(GINKGO_LABEL_FILTER)" --skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
 		-e2e.artifacts-folder="$(ARTIFACTS)" \
 		-e2e.config="$(E2E_CONF_FILE)" \

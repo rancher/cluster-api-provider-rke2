@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Workload cluster creation", func() {
+var _ = Describe("Workload cluster creation", Label(DefaultTestsLabel), func() {
 	var (
 		specName            = "create-workload-cluster"
 		namespace           *corev1.Namespace

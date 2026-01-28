@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Bootstrap & Pivot", func() {
+var _ = Describe("Bootstrap & Pivot", Label(DefaultTestsLabel), func() {
 	var (
 		specName            = "bootstrap-pivot-cluster"
 		namespace           *corev1.Namespace
