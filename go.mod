@@ -3,7 +3,7 @@ module github.com/rancher/cluster-api-provider-rke2
 go 1.24.11
 
 require (
-	github.com/coreos/butane v0.25.1
+	github.com/coreos/butane v0.26.0
 	github.com/coreos/ignition/v2 v2.25.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46
