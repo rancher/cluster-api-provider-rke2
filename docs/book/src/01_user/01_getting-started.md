@@ -53,7 +53,7 @@ In order to use this provider, you need to have a management cluster available t
 No additional steps are required and you can install the RKE2 provider with **clusterctl** directly:
 
 ```bash
-clusterctl init --core cluster-api:v1.10.5 --bootstrap rke2:v0.21.0 --control-plane rke2:v0.21.0 --infrastructure docker:v1.10.5
+clusterctl init --core cluster-api:v1.11.5 --bootstrap rke2:v0.22.0 --control-plane rke2:v0.22.0 --infrastructure docker:v1.11.5
 ```
 
 Next, you can proceed to [creating a workload cluster](#create-a-workload-cluster).

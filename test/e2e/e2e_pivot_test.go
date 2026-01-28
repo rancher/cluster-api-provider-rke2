@@ -113,11 +113,12 @@ var _ = Describe("Bootstrap & Pivot", Label(DefaultTestsLabel), func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
 				Getter:    bootstrapClusterProxy.GetClient(),
-				Name:      result.Cluster.Name,
-				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
 
 			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
 				Reader:      bootstrapClusterProxy.GetClient(),
@@ -163,11 +164,12 @@ var _ = Describe("Bootstrap & Pivot", Label(DefaultTestsLabel), func() {
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
-				Getter:    pivotedProxy.GetClient(),
-				Name:      result.Cluster.Name,
-				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
+				Getter:    bootstrapClusterProxy.GetClient(),
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
 
 			EnsureNoMachineRollout(ctx, GetMachinesByClusterInput{
 				Lister:      pivotedProxy.GetClient(),
@@ -196,11 +198,12 @@ var _ = Describe("Bootstrap & Pivot", Label(DefaultTestsLabel), func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
-				Getter:    pivotedProxy.GetClient(),
-				Name:      result.Cluster.Name,
-				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
+				Getter:    bootstrapClusterProxy.GetClient(),
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
 
 			Byf("Scaling control planes to 3 and worker nodes to 1 with k8s version upgrade")
 			ApplyClusterTemplateAndWait(ctx, ApplyClusterTemplateAndWaitInput{
@@ -223,11 +226,12 @@ var _ = Describe("Bootstrap & Pivot", Label(DefaultTestsLabel), func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
-				Getter:    pivotedProxy.GetClient(),
-				Name:      result.Cluster.Name,
-				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
+				Getter:    bootstrapClusterProxy.GetClient(),
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
 
 			WaitForAllMachinesRunningWithVersion(ctx, WaitForAllMachinesRunningWithVersionInput{
 				Reader:      pivotedProxy.GetClient(),
@@ -250,11 +254,12 @@ var _ = Describe("Bootstrap & Pivot", Label(DefaultTestsLabel), func() {
 				ControlPlane: client.ObjectKeyFromObject(result.ControlPlane),
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
-			WaitForClusterReady(ctx, WaitForClusterReadyInput{
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
 				Getter:    bootstrapClusterProxy.GetClient(),
-				Name:      result.Cluster.Name,
-				Namespace: result.Cluster.Namespace,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+				Name:      clusterName,
+				Namespace: namespace.Name,
+			})
 		})
 	})
 })
