@@ -18,12 +18,12 @@ package rke2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -394,11 +394,11 @@ func GetInfraResources(ctx context.Context, cl client.Client, machines collectio
 	for _, m := range machines {
 		infraObj, err := external.GetObjectFromContractVersionedRef(ctx, cl, m.Spec.InfrastructureRef, m.Namespace)
 		if err != nil {
-			if apierrors.IsNotFound(errors.Cause(err)) {
+			if apierrors.IsNotFound(err) {
 				continue
 			}
 
-			return nil, errors.Wrapf(err, "failed to retrieve infra obj for machine %q", m.Name)
+			return nil, fmt.Errorf("failed to retrieve infra obj for machine %q: %w", m.Name, err)
 		}
 
 		result[m.Name] = infraObj
@@ -420,7 +420,7 @@ func GetRKE2Configs(ctx context.Context, cl client.Client, machines collections.
 		machineConfig := &bootstrapv1.RKE2Config{}
 
 		if err := cl.Get(ctx, client.ObjectKey{Name: bootstrapRef.Name, Namespace: m.Namespace}, machineConfig); err != nil {
-			if apierrors.IsNotFound(errors.Cause(err)) {
+			if apierrors.IsNotFound(err) {
 				continue
 			}
 
@@ -428,7 +428,7 @@ func GetRKE2Configs(ctx context.Context, cl client.Client, machines collections.
 				name = m.Status.NodeRef.Name
 			}
 
-			return nil, errors.Wrapf(err, "failed to retrieve bootstrap config for machine %q with node %s", m.Name, name)
+			return nil, fmt.Errorf("failed to retrieve bootstrap config for machine %q with node %s: %w", m.Name, name, err)
 		}
 
 		result[name] = machineConfig
@@ -493,7 +493,7 @@ func (c *ControlPlane) PatchMachines(ctx context.Context) error {
 			name = machine.Status.NodeRef.Name
 		}
 
-		errList = append(errList, errors.Errorf("failed to get patch helper for machine %s with node %s", machine.Name, name))
+		errList = append(errList, fmt.Errorf("failed to get patch helper for machine %s with node %s", machine.Name, name))
 	}
 
 	return kerrors.NewAggregate(errList)

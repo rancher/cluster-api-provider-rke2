@@ -24,10 +24,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"math/big"
 	"time"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -144,13 +144,13 @@ func (m *Management) getEtcdCAKeyPair(ctx context.Context, cl ctrlclient.Reader,
 	// Try to get the certificate via the cached ctrlclient.
 	if err := certificates.Lookup(ctx, cl, clusterKey); err != nil {
 		// Return error if we got an errors which is not a NotFound error.
-		return nil, errors.Wrapf(err, "failed to get secret CA bundle; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
+		return nil, fmt.Errorf("failed to get secret CA bundle; etcd CA bundle %s/%s: %w", clusterKey.Namespace, secretName, err)
 	}
 
 	var keypair *certs.KeyPair
 
 	if s, err := certificates[0].Lookup(ctx, cl, clusterKey); err != nil {
-		return nil, errors.Wrapf(err, "failed to get secret; etcd CA bundle %s/%s", clusterKey.Namespace, secretName)
+		return nil, fmt.Errorf("failed to get secret; etcd CA bundle %s/%s: %w", clusterKey.Namespace, secretName, err)
 	} else if s == nil {
 		log.FromContext(ctx).Info("Secret is empty, skipping etcd client creation")
 
@@ -205,10 +205,10 @@ func newClientCert(caCert *x509.Certificate, key *rsa.PrivateKey, caKey crypto.S
 
 	b, err := x509.CreateCertificate(rand.Reader, &tmpl, caCert, key.Public(), caKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create signed client certificate: %+v", tmpl)
+		return nil, fmt.Errorf("failed to create signed client certificate: %w", err)
 	}
 
 	c, err := x509.ParseCertificate(b)
 
-	return c, errors.WithStack(err)
+	return c, err
 }

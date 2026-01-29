@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,7 +118,7 @@ func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, obj runtim
 	// Correct the additional user data by making it YAML compliant if provided
 	if rcp.Spec.AgentConfig.AdditionalUserData.Data == nil {
 		if err := bootstrapv1.CorrectArbitraryData(rcp.Spec.AgentConfig.AdditionalUserData.Data); err != nil {
-			return errors.Wrap(err, "failed to correct additional user data for RKE2ControlPlane")
+			return fmt.Errorf("failed to correct additional user data for RKE2ControlPlane: %w", err)
 		}
 	}
 

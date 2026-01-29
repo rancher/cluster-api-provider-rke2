@@ -19,11 +19,11 @@ package etcd
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/rest"
@@ -97,7 +97,7 @@ func (c *ClientGenerator) ForFirstAvailableNode(ctx context.Context, nodeNames [
 		return client, nil
 	}
 
-	return nil, errors.Wrap(kerrors.NewAggregate(errs), "could not establish a connection to any etcd node")
+	return nil, fmt.Errorf("could not establish a connection to any etcd node: %w", kerrors.NewAggregate(errs))
 }
 
 // ForLeader takes a list of nodes and returns a client to the leader node.
@@ -125,7 +125,7 @@ func (c *ClientGenerator) ForLeader(ctx context.Context, nodeNames []string) (*C
 		return cl, nil
 	}
 
-	return nil, errors.Wrap(kerrors.NewAggregate(errs), "could not establish a connection to the etcd leader")
+	return nil, fmt.Errorf("could not establish a connection to the etcd leader: %w", kerrors.NewAggregate(errs))
 }
 
 // getLeaderClient provides an etcd client connected to the leader. It returns an
@@ -170,7 +170,7 @@ func (c *ClientGenerator) getLeaderClient(ctx context.Context, nodeName string, 
 		}
 
 		if nodeName == "" {
-			return nil, errors.Errorf("etcd leader is reported as %x with name %q, but we couldn't find a corresponding Node in the cluster", leaderMember.ID, leaderMember.Name) //nolint:lll
+			return nil, fmt.Errorf("etcd leader is reported as %x with name %q, but we couldn't find a corresponding Node in the cluster", leaderMember.ID, leaderMember.Name) //nolint:lll
 		}
 
 		client, err = c.ForFirstAvailableNode(ctx, []string{nodeName})
@@ -181,7 +181,7 @@ func (c *ClientGenerator) getLeaderClient(ctx context.Context, nodeName string, 
 	// If it is not possible to get a connection to the leader via existing nodes,
 	// it means that the control plane is an invalid state, with an etcd member - the current leader -
 	// without a corresponding node.
-	return nil, errors.Errorf("etcd leader is reported as %x, but we couldn't find any matching member", client.LeaderID)
+	return nil, fmt.Errorf("etcd leader is reported as %x, but we couldn't find any matching member", client.LeaderID)
 }
 
 func staticPodName(component, nodeName string) string {

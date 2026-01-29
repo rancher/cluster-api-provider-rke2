@@ -20,11 +20,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -993,7 +993,7 @@ func (r *RKE2ConfigReconciler) getRegistrationTokenFromSecretValue(ctx context.C
 
 	err := r.Get(ctx, secretKey, tokenSecret)
 	if err != nil {
-		return "", errors.Wrapf(err, "could not retrieve secret %s/%s", namespace, name)
+		return "", fmt.Errorf("could not retrieve secret %s/%s: %w", namespace, name, err)
 	}
 
 	return string(tokenSecret.Data["value"]), nil
@@ -1117,7 +1117,7 @@ func (r *RKE2ConfigReconciler) createSecretFromObject(
 ) (reterr error) {
 	if err := r.Create(ctx, &secret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create %s secret for %s: %s/%s", secretType, config.Kind, config.Name, config.Namespace)
+			return fmt.Errorf("failed to create %s secret for %s: %s/%s: %w", secretType, config.Kind, config.Name, config.Namespace, err)
 		}
 
 		logger.Info("Secret already exists, won't update it",
@@ -1141,7 +1141,7 @@ func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(
 ) (reterr error) {
 	if err := r.Create(ctx, &secret); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create %s secret for %s: %s/%s", secretType, config.Kind, config.Name, config.Namespace)
+			return fmt.Errorf("failed to create %s secret for %s: %s/%s: %w", secretType, config.Kind, config.Name, config.Namespace, err)
 		}
 
 		logger.Info("Secret for already exists, updating",
@@ -1150,7 +1150,7 @@ func (r *RKE2ConfigReconciler) createOrUpdateSecretFromObject(
 			"RKE2Config", config.Name)
 
 		if err := r.Update(ctx, &secret); err != nil {
-			return errors.Wrapf(err, "failed to update %s secret for %s: %s/%s", secretType, config.Kind, config.Namespace, config.Name)
+			return fmt.Errorf("failed to update %s secret for %s: %s/%s: %w", secretType, config.Kind, config.Namespace, config.Name, err)
 		}
 	}
 

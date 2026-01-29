@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 
-	errorsPkg "github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -76,7 +75,7 @@ func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, obj
 	// Correct the additional user data by making it YAML compliant if provided
 	if rcpt.Spec.Template.Spec.AgentConfig.AdditionalUserData.Data != nil {
 		if err := bootstrapv1.CorrectArbitraryData(rcpt.Spec.Template.Spec.AgentConfig.AdditionalUserData.Data); err != nil {
-			return errorsPkg.Wrapf(err, "failed to correct additional user data for RKE2ControlPlaneTemplate")
+			return fmt.Errorf("failed to correct additional user data for RKE2ControlPlaneTemplate: %w", err)
 		}
 	}
 
