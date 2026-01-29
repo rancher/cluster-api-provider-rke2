@@ -67,7 +67,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	ownedMachines, err := r.managementCluster.GetMachinesForCluster(
 		ctx,
 		cluster,
-		collections.OwnedMachines(rcp))
+		collections.OwnedMachines(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()))
 	if err != nil {
 		return errors.Wrap(err, "failed to get list of owned machines")
 	}
@@ -244,7 +244,7 @@ func (r *RKE2ControlPlaneReconciler) updateV1Beta1Status(ctx context.Context, rc
 	ownedMachines, err := r.managementCluster.GetMachinesForCluster(
 		ctx,
 		cluster,
-		collections.OwnedMachines(rcp))
+		collections.OwnedMachines(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()))
 	if err != nil {
 		return errors.Wrap(err, "failed to get list of owned machines")
 	}

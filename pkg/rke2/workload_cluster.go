@@ -86,17 +86,14 @@ type Workload struct {
 }
 
 // NewWorkload is creating a new ClusterWorkload instance.
-func (m *Management) NewWorkload(
-	ctx context.Context,
-	cl ctrlclient.Client,
-	restConfig *rest.Config,
-	clusterKey ctrlclient.ObjectKey,
-) (*Workload, error) {
+func (m *Management) NewWorkload(ctx context.Context, cl ctrlclient.Client, restConfig *rest.Config, cluster *clusterv1.Cluster) (*Workload, error) {
 	workload := &Workload{
 		Client:           cl,
 		Nodes:            map[string]*corev1.Node{},
 		nodePatchHelpers: map[string]*patch.Helper{},
 	}
+
+	clusterKey := ctrlclient.ObjectKeyFromObject(cluster)
 
 	restConfig = rest.CopyConfig(restConfig)
 	restConfig.Timeout = remoteEtcdTimeout
@@ -124,18 +121,18 @@ func (m *Management) NewWorkload(
 	}
 
 	if !strings.Contains(string(etcdKeyPair.Key), "EC PRIVATE KEY") {
-		clientKey, err := m.ClusterCache.GetClientCertificatePrivateKey(ctx, clusterKey)
-		if err != nil {
-			return nil, err
-		}
+		// Get client cert from cache if possible, otherwise generate it and add it to the cache.
+		// Note: The caching assumes that the etcd CA is not rotated during the lifetime of a Cluster.
+		if entry, ok := m.ClientCertCache.Has(ClientCertEntry{Cluster: clusterKey}.Key()); ok {
+			clientCert = *entry.ClientCert
+		} else {
+			// The client cert expires after 10 years, but that's okay as the cache has a TTL of 1 day.
+			clientCert, err = generateClientCert(etcdKeyPair.Cert, etcdKeyPair.Key)
+			if err != nil {
+				return nil, err
+			}
 
-		if clientKey == nil {
-			return nil, errors.New("client key is not populated yet, requeuing")
-		}
-
-		clientCert, err = generateClientCert(etcdKeyPair.Cert, etcdKeyPair.Key, clientKey)
-		if err != nil {
-			return nil, err
+			m.ClientCertCache.Add(ClientCertEntry{Cluster: clusterKey, ClientCert: &clientCert})
 		}
 	}
 
