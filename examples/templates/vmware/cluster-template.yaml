@@ -1,5 +1,5 @@
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster 
 metadata:
   namespace: ${NAMESPACE}
@@ -13,15 +13,15 @@ spec:
       - 10.0.0.0/16
     serviceDomain: cluster.local
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    apiGroup: controlplane.cluster.x-k8s.io
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: VSphereCluster
     name: ${CLUSTER_NAME}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: VSphereCluster
 metadata:
   name: ${CLUSTER_NAME}
@@ -157,13 +157,15 @@ spec:
             name: kubeconfig
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   machineTemplate:
-    infrastructureRef:
-      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      kind: VSphereMachineTemplate
-      name: vsphere-controlplane
-    nodeDrainTimeout: 2m
-    nodeDeletionTimeout: 30s
-    nodeVolumeDetachTimeout: 5m
+    spec:
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: VSphereMachineTemplate
+        name: vsphere-controlplane
+      deletion:
+        nodeDrainTimeoutSeconds: 120
+        nodeVolumeDetachTimeoutSeconds: 300
+        nodeDeletionTimeoutSeconds: 30
   preRKE2Commands:
     - sleep 30 #fix to give OS time to become ready
   version: ${RKE2_VERSION}
@@ -185,7 +187,7 @@ spec:
     rollingUpdate:
       maxSurge: 1
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: VSphereMachineTemplate
 metadata:
   name: vsphere-controlplane
@@ -211,7 +213,7 @@ spec:
       template: ${VSPHERE_TEMPLATE}
       thumbprint: ${VSPHERE_TLS_THUMBPRINT}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   labels:
@@ -232,17 +234,15 @@ spec:
       clusterName: ${CLUSTER_NAME}
       bootstrap:
         configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: RKE2ConfigTemplate
           name: rke2-agent
-          namespace: ${NAMESPACE}
       infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: VSphereMachineTemplate
         name: vsphere-worker
-        namespace: ${NAMESPACE}
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
 metadata:
   namespace: ${NAMESPACE}
@@ -258,7 +258,7 @@ spec:
             - "--cloud-provider=external"
       gzipUserData: false
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: VSphereMachineTemplate
 metadata:
   name: vsphere-worker
@@ -284,7 +284,7 @@ spec:
       template: ${VSPHERE_TEMPLATE}
       thumbprint: ${VSPHERE_TLS_THUMBPRINT}
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   labels:

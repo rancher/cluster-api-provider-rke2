@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: ${NAMESPACE}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
@@ -17,15 +17,15 @@ spec:
       cidrBlocks:
       - 10.96.0.0/12
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    apiGroup: controlplane.cluster.x-k8s.io
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: Metal3Cluster
     name: ${CLUSTER_NAME}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: Metal3Cluster
 metadata:
   name: ${CLUSTER_NAME}
@@ -33,7 +33,7 @@ metadata:
 spec:
   controlPlaneEndpoint:
     host: ${CLUSTER_API_HOSTNAME}
-    port: ${CLUSTER_API_PORT
+    port: ${CLUSTER_API_PORT}
   noCloudProvider: true
 ---
 apiVersion: ipam.metal3.io/v1alpha1
@@ -71,10 +71,11 @@ metadata:
   namespace: ${NAMESPACE}
 spec:
   machineTemplate:
-    infrastructureRef:
-      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      kind: Metal3MachineTemplate
-      name: ${CLUSTER_NAME}-controlplane
+    spec:
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: Metal3MachineTemplate
+        name: ${CLUSTER_NAME}-controlplane
   replicas: 1
   agentConfig:
     kubelet:
@@ -82,8 +83,12 @@ spec:
         - provider-id=metal3://{{ ds.meta_data.uuid }}
     nodeName: '{{ ds.meta_data.local_hostname }}'
   gzipUserData: false
+  rolloutStrategy:
+    type: "RollingUpdate"
+    rollingUpdate:
+      maxSurge: 1
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: Metal3MachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-controlplane
@@ -102,7 +107,7 @@ spec:
         format: ${IMAGE_FORMAT}
         url: ${IMAGE_URL}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: Metal3DataTemplate
 metadata:
   name: ${CLUSTER_NAME}-controlplane-template
@@ -157,7 +162,7 @@ spec:
       dns:
       - ${DNS_SERVER}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   labels:
@@ -180,18 +185,18 @@ spec:
     spec:
       bootstrap:
         configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: RKE2ConfigTemplate
           name: ${CLUSTER_NAME}-workers
       clusterName: ${CLUSTER_NAME}
       infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: Metal3MachineTemplate
         name: ${CLUSTER_NAME}-workers
       nodeDrainTimeout: 0s
       version: ${KUBERNETES_VERSION}+rke2r1
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: Metal3MachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-workers
@@ -210,7 +215,7 @@ spec:
         format: ${IMAGE_FORMAT}
         url: ${IMAGE_URL}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: Metal3DataTemplate
 metadata:
   name: ${CLUSTER_NAME}-workers-template
@@ -265,7 +270,7 @@ spec:
       dns:
       - ${DNS_SERVER}
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-workers

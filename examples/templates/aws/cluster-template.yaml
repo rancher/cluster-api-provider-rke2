@@ -1,5 +1,5 @@
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
   labels:
@@ -13,11 +13,11 @@ spec:
       cidrBlocks:
       - 192.168.0.0/16
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    apiGroup: controlplane.cluster.x-k8s.io
     kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: AWSCluster
     name: ${CLUSTER_NAME}
 ---
@@ -127,13 +127,15 @@ spec:
       - --cloud-provider=external
   gzipUserData: false
   machineTemplate:
-    infrastructureRef:
-      apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-      kind: AWSMachineTemplate
-      name: ${CLUSTER_NAME}-control-plane
-    nodeDrainTimeout: 2m
-    nodeDeletionTimeout: 30s
-    nodeVolumeDetachTimeout: 5m
+    spec:
+      infrastructureRef:
+        apiGroup: infrastructure.cluster.x-k8s.io
+        kind: AWSMachineTemplate
+        name: ${CLUSTER_NAME}-control-plane
+      deletion:
+        nodeDrainTimeoutSeconds: 120
+        nodeVolumeDetachTimeoutSeconds: 300
+        nodeDeletionTimeoutSeconds: 30
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   serverConfig:
     cloudProviderName: external
@@ -163,7 +165,7 @@ spec:
         size: 50
       sshKeyName: ${AWS_SSH_KEY_NAME}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -183,12 +185,12 @@ spec:
       version: ${RKE2_VERSION}
       bootstrap:
         configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io/v1beta2
           kind: RKE2ConfigTemplate
           name: ${CLUSTER_NAME}-md-0
       infrastructureRef:
         name: ${CLUSTER_NAME}-md-0
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        apiGroup: infrastructure.cluster.x-k8s.io/v1beta2
         kind: AWSMachineTemplate
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
@@ -207,7 +209,7 @@ spec:
       rootVolume: 
         size: 50
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
 metadata:
   name: ${CLUSTER_NAME}-md-0
@@ -234,7 +236,7 @@ spec:
     list:
     - ${NAMESPACE}
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   name: crs-ccm
@@ -248,7 +250,7 @@ spec:
     name: cloud-controller-manager-addon
   strategy: ApplyOnce
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   name: crs-csi
