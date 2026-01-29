@@ -1,9 +1,9 @@
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
   name: "${CLUSTER_NAME}"
-  namespace: default
+  namespace: "${NAMESPACE}"
 spec:
   clusterNetwork:
     pods:
@@ -14,10 +14,10 @@ spec:
       cidrBlocks:
       - 10.46.0.0/16
   topology:
-    class: rke2-class
+    classRef:
+      name: "${CLASS_NAME}"
     version: ${KUBERNETES_VERSION}+rke2r1
     controlPlane:
-      metadata: {}
       replicas: ${CONTROL_PLANE_MACHINE_COUNT}
     workers:
       machineDeployments:
@@ -26,5 +26,4 @@ spec:
         replicas: ${WORKER_MACHINE_COUNT}
     variables:
       - name: dockerKindImage
-        value: kindest/node:${KUBERNETES_VERSION}
-
+        value: kindest/node:${KIND_IMAGE_VERSION}
