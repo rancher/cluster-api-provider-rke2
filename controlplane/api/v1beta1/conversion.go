@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"fmt"
 	"reflect"
+	unsafe "unsafe"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -185,6 +186,44 @@ func (dst *RKE2ControlPlaneTemplateList) ConvertFrom(srcRaw conversion.Hub) erro
 	}
 
 	return Convert_v1beta2_RKE2ControlPlaneTemplateList_To_v1beta1_RKE2ControlPlaneTemplateList(src, dst, nil)
+}
+
+// Convert_v1beta1_RKE2ControlPlaneSpec_To_v1beta2_RKE2ControlPlaneTemplateResourceSpec handles manual conversion of template spec fields.
+func Convert_v1beta1_RKE2ControlPlaneSpec_To_v1beta2_RKE2ControlPlaneTemplateResourceSpec(in *RKE2ControlPlaneSpec, out *controlplanev1.RKE2ControlPlaneTemplateResourceSpec, s apimachineryconversion.Scope) error {
+	if err := Convert_v1beta1_RKE2ConfigSpec_To_v1beta2_RKE2ConfigSpec(&in.RKE2ConfigSpec, &out.RKE2ConfigSpec, s); err != nil {
+		return err
+	}
+	if err := Convert_v1beta1_RKE2ControlPlaneMachineTemplate_To_v1beta2_RKE2ControlPlaneMachineTemplate(&in.MachineTemplate, &out.MachineTemplate, s); err != nil {
+		return err
+	}
+	if err := Convert_v1beta1_RKE2ServerConfig_To_v1beta2_RKE2ServerConfig(&in.ServerConfig, &out.ServerConfig, s); err != nil {
+		return err
+	}
+	out.ManifestsConfigMapReference = in.ManifestsConfigMapReference
+	out.RegistrationMethod = controlplanev1.RegistrationMethod(in.RegistrationMethod)
+	out.RegistrationAddress = in.RegistrationAddress
+	out.RolloutStrategy = (*controlplanev1.RolloutStrategy)(unsafe.Pointer(in.RolloutStrategy))
+	out.RemediationStrategy = (*controlplanev1.RemediationStrategy)(unsafe.Pointer(in.RemediationStrategy))
+	return nil
+}
+
+// Convert_v1beta2_RKE2ControlPlaneTemplateResourceSpec_To_v1beta1_RKE2ControlPlaneSpec handles manual conversion of template spec fields.
+func Convert_v1beta2_RKE2ControlPlaneTemplateResourceSpec_To_v1beta1_RKE2ControlPlaneSpec(in *controlplanev1.RKE2ControlPlaneTemplateResourceSpec, out *RKE2ControlPlaneSpec, s apimachineryconversion.Scope) error {
+	if err := Convert_v1beta2_RKE2ConfigSpec_To_v1beta1_RKE2ConfigSpec(&in.RKE2ConfigSpec, &out.RKE2ConfigSpec, s); err != nil {
+		return err
+	}
+	if err := Convert_v1beta2_RKE2ControlPlaneMachineTemplate_To_v1beta1_RKE2ControlPlaneMachineTemplate(&in.MachineTemplate, &out.MachineTemplate, s); err != nil {
+		return err
+	}
+	if err := Convert_v1beta2_RKE2ServerConfig_To_v1beta1_RKE2ServerConfig(&in.ServerConfig, &out.ServerConfig, s); err != nil {
+		return err
+	}
+	out.ManifestsConfigMapReference = in.ManifestsConfigMapReference
+	out.RegistrationMethod = RegistrationMethod(in.RegistrationMethod)
+	out.RegistrationAddress = in.RegistrationAddress
+	out.RolloutStrategy = (*RolloutStrategy)(unsafe.Pointer(in.RolloutStrategy))
+	out.RemediationStrategy = (*RemediationStrategy)(unsafe.Pointer(in.RemediationStrategy))
+	return nil
 }
 
 // Convert_v1beta1_RKE2ControlPlaneStatus_To_v1beta2_RKE2ControlPlaneStatus handles manual conversion of status fields.

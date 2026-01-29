@@ -267,6 +267,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddConversionFunc((*RKE2ControlPlaneSpec)(nil), (*v1beta2.RKE2ControlPlaneTemplateResourceSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_RKE2ControlPlaneSpec_To_v1beta2_RKE2ControlPlaneTemplateResourceSpec(a.(*RKE2ControlPlaneSpec), b.(*v1beta2.RKE2ControlPlaneTemplateResourceSpec), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddConversionFunc((*RKE2ControlPlaneStatus)(nil), (*v1beta2.RKE2ControlPlaneStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta1_RKE2ControlPlaneStatus_To_v1beta2_RKE2ControlPlaneStatus(a.(*RKE2ControlPlaneStatus), b.(*v1beta2.RKE2ControlPlaneStatus), scope)
 	}); err != nil {
@@ -299,6 +304,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*v1beta2.RKE2ControlPlaneStatus)(nil), (*RKE2ControlPlaneStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta2_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatus(a.(*v1beta2.RKE2ControlPlaneStatus), b.(*RKE2ControlPlaneStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta2.RKE2ControlPlaneTemplateResourceSpec)(nil), (*RKE2ControlPlaneSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta2_RKE2ControlPlaneTemplateResourceSpec_To_v1beta1_RKE2ControlPlaneSpec(a.(*v1beta2.RKE2ControlPlaneTemplateResourceSpec), b.(*RKE2ControlPlaneSpec), scope)
 	}); err != nil {
 		return err
 	}
@@ -779,7 +789,7 @@ func Convert_v1beta2_RKE2ControlPlaneTemplateList_To_v1beta1_RKE2ControlPlaneTem
 }
 
 func autoConvert_v1beta1_RKE2ControlPlaneTemplateResource_To_v1beta2_RKE2ControlPlaneTemplateResource(in *RKE2ControlPlaneTemplateResource, out *v1beta2.RKE2ControlPlaneTemplateResource, s conversion.Scope) error {
-	if err := Convert_v1beta1_RKE2ControlPlaneSpec_To_v1beta2_RKE2ControlPlaneSpec(&in.Spec, &out.Spec, s); err != nil {
+	if err := Convert_v1beta1_RKE2ControlPlaneSpec_To_v1beta2_RKE2ControlPlaneTemplateResourceSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil
@@ -791,7 +801,7 @@ func Convert_v1beta1_RKE2ControlPlaneTemplateResource_To_v1beta2_RKE2ControlPlan
 }
 
 func autoConvert_v1beta2_RKE2ControlPlaneTemplateResource_To_v1beta1_RKE2ControlPlaneTemplateResource(in *v1beta2.RKE2ControlPlaneTemplateResource, out *RKE2ControlPlaneTemplateResource, s conversion.Scope) error {
-	if err := Convert_v1beta2_RKE2ControlPlaneSpec_To_v1beta1_RKE2ControlPlaneSpec(&in.Spec, &out.Spec, s); err != nil {
+	if err := Convert_v1beta2_RKE2ControlPlaneTemplateResourceSpec_To_v1beta1_RKE2ControlPlaneSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil

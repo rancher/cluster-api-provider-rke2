@@ -2476,11 +2476,6 @@ spec:
                               If not set, a retry will happen immediately.
                             type: string
                         type: object
-                      replicas:
-                        description: Replicas is the number of replicas for the Control
-                          Plane.
-                        format: int32
-                        type: integer
                       rolloutStrategy:
                         description: The Rollout to use to replace control plane machines
                           with new ones.
@@ -3088,10 +3083,6 @@ spec:
                               type: string
                             type: array
                         type: object
-                      version:
-                        description: Version defines the desired Kubernetes version.
-                        pattern: (v\d\.\d{2}\.\d+\+rke2r\d)|^$
-                        type: string
                     required:
                     - rolloutStrategy
                     type: object

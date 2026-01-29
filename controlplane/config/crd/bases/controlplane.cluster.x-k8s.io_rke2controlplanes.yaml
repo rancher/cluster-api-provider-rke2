@@ -2989,6 +2989,7 @@ spec:
                 type: string
             required:
             - rolloutStrategy
+            - version
             type: object
           status:
             description: RKE2ControlPlaneStatus defines the observed state of RKE2ControlPlane.

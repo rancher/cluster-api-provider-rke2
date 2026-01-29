@@ -33,7 +33,7 @@ func TestRKE2ControlPlaneTemplateValidateCreate(t *testing.T) {
 			inputTemplate: &RKE2ControlPlaneTemplate{
 				Spec: RKE2ControlPlaneTemplateSpec{
 					Template: RKE2ControlPlaneTemplateResource{
-						Spec: RKE2ControlPlaneSpec{
+						Spec: RKE2ControlPlaneTemplateResourceSpec{
 							ServerConfig: RKE2ServerConfig{
 								CNIMultusEnable: true,
 								CNI:             "",
@@ -64,7 +64,6 @@ func TestRKE2ControlPlaneTemplateValidateCreate(t *testing.T) {
 func TestRKE2ControlPlaneTemplateValidateUpdate(t *testing.T) {
 	g := NewWithT(t)
 
-	replicas := int32(3)
 	tests := []struct {
 		name        string
 		newTemplate *RKE2ControlPlaneTemplate
@@ -76,8 +75,8 @@ func TestRKE2ControlPlaneTemplateValidateUpdate(t *testing.T) {
 			newTemplate: &RKE2ControlPlaneTemplate{
 				Spec: RKE2ControlPlaneTemplateSpec{
 					Template: RKE2ControlPlaneTemplateResource{
-						Spec: RKE2ControlPlaneSpec{
-							Replicas: &replicas,
+						Spec: RKE2ControlPlaneTemplateResourceSpec{
+							RegistrationMethod: RegistrationMethodFavourInternalIPs,
 						},
 					},
 				},
@@ -85,8 +84,8 @@ func TestRKE2ControlPlaneTemplateValidateUpdate(t *testing.T) {
 			oldTemplate: &RKE2ControlPlaneTemplate{
 				Spec: RKE2ControlPlaneTemplateSpec{
 					Template: RKE2ControlPlaneTemplateResource{
-						Spec: RKE2ControlPlaneSpec{
-							Replicas: &replicas,
+						Spec: RKE2ControlPlaneTemplateResourceSpec{
+							RegistrationMethod: RegistrationMethodFavourInternalIPs,
 						},
 					},
 				},
