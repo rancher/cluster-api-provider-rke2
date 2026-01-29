@@ -97,11 +97,11 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 	})
 
 	Context("Creating a single control-plane cluster", func() {
-		It("Should create a cluster with v0.21.1 and perform upgrade to latest version", func() {
-			By("Installing v0.21.1 bootstrap/controlplane provider version")
+		It("Should create a cluster with v0.22.0 and perform upgrade to latest version", func() {
+			By("Installing v0.22.0 bootstrap/controlplane provider version")
 			initUpgradableBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
-			clusterTemplate, err := envsubst.Eval(string(ClusterTemplateDockerV1Beta1), func(s string) string {
+			clusterTemplate, err := envsubst.Eval(string(ClusterTemplateDocker), func(s string) string {
 				switch s {
 				case "CLUSTER_NAME":
 					return clusterName
@@ -120,14 +120,29 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 				return Apply(ctx, bootstrapClusterProxy, []byte(clusterTemplate), "--namespace", namespace.Name)
 			}, e2eConfig.GetIntervals(specName, "wait-cluster")...).Should(Succeed(), "Failed to apply the cluster template")
 
-			WaitForClusterReadyV1Beta1(ctx, WaitForClusterReadyInput{
+			By("Verifying the cluster is available")
+			framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
 				Getter:    bootstrapClusterProxy.GetClient(),
 				Name:      clusterName,
 				Namespace: namespace.Name,
-			}, e2eConfig.GetIntervals(specName, "wait-cluster")...)
+			})
+
+			By("Fetching ControlPlane")
+			controlPlane := &controlplanev1.RKE2ControlPlane{}
+			controlPlanes := &controlplanev1.RKE2ControlPlaneList{}
+			Expect(bootstrapClusterProxy.GetClient().List(ctx, controlPlanes,
+				client.MatchingLabels{clusterv1.ClusterNameLabel: clusterName},
+				client.InNamespace(namespace.Name))).Should(Succeed())
+			Expect(len(controlPlanes.Items)).Should(Equal(1), "Only 1 RKE2ControlPlane is expected")
+			controlPlaneKey := client.ObjectKeyFromObject(&controlPlanes.Items[0])
+
+			WaitForControlPlaneToBeReady(ctx, WaitForControlPlaneToBeReadyInput{
+				Getter:       bootstrapClusterProxy.GetClient(),
+				ControlPlane: controlPlaneKey,
+			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...)
 
 			By("Fetching all Machines")
-			machineNames := GetMachineNamesByClusterv1Beta1(ctx, GetMachinesByClusterInput{
+			machineNames := GetMachineNamesByCluster(ctx, GetMachinesByClusterInput{
 				Lister:      bootstrapClusterProxy.GetClient(),
 				ClusterName: clusterName,
 				Namespace:   namespace.Name,
@@ -140,8 +155,8 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 				ClusterctlConfigPath:    clusterctlConfigPath,
 				InfrastructureProviders: []string{"docker:v1.11.5"},
 				CoreProvider:            "cluster-api:v1.11.5",
-				BootstrapProviders:      []string{"rke2-bootstrap:v0.22.99"},
-				ControlPlaneProviders:   []string{"rke2-control-plane:v0.22.99"},
+				BootstrapProviders:      []string{"rke2-bootstrap:v0.23.99"},
+				ControlPlaneProviders:   []string{"rke2-control-plane:v0.23.99"},
 				LogFolder:               clusterctlLogFolder,
 			})
 
@@ -159,14 +174,6 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 			}, machineNames)
 
 			By("Scaling down control plane to 2")
-			controlPlane := &controlplanev1.RKE2ControlPlane{}
-			controlPlanes := &controlplanev1.RKE2ControlPlaneList{}
-			Expect(bootstrapClusterProxy.GetClient().List(ctx, controlPlanes,
-				client.MatchingLabels{clusterv1.ClusterNameLabel: clusterName},
-				client.InNamespace(namespace.Name))).Should(Succeed())
-			Expect(len(controlPlanes.Items)).Should(Equal(1), "Only 1 RKE2ControlPlane is expected")
-			controlPlaneKey := client.ObjectKeyFromObject(&controlPlanes.Items[0])
-
 			Eventually(func() error {
 				Expect(bootstrapClusterProxy.GetClient().Get(ctx, controlPlaneKey, controlPlane)).Should(Succeed())
 				controlPlane.Spec.Replicas = ptr.To(int32(2))

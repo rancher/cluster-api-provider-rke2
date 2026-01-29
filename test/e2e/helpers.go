@@ -32,7 +32,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -40,7 +39,6 @@ import (
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
-	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -342,27 +340,6 @@ func GetMachineNamesByCluster(ctx context.Context, input GetMachinesByClusterInp
 	return machineNames
 }
 
-// GetMachinesByCluster returns the Machine objects for a cluster.
-func GetMachineNamesByClusterv1Beta1(ctx context.Context, input GetMachinesByClusterInput) []string {
-	opts := []client.ListOption{
-		client.InNamespace(input.Namespace),
-		client.MatchingLabels{
-			clusterv1.ClusterNameLabel: input.ClusterName,
-		},
-	}
-
-	machineList := &clusterv1beta1.MachineList{}
-	Eventually(func() error {
-		return input.Lister.List(ctx, machineList, opts...)
-	}, retryableOperationTimeout, retryableOperationInterval).Should(Succeed(), "Failed to list Machine objects for Cluster %s", klog.KRef(input.Namespace, input.ClusterName))
-
-	machineNames := []string{}
-	for _, machine := range machineList.Items {
-		machineNames = append(machineNames, machine.Name)
-	}
-	return machineNames
-}
-
 // WaitForControlPlaneAndMachinesReadyInput is the input type for WaitForControlPlaneAndMachinesReady.
 type WaitForControlPlaneAndMachinesReadyInput struct {
 	GetLister    framework.GetLister
@@ -556,74 +533,6 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 		}
 
 		return nil
-	}, intervals...).Should(Succeed())
-}
-
-// WaitForClusterReadyInput is the input type for WaitForClusterReady.
-type WaitForClusterReadyInput struct {
-	Getter    framework.Getter
-	Name      string
-	Namespace string
-}
-
-// WaitForClusterReady will wait for a Cluster to be Ready.
-func WaitForClusterReady(ctx context.Context, input WaitForClusterReadyInput, intervals ...interface{}) {
-	By("Waiting for Cluster to be Ready")
-
-	Eventually(func() error {
-		cluster := &clusterv1.Cluster{}
-		key := types.NamespacedName{Name: input.Name, Namespace: input.Namespace}
-
-		if err := input.Getter.Get(ctx, key, cluster); err != nil {
-			return fmt.Errorf("getting Cluster %s/%s: %w", input.Namespace, input.Name, err)
-		}
-		// fmt.Println("#### Cluster object:", framework.PrettyPrint(cluster))
-
-		readyCondition := conditions.Get(cluster, clusterv1.ReadyCondition)
-		if readyCondition == nil {
-			fmt.Println("#### Cluster condition", clusterv1.ReadyCondition, "not found")
-			return fmt.Errorf("Cluster Ready condition is not found")
-		}
-		fmt.Println("#### Cluster ready condition:", clusterv1.ReadyCondition, "type:", readyCondition.Type, "status:", readyCondition.Status, "reason:", readyCondition.Reason)
-
-		switch readyCondition.Status {
-		case metav1.ConditionTrue:
-			// Cluster is ready
-			return nil
-		case metav1.ConditionFalse:
-			return fmt.Errorf("Cluster is not Ready")
-		default:
-			return fmt.Errorf("Cluster Ready condition is unknown")
-		}
-	}, intervals...).Should(Succeed())
-}
-
-// WaitForClusterReady will wait for a Cluster to be Ready.
-func WaitForClusterReadyV1Beta1(ctx context.Context, input WaitForClusterReadyInput, intervals ...interface{}) {
-	Byf("Waiting for v1beta1 Cluster %s/%s to be Ready", input.Namespace, input.Name)
-
-	Eventually(func() error {
-		cluster := &clusterv1beta1.Cluster{}
-		key := types.NamespacedName{Name: input.Name, Namespace: input.Namespace}
-
-		if err := input.Getter.Get(ctx, key, cluster); err != nil {
-			return fmt.Errorf("getting Cluster %s/%s: %w", input.Namespace, input.Name, err)
-		}
-
-		for _, condition := range cluster.Status.Conditions {
-			if condition.Type == clusterv1beta1.ConditionType("Ready") {
-				switch condition.Status {
-				case corev1.ConditionTrue:
-					// Cluster is ready
-					return nil
-				case corev1.ConditionFalse:
-					return fmt.Errorf("Cluster is not Ready")
-				default:
-					return fmt.Errorf("Cluster Ready condition is unknown")
-				}
-			}
-		}
-		return fmt.Errorf("Cluster Ready condition is not found")
 	}, intervals...).Should(Succeed())
 }
 
