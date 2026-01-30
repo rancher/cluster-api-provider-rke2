@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -383,6 +384,11 @@ var _ = Describe("Reconcile control plane conditions", func() {
 		}
 		Expect(testEnv.Client.Create(ctx, cluster)).To(Succeed())
 
+		// Set InfrastructureReady to true so ClusterCache creates the clusterAccessor.
+		patch := client.MergeFrom(cluster.DeepCopy())
+		cluster.Status.Initialization.InfrastructureProvisioned = ptr.To(true)
+		Expect(testEnv.Status().Patch(ctx, cluster, patch)).To(Succeed())
+
 		rcp = &controlplanev1.RKE2ControlPlane{
 			Status: controlplanev1.RKE2ControlPlaneStatus{
 				Initialization: controlplanev1.RKE2ControlPlaneInitializationStatus{
@@ -399,6 +405,18 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			},
 		}
 
+		// Create kubeconfig secret before setting up ClusterCache
+		ref := metav1.OwnerReference{
+			APIVersion: clusterv1.GroupVersion.String(),
+			Kind:       clusterv1.ClusterKind,
+			UID:        cluster.GetUID(),
+			Name:       cluster.GetName(),
+		}
+		Expect(testEnv.Client.Create(ctx, kubeconfig.GenerateSecretWithOwner(
+			client.ObjectKeyFromObject(cluster),
+			kubeconfig.FromEnvTestConfig(testEnv.Config, cluster),
+			ref))).To(Succeed())
+
 		clusterCache, err = clustercache.SetupWithManager(ctx, testEnv.Manager, clustercache.Options{
 			SecretClient: testEnv.GetClient(),
 			Client: clustercache.ClientOptions{
@@ -414,6 +432,12 @@ var _ = Describe("Reconcile control plane conditions", func() {
 		}, controller.Options{MaxConcurrentReconciles: 10, SkipNameValidation: ptr.To(true)})
 		Expect(err).ToNot(HaveOccurred())
 
+		// Ensure the ClusterCache reconciled at least once (and if possible created a clusterAccessor).
+		_, err = clusterCache.(reconcile.Reconciler).Reconcile(ctx, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(cluster),
+		})
+		Expect(err).ToNot(HaveOccurred())
+
 		m := &rke2.Management{
 			Client:              testEnv.GetClient(),
 			SecretCachingClient: testEnv.GetClient(),
@@ -423,20 +447,10 @@ var _ = Describe("Reconcile control plane conditions", func() {
 
 		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
 		Expect(err).ToNot(HaveOccurred())
-
-		ref := metav1.OwnerReference{
-			APIVersion: clusterv1.GroupVersion.String(),
-			Kind:       clusterv1.ClusterKind,
-			UID:        cp.Cluster.GetUID(),
-			Name:       cp.Cluster.GetName(),
-		}
-		Expect(testEnv.Client.Create(ctx, kubeconfig.GenerateSecretWithOwner(
-			client.ObjectKeyFromObject(cp.Cluster),
-			kubeconfig.FromEnvTestConfig(testEnv.Config, cp.Cluster),
-			ref))).To(Succeed())
 	})
 
 	AfterEach(func() {
+		clusterCache.(interface{ Shutdown() }).Shutdown()
 		Expect(testEnv.DeleteAllOf(ctx, node)).To(Succeed())
 		testEnv.Cleanup(ctx, node, ns)
 	})
