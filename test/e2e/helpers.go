@@ -21,6 +21,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +32,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -438,7 +438,7 @@ func WaitForControlPlaneToBeReady(ctx context.Context, input WaitForControlPlane
 			Name:      input.ControlPlane.Name,
 		}
 		if err := input.Getter.Get(ctx, key, controlplane); err != nil {
-			return false, errors.Wrapf(err, "failed to get RKE2 control plane")
+			return false, fmt.Errorf("failed to get RKE2 control plane: %w", err)
 		}
 
 		desiredReplicas := controlplane.Spec.Replicas
@@ -469,7 +469,7 @@ type WaitForMachineConditionsInput struct {
 func WaitForMachineConditions(ctx context.Context, input WaitForMachineConditionsInput, intervals ...interface{}) {
 	Eventually(func() (bool, error) {
 		if err := input.Getter.Get(ctx, client.ObjectKeyFromObject(input.Machine), input.Machine); err != nil {
-			return false, errors.Wrapf(err, "failed to get machine")
+			return false, fmt.Errorf("failed to get machine: %w", err)
 		}
 
 		return input.Checker(input.Machine, input.Condition), nil
@@ -827,25 +827,25 @@ func (c *Command) Run(ctx context.Context) ([]byte, []byte, error) {
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, nil, fmt.Errorf("%w", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, nil, fmt.Errorf("%w", err)
 	}
 	if err := cmd.Start(); err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, nil, fmt.Errorf("%w", err)
 	}
 	output, err := io.ReadAll(stdout)
 	if err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, nil, fmt.Errorf("%w", err)
 	}
 	errout, err := io.ReadAll(stderr)
 	if err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, nil, fmt.Errorf("%w", err)
 	}
 	if err := cmd.Wait(); err != nil {
-		return output, errout, errors.WithStack(err)
+		return output, errout, fmt.Errorf("%w", err)
 	}
 	return output, errout, nil
 }

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"text/template"
@@ -28,7 +29,6 @@ import (
 	fcos "github.com/coreos/butane/config/fcos/v1_4"
 	ignition "github.com/coreos/ignition/v2/config/v3_3"
 	ignitionTypes "github.com/coreos/ignition/v2/config/v3_3/types"
-	"github.com/pkg/errors"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/bootstrap/internal/cloudinit"
@@ -210,7 +210,7 @@ func renderButane(input *cloudinit.BaseUserData) ([]byte, error) {
 
 	var out bytes.Buffer
 	if err := t.Execute(&out, input); err != nil {
-		return nil, errors.Wrapf(err, "failed to render template")
+		return nil, fmt.Errorf("failed to render template: %w", err)
 	}
 
 	return out.Bytes(), nil
@@ -257,13 +257,13 @@ func Render(input *cloudinit.BaseUserData, butaneCfg *bootstrapv1.AdditionalUser
 	// the base config is derived from the static template above, so treat it as strict
 	cfg, err := butaneToIgnition(butaneBytes, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "converting base config to Ignition")
+		return nil, fmt.Errorf("converting base config to Ignition: %w", err)
 	}
 
 	if butaneCfg != nil && butaneCfg.Config != "" {
 		addCfg, err := butaneToIgnition([]byte(butaneCfg.Config), butaneCfg.Strict)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting additional config to Ignition")
+			return nil, fmt.Errorf("converting additional config to Ignition: %w", err)
 		}
 
 		if strings.Contains(butaneCfg.Config, "variant: flatcar") {
@@ -276,7 +276,7 @@ func Render(input *cloudinit.BaseUserData, butaneCfg *bootstrapv1.AdditionalUser
 
 	userData, err := json.Marshal(cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshaling Ignition config into JSON")
+		return nil, fmt.Errorf("marshaling Ignition config into JSON: %w", err)
 	}
 
 	return userData, nil
@@ -301,7 +301,7 @@ func EncapsulateGzippedConfig(gzippedConfig []byte) ([]byte, error) {
 
 	cfg, err := json.Marshal(encapCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshaling Ignition config into JSON")
+		return nil, fmt.Errorf("marshaling Ignition config into JSON: %w", err)
 	}
 
 	return cfg, nil

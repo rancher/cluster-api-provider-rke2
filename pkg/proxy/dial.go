@@ -18,12 +18,13 @@ package proxy
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
@@ -104,7 +105,7 @@ func (d *Dialer) DialContext(_ context.Context, _ string, addr string) (net.Conn
 	// Warning: Any early return should close this connection, otherwise we're going to leak them.
 	connection, _, err := dialer.Dial(portforward.PortForwardProtocolV1Name)
 	if err != nil {
-		return nil, errors.Wrap(err, "error upgrading connection")
+		return nil, fmt.Errorf("error upgrading connection: %w", err)
 	}
 
 	// Create the headers.
@@ -143,7 +144,7 @@ func (d *Dialer) DialContext(_ context.Context, _ string, addr string) (net.Conn
 	dataStream, err := connection.CreateStream(headers)
 	if err != nil {
 		return nil, kerrors.NewAggregate([]error{
-			errors.Wrap(err, "error creating forwarding stream"),
+			fmt.Errorf("error creating forwarding stream: %w", err),
 			connection.Close(),
 		})
 	}

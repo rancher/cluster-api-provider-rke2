@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -247,7 +246,7 @@ func (w *Workload) PatchNodes(ctx context.Context, cp *ControlPlane) error {
 			continue
 		}
 
-		errList = append(errList, errors.Errorf("failed to get patch helper for node %s", node.Name))
+		errList = append(errList, fmt.Errorf("failed to get patch helper for node %s", node.Name))
 	}
 
 	return kerrors.NewAggregate(errList)

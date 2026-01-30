@@ -19,10 +19,11 @@ package etcd
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"net"
 	"time"
 
-	"github.com/pkg/errors"
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -142,7 +143,7 @@ type ClientConfiguration struct {
 func NewClient(ctx context.Context, config ClientConfiguration) (*Client, error) {
 	dialer, err := proxy.NewDialer(config.Proxy)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to create a dialer for etcd client")
+		return nil, fmt.Errorf("unable to create a dialer for etcd client: %w", err)
 	}
 
 	// Use a specific context with a timeout for the etcd client
@@ -161,7 +162,7 @@ func NewClient(ctx context.Context, config ClientConfiguration) (*Client, error)
 
 	etcdClient, err := clientv3.New(c)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to init etcd client")
+		return nil, fmt.Errorf("unable to init etcd client: %w", err)
 	}
 
 	callTimeout := config.CallTimeout
@@ -173,7 +174,7 @@ func NewClient(ctx context.Context, config ClientConfiguration) (*Client, error)
 	if err != nil {
 		closeErr := etcdClient.Close()
 
-		return nil, errors.Wrap(kerrors.NewAggregate([]error{err, closeErr}), "unable to create etcd client")
+		return nil, fmt.Errorf("unable to create etcd client: %w", kerrors.NewAggregate([]error{err, closeErr}))
 	}
 
 	return client, nil
@@ -190,7 +191,7 @@ func newEtcdClient(ctx context.Context, etcdClient etcd, callTimeout time.Durati
 
 	status, err := etcdClient.Status(ctx, endpoints[0])
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get etcd status")
+		return nil, fmt.Errorf("failed to get etcd status: %w", err)
 	}
 
 	return &Client{
@@ -214,7 +215,7 @@ func (c *Client) Members(ctx context.Context) ([]*Member, error) {
 
 	response, err := c.EtcdClient.MemberList(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get list of members for etcd cluster")
+		return nil, fmt.Errorf("failed to get list of members for etcd cluster: %w", err)
 	}
 
 	alarms, err := c.Alarms(ctx)
@@ -247,8 +248,11 @@ func (c *Client) MoveLeader(ctx context.Context, newLeaderID uint64) error {
 	defer cancel()
 
 	_, err := c.EtcdClient.MoveLeader(ctx, newLeaderID)
+	if err != nil {
+		return fmt.Errorf("failed to move etcd leader %d: %w", newLeaderID, err)
+	}
 
-	return errors.Wrapf(err, "failed to move etcd leader: %v", newLeaderID)
+	return nil
 }
 
 // RemoveMember removes a given member.
@@ -257,8 +261,11 @@ func (c *Client) RemoveMember(ctx context.Context, id uint64) error {
 	defer cancel()
 
 	_, err := c.EtcdClient.MemberRemove(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to remove member %d: %w", id, err)
+	}
 
-	return errors.Wrapf(err, "failed to remove member: %v", id)
+	return nil
 }
 
 // UpdateMemberPeerURLs updates the list of peer URLs.
@@ -268,7 +275,7 @@ func (c *Client) UpdateMemberPeerURLs(ctx context.Context, id uint64, peerURLs [
 
 	response, err := c.EtcdClient.MemberUpdate(ctx, id, peerURLs)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to update etcd member %v's peer list to %+v", id, peerURLs)
+		return nil, fmt.Errorf("failed to update etcd member %d's peer list to %+v: %w", id, peerURLs, err)
 	}
 
 	members := make([]*Member, 0, len(response.Members))
@@ -286,7 +293,7 @@ func (c *Client) Alarms(ctx context.Context) ([]MemberAlarm, error) {
 
 	alarmResponse, err := c.EtcdClient.AlarmList(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get alarms for etcd cluster")
+		return nil, fmt.Errorf("failed to get alarms for etcd cluster: %w", err)
 	}
 
 	memberAlarms := make([]MemberAlarm, 0, len(alarmResponse.Alarms))

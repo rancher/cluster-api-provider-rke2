@@ -19,11 +19,11 @@ package etcd
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
-	"github.com/pkg/errors"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd/fake"
 
 	"go.etcd.io/etcd/api/v3/etcdserverpb"

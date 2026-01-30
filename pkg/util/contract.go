@@ -18,11 +18,11 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -47,12 +47,12 @@ var Version = clusterv1.GroupVersion.Version
 func GetAPIVersion(ctx context.Context, c client.Reader, gk schema.GroupKind) (string, error) {
 	crdMetadata, err := GetGKMetadata(ctx, c, gk)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get apiVersion for kind %s", gk.Kind)
+		return "", fmt.Errorf("failed to get apiVersion for kind %s: %w", gk.Kind, err)
 	}
 
 	_, version, err := GetLatestContractAndAPIVersionFromContract(crdMetadata, Version)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get apiVersion for kind %s", gk.Kind)
+		return "", fmt.Errorf("failed to get apiVersion for kind %s: %w", gk.Kind, err)
 	}
 
 	return schema.GroupVersion{
@@ -70,7 +70,7 @@ func GetGKMetadata(ctx context.Context, c client.Reader, gk schema.GroupKind) (*
 	meta.SetGroupVersionKind(apiextensionsv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
 
 	if err := c.Get(ctx, client.ObjectKeyFromObject(meta), meta); err != nil {
-		return meta, errors.Wrap(err, "failed to get CustomResourceDefinition metadata")
+		return meta, fmt.Errorf("failed to get CustomResourceDefinition metadata: %w", err)
 	}
 
 	return meta, nil
@@ -80,7 +80,7 @@ func GetGKMetadata(ctx context.Context, c client.Reader, gk schema.GroupKind) (*
 // the passed in currentContractVersion.
 func GetLatestContractAndAPIVersionFromContract(metadata metav1.Object, currentContractVersion string) (string, string, error) {
 	if currentContractVersion == "" {
-		return "", "", errors.Errorf("current contract version cannot be empty")
+		return "", "", errors.New("current contract version cannot be empty")
 	}
 
 	labels := metadata.GetLabels()
@@ -104,7 +104,7 @@ func GetLatestContractAndAPIVersionFromContract(metadata metav1.Object, currentC
 		return contractVersion, kubeVersions[len(kubeVersions)-1], nil
 	}
 
-	return "", "", errors.Errorf(
+	return "", "", fmt.Errorf(
 		`cannot find any versions matching contract versions %q for CRD %v as contract version
 		label(s) are either missing or empty (see https://cluster-api.sigs.k8s.io/developer/providers/contracts/overview.html#api-version-labels)`,
 		sortedCompatibleContractVersions, metadata.GetName())

@@ -18,12 +18,12 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -168,7 +168,7 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// Patch ObservedGeneration only if the reconciliation completed successfully
 		patchOpts := []patch.Option{patch.WithStatusObservedGeneration{}}
 		if err := patchHelper.Patch(ctx, rcp, patchOpts...); err != nil {
-			return ctrl.Result{}, errors.Wrapf(err, "failed to add finalizer")
+			return ctrl.Result{}, fmt.Errorf("failed to add finalizer: %w", err)
 		}
 
 		return ctrl.Result{Requeue: true}, nil
@@ -296,7 +296,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(
 		}).
 		Build(r)
 	if err != nil {
-		return errors.Wrap(err, "failed setting up with a controller manager")
+		return fmt.Errorf("failed setting up with a controller manager: %w", err)
 	}
 
 	err = c.Watch(
@@ -305,7 +305,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(
 		),
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed adding Watch for Clusters to controller manager")
+		return fmt.Errorf("failed adding Watch for Clusters to controller manager: %w", err)
 	}
 
 	r.controller = c
@@ -341,7 +341,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(
 		MaxConcurrentReconciles: clusterCacheConcurrency,
 	})
 	if err != nil {
-		return errors.Wrap(err, "unable to create cluster cache tracker")
+		return fmt.Errorf("unable to create cluster cache tracker: %w", err)
 	}
 
 	if r.managementCluster == nil {
@@ -506,7 +506,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	}
 
 	if err := r.syncMachines(ctx, controlPlane); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "failed to sync Machines")
+		return ctrl.Result{}, fmt.Errorf("failed to sync Machines: %w", err)
 	}
 
 	// Aggregate the operational state of all the machines; while aggregating we are adding the
@@ -742,7 +742,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 		return ctrl.Result{}, createErr
 
 	case err != nil:
-		return ctrl.Result{}, errors.Wrap(err, "failed to retrieve kubeconfig Secret")
+		return ctrl.Result{}, fmt.Errorf("failed to retrieve kubeconfig Secret: %w", err)
 	}
 
 	// only do rotation on owned secrets
@@ -761,7 +761,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileKubeconfig(
 		logger.Info("Rotating kubeconfig secret")
 
 		if err := kubeconfig.UpdateSecret(ctx, r.Client, clusterName, endpoint.String(), configSecret); err != nil {
-			return ctrl.Result{}, errors.Wrap(err, "failed to regenerate kubeconfig")
+			return ctrl.Result{}, fmt.Errorf("failed to regenerate kubeconfig: %w", err)
 		}
 	}
 
@@ -969,12 +969,12 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 
 		// Cleanup managed fields of all Machines.
 		if err := ssa.CleanUpManagedFieldsForSSAAdoption(ctx, r.Client, m, rke2ManagerName); err != nil {
-			return errors.Wrapf(err, "failed to update Machine: failed to adjust the managedFields of the Machine %s", klog.KObj(m))
+			return fmt.Errorf("failed to update Machine: failed to adjust the managedFields of the Machine %v: %w", klog.KObj(m), err)
 		}
 		// Update Machine to propagate in-place mutable fields from RCP.
 		updatedMachine, err := r.UpdateMachine(ctx, m, controlPlane.RCP, controlPlane.Cluster)
 		if err != nil {
-			return errors.Wrapf(err, "failed to update Machine: %s", klog.KObj(m))
+			return fmt.Errorf("failed to update Machine: %v: %w", klog.KObj(m), err)
 		}
 
 		controlPlane.Machines[machineName] = updatedMachine
@@ -987,7 +987,7 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 		// because of outdated resourceVersion.
 		patchHelper, err := patch.NewHelper(updatedMachine, r.Client)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create patch helper for Machine %s", klog.KObj(updatedMachine))
+			return fmt.Errorf("failed to create patch helper for Machine %v: %w", klog.KObj(updatedMachine), err)
 		}
 
 		patchHelpers[machineName] = patchHelper
@@ -1005,11 +1005,11 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 			// can also work with SSA. Otherwise, labels and annotations would be co-owned by our "old" "manager"
 			// and "rke2-controlplane" and then we would not be able to e.g. drop labels and annotations.
 			if err := ssa.DropManagedFields(ctx, r.Client, infraMachine, rke2ManagerName, labelsAndAnnotationsManagedFieldPaths); err != nil {
-				return errors.Wrapf(err, "failed to clean up managedFields of InfrastructureMachine %s", klog.KObj(infraMachine))
+				return fmt.Errorf("failed to clean up managedFields of InfrastructureMachine %v: %w", klog.KObj(infraMachine), err)
 			}
 			// Update in-place mutating fields on InfrastructureMachine.
 			if err := r.UpdateExternalObject(ctx, infraMachine, controlPlane.RCP, controlPlane.Cluster); err != nil {
-				return errors.Wrapf(err, "failed to update InfrastructureMachine %s", klog.KObj(infraMachine))
+				return fmt.Errorf("failed to update InfrastructureMachine %v: %w", klog.KObj(infraMachine), err)
 			}
 		}
 
@@ -1024,11 +1024,11 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 			// can also work with SSA. Otherwise, labels and annotations would be co-owned by our "old" "manager"
 			// and "rke2-controlplane" and then we would not be able to e.g. drop labels and annotations.
 			if err := ssa.DropManagedFields(ctx, r.Client, rke2Config, rke2ManagerName, labelsAndAnnotationsManagedFieldPaths); err != nil {
-				return errors.Wrapf(err, "failed to clean up managedFields of RKE2Config %s", klog.KObj(rke2Config))
+				return fmt.Errorf("failed to clean up managedFields of RKE2Config %v: %w", klog.KObj(rke2Config), err)
 			}
 			// Update in-place mutating fields on BootstrapConfig.
 			if err := r.UpdateExternalObject(ctx, rke2Config, controlPlane.RCP, controlPlane.Cluster); err != nil {
-				return errors.Wrapf(err, "failed to update RKE2Config %s", klog.KObj(rke2Config))
+				return fmt.Errorf("failed to update RKE2Config %v: %w", klog.KObj(rke2Config), err)
 			}
 		}
 	}

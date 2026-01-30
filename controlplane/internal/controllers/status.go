@@ -18,12 +18,12 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -69,7 +69,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		cluster,
 		collections.OwnedMachines(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()))
 	if err != nil {
-		return errors.Wrap(err, "failed to get list of owned machines")
+		return fmt.Errorf("failed to get list of owned machines: %w", err)
 	}
 
 	if ownedMachines == nil {
@@ -246,7 +246,7 @@ func (r *RKE2ControlPlaneReconciler) updateV1Beta1Status(ctx context.Context, rc
 		cluster,
 		collections.OwnedMachines(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane").GroupKind()))
 	if err != nil {
-		return errors.Wrap(err, "failed to get list of owned machines")
+		return fmt.Errorf("failed to get list of owned machines: %w", err)
 	}
 
 	if ownedMachines == nil {

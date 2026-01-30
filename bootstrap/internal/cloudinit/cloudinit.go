@@ -22,7 +22,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
@@ -114,29 +113,29 @@ type BaseUserData struct {
 func generate(kind string, tpl string, data interface{}) ([]byte, error) {
 	tm := template.New(kind).Funcs(defaultTemplateFuncMap)
 	if _, err := tm.Parse(filesTemplate); err != nil {
-		return nil, errors.Wrap(err, "failed to parse files template")
+		return nil, fmt.Errorf("failed to parse files template: %w", err)
 	}
 
 	if _, err := tm.Parse(commandsTemplate); err != nil {
-		return nil, errors.Wrap(err, "failed to parse commands template")
+		return nil, fmt.Errorf("failed to parse commands template: %w", err)
 	}
 
 	if _, err := tm.Parse(ntpTemplate); err != nil {
-		return nil, errors.Wrap(err, "failed to parse ntp template")
+		return nil, fmt.Errorf("failed to parse ntp template: %w", err)
 	}
 
 	if _, err := tm.Parse(arbitraryTemplate); err != nil {
-		return nil, errors.Wrap(err, "failed to parse arbitrary template")
+		return nil, fmt.Errorf("failed to parse arbitrary template: %w", err)
 	}
 
 	t, err := tm.Parse(tpl)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse %s template", kind)
+		return nil, fmt.Errorf("failed to parse %s template: %w", kind, err)
 	}
 
 	var out bytes.Buffer
 	if err := t.Execute(&out, data); err != nil {
-		return nil, errors.Wrapf(err, "failed to generate %s template", kind)
+		return nil, fmt.Errorf("failed to generate %s template: %w", kind, err)
 	}
 
 	return out.Bytes(), nil
@@ -181,19 +180,19 @@ func cleanupArbitraryData(arbitraryData map[string]string) error {
 	tm := template.New(kind).Funcs(defaultTemplateFuncMap)
 
 	if _, err := tm.Parse(arbitraryTemplate); err != nil {
-		return errors.Wrap(err, "failed to parse arbitrary keys template")
+		return fmt.Errorf("failed to parse arbitrary keys template: %w", err)
 	}
 
 	t, err := tm.Parse(`{{template "arbitrary" .AdditionalArbitraryData}}`)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse arbitrary template")
+		return fmt.Errorf("failed to parse arbitrary template: %w", err)
 	}
 
 	var out bytes.Buffer
 	if err := t.Execute(&out, BaseUserData{
 		AdditionalArbitraryData: arbitraryData,
 	}); err != nil {
-		return errors.Wrapf(err, "failed to generate %s template", kind)
+		return fmt.Errorf("failed to generate %s template: %w", kind, err)
 	}
 
 	if err := yaml.Unmarshal(out.Bytes(), m); err != nil {

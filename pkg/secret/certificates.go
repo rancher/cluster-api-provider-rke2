@@ -27,7 +27,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -124,10 +123,10 @@ func (c *ManagedCertificate) SaveGenerated(ctx context.Context, cl client.Client
 
 	if err := cl.Get(ctx, client.ObjectKeyFromObject(s), &corev1.Secret{}); apierrors.IsNotFound(err) {
 		if err := cl.Create(ctx, s); client.IgnoreAlreadyExists(err) != nil {
-			return errors.WithStack(err)
+			return err
 		}
 	} else if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	return nil
@@ -144,13 +143,13 @@ func (c *ManagedCertificate) Lookup(ctx context.Context, ctrlclient client.Reade
 	if err := ctrlclient.Get(ctx, key, s); err != nil {
 		if apierrors.IsNotFound(err) {
 			if c.IsExternal() {
-				return nil, errors.WithMessage(err, "external certificate not found")
+				return nil, fmt.Errorf("external certificate not found: %w", err)
 			}
 
 			return nil, nil //nolint:nilnil
 		}
 
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	return s, nil
@@ -313,7 +312,7 @@ func (c Certificates) Generate() error {
 func (c Certificates) SaveGenerated(ctx context.Context, ctrlclient client.Client, clusterName client.ObjectKey, owner metav1.OwnerReference) error {
 	for _, certificate := range c {
 		if err := certificate.SaveGenerated(ctx, ctrlclient, clusterName, owner); err != nil {
-			return errors.WithStack(err)
+			return err
 		}
 	}
 
@@ -422,7 +421,7 @@ func (c Certificates) AsFiles() []bootstrapv1.File {
 func secretToKeyPair(s *corev1.Secret) (*certs.KeyPair, error) {
 	c, exists := s.Data[TLSCrtDataName]
 	if !exists {
-		return nil, errors.Errorf("missing data for key %s", TLSCrtDataName)
+		return nil, fmt.Errorf("missing data for key %s", TLSCrtDataName)
 	}
 
 	// In some cases (external etcd) it's ok if the etcd.key does not exist.
@@ -489,12 +488,12 @@ func newSelfSignedCACert(key *rsa.PrivateKey) (*x509.Certificate, error) {
 
 	b, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, key.Public(), key)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create self signed CA certificate: %+v", tmpl)
+		return nil, fmt.Errorf("failed to create self signed CA certificate: %+v: %w", tmpl, err)
 	}
 
 	c, err := x509.ParseCertificate(b)
 
-	return c, errors.WithStack(err)
+	return c, err
 }
 
 func generateServiceAccountKeys() (*certs.KeyPair, error) {

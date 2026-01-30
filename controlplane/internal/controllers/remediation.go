@@ -19,12 +19,12 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
@@ -91,7 +91,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			clusterv1.MachineOwnerRemediatedCondition,
 		}}); err != nil {
 			errList = append(errList, err)
-			errList = append(errList, errors.Wrapf(err, "failed to patch machine %s", m.Name))
+			errList = append(errList, fmt.Errorf("failed to patch machine %s: %w", m.Name, err))
 		}
 	}
 
@@ -181,7 +181,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			log.Error(err, "Failed to patch control plane Machine", "Machine", machineToBeRemediated.Name)
 
 			if retErr == nil {
-				retErr = errors.Wrapf(err, "failed to patch control plane Machine %s", machineToBeRemediated.Name)
+				retErr = fmt.Errorf("failed to patch control plane Machine %s: %w", machineToBeRemediated.Name, err)
 			}
 		}
 	}()
@@ -327,7 +327,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 		if err != nil {
 			log.Error(err, "Failed to create client to workload cluster")
 
-			return ctrl.Result{}, errors.Wrapf(err, "failed to create client to workload cluster")
+			return ctrl.Result{}, fmt.Errorf("failed to create client to workload cluster: %w", err)
 		}
 
 		// If the machine that is about to be deleted is the etcd leader, move it to the newest member available.
@@ -393,7 +393,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			Message: "Please check controller logs for errors",
 		})
 
-		return ctrl.Result{}, errors.Wrapf(err, "failed to delete unhealthy machine %s", machineToBeRemediated.Name)
+		return ctrl.Result{}, fmt.Errorf("failed to delete unhealthy machine %s: %w", machineToBeRemediated.Name, err)
 	}
 
 	// Surface the operation is in progress.
@@ -664,7 +664,7 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 
 	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to get client for workload cluster %s", controlPlane.Cluster.Name)
+		return false, fmt.Errorf("failed to get client for workload cluster %s: %w", controlPlane.Cluster.Name, err)
 	}
 
 	// Gets the etcd status
@@ -672,7 +672,7 @@ func (r *RKE2ControlPlaneReconciler) canSafelyRemoveEtcdMember(ctx context.Conte
 	// This makes it possible to have a set of etcd members status different from the MHC unhealthy/unhealthy conditions.
 	etcdMembers, err := workloadCluster.EtcdMembers(ctx)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to get etcdStatus for workload cluster %s", controlPlane.Cluster.Name)
+		return false, fmt.Errorf("failed to get etcdStatus for workload cluster %s: %w", controlPlane.Cluster.Name, err)
 	}
 
 	currentTotalMembers := len(etcdMembers)
@@ -767,7 +767,7 @@ type RemediationData struct {
 func RemediationDataFromAnnotation(value string) (*RemediationData, error) {
 	ret := &RemediationData{}
 	if err := json.Unmarshal([]byte(value), ret); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal value %s for %s annotation", value, clusterv1.RemediationInProgressV1Beta1Reason)
+		return nil, fmt.Errorf("failed to unmarshal value %s for %s annotation: %w", value, clusterv1.RemediationInProgressV1Beta1Reason, err)
 	}
 
 	return ret, nil
@@ -777,7 +777,7 @@ func RemediationDataFromAnnotation(value string) (*RemediationData, error) {
 func (r *RemediationData) Marshal() (string, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to marshal value for %s annotation", clusterv1.RemediationInProgressV1Beta1Reason)
+		return "", fmt.Errorf("failed to marshal value for %s annotation: %w", clusterv1.RemediationInProgressV1Beta1Reason, err)
 	}
 
 	return string(b), nil

@@ -19,11 +19,11 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,7 +67,7 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
 	}
 
 	if len(ownedMachines) > 0 {
-		return ctrl.Result{}, errors.Errorf(
+		return ctrl.Result{}, fmt.Errorf(
 			"control plane has already been initialized, found %d owned machine for cluster %s/%s: controller cache or management cluster is misbehaving",
 			len(ownedMachines), cluster.Namespace, cluster.Name,
 		)
@@ -77,7 +77,7 @@ func (r *RKE2ControlPlaneReconciler) initializeControlPlane(
 
 	fd, err := controlPlane.NextFailureDomainForScaleUp(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "failed to determine failure domain with the fewest number of up-to-date machines")
+		return ctrl.Result{}, fmt.Errorf("failed to determine failure domain with the fewest number of up-to-date machines: %w", err)
 	}
 
 	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
@@ -116,7 +116,7 @@ func (r *RKE2ControlPlaneReconciler) scaleUpControlPlane(
 
 	fd, err := controlPlane.NextFailureDomainForScaleUp(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "failed to determine failure domain with the fewest number of up-to-date machines")
+		return ctrl.Result{}, fmt.Errorf("failed to determine failure domain with the fewest number of up-to-date machines: %w", err)
 	}
 
 	if err := r.cloneConfigsAndGenerateMachine(ctx, cluster, rcp, bootstrapSpec, fd); err != nil {
@@ -150,7 +150,7 @@ func (r *RKE2ControlPlaneReconciler) scaleDownControlPlane(
 	// Pick the Machine that we should scale down.
 	machineToDelete, err := selectMachineForScaleDown(ctx, controlPlane, outdatedMachines)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "failed to select machine for scale down")
+		return ctrl.Result{}, fmt.Errorf("failed to select machine for scale down: %w", err)
 	}
 
 	// Run preflight checks ensuring the control plane is stable before proceeding with a scale up/scale down operation; if not, wait.
@@ -268,15 +268,15 @@ loopmachines:
 func preflightCheckCondition(kind string, obj *clusterv1.Machine, conditionType string) error {
 	c := conditions.Get(obj, conditionType)
 	if c == nil {
-		return errors.Errorf("%s %s does not have %s condition", kind, obj.GetName(), conditionType)
+		return fmt.Errorf("%s %s does not have %s condition", kind, obj.GetName(), conditionType)
 	}
 
 	if c.Status == metav1.ConditionFalse {
-		return errors.Errorf("%s %s reports %s condition is false (%s)", kind, obj.GetName(), conditionType, c.Message)
+		return fmt.Errorf("%s %s reports %s condition is false (%s)", kind, obj.GetName(), conditionType, c.Message)
 	}
 
 	if c.Status == metav1.ConditionUnknown {
-		return errors.Errorf("%s %s reports %s condition is unknown (%s)", kind, obj.GetName(), conditionType, c.Message)
+		return fmt.Errorf("%s %s reports %s condition is unknown (%s)", kind, obj.GetName(), conditionType, c.Message)
 	}
 
 	return nil
@@ -327,7 +327,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 
 	apiVersion, err := rke2util.GetAPIVersion(ctx, r.Client, rcp.Spec.MachineTemplate.Spec.InfrastructureRef.GroupKind())
 	if err != nil {
-		return errors.Wrap(err, "failed to get api version for kind "+rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Kind)
+		return fmt.Errorf("failed to get api version for kind %s: %w", rcp.Spec.MachineTemplate.Spec.InfrastructureRef.Kind, err)
 	}
 
 	// Clone the infrastructure template
@@ -346,26 +346,26 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 	})
 	if err != nil {
 		// Safe to return early here since no resources have been created yet.
-		return errors.Wrap(err, "failed to clone infrastructure template")
+		return fmt.Errorf("failed to clone infrastructure template: %w", err)
 	}
 
 	// Clone the bootstrap configuration
 	bootstrapConfig, bootstrapRef, err := r.generateRKE2Config(ctx, rcp, cluster, bootstrapSpec)
 	if err != nil {
-		errs = append(errs, errors.Wrap(err, "failed to generate bootstrap config"))
+		errs = append(errs, fmt.Errorf("failed to generate bootstrap config: %w", err))
 	}
 
 	// Only proceed to generating the Machine if we haven't encountered an error
 	if len(errs) == 0 {
 		if err := r.createMachine(ctx, rcp, cluster, infraRef, bootstrapRef, failureDomain); err != nil {
-			errs = append(errs, errors.Wrap(err, "failed to create Machine"))
+			errs = append(errs, fmt.Errorf("failed to create Machine: %w", err))
 		}
 	}
 
 	// If we encountered any errors, attempt to clean up any dangling resources
 	if len(errs) > 0 {
 		if err := r.cleanupFromGeneration(ctx, infraMachine, bootstrapConfig); err != nil {
-			errs = append(errs, errors.Wrap(err, "failed to cleanup generated resources"))
+			errs = append(errs, fmt.Errorf("failed to cleanup generated resources: %w", err))
 		}
 
 		return kerrors.NewAggregate(errs)
@@ -383,7 +383,7 @@ func (r *RKE2ControlPlaneReconciler) cleanupFromGeneration(ctx context.Context, 
 		}
 
 		if err := r.Delete(ctx, obj); err != nil && !apierrors.IsNotFound(err) {
-			errs = append(errs, errors.Wrap(err, "failed to cleanup generated resources after error"))
+			errs = append(errs, fmt.Errorf("failed to cleanup generated resources after error: %w", err))
 		}
 	}
 
@@ -415,7 +415,7 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 	}
 
 	if err := r.Create(ctx, bootstrapConfig); err != nil {
-		return nil, clusterv1.ContractVersionedObjectReference{}, errors.Wrap(err, "Failed to create bootstrap configuration")
+		return nil, clusterv1.ContractVersionedObjectReference{}, fmt.Errorf("failed to create bootstrap configuration: %w", err)
 	}
 
 	bootstrapRef := clusterv1.ContractVersionedObjectReference{
@@ -448,7 +448,7 @@ func (r *RKE2ControlPlaneReconciler) UpdateExternalObject(
 	updatedObject.SetAnnotations(rcp.Spec.MachineTemplate.ObjectMeta.Annotations)
 
 	if err := ssa.Patch(ctx, r.Client, rke2ManagerName, updatedObject, ssa.WithCachingProxy{Cache: r.ssaCache, Original: obj}); err != nil {
-		return errors.Wrapf(err, "failed to update %s", obj.GetObjectKind().GroupVersionKind().Kind)
+		return fmt.Errorf("failed to update %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, err)
 	}
 
 	return nil
@@ -464,7 +464,7 @@ func (r *RKE2ControlPlaneReconciler) createMachine(
 ) error {
 	machine, err := r.computeDesiredMachine(rcp, cluster, infraRef, bootstrapRef, failureDomain, nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to create Machine: failed to compute desired Machine")
+		return fmt.Errorf("failed to create Machine: failed to compute desired Machine: %w", err)
 	}
 
 	patchOptions := []client.PatchOption{
@@ -473,7 +473,7 @@ func (r *RKE2ControlPlaneReconciler) createMachine(
 	}
 
 	if err := r.Patch(ctx, machine, client.Apply, patchOptions...); err != nil {
-		return errors.Wrap(err, "failed to create Machine: apply failed")
+		return fmt.Errorf("failed to create Machine: apply failed: %w", err)
 	}
 
 	return nil
@@ -492,7 +492,7 @@ func (r *RKE2ControlPlaneReconciler) UpdateMachine(
 		machine.Spec.FailureDomain, machine,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to update Machine: failed to compute desired Machine")
+		return nil, fmt.Errorf("failed to update Machine: failed to compute desired Machine: %w", err)
 	}
 
 	patchOptions := []client.PatchOption{
@@ -500,7 +500,7 @@ func (r *RKE2ControlPlaneReconciler) UpdateMachine(
 		client.FieldOwner(rke2ManagerName),
 	}
 	if err := r.Patch(ctx, updatedMachine, client.Apply, patchOptions...); err != nil {
-		return nil, errors.Wrap(err, "failed to update Machine: apply failed")
+		return nil, fmt.Errorf("failed to update Machine: apply failed: %w", err)
 	}
 
 	return updatedMachine, nil
@@ -540,7 +540,7 @@ func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 		// We store RKE2Config as annotation here to detect any changes in RCP RKE2Config and rollout the machine if any.
 		serverConfig, err := json.Marshal(rcp.Spec.ServerConfig)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal cluster configuration")
+			return nil, fmt.Errorf("failed to marshal cluster configuration: %w", err)
 		}
 
 		annotations[controlplanev1.RKE2ServerConfigurationAnnotation] = string(serverConfig)

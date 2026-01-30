@@ -18,9 +18,9 @@ package rke2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -139,7 +139,7 @@ func (w *Workload) ForwardEtcdLeadership(ctx context.Context, machine *clusterv1
 
 	nodes, err := w.getControlPlaneNodes(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to list control plane nodes")
+		return fmt.Errorf("failed to list control plane nodes: %w", err)
 	}
 
 	nodeNames := make([]string, 0, len(nodes.Items))
@@ -149,13 +149,13 @@ func (w *Workload) ForwardEtcdLeadership(ctx context.Context, machine *clusterv1
 
 	etcdClient, err := w.etcdClientGenerator.ForLeader(ctx, nodeNames)
 	if err != nil {
-		return errors.Wrap(err, "failed to create etcd client")
+		return fmt.Errorf("failed to create etcd client: %w", err)
 	}
 	defer etcdClient.Close()
 
 	members, err := etcdClient.Members(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to list etcd members using etcd client")
+		return fmt.Errorf("failed to list etcd members using etcd client: %w", err)
 	}
 
 	currentMember := etcdutil.MemberForName(members, machine.Status.NodeRef.Name)
@@ -167,13 +167,13 @@ func (w *Workload) ForwardEtcdLeadership(ctx context.Context, machine *clusterv1
 	// Move the leader to the provided candidate.
 	nextLeader := etcdutil.MemberForName(members, leaderCandidate.Status.NodeRef.Name)
 	if nextLeader == nil {
-		return errors.Errorf("failed to get etcd member from node %q", leaderCandidate.Status.NodeRef.Name)
+		return fmt.Errorf("failed to get etcd member from node %q", leaderCandidate.Status.NodeRef.Name)
 	}
 
 	log.FromContext(ctx).Info(fmt.Sprintf("Moving leader from %s to %s", currentMember.Name, nextLeader.Name))
 
 	if err := etcdClient.MoveLeader(ctx, nextLeader.ID); err != nil {
-		return errors.Wrapf(err, "failed to move leader")
+		return fmt.Errorf("failed to move leader: %w", err)
 	}
 
 	return nil
@@ -198,7 +198,7 @@ func (w *Workload) EtcdMembers(ctx context.Context) ([]string, error) {
 
 	nodes, err := w.getControlPlaneNodes(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list control plane nodes")
+		return nil, fmt.Errorf("failed to list control plane nodes: %w", err)
 	}
 
 	nodeNames := make([]string, 0, len(nodes.Items))
@@ -208,13 +208,13 @@ func (w *Workload) EtcdMembers(ctx context.Context) ([]string, error) {
 
 	etcdClient, err := w.etcdClientGenerator.ForLeader(ctx, nodeNames)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create etcd client")
+		return nil, fmt.Errorf("failed to create etcd client: %w", err)
 	}
 	defer etcdClient.Close()
 
 	members, err := etcdClient.Members(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list etcd members using etcd client")
+		return nil, fmt.Errorf("failed to list etcd members using etcd client: %w", err)
 	}
 
 	names := []string{}

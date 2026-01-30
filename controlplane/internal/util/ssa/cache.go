@@ -17,10 +17,10 @@ limitations under the License.
 package ssa
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -134,12 +134,12 @@ func (r *ssaCache) Has(key, kind string) bool {
 func ComputeRequestIdentifier(scheme *runtime.Scheme, original, modified client.Object) (string, error) {
 	modifiedObjectHash, err := hash.Compute(modified)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to calculate request identifier: failed to compute hash for modified object")
+		return "", fmt.Errorf("failed to calculate request identifier: failed to compute hash for modified object: %w", err)
 	}
 
 	gvk, err := apiutil.GVKForObject(original, scheme)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to calculate request identifier: failed to get GroupVersionKind of original object %s", klog.KObj(original))
+		return "", fmt.Errorf("failed to calculate request identifier: failed to get GroupVersionKind of original object %s: %w", klog.KObj(original), err)
 	}
 
 	return fmt.Sprintf("%s.%s.%s.%d", gvk.String(), klog.KObj(original), original.GetResourceVersion(), modifiedObjectHash), nil

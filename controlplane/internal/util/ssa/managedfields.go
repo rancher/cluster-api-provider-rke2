@@ -20,8 +20,9 @@ package ssa
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,7 +74,7 @@ func DropManagedFields(ctx context.Context, c client.Client, obj client.Object, 
 			// Unmarshal the managed fields into a map[string]interface{}
 			fieldsV1 := map[string]interface{}{}
 			if err := json.Unmarshal(managedField.FieldsV1.Raw, &fieldsV1); err != nil {
-				return errors.Wrap(err, "failed to unmarshal managed fields")
+				return fmt.Errorf("failed to unmarshal managed fields: %w", err)
 			}
 
 			// Filter out the ownership for the given paths.
@@ -85,7 +86,7 @@ func DropManagedFields(ctx context.Context, c client.Client, obj client.Object, 
 
 			fieldsV1Raw, err := json.Marshal(fieldsV1)
 			if err != nil {
-				return errors.Wrap(err, "failed to marshal managed fields")
+				return fmt.Errorf("failed to marshal managed fields: %w", err)
 			}
 
 			managedField.FieldsV1.Raw = fieldsV1Raw
@@ -158,14 +159,14 @@ func CleanUpManagedFieldsForSSAAdoption(ctx context.Context, c client.Client, ob
 	}
 	fieldV1, err := json.Marshal(fieldV1Map)
 	if err != nil { //nolint:wsl
-		return errors.Wrap(err, "failed to create seeding fieldV1Map for cleaning up legacy managed fields")
+		return fmt.Errorf("failed to create seeding fieldV1Map for cleaning up legacy managed fields: %w", err)
 	}
 
 	now := metav1.Now()
 
 	gvk, err := apiutil.GVKForObject(obj, c.Scheme())
 	if err != nil {
-		return errors.Wrapf(err, "failed to get GroupVersionKind of object %s", klog.KObj(obj))
+		return fmt.Errorf("failed to get GroupVersionKind of object %s: %w", klog.KObj(obj), err)
 	}
 
 	managedFields = append(managedFields, metav1.ManagedFieldsEntry{
