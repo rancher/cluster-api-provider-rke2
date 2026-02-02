@@ -29,14 +29,12 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/clustercache"
-	"sigs.k8s.io/cluster-api/controllers/remote"
 	"sigs.k8s.io/cluster-api/util/cache"
 	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
@@ -118,7 +116,7 @@ const (
 func (m *Management) GetWorkloadCluster(ctx context.Context, cluster *clusterv1.Cluster) (WorkloadCluster, error) {
 	clusterKey := ctrlclient.ObjectKeyFromObject(cluster)
 
-	restConfig, err := remote.RESTConfig(ctx, RKE2ControlPlaneControllerName, m.Client, clusterKey)
+	restConfig, err := m.ClusterCache.GetRESTConfig(ctx, clusterKey)
 	if err != nil {
 		return nil, &RemoteClusterConnectionError{Name: clusterKey.String(), Err: err}
 	}
@@ -126,7 +124,7 @@ func (m *Management) GetWorkloadCluster(ctx context.Context, cluster *clusterv1.
 	restConfig = rest.CopyConfig(restConfig)
 	restConfig.Timeout = DefaultWorkloadTimeout
 
-	c, err := ctrlclient.New(restConfig, ctrlclient.Options{Scheme: scheme.Scheme})
+	c, err := m.ClusterCache.GetClient(ctx, clusterKey)
 	if err != nil {
 		return nil, &RemoteClusterConnectionError{Name: clusterKey.String(), Err: err}
 	}

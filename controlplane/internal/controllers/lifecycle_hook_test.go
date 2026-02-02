@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ = Describe("Lifecycle Hooks", Ordered, func() {
@@ -78,6 +79,11 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 			},
 		}
 		Expect(testEnv.Client.Create(ctx, cluster)).To(Succeed())
+
+		// Set InfrastructureReady to true so ClusterCache creates the clusterAccessor.
+		patch := client.MergeFrom(cluster.DeepCopy())
+		cluster.Status.Initialization.InfrastructureProvisioned = ptr.To(true)
+		Expect(testEnv.Status().Patch(ctx, cluster, patch)).To(Succeed())
 
 		node = &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
@@ -167,6 +173,18 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&spareMachine), &spareMachine)).Should(Succeed())
 		Expect(testEnv.Status().Update(ctx, &spareMachine)).To(Succeed())
 
+		// Create kubeconfig secret before setting up ClusterCache
+		ref := metav1.OwnerReference{
+			APIVersion: clusterv1.GroupVersion.String(),
+			Kind:       clusterv1.ClusterKind,
+			UID:        cluster.GetUID(),
+			Name:       cluster.GetName(),
+		}
+		Expect(testEnv.Client.Create(ctx, kubeconfig.GenerateSecretWithOwner(
+			client.ObjectKeyFromObject(cluster),
+			kubeconfig.FromEnvTestConfig(testEnv.Config, cluster),
+			ref))).To(Succeed())
+
 		clusterCache, err = clustercache.SetupWithManager(ctx, testEnv.Manager, clustercache.Options{
 			SecretClient: testEnv.GetClient(),
 			Client: clustercache.ClientOptions{
@@ -180,6 +198,12 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 				},
 			},
 		}, controller.Options{MaxConcurrentReconciles: 10, SkipNameValidation: ptr.To(true)})
+		Expect(err).ToNot(HaveOccurred())
+
+		// Ensure the ClusterCache reconciled at least once (and if possible created a clusterAccessor).
+		_, err = clusterCache.(reconcile.Reconciler).Reconcile(ctx, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(cluster),
+		})
 		Expect(err).ToNot(HaveOccurred())
 
 		ml := clusterv1.MachineList{Items: []clusterv1.Machine{machine, spareMachine}}
@@ -201,17 +225,6 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
 		Expect(err).ToNot(HaveOccurred())
 
-		ref := metav1.OwnerReference{
-			APIVersion: clusterv1.GroupVersion.String(),
-			Kind:       clusterv1.ClusterKind,
-			UID:        cp.Cluster.GetUID(),
-			Name:       cp.Cluster.GetName(),
-		}
-		Expect(testEnv.Client.Create(ctx, kubeconfig.GenerateSecretWithOwner(
-			client.ObjectKeyFromObject(cp.Cluster),
-			kubeconfig.FromEnvTestConfig(testEnv.Config, cp.Cluster),
-			ref))).To(Succeed())
-
 		r = &RKE2ControlPlaneReconciler{
 			Client: testEnv.GetClient(),
 			Scheme: testEnv.GetScheme(),
@@ -227,6 +240,7 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 	AfterAll(func() {
 		machine.Finalizers = []string{}
 		Expect(testEnv.Update(ctx, &machine)).Should(Succeed())
+		clusterCache.(interface{ Shutdown() }).Shutdown()
 		testEnv.Cleanup(ctx, node, &machine, &spareMachine, cluster, ns)
 	})
 	It("Should cleanup load balancer exclusion annotation", func() {
