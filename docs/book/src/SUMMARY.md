@@ -12,6 +12,7 @@
     - [Configuring manager options](./02_topics/06_configure-manager-options.md)
     - [External load balancer exclusion](./02_topics/07_load_balancer_exclusion.md)
     - [External datastore](./02_topics/08_external_datastore.md)
+    - [Secrets encryption](./02_topics/09_secrets_encryption.md)
 - [Examples](./03_examples/00.md)
     - [AWS](./03_examples/01_aws.md)
     - [vSphere](./03_examples/02_vsphere.md)
@@ -20,3 +21,4 @@
     - [Development](./04_developer/01_development.md)
     - [Releasing](./04_developer/02_releasing.md)
 - [Reference](./05_reference/00.md)
+    - [API Versions](./05_reference/01_api_versions.md)
