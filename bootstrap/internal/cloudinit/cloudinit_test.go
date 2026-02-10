@@ -46,6 +46,7 @@ write_files:
 
 runcmd:
   - 'INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
@@ -81,6 +82,7 @@ write_files:
 runcmd:
   - [[ $(sha256sum /opt/rke2-artifacts/sha256sum*.txt | awk '{print $1}') == abcd ]] || exit 1
   - 'INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
@@ -115,6 +117,7 @@ write_files:
 
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
@@ -151,6 +154,7 @@ ntp:
 
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION= INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
@@ -187,6 +191,7 @@ write_files:
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
@@ -208,6 +213,7 @@ write_files:
 
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION= INSTALL_RKE2_TYPE=\"agent\" sh -s -'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
@@ -302,6 +308,7 @@ users:
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
@@ -334,6 +341,7 @@ write_files:
 runcmd:
   - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'

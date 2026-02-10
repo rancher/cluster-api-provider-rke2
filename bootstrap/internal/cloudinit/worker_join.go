@@ -33,6 +33,7 @@ runcmd:
   - '{{ if .AirGapped }}INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh{{ else }}curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s INSTALL_RKE2_TYPE="agent" sh -s -{{end}}'
 {{- if .CISEnabled }}
   - '/opt/rke2-cis-script.sh'{{ end }}
+  - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
   - 'mkdir -p /run/cluster-api'
