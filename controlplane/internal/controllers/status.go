@@ -102,6 +102,12 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.InfraMachineTemplateIsNotFound, controlPlane.PreflightCheckResults)
 	setScalingDownCondition(ctx, controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.PreflightCheckResults)
 	setMachinesReadyCondition(ctx, controlPlane.RCP, controlPlane.Machines)
+
+	// Return early if the deletion timestamp is set. The DeletingCondition is set directly in reconcileDelete.
+	if !rcp.DeletionTimestamp.IsZero() {
+		return nil
+	}
+
 	setDeletingCondition(ctx, controlPlane.RCP, controlPlane.DeletingReason, controlPlane.DeletingMessage)
 
 	kubeconfigSecret := corev1.Secret{}
