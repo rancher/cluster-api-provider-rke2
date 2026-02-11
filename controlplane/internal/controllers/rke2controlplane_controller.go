@@ -614,6 +614,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 
 		controllerutil.RemoveFinalizer(rcp, controlplanev1.RKE2ControlPlaneFinalizer)
 
+		conditions.Set(rcp, metav1.Condition{
+			Type:   controlplanev1.RKE2ControlPlaneDeletingCondition,
+			Status: metav1.ConditionTrue,
+			Reason: controlplanev1.RKE2ControlPlaneDeletingDeletionCompletedReason,
+		})
+
 		return ctrl.Result{}, nil
 	}
 
@@ -648,6 +654,13 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 			clusterv1.DeletingV1Beta1Reason,
 			clusterv1.ConditionSeverityInfo,
 			"Waiting for worker nodes to be deleted first")
+
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneDeletingCondition,
+			Status:  metav1.ConditionTrue,
+			Reason:  controlplanev1.RKE2ControlPlaneDeletingWaitingForWorkersDeletionReason,
+			Message: "Waiting for worker nodes to be deleted first",
+		})
 
 		return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
@@ -701,6 +714,13 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 	logger.Info("Waiting for control plane Machines to not exist anymore")
 
 	v1beta1conditions.MarkFalse(rcp, controlplanev1.ResizedV1Beta1Condition, clusterv1.DeletingV1Beta1Reason, clusterv1.ConditionSeverityInfo, "")
+
+	conditions.Set(rcp, metav1.Condition{
+		Type:    controlplanev1.RKE2ControlPlaneDeletingCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  controlplanev1.RKE2ControlPlaneDeletingWaitingForMachineDeletionReason,
+		Message: "Waiting for control plane Machines to be deleted",
+	})
 
 	return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil
 }
@@ -775,6 +795,11 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 ) (res ctrl.Result, retErr error) {
 	logger := log.FromContext(ctx)
 
+	// If the control plane is being deleted, we don't need to reconcile conditions. The DeletingCondition is set directly in reconcileDelete.
+	if !controlPlane.RCP.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
+
 	// If the cluster is not yet initialized, there is no way to connect to the workload cluster and fetch information
 	// for updating conditions. Return early.
 	// We additionally check for the ControlPlaneInitialized condition. The ControlPlaneInitialized condition is set at the same time
@@ -799,7 +824,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 	readyCPMachines := controlPlane.Machines.Filter(collections.IsReady())
 
 	if readyCPMachines.Len() == 0 {
-		controlPlane.RCP.Status.Initialization.ControlPlaneInitialized = ptr.To(false)
 		controlPlane.RCP.Status.ReadyReplicas = ptr.To(int32(0))
 		controlPlane.RCP.Status.AvailableServerIPs = nil
 
