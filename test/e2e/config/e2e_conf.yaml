@@ -49,8 +49,8 @@ providers:
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-      - name: "v0.23.0"
-        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.23.0/control-plane-components.yaml"
+      - name: "v0.23.1"
+        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.23.1/control-plane-components.yaml"
         type: "url"
         contract: v1beta1
         files:
@@ -75,8 +75,8 @@ providers:
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-      - name: "v0.23.0"
-        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.23.0/bootstrap-components.yaml"
+      - name: "v0.23.1"
+        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.23.1/bootstrap-components.yaml"
         type: "url"
         contract: v1beta1
         files:
