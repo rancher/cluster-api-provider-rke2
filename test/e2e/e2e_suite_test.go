@@ -273,10 +273,10 @@ func initUpgradableBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy
 	InitManagementCluster(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:              bootstrapClusterProxy,
 		ClusterctlConfigPath:      clusterctlConfig,
-		InfrastructureProviders:   []string{"docker:v1.12.2"},
+		InfrastructureProviders:   []string{"docker:v1.12.3"},
 		IPAMProviders:             config.IPAMProviders(),
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
-		CoreProvider:              "cluster-api:v1.12.2",
+		CoreProvider:              "cluster-api:v1.12.3",
 		BootstrapProviders:        []string{"rke2-bootstrap:v0.23.0"},
 		ControlPlaneProviders:     []string{"rke2-control-plane:v0.23.0"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
