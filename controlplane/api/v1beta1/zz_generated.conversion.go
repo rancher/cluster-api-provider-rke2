@@ -684,7 +684,6 @@ func autoConvert_v1beta2_RKE2ControlPlaneStatus_To_v1beta1_RKE2ControlPlaneStatu
 	// WARNING: in.UpToDateReplicas requires manual conversion: does not exist in peer-type
 	out.AvailableServerIPs = *(*[]string)(unsafe.Pointer(&in.AvailableServerIPs))
 	out.LastRemediation = (*LastRemediationStatus)(unsafe.Pointer(in.LastRemediation))
-	// WARNING: in.Deprecated requires manual conversion: does not exist in peer-type
 	return nil
 }
 

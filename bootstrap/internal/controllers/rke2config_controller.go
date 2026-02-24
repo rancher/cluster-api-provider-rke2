@@ -45,7 +45,6 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
-	v1beta1conditions "sigs.k8s.io/cluster-api/util/conditions/deprecated/v1beta1"
 	"sigs.k8s.io/cluster-api/util/patch"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
@@ -126,13 +125,6 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Attempt to Patch the RKE2Config object and status after each reconciliation if no error occurs.
 	defer func() {
-		v1beta1conditions.SetSummary(scope.Config,
-			v1beta1conditions.WithConditions(
-				bootstrapv1.DataSecretAvailableV1Beta1Condition,
-				bootstrapv1.CertificatesAvailableV1Beta1Condition,
-			),
-		)
-
 		if err := conditions.SetSummaryCondition(scope.Config, scope.Config, bootstrapv1.RKE2ConfigReadyCondition,
 			conditions.ForConditionTypes{
 				bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
@@ -155,11 +147,6 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		patchOpts := []patch.Option{
-			patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
-				clusterv1.ReadyV1Beta1Condition,
-				bootstrapv1.DataSecretAvailableV1Beta1Condition,
-				bootstrapv1.CertificatesAvailableV1Beta1Condition,
-			}},
 			patch.WithOwnedConditions{Conditions: []string{
 				clusterv1.PausedCondition,
 				bootstrapv1.RKE2ConfigReadyCondition,
@@ -183,12 +170,6 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	if !ptr.Deref(scope.Cluster.Status.Initialization.InfrastructureProvisioned, false) {
 		logger.Info("Infrastructure machine not yet ready")
-		v1beta1conditions.MarkFalse(
-			scope.Config,
-			bootstrapv1.DataSecretAvailableV1Beta1Condition,
-			bootstrapv1.WaitingForClusterInfrastructureV1Beta1Reason,
-			clusterv1.ConditionSeverityInfo,
-			"")
 		conditions.Set(scope.Config, metav1.Condition{
 			Type:    bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
 			Status:  metav1.ConditionFalse,
@@ -206,13 +187,11 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if scope.Machine.Spec.Bootstrap.DataSecretName != nil && (!dataSecretCreated || scope.Config.Status.DataSecretName == nil) {
 			scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
 			scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
-			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
 			conditions.Set(scope.Config, metav1.Condition{
 				Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
 				Status: metav1.ConditionTrue,
 				Reason: bootstrapv1.RKE2ConfigDataSecretAvailableReason,
 			})
-			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 			conditions.Set(scope.Config, metav1.Condition{
 				Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
 				Status: metav1.ConditionTrue,
@@ -228,13 +207,11 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			(!ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false) || scope.Config.Status.DataSecretName == nil) {
 			scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
 			scope.Config.Status.DataSecretName = scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName
-			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
 			conditions.Set(scope.Config, metav1.Condition{
 				Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
 				Status: metav1.ConditionTrue,
 				Reason: bootstrapv1.RKE2ConfigDataSecretAvailableReason,
 			})
-			v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 			conditions.Set(scope.Config, metav1.Condition{
 				Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
 				Status: metav1.ConditionTrue,
@@ -435,12 +412,6 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		util.ObjectKey(scope.Cluster),
 		*metav1.NewControllerRef(scope.Config, bootstrapv1.GroupVersion.WithKind("RKE2Config")),
 	); err != nil {
-		v1beta1conditions.MarkFalse(
-			scope.Config,
-			bootstrapv1.CertificatesAvailableV1Beta1Condition,
-			bootstrapv1.CertificatesGenerationFailedV1Beta1Reason,
-			clusterv1.ConditionSeverityWarning,
-			"%s", err.Error())
 		conditions.Set(scope.Config, metav1.Condition{
 			Type:    bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
 			Status:  metav1.ConditionFalse,
@@ -451,7 +422,6 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 		return ctrl.Result{}, err
 	}
 
-	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
 		Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
 		Status: metav1.ConditionTrue,
@@ -843,7 +813,6 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	// Set CertificatesAvailable condition for joining control plane nodes.
 	// Note: Joining servers don't generate new CA certificates - they retrieve existing
 	// cluster CA certificates during the RKE2 join process.
-	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
 		Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
 		Status: metav1.ConditionTrue,
@@ -973,7 +942,6 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 	// Set CertificatesAvailable condition for joining worker nodes.
 	// Note: Worker nodes (RKE2 agents) don't manage CA certificates - they only need
 	// the registration token to join the cluster. RKE2 handles agent certificates internally.
-	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.CertificatesAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
 		Type:   bootstrapv1.RKE2ConfigCertificatesAvailableCondition,
 		Status: metav1.ConditionTrue,
@@ -1097,7 +1065,6 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 	scope.Config.Status.DataSecretName = ptr.To(secret.Name)
 	scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
 
-	v1beta1conditions.MarkTrue(scope.Config, bootstrapv1.DataSecretAvailableV1Beta1Condition)
 	conditions.Set(scope.Config, metav1.Condition{
 		Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
 		Status: metav1.ConditionTrue,

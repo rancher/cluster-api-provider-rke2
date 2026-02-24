@@ -53,7 +53,6 @@ import (
 	"sigs.k8s.io/cluster-api/util/certs"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
-	v1beta1conditions "sigs.k8s.io/cluster-api/util/conditions/deprecated/v1beta1"
 	capikubeconfig "sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/cluster-api/util/patch"
 
@@ -186,17 +185,6 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			}
 		}
 
-		// Always attempt to update V1Beta1 status.
-		if err := r.updateV1Beta1Status(ctx, rcp, cluster); err != nil {
-			var connFailure *rke2.RemoteClusterConnectionError
-			if errors.As(err, &connFailure) {
-				logger.Info("Could not connect to workload cluster to fetch status", "err", err.Error())
-			} else {
-				logger.Error(err, "Failed to update RKE2ControlPlane V1Beta1 Status")
-				reterr = kerrors.NewAggregate([]error{reterr, err})
-			}
-		}
-
 		// Always attempt to Patch the RKE2ControlPlane object and status after each reconciliation.
 		if err := patchRKE2ControlPlane(ctx, patchHelper, rcp); err != nil {
 			reterr = kerrors.NewAggregate([]error{reterr, err})
@@ -241,29 +229,10 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func patchRKE2ControlPlane(ctx context.Context, patchHelper *patch.Helper, rcp *controlplanev1.RKE2ControlPlane) error {
-	// Always update the readyCondition by summarizing the state of other conditions.
-	v1beta1conditions.SetSummary(rcp,
-		v1beta1conditions.WithConditions(
-			clusterv1.ReadyV1Beta1Condition,
-			controlplanev1.MachinesSpecUpToDateV1Beta1Condition,
-			controlplanev1.ResizedV1Beta1Condition,
-			controlplanev1.MachinesReadyV1Beta1Condition,
-			controlplanev1.AvailableV1Beta1Condition,
-			controlplanev1.CertificatesAvailableV1Beta1Condition,
-		),
-	)
-
 	// Patch the object, ignoring conflicts on the conditions owned by this controller.
 	return patchHelper.Patch(
 		ctx,
 		rcp,
-		patch.WithOwnedV1Beta1Conditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.ReadyV1Beta1Condition,
-			controlplanev1.MachinesReadyV1Beta1Condition,
-			controlplanev1.MachinesSpecUpToDateV1Beta1Condition,
-			controlplanev1.ResizedV1Beta1Condition,
-			controlplanev1.AvailableV1Beta1Condition,
-		}},
 		patch.WithOwnedConditions{Conditions: []string{
 			clusterv1.PausedCondition,
 			controlplanev1.RKE2ControlPlaneAvailableCondition,
@@ -420,11 +389,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 
 	if err := certificates.LookupOrGenerate(ctx, r.Client, util.ObjectKey(cluster), *controllerRef); err != nil {
 		logger.Error(err, "unable to lookup or create cluster certificates")
-		v1beta1conditions.MarkFalse(
-			rcp, controlplanev1.CertificatesAvailableV1Beta1Condition,
-			controlplanev1.CertificatesGenerationFailedV1Beta1Reason,
-			clusterv1.ConditionSeverityWarning, "%s", err.Error())
-
 		conditions.Set(rcp, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneCertificatesAvailableCondition,
 			Status:  metav1.ConditionUnknown,
@@ -434,8 +398,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 
 		return ctrl.Result{}, err
 	}
-
-	v1beta1conditions.MarkTrue(rcp, controlplanev1.CertificatesAvailableV1Beta1Condition)
 
 	conditions.Set(rcp, metav1.Condition{
 		Type:   controlplanev1.RKE2ControlPlaneCertificatesAvailableCondition,
@@ -509,13 +471,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		return ctrl.Result{}, fmt.Errorf("failed to sync Machines: %w", err)
 	}
 
-	// Aggregate the operational state of all the machines; while aggregating we are adding the
-	// source ref (reason@machine/name) so the problem can be easily tracked down to its source machine.
-	v1beta1conditions.SetAggregate(controlPlane.RCP, controlplanev1.MachinesReadyV1Beta1Condition,
-		ownedMachines.ConditionGetters(),
-		v1beta1conditions.AddSourceRef(),
-		v1beta1conditions.WithStepCounterIf(false))
-
 	// Updates conditions reporting the status of static pods and the status of the etcd cluster.
 	// NOTE: Conditions reporting RCP operation progress like e.g. Resized or SpecUpToDate are inlined with the rest of the execution.
 	if result, err := r.reconcileControlPlaneConditions(ctx, controlPlane); err != nil || !result.IsZero() {
@@ -540,21 +495,20 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	switch {
 	case len(needRollout) > 0:
 		logger.Info("Rolling out Control Plane machines", "needRollout", needRollout.Names())
-		v1beta1conditions.MarkFalse(controlPlane.RCP,
-			controlplanev1.MachinesSpecUpToDateV1Beta1Condition,
-			controlplanev1.RollingUpdateInProgressV1Beta1Reason,
-			clusterv1.ConditionSeverityWarning,
-			"Rolling %d replicas with outdated spec (%d replicas up to date)",
-			len(needRollout),
-			len(controlPlane.Machines)-len(needRollout))
-
+		conditions.Set(controlPlane.RCP, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneRollingOutCondition,
+			Status:  metav1.ConditionTrue,
+			Reason:  controlplanev1.RKE2ControlPlaneRollingOutReason,
+			Message: fmt.Sprintf("Rolling %d replicas with outdated spec (%d replicas up to date)", len(needRollout), len(controlPlane.Machines)-len(needRollout)),
+		})
 		return r.upgradeControlPlane(ctx, cluster, rcp, controlPlane, needRollout)
 	default:
-		// make sure last upgrade operation is marked as completed.
-		// NOTE: we are checking the condition already exists in order to avoid to set this condition at the first
-		// reconciliation/before a rolling upgrade actually starts.
-		if v1beta1conditions.Has(controlPlane.RCP, controlplanev1.MachinesSpecUpToDateV1Beta1Condition) {
-			v1beta1conditions.MarkTrue(controlPlane.RCP, controlplanev1.MachinesSpecUpToDateV1Beta1Condition)
+		if conditions.Has(controlPlane.RCP, controlplanev1.RKE2ControlPlaneRollingOutCondition) {
+			conditions.Set(controlPlane.RCP, metav1.Condition{
+				Type:   controlplanev1.RKE2ControlPlaneRollingOutCondition,
+				Status: metav1.ConditionFalse,
+				Reason: controlplanev1.RKE2ControlPlaneNotRollingOutReason,
+			})
 		}
 	}
 
@@ -568,11 +522,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	case numMachines < desiredReplicas && numMachines == 0:
 		// Create new Machine w/ init
 		logger.Info("Initializing control plane", "Desired", desiredReplicas, "Existing", numMachines)
-		v1beta1conditions.MarkFalse(controlPlane.RCP,
-			controlplanev1.AvailableV1Beta1Condition,
-			controlplanev1.WaitingForRKE2ServerV1Beta1Reason,
-			clusterv1.ConditionSeverityInfo, "")
-
 		return r.initializeControlPlane(ctx, cluster, rcp, controlPlane)
 	// We are scaling up
 	case numMachines < desiredReplicas && numMachines > 0:
@@ -636,24 +585,9 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 		logger.Info("failed to reconcile conditions", "error", err.Error())
 	}
 
-	// Aggregate the operational state of all the machines; while aggregating we are adding the
-	// source ref (reason@machine/name) so the problem can be easily tracked down to its source machine.
-	// However, during delete we are hiding the counter (1 of x) because it does not make sense given that
-	// all the machines are deleted in parallel.
-	v1beta1conditions.SetAggregate(rcp,
-		controlplanev1.MachinesReadyV1Beta1Condition,
-		ownedMachines.ConditionGetters(),
-		v1beta1conditions.AddSourceRef(),
-		v1beta1conditions.WithStepCounterIf(false))
-
 	// Verify that only control plane machines remain
 	if len(allMachines) != len(ownedMachines) {
 		logger.Info("Waiting for worker nodes to be deleted first")
-		v1beta1conditions.MarkFalse(rcp,
-			controlplanev1.ResizedV1Beta1Condition,
-			clusterv1.DeletingV1Beta1Reason,
-			clusterv1.ConditionSeverityInfo,
-			"Waiting for worker nodes to be deleted first")
 
 		conditions.Set(rcp, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneDeletingCondition,
@@ -712,8 +646,6 @@ func (r *RKE2ControlPlaneReconciler) reconcileDelete(ctx context.Context,
 	}
 
 	logger.Info("Waiting for control plane Machines to not exist anymore")
-
-	v1beta1conditions.MarkFalse(rcp, controlplanev1.ResizedV1Beta1Condition, clusterv1.DeletingV1Beta1Reason, clusterv1.ConditionSeverityInfo, "")
 
 	conditions.Set(rcp, metav1.Condition{
 		Type:    controlplanev1.RKE2ControlPlaneDeletingCondition,
@@ -827,24 +759,12 @@ func (r *RKE2ControlPlaneReconciler) reconcileControlPlaneConditions(
 		controlPlane.RCP.Status.ReadyReplicas = ptr.To(int32(0))
 		controlPlane.RCP.Status.AvailableServerIPs = nil
 
-		v1beta1conditions.MarkFalse(
-			controlPlane.RCP,
-			controlplanev1.AvailableV1Beta1Condition,
-			controlplanev1.WaitingForRKE2ServerV1Beta1Reason,
-			clusterv1.ConditionSeverityInfo, "")
-
 		conditions.Set(controlPlane.RCP, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneAvailableCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  controlplanev1.RKE2ControlPlaneWaitingForRKE2ServerReason,
 			Message: "Waiting for at least one machine to be ready for control plane " + controlPlane.RCP.Name,
 		})
-
-		v1beta1conditions.MarkFalse(
-			controlPlane.RCP,
-			controlplanev1.MachinesReadyV1Beta1Condition,
-			controlplanev1.WaitingForRKE2ServerV1Beta1Reason,
-			clusterv1.ConditionSeverityInfo, "")
 
 		conditions.Set(controlPlane.RCP, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneMachinesReadyCondition,

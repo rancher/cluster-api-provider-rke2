@@ -152,10 +152,6 @@ func (m *Management) NewWorkload(ctx context.Context, cl ctrlclient.Client, rest
 func (w *Workload) InitWorkload(ctx context.Context, cp *ControlPlane) error {
 	nodes, err := w.getControlPlaneNodes(ctx)
 	if err != nil {
-		v1beta1conditions.MarkUnknown(
-			cp.RCP,
-			controlplanev1.ControlPlaneComponentsHealthyV1Beta1Condition,
-			controlplanev1.ControlPlaneComponentsInspectionFailedV1Beta1Reason, "Failed to list nodes which are hosting control plane components")
 		conditions.Set(cp.RCP, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition,
 			Status:  metav1.ConditionUnknown,
@@ -174,10 +170,6 @@ func (w *Workload) InitWorkload(ctx context.Context, cp *ControlPlane) error {
 	for _, node := range w.Nodes {
 		patchHelper, err := patch.NewHelper(node, w.Client)
 		if err != nil {
-			v1beta1conditions.MarkUnknown(
-				cp.RCP,
-				controlplanev1.ControlPlaneComponentsHealthyV1Beta1Condition,
-				controlplanev1.ControlPlaneComponentsInspectionFailedV1Beta1Reason, "Failed to create patch helpers for control plane nodes")
 			conditions.Set(cp.RCP, metav1.Condition{
 				Type:    controlplanev1.RKE2ControlPlaneControlPlaneComponentsHealthyCondition,
 				Status:  metav1.ConditionUnknown,

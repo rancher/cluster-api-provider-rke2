@@ -38,7 +38,6 @@ import (
 	controlplanev1beta1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta1"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/bootstrap"
@@ -180,7 +179,6 @@ func initScheme() *runtime.Scheme {
 	Expect(bootstrapv1.AddToScheme(scheme)).To(Succeed())
 	Expect(bootstrapv1beta1.AddToScheme(scheme)).To(Succeed())
 	Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
-	Expect(clusterv1beta1.AddToScheme(scheme)).To(Succeed())
 	Expect(dockerinfrav1.AddToScheme(scheme)).To(Succeed())
 	return scheme
 }
