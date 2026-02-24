@@ -496,11 +496,13 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	case len(needRollout) > 0:
 		logger.Info("Rolling out Control Plane machines", "needRollout", needRollout.Names())
 		conditions.Set(controlPlane.RCP, metav1.Condition{
-			Type:    controlplanev1.RKE2ControlPlaneRollingOutCondition,
-			Status:  metav1.ConditionTrue,
-			Reason:  controlplanev1.RKE2ControlPlaneRollingOutReason,
-			Message: fmt.Sprintf("Rolling %d replicas with outdated spec (%d replicas up to date)", len(needRollout), len(controlPlane.Machines)-len(needRollout)),
+			Type:   controlplanev1.RKE2ControlPlaneRollingOutCondition,
+			Status: metav1.ConditionTrue,
+			Reason: controlplanev1.RKE2ControlPlaneRollingOutReason,
+			Message: fmt.Sprintf("Rolling %d replicas with outdated spec"+
+				"(%d replicas up to date)", len(needRollout), len(controlPlane.Machines)-len(needRollout)),
 		})
+
 		return r.upgradeControlPlane(ctx, cluster, rcp, controlPlane, needRollout)
 	default:
 		if conditions.Has(controlPlane.RCP, controlplanev1.RKE2ControlPlaneRollingOutCondition) {
@@ -522,6 +524,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 	case numMachines < desiredReplicas && numMachines == 0:
 		// Create new Machine w/ init
 		logger.Info("Initializing control plane", "Desired", desiredReplicas, "Existing", numMachines)
+
 		return r.initializeControlPlane(ctx, cluster, rcp, controlPlane)
 	// We are scaling up
 	case numMachines < desiredReplicas && numMachines > 0:

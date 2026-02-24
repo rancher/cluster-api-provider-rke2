@@ -529,10 +529,11 @@ func (r *RKE2ControlPlaneReconciler) checkRetryLimits(
 			),
 		)
 		conditions.Set(machineToBeRemediated, metav1.Condition{
-			Type:    clusterv1.MachineOwnerRemediatedCondition,
-			Status:  metav1.ConditionFalse,
-			Reason:  controlplanev1.RKE2ControlPlaneMachineCannotBeRemediatedReason,
-			Message: fmt.Sprintf("RKE2ControlPlane can't remediate this machine because the operation already failed in the latest %s (RetryPeriod)", retryPeriod),
+			Type:   clusterv1.MachineOwnerRemediatedCondition,
+			Status: metav1.ConditionFalse,
+			Reason: controlplanev1.RKE2ControlPlaneMachineCannotBeRemediatedReason,
+			Message: fmt.Sprintf("RKE2ControlPlane can't remediate this machine because the operation "+
+				"already failed in the latest %s (RetryPeriod)", retryPeriod),
 		})
 
 		return remediationInProgressData, false, nil
