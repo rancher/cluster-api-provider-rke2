@@ -7,7 +7,7 @@
     // Features to add to the dev container. More info: https://containers.dev/features.
     "features": {
         "ghcr.io/devcontainers/features/go:1": {
-            "version": "1.23"
+            "version": "1.24"
         },
         "ghcr.io/devcontainers/features/docker-in-docker:2": {},
         "ghcr.io/mpriscella/features/kind:1": {},

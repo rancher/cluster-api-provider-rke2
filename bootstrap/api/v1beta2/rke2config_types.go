@@ -19,8 +19,6 @@ package v1beta2
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 // Format specifies the output format of the bootstrap data
@@ -226,10 +224,6 @@ type RKE2ConfigStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	//+optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-	// deprecated groups all the status fields that are deprecated and will be removed when all the nested field are removed.
-	// +optional
-	Deprecated *RKE2ConfigDeprecatedStatus `json:"deprecated,omitempty"`
 }
 
 // RKE2ConfigInitializationStatus provides observations of the RKE2Config initialization process.
@@ -239,41 +233,6 @@ type RKE2ConfigInitializationStatus struct {
 	// NOTE: this field is part of the Cluster API contract, and it is used to orchestrate initial Machine provisioning.
 	// +optional
 	DataSecretCreated *bool `json:"dataSecretCreated,omitempty"`
-}
-
-// RKE2ConfigDeprecatedStatus groups all the status fields that are deprecated and will be removed in a future version.
-type RKE2ConfigDeprecatedStatus struct {
-	// v1beta1 groups all the status fields that are deprecated and will be removed when support for v1beta1 is dropped.
-	// +optional
-	V1Beta1 *RKE2ConfigV1Beta1DeprecatedStatus `json:"v1beta1,omitempty"`
-}
-
-// RKE2ConfigV1Beta1DeprecatedStatus groups all the status fields that are deprecated and will be removed when support for v1beta1 is dropped.
-type RKE2ConfigV1Beta1DeprecatedStatus struct {
-	// conditions defines current service state of the RKE2Config.
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-
-	// failureReason will be set on non-retryable errors
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
-	FailureReason string `json:"failureReason,omitempty"`
-
-	// failureMessage will be set on non-retryable errors
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=10240
-	FailureMessage string `json:"failureMessage,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -301,28 +260,6 @@ func (r *RKE2Config) GetConditions() []metav1.Condition {
 // SetConditions sets the conditions for a RKE2Config.
 func (r *RKE2Config) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
-}
-
-// GetV1Beta1Conditions returns the set of conditions for this object.
-func (r *RKE2Config) GetV1Beta1Conditions() clusterv1.Conditions {
-	if r.Status.Deprecated == nil || r.Status.Deprecated.V1Beta1 == nil {
-		return nil
-	}
-
-	return r.Status.Deprecated.V1Beta1.Conditions
-}
-
-// SetV1Beta1Conditions sets the conditions on this object.
-func (r *RKE2Config) SetV1Beta1Conditions(conditions clusterv1.Conditions) {
-	if r.Status.Deprecated == nil {
-		r.Status.Deprecated = &RKE2ConfigDeprecatedStatus{}
-	}
-
-	if r.Status.Deprecated.V1Beta1 == nil {
-		r.Status.Deprecated.V1Beta1 = &RKE2ConfigV1Beta1DeprecatedStatus{}
-	}
-
-	r.Status.Deprecated.V1Beta1.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true

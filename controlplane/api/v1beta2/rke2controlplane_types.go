@@ -298,10 +298,6 @@ type RKE2ControlPlaneStatus struct {
 	// lastRemediation stores info about last remediation performed.
 	// +optional
 	LastRemediation *LastRemediationStatus `json:"lastRemediation,omitempty"`
-
-	// deprecated groups all the status fields that are deprecated and will be removed when all the nested field are removed.
-	// +optional
-	Deprecated *RKE2ControlPlaneDeprecatedStatus `json:"deprecated,omitempty"`
 }
 
 // RKE2ControlPlaneInitializationStatus provides observations of the RKE2ControlPlane initialization process.
@@ -313,68 +309,6 @@ type RKE2ControlPlaneInitializationStatus struct {
 	// NOTE: this field is part of the Cluster API contract, and it is used to orchestrate initial Machine provisioning.
 	// +optional
 	ControlPlaneInitialized *bool `json:"controlPlaneInitialized,omitempty"`
-}
-
-// RKE2ControlPlaneDeprecatedStatus groups all the status fields that are deprecated and will be removed in a future version.
-type RKE2ControlPlaneDeprecatedStatus struct {
-	// v1beta1 groups all the status fields that are deprecated and will be removed when support for v1beta1 will be dropped.
-	// +optional
-	V1Beta1 *RKE2ControlPlaneV1Beta1DeprecatedStatus `json:"v1beta1,omitempty"`
-}
-
-// RKE2ControlPlaneV1Beta1DeprecatedStatus groups all the status fields that are deprecated and will be removed when support for v1beta1 is dropped.
-type RKE2ControlPlaneV1Beta1DeprecatedStatus struct {
-	// conditions defines current service state of the RKE2ControlPlane.
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-
-	// failureReason indicates that there is a terminal problem reconciling the
-	// state, and will be set to a token value suitable for
-	// programmatic interpretation.
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	FailureReason string `json:"failureReason,omitempty"`
-
-	// failureMessage indicates that there is a terminal problem reconciling the
-	// state, and will be set to a descriptive error message.
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=10240
-	FailureMessage string `json:"failureMessage,omitempty"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
-
-	// updatedReplicas is the total number of non-terminated machines targeted by this control plane
-	// that have the desired template spec.
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
-
-	// readyReplicas is the total number of fully running and ready control plane machines.
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	ReadyReplicas int32 `json:"readyReplicas"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
-
-	// unavailableReplicas is the total number of unavailable machines targeted by this control plane.
-	// This is the total number of machines that are still required for
-	// the deployment to have 100% available capacity. They may either
-	// be machines that are running but not yet ready or machines
-	// that still have not been created.
-	//
-	// Deprecated: This field is deprecated and is going to be removed when support for v1beta1 is dropped.
-	//
-	// +optional
-	UnavailableReplicas int32 `json:"unavailableReplicas"` //nolint:kubeapilinter // field will be removed when v1beta1 is removed
 }
 
 // +kubebuilder:object:root=true
@@ -667,28 +601,6 @@ func (r *RKE2ControlPlane) GetConditions() []metav1.Condition {
 // SetConditions sets the list of conditions for a RKE2ControlPlane object.
 func (r *RKE2ControlPlane) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
-}
-
-// GetV1Beta1Conditions returns the set of conditions for this object.
-func (r *RKE2ControlPlane) GetV1Beta1Conditions() clusterv1.Conditions {
-	if r.Status.Deprecated == nil || r.Status.Deprecated.V1Beta1 == nil {
-		return nil
-	}
-
-	return r.Status.Deprecated.V1Beta1.Conditions
-}
-
-// SetV1Beta1Conditions sets the conditions on this object.
-func (r *RKE2ControlPlane) SetV1Beta1Conditions(conditions clusterv1.Conditions) {
-	if r.Status.Deprecated == nil {
-		r.Status.Deprecated = &RKE2ControlPlaneDeprecatedStatus{}
-	}
-
-	if r.Status.Deprecated.V1Beta1 == nil {
-		r.Status.Deprecated.V1Beta1 = &RKE2ControlPlaneV1Beta1DeprecatedStatus{}
-	}
-
-	r.Status.Deprecated.V1Beta1.Conditions = conditions
 }
 
 // GetDesiredVersion returns the desired version of the RKE2ControlPlane using Spec.Version field as a default field.

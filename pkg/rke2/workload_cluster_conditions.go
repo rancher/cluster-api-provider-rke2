@@ -25,9 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
-	v1beta1conditions "sigs.k8s.io/cluster-api/util/conditions/deprecated/v1beta1"
 	clog "sigs.k8s.io/cluster-api/util/log"
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
@@ -67,9 +65,6 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 
 		// If the machine is deleting, report all the conditions as deleting
 		if !machine.DeletionTimestamp.IsZero() {
-			v1beta1conditions.MarkFalse(
-				machine, controlplanev1.MachineEtcdMemberHealthyV1Beta1Condition, clusterv1.DeletingV1Beta1Reason, clusterv1.ConditionSeverityInfo, "")
-
 			conditions.Set(machine, metav1.Condition{
 				Type:    controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
 				Status:  metav1.ConditionFalse,
@@ -79,8 +74,6 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 
 			continue
 		}
-
-		v1beta1conditions.MarkTrue(machine, controlplanev1.MachineEtcdMemberHealthyV1Beta1Condition)
 
 		conditions.Set(machine, metav1.Condition{
 			Type:    controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
@@ -96,10 +89,6 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 // if the corresponding Kubernetes node is in Ready state. This operation is best effort - in case
 // of problems retrieving node status, it sets conditions to Unknown state without returning any error.
 func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
-	allMachinePodV1Beta1Conditions := []clusterv1.ConditionType{
-		controlplanev1.MachineAgentHealthyV1Beta1Condition,
-	}
-
 	allMachinePodConditions := []string{
 		controlplanev1.RKE2ControlPlaneMachineAgentHealthyCondition,
 	}
@@ -138,10 +127,6 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 
 		// If the machine is deleting, report all the conditions as deleting
 		if !machine.DeletionTimestamp.IsZero() {
-			for _, condition := range allMachinePodV1Beta1Conditions {
-				v1beta1conditions.MarkFalse(machine, condition, clusterv1.DeletingV1Beta1Reason, clusterv1.ConditionSeverityInfo, "")
-			}
-
 			for _, condition := range allMachinePodConditions {
 				conditions.Set(machine, metav1.Condition{
 					Type:    condition,
@@ -158,10 +143,6 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 		if nodeHasUnreachableTaint(*node) {
 			// NOTE: We are assuming unreachable as a temporary condition, leaving to MHC
 			// the responsibility to determine if the node is unhealthy or not.
-			for _, condition := range allMachinePodV1Beta1Conditions {
-				v1beta1conditions.MarkUnknown(machine, condition, controlplanev1.PodInspectionFailedV1Beta1Reason, "Node is unreachable")
-			}
-
 			for _, condition := range allMachinePodConditions {
 				conditions.Set(machine, metav1.Condition{
 					Type:    condition,
@@ -176,7 +157,6 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 
 		// Node is reachable and machine is not deleting - set AgentHealthy based on node Ready condition.
 		if isNodeReady(node) {
-			v1beta1conditions.MarkTrue(machine, controlplanev1.MachineAgentHealthyV1Beta1Condition)
 			conditions.Set(machine, metav1.Condition{
 				Type:    controlplanev1.RKE2ControlPlaneMachineAgentHealthyCondition,
 				Status:  metav1.ConditionTrue,
@@ -184,8 +164,6 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 				Message: "",
 			})
 		} else {
-			v1beta1conditions.MarkFalse(machine, controlplanev1.MachineAgentHealthyV1Beta1Condition,
-				controlplanev1.PodFailedV1Beta1Reason, clusterv1.ConditionSeverityWarning, "Node is not ready")
 			conditions.Set(machine, metav1.Condition{
 				Type:    controlplanev1.RKE2ControlPlaneMachineAgentHealthyCondition,
 				Status:  metav1.ConditionFalse,
@@ -209,10 +187,6 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 		// Machine doesn't have a node yet (either NodeRef not set or node not found).
 		// If there are machines still provisioning, this might be a timing issue - set to Unknown.
 		if hasProvisioningMachine(controlPlane.Machines) {
-			for _, condition := range allMachinePodV1Beta1Conditions {
-				v1beta1conditions.MarkUnknown(machine, condition, controlplanev1.PodInspectionFailedV1Beta1Reason, "Waiting for node to be provisioned")
-			}
-
 			for _, condition := range allMachinePodConditions {
 				conditions.Set(machine, metav1.Condition{
 					Type:    condition,
@@ -226,10 +200,6 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 		}
 
 		// No machines provisioning but node still missing - this is an error.
-		for _, condition := range allMachinePodV1Beta1Conditions {
-			v1beta1conditions.MarkFalse(machine, condition, controlplanev1.PodFailedV1Beta1Reason, clusterv1.ConditionSeverityError, "Missing node")
-		}
-
 		for _, condition := range allMachinePodConditions {
 			conditions.Set(machine, metav1.Condition{
 				Type:    condition,
@@ -239,17 +209,6 @@ func (w *Workload) UpdateAgentConditions(controlPlane *ControlPlane) {
 			})
 		}
 	}
-
-	// Aggregate components error from machines at RCP level.
-	aggregateV1Beta1ConditionsFromMachinesToRCP(aggregateV1Beta1ConditionsFromMachinesToRCPInput{
-		controlPlane:      controlPlane,
-		machineConditions: allMachinePodV1Beta1Conditions,
-		rcpErrors:         rcpErrors,
-		condition:         controlplanev1.ControlPlaneComponentsHealthyV1Beta1Condition,
-		unhealthyReason:   controlplanev1.ControlPlaneComponentsUnhealthyV1Beta1Reason,
-		unknownReason:     controlplanev1.ControlPlaneComponentsUnknownV1Beta1Reason,
-		note:              "control plane",
-	})
 
 	aggregateConditionsFromMachinesToRCP(aggregateConditionsFromMachinesToRCPInput{
 		controlPlane:      controlPlane,
@@ -283,117 +242,6 @@ func nodeHasUnreachableTaint(node corev1.Node) bool {
 	}
 
 	return false
-}
-
-type aggregateV1Beta1ConditionsFromMachinesToRCPInput struct {
-	controlPlane      *ControlPlane
-	machineConditions []clusterv1.ConditionType
-	rcpErrors         []string
-	condition         clusterv1.ConditionType
-	unhealthyReason   string
-	unknownReason     string
-	note              string
-}
-
-// aggregateV1Beta1ConditionsFromMachinesToRCP aggregates a group of conditions from machines to RCP.
-// NOTE: this func follows the same aggregation rules used by conditions.Merge thus giving priority to
-// errors, then warning, info down to unknown.
-func aggregateV1Beta1ConditionsFromMachinesToRCP(input aggregateV1Beta1ConditionsFromMachinesToRCPInput) {
-	// Aggregates machines for condition status.
-	// NB. A machine could be assigned to many groups, but only the group with the highest severity will be reported.
-	rcpMachinesWithErrors := sets.NewString()
-	rcpMachinesWithWarnings := sets.NewString()
-	rcpMachinesWithInfo := sets.NewString()
-	rcpMachinesWithTrue := sets.NewString()
-	rcpMachinesWithUnknown := sets.NewString()
-
-	for i := range input.controlPlane.Machines {
-		machine := input.controlPlane.Machines[i]
-		for _, condition := range input.machineConditions {
-			if machineCondition := v1beta1conditions.Get(machine, condition); machineCondition != nil {
-				switch machineCondition.Status {
-				case corev1.ConditionTrue:
-					rcpMachinesWithTrue.Insert(machine.Name)
-				case corev1.ConditionFalse:
-					switch machineCondition.Severity {
-					case clusterv1.ConditionSeverityInfo:
-						rcpMachinesWithInfo.Insert(machine.Name)
-					case clusterv1.ConditionSeverityWarning:
-						rcpMachinesWithWarnings.Insert(machine.Name)
-					case clusterv1.ConditionSeverityError:
-						rcpMachinesWithErrors.Insert(machine.Name)
-					}
-				case corev1.ConditionUnknown:
-					rcpMachinesWithUnknown.Insert(machine.Name)
-				}
-			}
-		}
-	}
-
-	// In case of at least one machine with errors or RCP level errors (nodes without machines), report false, error.
-	if len(rcpMachinesWithErrors) > 0 {
-		input.rcpErrors = append(
-			input.rcpErrors,
-			fmt.Sprintf("Following machines are reporting %s errors: %s",
-				input.note,
-				strings.Join(rcpMachinesWithErrors.List(), ", ")))
-	}
-
-	if len(input.rcpErrors) > 0 {
-		v1beta1conditions.MarkFalse(
-			input.controlPlane.RCP,
-			input.condition,
-			input.unhealthyReason,
-			clusterv1.ConditionSeverityError,
-			"%s", strings.Join(input.rcpErrors, "; "))
-
-		return
-	}
-
-	// In case of no errors and at least one machine with warnings, report false, warnings.
-	if len(rcpMachinesWithWarnings) > 0 {
-		v1beta1conditions.MarkFalse(
-			input.controlPlane.RCP,
-			input.condition,
-			input.unhealthyReason,
-			clusterv1.ConditionSeverityWarning,
-			"Following machines are reporting %s warnings: %s",
-			input.note,
-			strings.Join(rcpMachinesWithWarnings.List(), ", "))
-
-		return
-	}
-
-	// In case of no errors, no warning, and at least one machine with info, report false, info.
-	if len(rcpMachinesWithWarnings) > 0 {
-		v1beta1conditions.MarkFalse(
-			input.controlPlane.RCP,
-			input.condition,
-			input.unhealthyReason,
-			clusterv1.ConditionSeverityWarning,
-			"Following machines are reporting %s info: %s",
-			input.note, strings.Join(rcpMachinesWithInfo.List(), ", "))
-
-		return
-	}
-
-	// In case of no errors, no warning, no Info, and at least one machine with true conditions, report true.
-	if len(rcpMachinesWithTrue) > 0 {
-		v1beta1conditions.MarkTrue(input.controlPlane.RCP, input.condition)
-
-		return
-	}
-
-	// Otherwise, if there is at least one machine with unknown, report unknown.
-	if len(rcpMachinesWithUnknown) > 0 {
-		v1beta1conditions.MarkUnknown(
-			input.controlPlane.RCP,
-			input.condition,
-			input.unknownReason,
-			"Following machines are reporting unknown %s status: %s", input.note, strings.Join(rcpMachinesWithUnknown.List(), ", "))
-
-		return
-	}
 }
 
 type aggregateConditionsFromMachinesToRCPInput struct {

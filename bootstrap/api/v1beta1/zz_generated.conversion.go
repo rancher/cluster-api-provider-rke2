@@ -683,7 +683,6 @@ func autoConvert_v1beta2_RKE2ConfigStatus_To_v1beta1_RKE2ConfigStatus(in *v1beta
 	// WARNING: in.Initialization requires manual conversion: does not exist in peer-type
 	out.DataSecretName = (*string)(unsafe.Pointer(in.DataSecretName))
 	out.ObservedGeneration = in.ObservedGeneration
-	// WARNING: in.Deprecated requires manual conversion: does not exist in peer-type
 	return nil
 }
 
