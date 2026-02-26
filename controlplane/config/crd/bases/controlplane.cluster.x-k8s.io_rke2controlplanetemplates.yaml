@@ -362,8 +362,12 @@ spec:
                                         config map's data map for this value.
                                       type: string
                                     name:
-                                      description: Name of the secret/configmap in
-                                        the RKE2BootstrapConfig's namespace to use.
+                                      description: Name of the secret/configmap to
+                                        use.
+                                      type: string
+                                    namespace:
+                                      description: Namespace of the secret/configmap.
+                                        Defaults to the RKE2BootstrapConfig's namespace.
                                       type: string
                                   required:
                                   - key
@@ -378,8 +382,12 @@ spec:
                                         config map's data map for this value.
                                       type: string
                                     name:
-                                      description: Name of the secret/configmap in
-                                        the RKE2BootstrapConfig's namespace to use.
+                                      description: Name of the secret/configmap to
+                                        use.
+                                      type: string
+                                    namespace:
+                                      description: Namespace of the secret/configmap.
+                                        Defaults to the RKE2BootstrapConfig's namespace.
                                       type: string
                                   required:
                                   - key
@@ -2047,8 +2055,12 @@ spec:
                                         config map's data map for this value.
                                       type: string
                                     name:
-                                      description: Name of the secret/configmap in
-                                        the RKE2BootstrapConfig's namespace to use.
+                                      description: Name of the secret/configmap to
+                                        use.
+                                      type: string
+                                    namespace:
+                                      description: Namespace of the secret/configmap.
+                                        Defaults to the RKE2BootstrapConfig's namespace.
                                       type: string
                                   required:
                                   - key
@@ -2063,8 +2075,12 @@ spec:
                                         config map's data map for this value.
                                       type: string
                                     name:
-                                      description: Name of the secret/configmap in
-                                        the RKE2BootstrapConfig's namespace to use.
+                                      description: Name of the secret/configmap to
+                                        use.
+                                      type: string
+                                    namespace:
+                                      description: Namespace of the secret/configmap.
+                                        Defaults to the RKE2BootstrapConfig's namespace.
                                       type: string
                                   required:
                                   - key

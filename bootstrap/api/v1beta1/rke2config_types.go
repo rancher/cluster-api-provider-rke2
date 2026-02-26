@@ -376,8 +376,11 @@ type FileSource struct {
 // The contents of the target Secret or ConfigMap's Data field will be presented
 // as files using the keys in the Data field as the file names.
 type FileSourceRef struct {
-	// Name of the secret/configmap in the RKE2BootstrapConfig's namespace to use.
+	// Name of the secret/configmap to use.
 	Name string `json:"name"`
+
+	// Namespace of the secret/configmap. Defaults to the RKE2BootstrapConfig's namespace.
+	Namespace string `json:"namespace,omitempty"`
 
 	// Key is the key in the secret or config map's data map for this value.
 	Key string `json:"key"`
