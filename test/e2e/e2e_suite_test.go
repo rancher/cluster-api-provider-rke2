@@ -275,8 +275,8 @@ func initUpgradableBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy
 		IPAMProviders:             config.IPAMProviders(),
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
 		CoreProvider:              "cluster-api:v1.12.3",
-		BootstrapProviders:        []string{"rke2-bootstrap:v0.23.1"},
-		ControlPlaneProviders:     []string{"rke2-control-plane:v0.23.1"},
+		BootstrapProviders:        []string{"rke2-bootstrap:v0.23.2"},
+		ControlPlaneProviders:     []string{"rke2-control-plane:v0.23.2"},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 		DisableMetricsCollection:  true,
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
