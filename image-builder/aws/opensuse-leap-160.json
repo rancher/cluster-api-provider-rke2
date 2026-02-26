@@ -1,0 +1,15 @@
+{
+    "ami_filter_name": "openSUSE-Leap-16-0-v20260213-hvm-ssd-x86_64-5535c495-72d4-4355-b169-54ffa874f849",
+    "ami_filter_owners": "679593333241",
+    "ami_regions": "us-west-1",
+    "build_name": "openSUSE-leap-16.0-rke2",
+    "distribution": "openSUSE",
+    "distribution_release": "Leap",
+    "distribution_version": "16.0",
+    "root_device_name": "/dev/sda1",
+    "source_ami": "",
+    "ssh_username": "ec2-user",
+    "bootstrap_script_path": "./scripts/opensuse/bootstrap.sh",
+    "ssh_keypair_name": "",
+    "ssh_private_key_file": ""
+}

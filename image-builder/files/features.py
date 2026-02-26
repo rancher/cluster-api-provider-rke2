@@ -80,6 +80,27 @@ separators.
 (This flag can be removed when Jammy is no longer supported.)
 """
 
+MANUAL_NETWORK_WAIT = True
+"""
+On Ubuntu systems, cloud-init-network.service will start immediately after
+cloud-init-local.service and manually wait for network online when necessary.
+If False, rely on systemd ordering to ensure network is available before
+starting cloud-init-network.service.
+
+Note that in addition to this flag, downstream patches are also likely needed
+to modify the systemd unit files.
+"""
+
+DEPRECATION_INFO_BOUNDARY = "devel"
+"""
+DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
+version to start logging deprecations at a level higher than INFO.
+
+The default value "devel" tells cloud-init to log all deprecations higher
+than INFO. This value may be overriden by downstreams in order to maintain
+stable behavior across releases.
+"""
+
 
 def get_features() -> Dict[str, bool]:
     """Return a dict of applicable features/overrides and their values."""
