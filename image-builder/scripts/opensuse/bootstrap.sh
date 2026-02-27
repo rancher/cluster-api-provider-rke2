@@ -6,7 +6,11 @@ set -o xtrace
 
 setup_infrastructure () {
   if [[ "$1" == "aws" ]]; then
-    zypper --gpg-auto-import-keys --non-interactive install awscli amazon-ssm-agent
+    zypper --gpg-auto-import-keys --non-interactive install unzip amazon-ssm-agent
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+    unzip /tmp/awscliv2.zip -d /tmp/
+    /tmp/aws/install
+    rm -rf /tmp/awscliv2.zip /tmp/aws
     systemctl enable amazon-ssm-agent
   fi
 }
@@ -33,8 +37,8 @@ configure_cloudinit () {
   rm -f /var/log/cloud-init*
   rm -rf /var/lib/cloud/*
 
-  mkdir -p /usr/lib/python3/dist-packages/cloudinit
-  mv /tmp/features.py /usr/lib/python3.6/site-packages/cloudinit/features.py
+  CLOUDINIT_PATH=$(python3 -c "import cloudinit; import os; print(os.path.dirname(cloudinit.__file__))")
+  mv /tmp/features.py "${CLOUDINIT_PATH}/features.py"
 }
 
 cleanup_ssh_keys () {
