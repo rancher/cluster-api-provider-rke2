@@ -39,6 +39,13 @@ func (w *Workload) UpdateEtcdConditions(controlPlane *ControlPlane) {
 }
 
 func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
+	allMachineEtcdConditions := []string{
+		controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyCondition,
+	}
+
+	// Track errors for orphan nodes (nodes without corresponding machines).
+	var rcpErrors []string
+
 	// NOTE: This methods uses control plane nodes only to get in contact with etcd but then it relies on etcd
 	// as ultimate source of truth for the list of members and for their health.
 	for k := range w.Nodes {
@@ -46,7 +53,7 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 
 		machine, found := controlPlane.Machines[node.Name]
 		if !found {
-			// If there are machines still provisioning there is the chance that a chance that a node might be linked to a machine soon,
+			// If there are machines still provisioning there is the chance that a node might be linked to a machine soon,
 			// otherwise report the error at RCP level given that there is no machine to report on.
 			if hasProvisioningMachine(controlPlane.Machines) {
 				continue
@@ -55,10 +62,15 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 			for _, m := range controlPlane.Machines {
 				if m.Status.NodeRef.IsDefined() && m.Status.NodeRef.Name == node.Name {
 					machine = m
+
+					break
 				}
 			}
 
 			if machine == nil {
+				// Node exists but no machine found - this is an orphan node.
+				rcpErrors = append(rcpErrors, fmt.Sprintf("Control plane node %s does not have a corresponding machine", node.Name))
+
 				continue
 			}
 		}
@@ -82,6 +94,55 @@ func (w *Workload) updateManagedEtcdConditions(controlPlane *ControlPlane) {
 			Message: "",
 		})
 	}
+
+	// Second pass: Handle machines without corresponding nodes (still provisioning or node missing).
+	for i := range controlPlane.Machines {
+		machine := controlPlane.Machines[i]
+
+		// Skip machines that already have their conditions set in the first pass (they have a corresponding node).
+		if machine.Status.NodeRef.IsDefined() {
+			if _, found := w.Nodes[machine.Status.NodeRef.Name]; found {
+				continue
+			}
+		}
+
+		// Machine doesn't have a node yet (either NodeRef not set or node not found).
+		// If there are machines still provisioning, this might be a timing issue - set to Unknown.
+		if hasProvisioningMachine(controlPlane.Machines) {
+			for _, condition := range allMachineEtcdConditions {
+				conditions.Set(machine, metav1.Condition{
+					Type:    condition,
+					Status:  metav1.ConditionUnknown,
+					Reason:  controlplanev1.RKE2ControlPlaneMachineEtcdMemberInspectionFailedReason,
+					Message: "Waiting for node to be provisioned",
+				})
+			}
+
+			continue
+		}
+
+		// No machines provisioning but node still missing - this is an error.
+		for _, condition := range allMachineEtcdConditions {
+			conditions.Set(machine, metav1.Condition{
+				Type:    condition,
+				Status:  metav1.ConditionFalse,
+				Reason:  controlplanev1.RKE2ControlPlaneMachineEtcdMemberHealthyReason,
+				Message: "Node does not exist",
+			})
+		}
+	}
+
+	// Aggregate etcd member conditions from machines at RCP level.
+	aggregateConditionsFromMachinesToRCP(aggregateConditionsFromMachinesToRCPInput{
+		controlPlane:      controlPlane,
+		machineConditions: allMachineEtcdConditions,
+		rcpErrors:         rcpErrors,
+		condition:         controlplanev1.RKE2ControlPlaneEtcdClusterHealthyCondition,
+		falseReason:       controlplanev1.RKE2ControlPlaneEtcdClusterNotHealthyReason,
+		unknownReason:     controlplanev1.RKE2ControlPlaneEtcdClusterHealthUnknownReason,
+		trueReason:        controlplanev1.RKE2ControlPlaneEtcdClusterHealthyReason,
+		note:              "etcd member",
+	})
 }
 
 // UpdateAgentConditions is responsible for updating machine conditions reflecting the health status

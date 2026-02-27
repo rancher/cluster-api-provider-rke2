@@ -101,6 +101,8 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.InfraMachineTemplateIsNotFound, controlPlane.PreflightCheckResults)
 	setScalingDownCondition(ctx, controlPlane.Cluster, controlPlane.RCP, controlPlane.Machines, controlPlane.PreflightCheckResults)
 	setMachinesReadyCondition(ctx, controlPlane.RCP, controlPlane.Machines)
+	setMachinesUpToDateCondition(ctx, controlPlane.RCP, controlPlane.Machines)
+	setRemediatingCondition(ctx, controlPlane.RCP, controlPlane.MachinesToBeRemediatedByRCP(), controlPlane.UnhealthyMachines())
 
 	// Return early if the deletion timestamp is set. The DeletingCondition is set directly in reconcileDelete.
 	if !rcp.DeletionTimestamp.IsZero() {
@@ -539,6 +541,129 @@ func aggregateStaleMachines(machines collections.Machines) string {
 
 		message += ", delay likely due to " + strings.Join(reasonList, ", ")
 	}
+
+	return message
+}
+
+func setMachinesUpToDateCondition(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, machines collections.Machines) {
+	// Only consider Machines that have an UpToDate condition or are older than 10s.
+	// This is done to ensure the MachinesUpToDate condition doesn't flicker after a new Machine is created,
+	// because it can take a bit until the UpToDate condition is set on a new Machine.
+	machines = machines.Filter(func(machine *clusterv1.Machine) bool {
+		return conditions.Has(machine, clusterv1.MachineUpToDateCondition) || time.Since(machine.CreationTimestamp.Time) > 10*time.Second
+	})
+
+	if len(machines) == 0 {
+		conditions.Set(rcp, metav1.Condition{
+			Type:   controlplanev1.RKE2ControlPlaneMachinesUpToDateCondition,
+			Status: metav1.ConditionTrue,
+			Reason: controlplanev1.RKE2ControlPlaneMachinesUpToDateNoReplicasReason,
+		})
+
+		return
+	}
+
+	upToDateCondition, err := conditions.NewAggregateCondition(
+		machines.UnsortedList(), clusterv1.MachineUpToDateCondition,
+		conditions.TargetConditionType(controlplanev1.RKE2ControlPlaneMachinesUpToDateCondition),
+		// Using a custom merge strategy to override reasons applied during merge.
+		conditions.CustomMergeStrategy{
+			MergeStrategy: conditions.DefaultMergeStrategy(
+				conditions.ComputeReasonFunc(conditions.GetDefaultComputeMergeReasonFunc(
+					controlplanev1.RKE2ControlPlaneMachinesNotUpToDateReason,
+					controlplanev1.RKE2ControlPlaneMachinesUpToDateUnknownReason,
+					controlplanev1.RKE2ControlPlaneMachinesUpToDateReason,
+				)),
+			),
+		},
+	)
+	if err != nil {
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneMachinesUpToDateCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  controlplanev1.RKE2ControlPlaneMachinesUpToDateInternalErrorReason,
+			Message: "Please check controller logs for errors",
+		})
+
+		log := ctrl.LoggerFrom(ctx)
+		log.Error(err, fmt.Sprintf("Failed to aggregate Machine's %s conditions", clusterv1.MachineUpToDateCondition))
+
+		return
+	}
+
+	conditions.Set(rcp, *upToDateCondition)
+}
+
+func setRemediatingCondition(ctx context.Context, rcp *controlplanev1.RKE2ControlPlane, machinesToBeRemediated,
+	unhealthyMachines collections.Machines,
+) {
+	if len(machinesToBeRemediated) == 0 {
+		message := aggregateUnhealthyMachines(unhealthyMachines)
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneRemediatingCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  controlplanev1.RKE2ControlPlaneNotRemediatingReason,
+			Message: message,
+		})
+
+		return
+	}
+
+	remediatingCondition, err := conditions.NewAggregateCondition(
+		machinesToBeRemediated.UnsortedList(), clusterv1.MachineOwnerRemediatedCondition,
+		conditions.TargetConditionType(controlplanev1.RKE2ControlPlaneRemediatingCondition),
+		// Note: in case of the remediating conditions it is not required to use a CustomMergeStrategy/ComputeReasonFunc
+		// because we are considering only machinesToBeRemediated (and we can pin the reason when we set the condition).
+	)
+	if err != nil {
+		conditions.Set(rcp, metav1.Condition{
+			Type:    controlplanev1.RKE2ControlPlaneRemediatingCondition,
+			Status:  metav1.ConditionUnknown,
+			Reason:  controlplanev1.RKE2ControlPlaneRemediatingInternalErrorReason,
+			Message: "Please check controller logs for errors",
+		})
+
+		log := ctrl.LoggerFrom(ctx)
+		log.Error(err, fmt.Sprintf("Failed to aggregate Machine's %s conditions", clusterv1.MachineOwnerRemediatedCondition))
+
+		return
+	}
+
+	conditions.Set(rcp, metav1.Condition{
+		Type:    remediatingCondition.Type,
+		Status:  metav1.ConditionTrue,
+		Reason:  controlplanev1.RKE2ControlPlaneRemediatingReason,
+		Message: remediatingCondition.Message,
+	})
+}
+
+func aggregateUnhealthyMachines(unhealthyMachines collections.Machines) string {
+	if len(unhealthyMachines) == 0 {
+		return ""
+	}
+
+	machineNames := []string{}
+
+	for _, machine := range unhealthyMachines {
+		machineNames = append(machineNames, machine.Name)
+	}
+
+	sort.Strings(machineNames)
+
+	message := "Machine"
+	if len(machineNames) > 1 {
+		message += "s"
+	}
+
+	message += " " + clog.ListToString(machineNames, func(s string) string { return s }, 3)
+
+	if len(machineNames) == 1 {
+		message += " is "
+	} else {
+		message += " are "
+	}
+
+	message += "not healthy (not to be remediated by RKE2ControlPlane)"
 
 	return message
 }
