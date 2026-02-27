@@ -613,18 +613,19 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 				scope.Logger.V(5).Info("File content is coming from a Secret, getting the content...")
 
 				fileContentSecret := &corev1.Secret{}
+				namespace := fileSourceNamespace(scope, file.ContentFrom.Secret)
 
 				if err := r.Get(ctx, types.NamespacedName{
 					Name:      file.ContentFrom.Secret.Name,
-					Namespace: scope.Config.Namespace,
+					Namespace: namespace,
 				}, fileContentSecret); err != nil {
-					return nil, fmt.Errorf("unable to get secret %s/%s: %w", scope.Config.Namespace, file.ContentFrom.Secret.Name, err)
+					return nil, fmt.Errorf("unable to get secret %s/%s: %w", namespace, file.ContentFrom.Secret.Name, err)
 				}
 
 				fileContent := fileContentSecret.Data[file.ContentFrom.Secret.Key]
 				if fileContent == nil {
 					return nil, fmt.Errorf("file content is empty for secret %s/%s, secret key %s",
-						scope.Config.Namespace, file.ContentFrom.Secret.Name, file.ContentFrom.Secret.Key)
+						namespace, file.ContentFrom.Secret.Name, file.ContentFrom.Secret.Key)
 				}
 
 				file.Content = string(fileContent)
@@ -633,18 +634,19 @@ func (r *RKE2ConfigReconciler) generateFileListIncludingRegistries(
 				scope.Logger.V(5).Info("File content is coming from a ConfigMap, getting the content...")
 
 				fileContentConfigMap := &corev1.ConfigMap{}
+				namespace := fileSourceNamespace(scope, file.ContentFrom.ConfigMap)
 
 				if err := r.Get(ctx, types.NamespacedName{
 					Name:      file.ContentFrom.ConfigMap.Name,
-					Namespace: scope.Config.Namespace,
+					Namespace: namespace,
 				}, fileContentConfigMap); err != nil {
-					return nil, fmt.Errorf("unable to get config map %s/%s: %w", scope.Config.Namespace, file.ContentFrom.ConfigMap.Name, err)
+					return nil, fmt.Errorf("unable to get config map %s/%s: %w", namespace, file.ContentFrom.ConfigMap.Name, err)
 				}
 
 				fileContent := fileContentConfigMap.Data[file.ContentFrom.ConfigMap.Key]
 				if fileContent == "" {
 					return nil, fmt.Errorf("file content is empty for config map %s/%s, config map key %s",
-						scope.Config.Namespace, file.ContentFrom.ConfigMap.Name, file.ContentFrom.ConfigMap.Key)
+						namespace, file.ContentFrom.ConfigMap.Name, file.ContentFrom.ConfigMap.Key)
 				}
 
 				file.Content = fileContent
@@ -1072,6 +1074,15 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 	})
 
 	return nil
+}
+
+// fileSourceNamespace returns the namespace for the given file source reference.
+func fileSourceNamespace(scope *Scope, ref *bootstrapv1.FileSourceRef) string {
+	if ref.Namespace != "" {
+		return ref.Namespace
+	}
+
+	return scope.Config.Namespace
 }
 
 // createSecretFromObject tries to create the given secret in the API, if that secret exists it will return an error.

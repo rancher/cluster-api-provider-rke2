@@ -385,6 +385,7 @@ func Convert_v1beta2_FileSource_To_v1beta1_FileSource(in *v1beta2.FileSource, ou
 
 func autoConvert_v1beta1_FileSourceRef_To_v1beta2_FileSourceRef(in *FileSourceRef, out *v1beta2.FileSourceRef, s conversion.Scope) error {
 	out.Name = in.Name
+	out.Namespace = in.Namespace
 	out.Key = in.Key
 	return nil
 }
@@ -396,6 +397,7 @@ func Convert_v1beta1_FileSourceRef_To_v1beta2_FileSourceRef(in *FileSourceRef, o
 
 func autoConvert_v1beta2_FileSourceRef_To_v1beta1_FileSourceRef(in *v1beta2.FileSourceRef, out *FileSourceRef, s conversion.Scope) error {
 	out.Name = in.Name
+	out.Namespace = in.Namespace
 	out.Key = in.Key
 	return nil
 }
