@@ -131,6 +131,22 @@ const (
 	// is up to date. Whe this condition is false, the RKE2ControlPlane is executing a rolling upgrade.
 	RKE2ControlPlaneMachinesUpToDateCondition = clusterv1.MachinesUpToDateCondition
 
+	// RKE2ControlPlaneMachinesUpToDateReason surfaces when all the machines controlled by the RKE2ControlPlane are up to date.
+	RKE2ControlPlaneMachinesUpToDateReason = clusterv1.UpToDateReason
+
+	// RKE2ControlPlaneMachinesNotUpToDateReason surfaces when at least one of the machines controlled by the RKE2ControlPlane is not up to date.
+	RKE2ControlPlaneMachinesNotUpToDateReason = clusterv1.NotUpToDateReason
+
+	// RKE2ControlPlaneMachinesUpToDateUnknownReason surfaces when at least one of the machines controlled by the RKE2ControlPlane
+	// has the UpToDate condition with unknown status and none of the machines has the UpToDate condition with false status.
+	RKE2ControlPlaneMachinesUpToDateUnknownReason = clusterv1.UpToDateUnknownReason
+
+	// RKE2ControlPlaneMachinesUpToDateNoReplicasReason surfaces when no machines exist for the RKE2ControlPlane.
+	RKE2ControlPlaneMachinesUpToDateNoReplicasReason = clusterv1.NoReplicasReason
+
+	// RKE2ControlPlaneMachinesUpToDateInternalErrorReason surfaces unexpected failures when computing the MachinesUpToDate condition.
+	RKE2ControlPlaneMachinesUpToDateInternalErrorReason = clusterv1.InternalErrorReason
+
 	// RKE2ControlPlaneMachineAgentHealthyCondition reports a machine's rke2 agent's operational status.
 	RKE2ControlPlaneMachineAgentHealthyCondition = "AgentHealthy"
 
