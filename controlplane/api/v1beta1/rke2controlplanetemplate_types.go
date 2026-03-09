@@ -51,7 +51,8 @@ type RKE2ControlPlaneTemplate struct {
 type RKE2ControlPlaneTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RKE2ControlPlaneTemplate `json:"items"`
+
+	Items []RKE2ControlPlaneTemplate `json:"items"`
 }
 
 func init() { //nolint:gochecknoinits

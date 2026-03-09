@@ -63,8 +63,8 @@ func NewJoinWorker(input *BaseUserData) ([]byte, error) {
 	}
 
 	workerCloudJoinWithVersion := fmt.Sprintf(workerCloudInit, input.RKE2Version)
-	userData, err := generate("JoinWorker", workerCloudJoinWithVersion, input)
 
+	userData, err := generate("JoinWorker", workerCloudJoinWithVersion, input)
 	if err != nil {
 		return nil, err
 	}

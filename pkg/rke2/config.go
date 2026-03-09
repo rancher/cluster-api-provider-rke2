@@ -93,6 +93,8 @@ sysctl -p /etc/sysctl.d/90-rke2-cis.conf
 
 // ServerConfig is a struct that contains the information needed to generate a RKE2 server config.
 type ServerConfig struct {
+	rke2AgentConfig `yaml:",inline"`
+
 	AdvertiseAddress                  string   `yaml:"advertise-address,omitempty"`
 	AuditPolicyFile                   string   `yaml:"audit-policy-file,omitempty"`
 	BindAddress                       string   `yaml:"bind-address,omitempty"`
@@ -160,8 +162,6 @@ type ServerConfig struct {
 	EtcdS3Timeout             string `yaml:"etcd-s3-timeout,omitempty"`
 	EtcdSnapshotCompress      string `yaml:"etcd-snapshot-compress,omitempty"`
 	ServicelbNamespace        string `yaml:"servicelb-namespace,omitempty"`
-
-	rke2AgentConfig `yaml:",inline"`
 }
 
 // ServerConfigOpts is a struct that contains the information needed to generate a RKE2 server config.
@@ -286,6 +286,7 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 			}
 
 			var ok bool
+
 			accessKeyID, ok = awsCredentialsSecret.Data["aws_access_key_id"]
 
 			if !ok {

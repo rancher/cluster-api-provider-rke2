@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1beta1 contains API Schema definitions for the controlplane v1beta1 API group
+package v1beta1
+
 // +kubebuilder:object:generate=true
 // +groupName=controlplane.cluster.x-k8s.io
-package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

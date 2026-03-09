@@ -100,6 +100,7 @@ func NewCache(controllerName string) Cache {
 
 type ssaCache struct {
 	cache.Store
+
 	controllerName string
 }
 

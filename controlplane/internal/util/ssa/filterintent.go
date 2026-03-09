@@ -119,7 +119,7 @@ type FilterIntentInput struct {
 // IsPathAllowed returns true when the Path is one of the AllowedPaths.
 func IsPathAllowed(allowedPaths []contract.Path) func(path contract.Path) bool {
 	return func(path contract.Path) bool {
-		for _, p := range allowedPaths {
+		for _, p := range allowedPaths { //nolint:modernize
 			// NOTE: we allow everything Equal or one IsParentOf one of the allowed paths.
 			// e.g. if allowed Path is metadata.labels, we allow both metadata and metadata.labels;
 			// this is required because allowed Path is called recursively.
@@ -144,7 +144,7 @@ func IsPathNotAllowed(allowedPaths []contract.Path) func(path contract.Path) boo
 // IsPathIgnored returns true when the Path is one of the IgnorePaths.
 func IsPathIgnored(ignorePaths []contract.Path) func(path contract.Path) bool {
 	return func(path contract.Path) bool {
-		for _, p := range ignorePaths {
+		for _, p := range ignorePaths { //nolint:modernize
 			if path.Equal(p) {
 				return true
 			}
