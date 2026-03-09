@@ -27,7 +27,7 @@ jobs:
       with:
         go-version-file: go.mod
     - name: Docker login ghcr.io
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: ${{ env.GHCR_REGISTRY }}
         username: ${{ github.actor }}
@@ -42,7 +42,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password |  PRIME_REGISTRY_PASSWORD;
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry |  PRIME_REGISTRY;
     - name: Docker login to prime registry
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: ${{ env.PRIME_REGISTRY }}
         username: ${{ env.PRIME_REGISTRY_USERNAME }}
