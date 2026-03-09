@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.24"
+  go: "1.25"
   allow-parallel-runners: true
 linters:
   default: all
@@ -19,15 +19,18 @@ linters:
     - ireturn
     - maintidx
     - nestif
+    - noinlineerr
     - nolintlint
     - nonamedreturns
     - paralleltest
+    - prealloc
     - rowserrcheck
     - sqlclosecheck
     - tagliatelle
     - varnamelen
     - wastedassign
     - wrapcheck
+    - wsl # use the new wsl_v5 instead
   settings:
     funlen:
       lines: 110
@@ -107,6 +110,9 @@ linters:
       - linters:
           - revive
         text: "package-comments: should have a package comment"
+      - linters:
+          - modernize
+        text: "any: interface{}"
     paths:
       - zz_generated.*\.go$
       - conversion\.go
