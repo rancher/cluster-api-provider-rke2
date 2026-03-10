@@ -30,6 +30,7 @@ const scheme string = "proxy"
 // Addr defines a proxy net/addr format.
 type Addr struct {
 	net.Addr
+
 	port       string
 	identifier uint32
 }

@@ -598,11 +598,11 @@ func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 	// Add the annotations from the MachineTemplate.
 	// Note: we intentionally don't use the map directly to ensure we don't modify the map in RKE2ControlPlane.
 	for k, v := range rcp.Spec.MachineTemplate.ObjectMeta.Annotations {
-		desiredMachine.Annotations[k] = v
+		desiredMachine.Annotations[k] = v //nolint:modernize
 	}
 
 	for k, v := range annotations {
-		desiredMachine.Annotations[k] = v
+		desiredMachine.Annotations[k] = v //nolint:modernize
 	}
 
 	// Set other in-place mutable fields
@@ -622,7 +622,7 @@ func ControlPlaneMachineLabelsForCluster(rcp *controlplanev1.RKE2ControlPlane, c
 	// Add the labels from the MachineTemplate.
 	// Note: we intentionally don't use the map directly to ensure we don't modify the map in RKE2ControlPlane.
 	for k, v := range rcp.Spec.MachineTemplate.ObjectMeta.Labels {
-		labels[k] = v
+		labels[k] = v //nolint:modernize
 	}
 
 	// Always force these labels over the ones coming from the spec.
