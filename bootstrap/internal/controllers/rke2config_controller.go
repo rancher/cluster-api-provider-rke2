@@ -485,7 +485,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	yamlEncoder := yaml.NewEncoder(&buf)
 	yamlEncoder.SetIndent(2)
 
-	err = yamlEncoder.Encode(&configStruct)
+	err = yamlEncoder.Encode(&configStruct) //nolint:gosec // G117: we intentionally serialize EtcdS3AccessKey in ServerConfig
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to marshal config.yaml: %w", err)
 	}
@@ -732,7 +732,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	yamlEncoder := yaml.NewEncoder(&buf)
 	yamlEncoder.SetIndent(2)
 
-	err = yamlEncoder.Encode(&configStruct)
+	err = yamlEncoder.Encode(&configStruct) //nolint:gosec // G117: we intentionally serialize EtcdS3AccessKey in ServerConfig
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to marshal config.yaml: %w", err)
 	}

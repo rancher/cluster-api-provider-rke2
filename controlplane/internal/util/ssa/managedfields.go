@@ -157,6 +157,7 @@ func CleanUpManagedFieldsForSSAAdoption(ctx context.Context, c client.Client, ob
 			"f:name": map[string]interface{}{},
 		},
 	}
+
 	fieldV1, err := json.Marshal(fieldV1Map)
 	if err != nil { //nolint:wsl
 		return fmt.Errorf("failed to create seeding fieldV1Map for cleaning up legacy managed fields: %w", err)
