@@ -1395,6 +1395,10 @@ spec:
                     description: 'ServiceNodePortRange is the port range to reserve
                       for services with NodePort visibility (default: "30000-32767").'
                     type: string
+                  supervisorMetrics:
+                    description: SupervisorMetrics enables the RKE2 supervisor metrics
+                      endpoint on port 9345.
+                    type: boolean
                   tlsSan:
                     description: TLSSan Add additional hostname or IP as a Subject
                       Alternative Name in the TLS cert.
@@ -2988,6 +2992,10 @@ spec:
                     description: 'ServiceNodePortRange is the port range to reserve
                       for services with NodePort visibility (default: "30000-32767").'
                     type: string
+                  supervisorMetrics:
+                    description: SupervisorMetrics enables the RKE2 supervisor metrics
+                      endpoint on port 9345.
+                    type: boolean
                   tlsSan:
                     description: TLSSan Add additional hostname or IP as a Subject
                       Alternative Name in the TLS cert.

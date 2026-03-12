@@ -141,6 +141,7 @@ type ServerConfig struct {
 	ServiceNodePortRange              string   `yaml:"service-node-port-range,omitempty"`
 	TLSSan                            []string `yaml:"tls-san,omitempty"`
 	EmbeddedRegistry                  bool     `yaml:"embedded-registry,omitempty"`
+	SupervisorMetrics                 bool     `yaml:"supervisor-metrics,omitempty"`
 	DatastoreEndpoint                 string   `yaml:"datastore-endpoint,omitempty"`
 	DatastoreCAFile                   string   `yaml:"datastore-cafile,omitempty"`
 	DatastoreCertFile                 string   `yaml:"datastore-certfile,omitempty"`
@@ -400,6 +401,7 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 	}
 
 	rke2ServerConfig.EmbeddedRegistry = opts.ServerConfig.EmbeddedRegistry
+	rke2ServerConfig.SupervisorMetrics = opts.ServerConfig.SupervisorMetrics
 
 	if opts.ServerConfig.ExternalDatastoreSecret != nil {
 		externalDatastoreSecret := &corev1.Secret{}

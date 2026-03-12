@@ -859,6 +859,7 @@ func autoConvert_v1beta1_RKE2ServerConfig_To_v1beta2_RKE2ServerConfig(in *RKE2Se
 	out.CloudControllerManager = (*apiv1beta2.ComponentConfig)(unsafe.Pointer(in.CloudControllerManager))
 	out.CloudProviderName = in.CloudProviderName
 	out.CloudProviderConfigMap = (*corev1.ObjectReference)(unsafe.Pointer(in.CloudProviderConfigMap))
+	out.SupervisorMetrics = in.SupervisorMetrics
 	out.EmbeddedRegistry = in.EmbeddedRegistry
 	out.ExternalDatastoreSecret = (*corev1.ObjectReference)(unsafe.Pointer(in.ExternalDatastoreSecret))
 	return nil
@@ -893,6 +894,7 @@ func autoConvert_v1beta2_RKE2ServerConfig_To_v1beta1_RKE2ServerConfig(in *v1beta
 	out.CloudControllerManager = (*apiv1beta1.ComponentConfig)(unsafe.Pointer(in.CloudControllerManager))
 	out.CloudProviderName = in.CloudProviderName
 	out.CloudProviderConfigMap = (*corev1.ObjectReference)(unsafe.Pointer(in.CloudProviderConfigMap))
+	out.SupervisorMetrics = in.SupervisorMetrics
 	out.EmbeddedRegistry = in.EmbeddedRegistry
 	out.ExternalDatastoreSecret = (*corev1.ObjectReference)(unsafe.Pointer(in.ExternalDatastoreSecret))
 	return nil

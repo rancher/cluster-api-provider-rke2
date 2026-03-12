@@ -238,6 +238,10 @@ type RKE2ServerConfig struct {
 	//+optional
 	CloudProviderConfigMap *corev1.ObjectReference `json:"cloudProviderConfigMap,omitempty"`
 
+	// SupervisorMetrics enables the RKE2 supervisor metrics endpoint on port 9345.
+	//+optional
+	SupervisorMetrics bool `json:"supervisorMetrics,omitempty"`
+
 	// EmbeddedRegistry enables the embedded registry.
 	//+optional
 	EmbeddedRegistry bool `json:"embeddedRegistry,omitempty"`
