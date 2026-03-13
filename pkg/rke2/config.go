@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -208,11 +207,11 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 	}
 
 	if len(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks) > 0 {
-		rke2ServerConfig.ClusterCIDR = strings.Join(opts.Cluster.Spec.ClusterNetwork.Pods.CIDRBlocks, ",")
+		rke2ServerConfig.ClusterCIDR = opts.Cluster.Spec.ClusterNetwork.Pods.String()
 	}
 
 	if len(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks) > 0 {
-		rke2ServerConfig.ServiceCIDR = strings.Join(opts.Cluster.Spec.ClusterNetwork.Services.CIDRBlocks, ",")
+		rke2ServerConfig.ServiceCIDR = opts.Cluster.Spec.ClusterNetwork.Services.String()
 	}
 
 	rke2ServerConfig.BindAddress = opts.ServerConfig.BindAddress
