@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -138,11 +139,29 @@ func (m *Management) NewWorkload(ctx context.Context, cl ctrlclient.Client, rest
 	caPool := x509.NewCertPool()
 	caPool.AppendCertsFromPEM(etcdKeyPair.Cert)
 	tlsConfig := &tls.Config{
-		RootCAs:      caPool,
-		Certificates: []tls.Certificate{clientCert},
-		MinVersion:   tls.VersionTLS12,
+		RootCAs:            caPool,
+		Certificates:       []tls.Certificate{clientCert},
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, //nolint:gosec
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return errors.New("server did not present any certificates")
+			}
+
+			opts := x509.VerifyOptions{
+				Roots:         caPool,
+				DNSName:       "localhost",
+				Intermediates: x509.NewCertPool(),
+			}
+			for _, cert := range cs.PeerCertificates[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+
+			_, err := cs.PeerCertificates[0].Verify(opts)
+
+			return err
+		},
 	}
-	tlsConfig.InsecureSkipVerify = true
 	workload.etcdClientGenerator = etcd.NewClientGenerator(restConfig, tlsConfig, etcdDialTimeout, etcdCallTimeout)
 
 	return workload, nil
