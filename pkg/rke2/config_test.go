@@ -20,6 +20,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -336,6 +337,8 @@ var _ = Describe("RKE2 Server Config with secretbox encryption", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(rke2ServerConfig.SecretsEncryptionProvider).To(Equal("secretbox"))
+		Expect(rke2ServerConfig.ServiceCIDR).To(Equal("192.169.0.0/16"))
+		Expect(rke2ServerConfig.ClusterCIDR).To(Equal("192.168.0.0/16"))
 		Expect(files[0].Content).To(Equal(expEncryptionConfig))
 	})
 })
