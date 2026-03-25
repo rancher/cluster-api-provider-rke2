@@ -29,6 +29,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -36,10 +37,19 @@ import (
 	klog "k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	runtimehooksv1 "sigs.k8s.io/cluster-api/api/runtime/hooks/v1alpha1"
+	runtimev1 "sigs.k8s.io/cluster-api/api/runtime/v1beta2"
+	capicontrollers "sigs.k8s.io/cluster-api/controllers"
+	runtimecatalog "sigs.k8s.io/cluster-api/exp/runtime/catalog"
+	runtimeclient "sigs.k8s.io/cluster-api/exp/runtime/client"
+	runtimeregistry "sigs.k8s.io/cluster-api/exp/runtime/registry"
+	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util/flags"
 
 	bootstrapv1beta1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
@@ -52,6 +62,7 @@ import (
 )
 
 var (
+	catalog  = runtimecatalog.New()
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 
@@ -70,6 +81,8 @@ var (
 	watchNamespace                 string
 	webhookPort                    int
 	webhookCertDir                 string
+	runtimeExtensionCertFile       string
+	runtimeExtensionKeyFile        string
 	healthAddr                     string
 	managerOptions                 = flags.ManagerOptions{}
 )
@@ -81,6 +94,11 @@ func init() {
 	utilruntime.Must(bootstrapv1.AddToScheme(scheme))
 	utilruntime.Must(bootstrapv1beta1.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+	utilruntime.Must(runtimev1.AddToScheme(scheme))
+
+	// Register the RuntimeHook types into the catalog.
+	utilruntime.Must(runtimehooksv1.AddToCatalog(catalog))
 	//+kubebuilder:scaffold:scheme
 } //nolint:wsl
 
@@ -128,10 +146,18 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&webhookCertDir, "webhook-cert-dir", "/tmp/k8s-webhook-server/serving-certs/",
 		"Webhook cert dir, only used when webhook-port is specified.")
 
+	fs.StringVar(&runtimeExtensionCertFile, "runtime-extension-client-cert-file", "",
+		"Path of the PEM-encoded client certificate to be used when calling runtime extensions.")
+
+	fs.StringVar(&runtimeExtensionKeyFile, "runtime-extension-client-key-file", "",
+		"Path of the PEM-encoded client key to be used when calling runtime extensions.")
+
 	fs.StringVar(&healthAddr, "health-addr", ":9440",
 		"The address the health endpoint binds to.")
 
 	flags.AddManagerOptions(fs, &managerOptions)
+
+	feature.MutableGates.AddFlag(fs)
 }
 
 // Add RBAC for the authorized diagnostics endpoint.
@@ -239,11 +265,49 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 		os.Exit(1)
 	}
 
+	var runtimeClient runtimeclient.Client
+
+	if feature.Gates.Enabled(feature.InPlaceUpdates) {
+		var certWatcher *certwatcher.CertWatcher
+
+		runtimeClient, certWatcher, err = capicontrollers.NewRuntimeClient(capicontrollers.RuntimeClientOptions{
+			CertFile: runtimeExtensionCertFile,
+			KeyFile:  runtimeExtensionKeyFile,
+			Catalog:  catalog,
+			Registry: runtimeregistry.New(),
+			Client:   mgr.GetClient(),
+		})
+		if err != nil {
+			setupLog.Error(err, "unable to create RuntimeSDK client")
+			os.Exit(1)
+		}
+
+		if certWatcher != nil {
+			// Note: certWatcher is managed by the manager to ensure that a certWatcher failure leads to a binary restart.
+			if err := mgr.Add(certWatcher); err != nil {
+				setupLog.Error(err, "unable to add RuntimeSDK client cert-watcher to the manager")
+				os.Exit(1)
+			}
+		}
+
+		if err = (&capicontrollers.ExtensionConfigReconciler{
+			Client:           mgr.GetClient(),
+			APIReader:        mgr.GetAPIReader(),
+			RuntimeClient:    runtimeClient,
+			ReadOnly:         true,
+			WatchFilterValue: watchFilterValue,
+		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: 10}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "ExtensionConfig")
+			os.Exit(1)
+		}
+	}
+
 	if err := (&controllers.RKE2ControlPlaneReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
 		WatchFilterValue:    watchFilterValue,
 		SecretCachingClient: secretCachingClient,
+		RuntimeClient:       runtimeClient,
 	}).SetupWithManager(
 		ctx, mgr, clusterCacheTrackerClientQPS, clusterCacheTrackerClientBurst,
 		clusterCacheConcurrencyNumber, concurrencyNumber,

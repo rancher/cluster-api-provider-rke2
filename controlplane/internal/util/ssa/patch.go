@@ -52,11 +52,20 @@ func (w WithCachingProxy) ApplyToOptions(in *Options) {
 	in.Original = w.Original
 }
 
+// WithDryRun enables the DryRunAll option.
+type WithDryRun struct{}
+
+// ApplyToOptions applies WithDryRun to the given Options.
+func (w WithDryRun) ApplyToOptions(in *Options) {
+	in.WithDryRun = true
+}
+
 // Options contains the options for the Patch func.
 type Options struct {
 	WithCachingProxy bool
 	Cache            Cache
 	Original         client.Object
+	WithDryRun       bool
 }
 
 // Patch executes an SSA patch.
@@ -106,6 +115,10 @@ func Patch(ctx context.Context, c client.Client, fieldManager string, modified c
 		client.ForceOwnership,
 		client.FieldOwner(fieldManager),
 	}
+	if options.WithDryRun {
+		patchOptions = append(patchOptions, client.DryRunAll)
+	}
+
 	if err := c.Patch(ctx, modifiedUnstructured, client.Apply, patchOptions...); err != nil {
 		return fmt.Errorf("failed to apply %s %s: %w", gvk.Kind, klog.KObj(modifiedUnstructured), err)
 	}
@@ -118,7 +131,7 @@ func Patch(ctx context.Context, c client.Client, fieldManager string, modified c
 	// Recover gvk e.g. for logging.
 	modified.GetObjectKind().SetGroupVersionKind(gvk)
 
-	if options.WithCachingProxy {
+	if options.WithCachingProxy && !options.WithDryRun {
 		// If the SSA call did not update the object, add the request to the cache.
 		if options.Original.GetResourceVersion() == modifiedUnstructured.GetResourceVersion() {
 			options.Cache.Add(requestIdentifier)

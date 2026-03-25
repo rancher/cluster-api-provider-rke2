@@ -18,14 +18,10 @@ package v1beta1
 
 import (
 	"context"
-	"fmt"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -48,22 +44,16 @@ type RKE2ConfigTemplateCustomValidator struct{}
 
 // SetupRKE2ConfigTemplateWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.
 func SetupRKE2ConfigTemplateWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&RKE2ConfigTemplate{}).
+	return ctrl.NewWebhookManagedBy(mgr, &RKE2ConfigTemplate{}).
 		WithValidator(&RKE2ConfigTemplateCustomValidator{}).
 		WithDefaulter(&RKE2ConfigTemplateCustomDefaulter{}, admission.DefaulterRemoveUnknownOrOmitableFields).
 		Complete()
 }
 
-var _ webhook.CustomDefaulter = &RKE2ConfigTemplateCustomDefaulter{}
+var _ admission.Defaulter[*RKE2ConfigTemplate] = &RKE2ConfigTemplateCustomDefaulter{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplateCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
-	rct, ok := obj.(*RKE2ConfigTemplate)
-	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2ConfigTemplate but got a %T", obj))
-	}
-
+// Default implements admission.Defaulter so a webhook will be registered for the type.
+func (r *RKE2ConfigTemplateCustomDefaulter) Default(_ context.Context, rct *RKE2ConfigTemplate) error {
 	rke2ConfigTemplateLogger.Info("defaulting", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	DefaultRKE2ConfigSpec(&rct.Spec.Template.Spec)
@@ -71,39 +61,24 @@ func (r *RKE2ConfigTemplateCustomDefaulter) Default(_ context.Context, obj runti
 	return nil
 }
 
-var _ webhook.CustomValidator = &RKE2ConfigTemplateCustomValidator{}
+var _ admission.Validator[*RKE2ConfigTemplate] = &RKE2ConfigTemplateCustomValidator{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplateCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	rct, ok := obj.(*RKE2ConfigTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
-	}
-
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ConfigTemplateCustomValidator) ValidateCreate(_ context.Context, rct *RKE2ConfigTemplate) (admission.Warnings, error) {
 	rke2ConfigTemplateLogger.Info("validate create", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplateCustomValidator) ValidateUpdate(_ context.Context, oldObj, _ runtime.Object) (admission.Warnings, error) {
-	rct, ok := oldObj.(*RKE2ConfigTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", oldObj)
-	}
-
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ConfigTemplateCustomValidator) ValidateUpdate(_ context.Context, rct, _ *RKE2ConfigTemplate) (admission.Warnings, error) {
 	rke2ConfigTemplateLogger.Info("validate update", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigTemplateCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	rct, ok := obj.(*RKE2ConfigTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2ConfigTemplate object but got %T", obj)
-	}
-
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ConfigTemplateCustomValidator) ValidateDelete(_ context.Context, rct *RKE2ConfigTemplate) (admission.Warnings, error) {
 	rke2ConfigTemplateLogger.Info("validate delete", "RKE2ConfigTemplate", klog.KObj(rct))
 
 	return nil, nil
