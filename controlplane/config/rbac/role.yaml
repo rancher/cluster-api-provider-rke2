@@ -104,3 +104,11 @@ rules:
   - list
   - patch
   - watch
+- apiGroups:
+  - runtime.cluster.x-k8s.io
+  resources:
+  - extensionconfigs
+  verbs:
+  - get
+  - list
+  - watch

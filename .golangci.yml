@@ -104,6 +104,15 @@ linters:
           - gosec
         text: G114
       - linters:
+          - gosec
+        text: G115
+      - linters:
+          - gomoddirectives
+        text: "replacement are not allowed"
+      - linters:
+          - staticcheck
+        text: SA1019
+      - linters:
           - revive
         path: pkg/rke2
         text: unexported-return

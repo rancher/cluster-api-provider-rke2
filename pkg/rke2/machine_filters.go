@@ -17,21 +17,6 @@ import (
 	bsutil "github.com/rancher/cluster-api-provider-rke2/pkg/util"
 )
 
-// matchesRCPConfiguration returns a filter to find all machines that matches with RCP config and do not require any rollout.
-// Kubernetes version, infrastructure template, and RKE2Config field need to be equivalent.
-func matchesRCPConfiguration(
-	ctx context.Context,
-	infraConfigs map[string]*unstructured.Unstructured,
-	machineConfigs map[string]*bootstrapv1.RKE2Config,
-	rcp *controlplanev1.RKE2ControlPlane,
-) func(machine *clusterv1.Machine) bool {
-	return collections.And(
-		matchesKubernetesOrRKE2Version(ctx, rcp.GetDesiredVersion()),
-		matchesRKE2BootstrapConfig(ctx, machineConfigs, rcp),
-		matchesTemplateClonedFrom(ctx, infraConfigs, rcp),
-	)
-}
-
 // matchesRKE2BootstrapConfig checks if machine's RKE2ConfigSpec is equivalent with RCP's RKE2ConfigSpec.
 func matchesRKE2BootstrapConfig(
 	ctx context.Context,
