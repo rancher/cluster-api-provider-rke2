@@ -18,16 +18,13 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta1"
@@ -52,22 +49,16 @@ type RKE2ControlPlaneTemplateCustomValidator struct{}
 
 // SetupRKE2ControlPlaneTemplateWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.
 func SetupRKE2ControlPlaneTemplateWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&RKE2ControlPlaneTemplate{}).
+	return ctrl.NewWebhookManagedBy(mgr, &RKE2ControlPlaneTemplate{}).
 		WithValidator(&RKE2ControlPlaneTemplateCustomValidator{}).
 		WithDefaulter(&RKE2ControlPlaneTemplateCustomDefaulter{}, admission.DefaulterRemoveUnknownOrOmitableFields).
 		Complete()
 }
 
-var _ webhook.CustomDefaulter = &RKE2ControlPlaneTemplateCustomDefaulter{}
+var _ admission.Defaulter[*RKE2ControlPlaneTemplate] = &RKE2ControlPlaneTemplateCustomDefaulter{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
-	rcpt, ok := obj.(*RKE2ControlPlaneTemplate)
-	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2ControlPlaneTemplate but got a %T", obj))
-	}
-
+// Default implements admission.Defaulter so a webhook will be registered for the type.
+func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, rcpt *RKE2ControlPlaneTemplate) error {
 	rke2ControlPlaneTemplateLogger.Info("defaulting", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
 
 	bootstrapv1.DefaultRKE2ConfigSpec(&rcpt.Spec.Template.Spec.RKE2ConfigSpec)
@@ -82,15 +73,10 @@ func (r *RKE2ControlPlaneTemplateCustomDefaulter) Default(_ context.Context, obj
 	return nil
 }
 
-var _ webhook.CustomValidator = &RKE2ControlPlaneTemplateCustomValidator{}
+var _ admission.Validator[*RKE2ControlPlaneTemplate] = &RKE2ControlPlaneTemplateCustomValidator{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	rcpt, ok := obj.(*RKE2ControlPlaneTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2ControlPlaneTemplate object but got %T", obj)
-	}
-
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateCreate(_ context.Context, rcpt *RKE2ControlPlaneTemplate) (admission.Warnings, error) {
 	rke2ControlPlaneTemplateLogger.Info("validate create", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
 
 	var allErrs field.ErrorList
@@ -106,23 +92,10 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateCreate(_ context.Conte
 	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), rcpt.Name, allErrs)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	oldControlplane, ok := oldObj.(*RKE2ControlPlaneTemplate)
-	if !ok {
-		return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), "", field.ErrorList{
-			field.InternalError(nil, errors.New("failed to convert old RKE2ControlPlane to object")),
-		})
-	}
-
-	newControlplane, ok := newObj.(*RKE2ControlPlaneTemplate)
-	if !ok {
-		// At this point, oldControlplane is guaranteed to be valid
-		return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), oldControlplane.Name, field.ErrorList{
-			field.InternalError(nil, errors.New("failed to convert new RKE2ControlPlane to object")),
-		})
-	}
-
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateUpdate(
+	_ context.Context, oldControlplane, newControlplane *RKE2ControlPlaneTemplate,
+) (admission.Warnings, error) {
 	rke2ControlPlaneTemplateLogger.Info("validate update", "RKE2ControlPlaneTemplate", klog.KObj(oldControlplane))
 
 	var allErrs field.ErrorList
@@ -148,13 +121,8 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateUpdate(_ context.Conte
 	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2ControlPlane").GroupKind(), newControlplane.Name, allErrs)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	rcpt, ok := obj.(*RKE2ControlPlaneTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2ControlPlaneTemplate object but got %T", obj)
-	}
-
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateDelete(_ context.Context, rcpt *RKE2ControlPlaneTemplate) (admission.Warnings, error) {
 	rke2ControlPlaneTemplateLogger.Info("validate delete", "RKE2ControlPlaneTemplate", klog.KObj(rcpt))
 
 	return nil, nil
