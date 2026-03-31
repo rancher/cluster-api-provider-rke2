@@ -117,7 +117,7 @@ GH := $(abspath $(TOOLS_BIN_DIR)/$(GH_BIN))
 
 # Registry / images
 TAG ?= dev
-ARCH ?= $(shell go env GOARCH)
+ARCH ?= linux/$(shell go env GOARCH)
 ALL_ARCH = amd64 arm64
 TARGET_PLATFORMS := linux/amd64,linux/arm64
 MACHINE := cluster-api-provider-rke2
@@ -319,7 +319,7 @@ manager-rke2-control-plane: ## Build the rke2 control plane manager binary into 
 docker-pull-prerequisites:
 	docker pull docker.io/docker/dockerfile:1.4
 	docker pull $(GO_CONTAINER_IMAGE)
-	docker pull gcr.io/distroless/static:latest
+	docker pull gcr.io/distroless/static:nonroot
 
 .PHONY: docker-build ## Build the docker images for all providers
 docker-build: buildx-machine docker-pull-prerequisites
