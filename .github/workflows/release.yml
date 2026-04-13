@@ -19,15 +19,15 @@ jobs:
       id-token: write
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         fetch-depth: 0
     - name: setupGo
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
       with:
         go-version-file: go.mod
     - name: Docker login ghcr.io
-      uses: docker/login-action@v4
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
       with:
         registry: ${{ env.GHCR_REGISTRY }}
         username: ${{ github.actor }}
@@ -35,14 +35,14 @@ jobs:
     - name: Build and push docker image to ghcr.io
       run: make docker-build-and-push TAG=${{ env.TAG }} REGISTRY=${{ env.GHCR_REGISTRY }}
     - name: Read prime registry secrets
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials username |  PRIME_REGISTRY_USERNAME;
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password |  PRIME_REGISTRY_PASSWORD;
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry |  PRIME_REGISTRY;
     - name: Docker login to prime registry
-      uses: docker/login-action@v4
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
       with:
         registry: ${{ env.PRIME_REGISTRY }}
         username: ${{ env.PRIME_REGISTRY_USERNAME }}
@@ -57,15 +57,15 @@ jobs:
     needs: [build]
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         fetch-depth: 0
     - name: setupGo
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
       with:
         go-version-file: go.mod
     - name: Read prime registry secrets
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials username |  PRIME_REGISTRY_USERNAME;
