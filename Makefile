@@ -543,7 +543,41 @@ docker-build-and-push-rke2-controlplane:
 			--build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG):$(TAG)
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./controlplane/config/default/manager_pull_policy.yaml"
 
-.PHONY: set-manifest-pull-policy
+.PHONY: push-image-bootstrap
+push-image-bootstrap: buildx-machine ## Build and push bootstrap image via docker buildx (called by publish-image action).
+	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
+			$(IID_FILE_FLAG) \
+			$(BUILDX_ARGS) \
+			--platform $(TARGET_PLATFORMS) \
+			--push \
+			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg goproxy=$(GOPROXY) \
+			--build-arg package=./bootstrap \
+			--build-arg ldflags="$(LDFLAGS)" . -t $(IMAGE_NAME)
+
+.PHONY: push-prime-image-bootstrap
+push-prime-image-bootstrap: ## Build and push bootstrap image to prime with SBOM and provenance attestations.
+	BUILDX_ARGS="--sbom=true --attest type=provenance,mode=max" \
+	$(MAKE) push-image-bootstrap
+
+.PHONY: push-image-controlplane
+push-image-controlplane: buildx-machine ## Build and push controlplane image via docker buildx (called by publish-image action).
+	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
+			$(IID_FILE_FLAG) \
+			$(BUILDX_ARGS) \
+			--platform $(TARGET_PLATFORMS) \
+			--push \
+			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg goproxy=$(GOPROXY) \
+			--build-arg package=./controlplane \
+			--build-arg ldflags="$(LDFLAGS)" . -t $(IMAGE_NAME)
+
+.PHONY: push-prime-image-controlplane
+push-prime-image-controlplane: ## Build and push controlplane image to prime with SBOM and provenance attestations.
+	BUILDX_ARGS="--sbom=true --attest type=provenance,mode=max" \
+	$(MAKE) push-image-controlplane
+
+
 set-manifest-pull-policy:
 	$(info Updating kustomize pull policy file for manager resources)
 	sed -i'' -e 's@imagePullPolicy: .*@imagePullPolicy: '"$(PULL_POLICY)"'@' $(TARGET_RESOURCE)
