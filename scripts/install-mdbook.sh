@@ -26,12 +26,22 @@ mkdir -p "${OUTPUT_PATH}"
 
 # Get what release to download
 RELEASE_NAME=""
+# renovate-local: mdbook-linux-x86_64=v0.4.40
+MDBOOK_SUM_linux="9ef07fd288ba58ff3b99d1c94e6d414d431c9a61fdb20348e5beb74b823d546b"
+# renovate-local: mdbook-darwin-x86_64=v0.4.40
+MDBOOK_SUM_darwin="5783c09bb60b3e2e904d6839e3a1993a4ace1ca30a336a3c78bedac6e938817c"
+MDBOOK_SUM=""
 case "$OSTYPE" in
-  darwin*) RELEASE_NAME="x86_64-apple-darwin.tar.gz"  ;;
-  linux*)  RELEASE_NAME="x86_64-unknown-linux-gnu.tar.gz" ;;
+  darwin*) RELEASE_NAME="x86_64-apple-darwin.tar.gz"    ; MDBOOK_SUM="${MDBOOK_SUM_darwin}" ;;
+  linux*)  RELEASE_NAME="x86_64-unknown-linux-gnu.tar.gz"; MDBOOK_SUM="${MDBOOK_SUM_linux}" ;;
 #  msys*)    echo "WINDOWS" ;;
   *)        echo "No mdBook release available for: $OSTYPE" && exit 1;;
 esac
 
-# Download and extract the mdBook release
-curl -L "https://github.com/rust-lang/mdBook/releases/download/${VERSION}/mdbook-${VERSION}-${RELEASE_NAME}" | tar -xvz -C "${OUTPUT_PATH}"
+TMPFILE="$(mktemp)"
+trap 'rm -f "${TMPFILE}"' EXIT
+
+# Download the mdBook release to a temporary file, verify the checksum, then extract.
+curl -fsSL -o "${TMPFILE}" "https://github.com/rust-lang/mdBook/releases/download/${VERSION}/mdbook-${VERSION}-${RELEASE_NAME}"
+echo "${MDBOOK_SUM}  ${TMPFILE}" | sha256sum -c -
+tar -xvz -C "${OUTPUT_PATH}" -f "${TMPFILE}"
