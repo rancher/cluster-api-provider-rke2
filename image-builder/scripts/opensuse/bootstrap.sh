@@ -4,10 +4,16 @@ set -o nounset
 set -o pipefail
 set -o xtrace
 
+# renovate-local: awscli-exe-linux-x86_64=2.34.30
+AWS_CLI_VERSION="2.34.30"
+# renovate-local: awscli-exe-linux-x86_64=2.34.30
+AWS_CLI_SUM="c78c02b818b14c5a2f745abc6752e73dcbd0bb5e65f10fb4363a48e9e720e2c0"
+
 setup_infrastructure () {
   if [[ "$1" == "aws" ]]; then
     zypper --gpg-auto-import-keys --non-interactive install unzip amazon-ssm-agent
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip" -o "/tmp/awscliv2.zip"
+    echo "${AWS_CLI_SUM}  /tmp/awscliv2.zip" | sha256sum -c -
     unzip /tmp/awscliv2.zip -d /tmp/
     /tmp/aws/install
     rm -rf /tmp/awscliv2.zip /tmp/aws
@@ -64,9 +70,14 @@ zypper --gpg-auto-import-keys --non-interactive install \
 echo "Install RKE2 components"
 
 mkdir -p /opt/rke2-artifacts
-curl -sfL -o /opt/rke2-artifacts/rke2-images.linux-amd64.tar.zst https://github.com/rancher/rke2/releases/download/v${1}/rke2-images.linux-amd64.tar.zst
-curl -sfL -o /opt/rke2-artifacts/rke2.linux-amd64.tar.gz https://github.com/rancher/rke2/releases/download/v${1}/rke2.linux-amd64.tar.gz
-curl -sfL -o /opt/rke2-artifacts/sha256sum-amd64.txt https://github.com/rancher/rke2/releases/download/v${1}/sha256sum-amd64.txt
+RKE2_RELEASE_BASE="https://github.com/rancher/rke2/releases/download/v${1}"
+
+# Download checksum file first, then verify each artifact against it.
+curl -sfL -o /opt/rke2-artifacts/sha256sum-amd64.txt "${RKE2_RELEASE_BASE}/sha256sum-amd64.txt"
+curl -sfL -o /opt/rke2-artifacts/rke2-images.linux-amd64.tar.zst "${RKE2_RELEASE_BASE}/rke2-images.linux-amd64.tar.zst"
+(cd /opt/rke2-artifacts && grep " rke2-images.linux-amd64.tar.zst$" sha256sum-amd64.txt | sha256sum -c -)
+curl -sfL -o /opt/rke2-artifacts/rke2.linux-amd64.tar.gz "${RKE2_RELEASE_BASE}/rke2.linux-amd64.tar.gz"
+(cd /opt/rke2-artifacts && grep " rke2.linux-amd64.tar.gz$" sha256sum-amd64.txt | sha256sum -c -)
 curl -sfL -o /opt/install.sh https://get.rke2.io
 
 configure_systemd 
