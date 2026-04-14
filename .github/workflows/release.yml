@@ -24,7 +24,7 @@ jobs:
       with:
         go-version-file: go.mod
     - name: "Read secrets"
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/dockerhub/${{ github.repository_owner }}/credentials username | DOCKER_USERNAME ;
@@ -34,7 +34,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password | PRIME_REGISTRY_PASSWORD ;
 
     - name: Push bootstrap image to public
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@5d6e63896fea85836b2fca6dfb9236bcefe2aaa5
       with:
         image: cluster-api-provider-rke2-bootstrap
         tag: ${{ github.ref_name }}
@@ -47,7 +47,7 @@ jobs:
 
     - name: Push bootstrap image to prime
       if: ${{ !contains(github.ref_name, '-rc') }}
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@5d6e63896fea85836b2fca6dfb9236bcefe2aaa5
       with:
         image: cluster-api-provider-rke2-bootstrap
         tag: ${{ github.ref_name }}
@@ -60,7 +60,7 @@ jobs:
         prime-make-target: push-prime-image-bootstrap
 
     - name: Push controlplane image to public
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@5d6e63896fea85836b2fca6dfb9236bcefe2aaa5
       with:
         image: cluster-api-provider-rke2-controlplane
         tag: ${{ github.ref_name }}
@@ -73,7 +73,7 @@ jobs:
 
     - name: Push controlplane image to prime
       if: ${{ !contains(github.ref_name, '-rc') }}
-      uses: rancher/ecm-distro-tools/actions/publish-image@master
+      uses: rancher/ecm-distro-tools/actions/publish-image@5d6e63896fea85836b2fca6dfb9236bcefe2aaa5
       with:
         image: cluster-api-provider-rke2-controlplane
         tag: ${{ github.ref_name }}
@@ -101,7 +101,7 @@ jobs:
       with:
         go-version-file: go.mod
     - name: Read prime registry secrets
-      uses: rancher-eio/read-vault-secrets@main
+      uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89
       with:
         secrets: |
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials username | PRIME_REGISTRY_USERNAME ;
