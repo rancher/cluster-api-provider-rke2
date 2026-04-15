@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	runtimehooksv1 "sigs.k8s.io/cluster-api/api/runtime/hooks/v1alpha1"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/collections"
@@ -43,7 +44,21 @@ import (
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/capi/hooks"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/capi/inplace"
 )
+
+// UpToDateResult is the result of calling the UpToDate func for a Machine.
+type UpToDateResult struct {
+	LogMessages              []string
+	ConditionMessages        []string
+	EligibleForInPlaceUpdate bool
+	DesiredMachine           *clusterv1.Machine
+	CurrentInfraMachine      *unstructured.Unstructured
+	DesiredInfraMachine      *unstructured.Unstructured
+	CurrentRKE2Config        *bootstrapv1.RKE2Config
+	DesiredRKE2Config        *bootstrapv1.RKE2Config
+}
 
 // ControlPlane holds business logic around control planes.
 // It should never need to connect to a service, that responsibility lies outside of this struct.
@@ -54,9 +69,8 @@ type ControlPlane struct {
 	Machines             collections.Machines
 	machinesPatchHelpers map[string]*patch.Helper
 
-	machinesNotUptoDate                  collections.Machines
-	machinesNotUptoDateLogMessages       map[string][]string
-	machinesNotUptoDateConditionMessages map[string][]string
+	machinesNotUptoDate     collections.Machines
+	machinesUpToDateResults map[string]UpToDateResult
 
 	// InfraMachineTemplateIsNotFound is true if getting the infra machine template object failed with an NotFound err
 	InfraMachineTemplateIsNotFound bool
@@ -124,34 +138,31 @@ func NewControlPlane(
 	}
 
 	machinesNotUptoDate := make(collections.Machines, len(ownedMachines))
-	machinesNotUptoDateLogMessages := map[string][]string{}
-	machinesNotUptoDateConditionMessages := map[string][]string{}
+	machinesUpToDateResults := map[string]UpToDateResult{}
 
 	for _, m := range ownedMachines {
-		upToDate, logMessages, conditionMessages, err := UpToDate(ctx, m, rcp, infraObjects, rke2Configs)
+		upToDate, result, err := UpToDate(ctx, m, rcp, infraObjects, rke2Configs)
 		if err != nil {
 			return nil, err
 		}
 
+		machinesUpToDateResults[m.Name] = *result
+
 		if !upToDate {
 			machinesNotUptoDate.Insert(m)
-
-			machinesNotUptoDateLogMessages[m.Name] = logMessages
-			machinesNotUptoDateConditionMessages[m.Name] = conditionMessages
 		}
 	}
 
 	return &ControlPlane{
-		RCP:                                  rcp,
-		Cluster:                              cluster,
-		Machines:                             ownedMachines,
-		machinesPatchHelpers:                 patchHelpers,
-		machinesNotUptoDate:                  machinesNotUptoDate,
-		machinesNotUptoDateLogMessages:       machinesNotUptoDateLogMessages,
-		machinesNotUptoDateConditionMessages: machinesNotUptoDateConditionMessages,
-		Rke2Configs:                          rke2Configs,
-		InfraResources:                       infraObjects,
-		managementCluster:                    managementCluster,
+		RCP:                     rcp,
+		Cluster:                 cluster,
+		Machines:                ownedMachines,
+		machinesPatchHelpers:    patchHelpers,
+		machinesNotUptoDate:     machinesNotUptoDate,
+		machinesUpToDateResults: machinesUpToDateResults,
+		Rke2Configs:             rke2Configs,
+		InfraResources:          infraObjects,
+		managementCluster:       managementCluster,
 	}, nil
 }
 
@@ -363,15 +374,10 @@ func (c *ControlPlane) SortedByDeletionTimestamp(s collections.Machines) []*clus
 }
 
 // MachinesNeedingRollout return a list of machines that need to be rolled out.
-func (c *ControlPlane) MachinesNeedingRollout(ctx context.Context) collections.Machines {
-	// Ignore machines to be deleted.
-	machines := c.Machines.Filter(collections.Not(collections.HasDeletionTimestamp))
-
-	// Return machines if they are scheduled for rollout or if with an outdated configuration.
-	return machines.AnyFilter(
-		// Machines that do not match with RCP config.
-		collections.Not(matchesRCPConfiguration(ctx, c.InfraResources, c.Rke2Configs, c.RCP)),
-	)
+func (c *ControlPlane) MachinesNeedingRollout() (collections.Machines, map[string]UpToDateResult) {
+	return c.machinesNotUptoDate.Filter(
+		collections.Not(collections.HasDeletionTimestamp),
+	), c.machinesUpToDateResults
 }
 
 // UpToDateMachines returns the machines that are up-to-date with the control
@@ -382,8 +388,25 @@ func (c *ControlPlane) UpToDateMachines() collections.Machines {
 
 // NotUpToDateMachines return a list of machines that are not up to date with the control
 // plane's configuration.
-func (c *ControlPlane) NotUpToDateMachines() (collections.Machines, map[string][]string) {
-	return c.machinesNotUptoDate, c.machinesNotUptoDateConditionMessages
+func (c *ControlPlane) NotUpToDateMachines() (collections.Machines, map[string]UpToDateResult) {
+	return c.machinesNotUptoDate, c.machinesUpToDateResults
+}
+
+// MachinesToCompleteTriggerInPlaceUpdate returns Machines where triggering the
+// in-place update failed midway (annotation set but hook not yet pending).
+// This ensures reentrancy.
+func (c *ControlPlane) MachinesToCompleteTriggerInPlaceUpdate() collections.Machines {
+	return c.Machines.Filter(func(machine *clusterv1.Machine) bool {
+		_, ok := machine.Annotations[clusterv1.UpdateInProgressAnnotation]
+
+		return ok && !hooks.IsPending(runtimehooksv1.UpdateMachine, machine)
+	})
+}
+
+// MachinesToCompleteInPlaceUpdate returns Machines with in-place update in progress.
+// The reconciler waits for these to complete before proceeding with further rollouts.
+func (c *ControlPlane) MachinesToCompleteInPlaceUpdate() collections.Machines {
+	return c.Machines.Filter(inplace.IsUpdateInProgress)
 }
 
 // GetInfraResources fetches the external infrastructure resource for each machine in the collection
@@ -607,22 +630,45 @@ func (c *ControlPlane) UsesEmbeddedEtcd() bool {
 // If not, messages explaining why are provided with different level of detail for logs and conditions.
 func UpToDate(ctx context.Context, machine *clusterv1.Machine, rcp *controlplanev1.RKE2ControlPlane,
 	infraConfigs map[string]*unstructured.Unstructured, machineConfigs map[string]*bootstrapv1.RKE2Config,
-) (bool, []string, []string, error) {
-	logMessages := []string{}
-	conditionMessages := []string{}
+) (bool, *UpToDateResult, error) {
+	res := &UpToDateResult{
+		EligibleForInPlaceUpdate: true,
+	}
+
+	// Delete annotation → not eligible for in-place update.
+	if _, ok := machine.Annotations[clusterv1.DeleteMachineAnnotation]; ok {
+		res.EligibleForInPlaceUpdate = false
+	}
+
+	// Remediate annotation → not eligible for in-place update.
+	if _, ok := machine.Annotations[clusterv1.RemediateMachineAnnotation]; ok {
+		res.EligibleForInPlaceUpdate = false
+	}
+
+	// Store current objects for in-place update comparison.
+	if infraObj, ok := infraConfigs[machine.Name]; ok {
+		res.CurrentInfraMachine = infraObj
+	}
+
+	if rke2Config, ok := machineConfigs[machine.Name]; ok {
+		res.CurrentRKE2Config = rke2Config
+	}
 
 	// Machines that do not match with rcp config.
 	matches, specLogMessages, specConditionMessages := matchesMachineSpec(ctx, infraConfigs, machineConfigs, rcp, machine)
 	if !matches {
-		logMessages = append(logMessages, specLogMessages...)
-		conditionMessages = append(conditionMessages, specConditionMessages...)
+		res.LogMessages = append(res.LogMessages, specLogMessages...)
+		res.ConditionMessages = append(res.ConditionMessages, specConditionMessages...)
 	}
 
-	if len(logMessages) > 0 || len(conditionMessages) > 0 {
-		return false, logMessages, conditionMessages, nil
+	if len(res.LogMessages) > 0 || len(res.ConditionMessages) > 0 {
+		return false, res, nil
 	}
 
-	return true, nil, nil, nil
+	// Machine is up-to-date, not eligible for in-place update.
+	res.EligibleForInPlaceUpdate = false
+
+	return true, res, nil
 }
 
 // matchesMachineSpec checks if a Machine matches any of a set of RKE2Configs and a set of infra machine configs.
