@@ -26,6 +26,7 @@ spec:
         - "--insecure-diagnostics=${CAPRKE2_INSECURE_DIAGNOSTICS:=false}"
         - "--v=${CAPRKE2_DEBUG_LEVEL:=0}"
         - "--feature-gates=InPlaceUpdates=${EXP_IN_PLACE_UPDATES:=false}"
+        - "--concurrency=${CONCURRENCY_NUMBER:=10}"
         image: controller:latest
         name: manager
         env:

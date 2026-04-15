@@ -274,6 +274,8 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 	var runtimeClient runtimeclient.Client
 
 	if feature.Gates.Enabled(feature.InPlaceUpdates) {
+		setupLog.Info("InPlaceUpdates feature gate is enabled, setting up RuntimeSDK client and ExtensionConfig controller")
+
 		var certWatcher *certwatcher.CertWatcher
 
 		runtimeClient, certWatcher, err = capiruntimeclient.New(capiruntimeclient.Options{
