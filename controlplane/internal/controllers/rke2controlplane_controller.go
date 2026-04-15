@@ -47,6 +47,8 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/clustercache"
 	"sigs.k8s.io/cluster-api/controllers/remote"
+	runtimeclient "sigs.k8s.io/cluster-api/exp/runtime/client"
+	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/cache"
@@ -60,6 +62,7 @@ import (
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/contract"
 	"github.com/rancher/cluster-api-provider-rke2/controlplane/internal/util/ssa"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/capi/inplace"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/kubeconfig"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
@@ -93,6 +96,9 @@ type RKE2ControlPlaneReconciler struct {
 
 	SecretCachingClient client.Client
 
+	// RuntimeClient is the runtime client to interact with extensions.
+	RuntimeClient runtimeclient.Client
+
 	// WatchFilterValue is the label value used to filter events prior to reconciliation.
 	WatchFilterValue string
 
@@ -112,6 +118,7 @@ type RKE2ControlPlaneReconciler struct {
 // +kubebuilder:rbac:groups="bootstrap.cluster.x-k8s.io",resources=rke2configs,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups="infrastructure.cluster.x-k8s.io",resources=*,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups="apiextensions.k8s.io",resources=customresourcedefinitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=runtime.cluster.x-k8s.io,resources=extensionconfigs,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -483,14 +490,40 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 		return result, err
 	}
 
+	// Complete triggering in-place update if necessary (reentrancy).
+	// This handles the case where a previous triggerInPlaceUpdate call partially completed
+	// (e.g. UpdateInProgressAnnotation was set, but the SSA patches or PendingHooksAnnotation were not written).
+	if machines := controlPlane.MachinesToCompleteTriggerInPlaceUpdate(); len(machines) > 0 {
+		_, machinesUpToDateResults := controlPlane.NotUpToDateMachines()
+		for _, m := range machines {
+			if err := r.triggerInPlaceUpdate(ctx, m, machinesUpToDateResults[m.Name]); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	// Reconcile unhealthy machines by triggering deletion and requeue if it is considered safe to remediate,
 	// otherwise continue with the other RCP operations.
 	if result, err := r.reconcileUnhealthyMachines(ctx, controlPlane); err != nil || !result.IsZero() {
 		return result, err
 	}
 
+	// Wait for in-place update to complete.
+	// Note: If a Machine becomes unhealthy during in-place update reconcileUnhealthyMachines above remediates it.
+	// Note: We have to wait here even if there are no more Machines that need rollout (in-place update in
+	//       progress is not counted as needs rollout).
+	if machines := controlPlane.MachinesToCompleteInPlaceUpdate(); machines.Len() > 0 {
+		for _, machine := range machines {
+			logger.Info(fmt.Sprintf("Waiting for in-place update of Machine %s to complete", machine.Name), "Machine", klog.KObj(machine))
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	// Control plane machines rollout due to configuration changes (e.g. upgrades) takes precedence over other operations.
-	needRollout := controlPlane.MachinesNeedingRollout(ctx)
+	needRollout, machinesUpToDateResults := controlPlane.MachinesNeedingRollout()
 
 	switch {
 	case len(needRollout) > 0:
@@ -503,7 +536,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 				"(%d replicas up to date)", len(needRollout), len(controlPlane.Machines)-len(needRollout)),
 		})
 
-		return r.upgradeControlPlane(ctx, cluster, rcp, controlPlane, needRollout)
+		return r.upgradeControlPlane(ctx, cluster, rcp, controlPlane, needRollout, machinesUpToDateResults)
 	default:
 		if conditions.Has(controlPlane.RCP, controlplanev1.RKE2ControlPlaneRollingOutCondition) {
 			conditions.Set(controlPlane.RCP, metav1.Condition{
@@ -827,6 +860,7 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 	rcp *controlplanev1.RKE2ControlPlane,
 	controlPlane *rke2.ControlPlane,
 	machinesRequireUpgrade collections.Machines,
+	machinesUpToDateResults map[string]rke2.UpToDateResult,
 ) (ctrl.Result, error) {
 	logger := controlPlane.Logger()
 
@@ -862,6 +896,40 @@ func (r *RKE2ControlPlaneReconciler) upgradeControlPlane(
 		if rke2util.SafeInt32(controlPlane.Machines.Len()) < maxNodes {
 			// scaleUpControlPlane ensures that we don't continue scaling up while waiting for Machines to have NodeRefs
 			return r.scaleUpControlPlane(ctx, cluster, rcp, controlPlane)
+		}
+
+		// Pick a machine for in-place update or scale down.
+		machineToUpdate, err := selectMachineForInPlaceUpdateOrScaleDown(ctx, controlPlane, machinesRequireUpgrade)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		machineUpToDateResult, ok := machinesUpToDateResults[machineToUpdate.Name]
+		if !ok {
+			return ctrl.Result{}, fmt.Errorf("failed to check if Machine %s is UpToDate", machineToUpdate.Name)
+		}
+
+		// Try in-place update if eligible.
+		// Note: To be safe we only try an in-place update when we would otherwise delete a Machine. This ensures we could
+		// afford if the in-place update fails and the Machine becomes unavailable (and eventually MHC kicks in and the Machine is recreated).
+		currentUpToDateReplicas := int32(controlPlane.UpToDateMachines().Len())
+		if feature.Gates.Enabled(feature.InPlaceUpdates) &&
+			machineUpToDateResult.EligibleForInPlaceUpdate &&
+			currentUpToDateReplicas < *rcp.Spec.Replicas {
+			fallbackToScaleDown, res, err := r.tryInPlaceUpdate(ctx, controlPlane, machineToUpdate, machineUpToDateResult)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			if !res.IsZero() {
+				return res, nil
+			}
+
+			if fallbackToScaleDown {
+				return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, collections.Machines{machineToUpdate.Name: machineToUpdate})
+			}
+
+			return ctrl.Result{}, nil
 		}
 
 		return r.scaleDownControlPlane(ctx, cluster, rcp, controlPlane, machinesRequireUpgrade)
@@ -986,7 +1054,7 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 }
 
 func reconcileMachineUpToDateCondition(controlPlane *rke2.ControlPlane) {
-	machinesNotUptoDate, machinesNotUptoDateConditionMessages := controlPlane.NotUpToDateMachines()
+	machinesNotUptoDate, machinesUpToDateResults := controlPlane.NotUpToDateMachines()
 	machinesNotUptoDateNames := sets.New(machinesNotUptoDate.Names()...)
 
 	for _, machine := range controlPlane.Machines {
@@ -994,7 +1062,10 @@ func reconcileMachineUpToDateCondition(controlPlane *rke2.ControlPlane) {
 			// Note: the code computing the message for RCP's RolloutOut condition is making assumptions on the format/content of this message.
 			message := ""
 
-			if reasons, ok := machinesNotUptoDateConditionMessages[machine.Name]; ok {
+			if result, ok := machinesUpToDateResults[machine.Name]; ok {
+				reasons := make([]string, len(result.ConditionMessages))
+				copy(reasons, result.ConditionMessages)
+
 				for i := range reasons {
 					reasons[i] = "* " + reasons[i]
 				}
@@ -1007,6 +1078,23 @@ func reconcileMachineUpToDateCondition(controlPlane *rke2.ControlPlane) {
 				Status:  metav1.ConditionFalse,
 				Reason:  clusterv1.MachineNotUpToDateReason,
 				Message: message,
+			})
+
+			continue
+		}
+
+		// Check for in-place update in progress.
+		if inplace.IsUpdateInProgress(machine) {
+			msg := "* In-place update in progress"
+			if c := conditions.Get(machine, clusterv1.MachineUpdatingCondition); c != nil && c.Status == metav1.ConditionTrue && c.Message != "" {
+				msg = "* " + c.Message
+			}
+
+			conditions.Set(machine, metav1.Condition{
+				Type:    clusterv1.MachineUpToDateCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  clusterv1.MachineUpToDateUpdatingReason,
+				Message: msg,
 			})
 
 			continue
