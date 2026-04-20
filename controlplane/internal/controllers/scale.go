@@ -307,6 +307,33 @@ func selectMachineForScaleDown(
 	return controlPlane.MachineInFailureDomainWithMostMachines(ctx, machines)
 }
 
+// selectMachineForInPlaceUpdateOrScaleDown selects a machine for in-place update or scale down.
+// The selection priority is:
+// 1. Machines with delete annotation from outdated machines
+// 2. Machines with delete annotation from all machines
+// 3. Outdated machines
+// 4. All machines.
+func selectMachineForInPlaceUpdateOrScaleDown(
+	ctx context.Context,
+	controlPlane *rke2.ControlPlane,
+	outdatedMachines collections.Machines,
+) (*clusterv1.Machine, error) {
+	var eligibleMachines collections.Machines
+
+	switch {
+	case controlPlane.MachineWithDeleteAnnotation(outdatedMachines).Len() > 0:
+		eligibleMachines = controlPlane.MachineWithDeleteAnnotation(outdatedMachines)
+	case controlPlane.MachineWithDeleteAnnotation(controlPlane.Machines).Len() > 0:
+		eligibleMachines = controlPlane.MachineWithDeleteAnnotation(controlPlane.Machines)
+	case outdatedMachines.Len() > 0:
+		eligibleMachines = outdatedMachines
+	default:
+		eligibleMachines = controlPlane.Machines
+	}
+
+	return controlPlane.MachineInFailureDomainWithMostMachines(ctx, eligibleMachines)
+}
+
 func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 	ctx context.Context,
 	cluster *clusterv1.Cluster,
