@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -35,9 +37,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/controllers/crdmigrator"
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util/flags"
 
@@ -67,6 +71,7 @@ var (
 	webhookPort                 int
 	webhookCertDir              string
 	healthAddr                  string
+	skipCRDMigrationPhases      []string
 	managerOptions              = flags.ManagerOptions{}
 )
 
@@ -83,6 +88,7 @@ func init() {
 	utilruntime.Must(bootstrapv1.AddToScheme(scheme))
 	utilruntime.Must(bootstrapv1beta1.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 } //nolint:wsl
 
@@ -123,6 +129,9 @@ func InitFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&healthAddr, "health-addr", ":9440",
 		"The address the health endpoint binds to.")
 
+	fs.StringSliceVar(&skipCRDMigrationPhases, "skip-crd-migration-phases", []string{},
+		"List of CRD migration phases to skip. Valid values are: All, StorageVersionMigration, CleanupManagedFields.")
+
 	flags.AddManagerOptions(fs, &managerOptions)
 
 	feature.MutableGates.AddFlag(fs)
@@ -131,6 +140,14 @@ func InitFlags(fs *pflag.FlagSet) {
 // Add RBAC for the authorized diagnostics endpoint.
 // +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
+
+// ADD CRD RBAC for CRD Migrator.
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions;customresourcedefinitions/status,verbs=update;patch,resourceNames=rke2configs.bootstrap.cluster.x-k8s.io;rke2configtemplates.bootstrap.cluster.x-k8s.io
+
+// ADD CR RBAC for CRD Migrator.
+// +kubebuilder:rbac:groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=bootstrap.cluster.x-k8s.io,resources=rke2configtemplates/status,verbs=patch;update
 
 func main() {
 	InitFlags(pflag.CommandLine)
@@ -197,7 +214,7 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 
 	setupChecks(mgr)
-	setupReconcilers(mgr)
+	setupReconcilers(ctx, mgr)
 	setupWebhooks(mgr)
 
 	setupLog.Info("Starting manager", "version", version.Get().String(), "concurrency", concurrencyNumber)
@@ -220,12 +237,32 @@ func setupChecks(mgr ctrl.Manager) {
 	}
 }
 
-func setupReconcilers(mgr ctrl.Manager) {
+func setupReconcilers(ctx context.Context, mgr ctrl.Manager) {
 	if err := (&controllers.RKE2ConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr, concurrencyNumber); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Rke2Config")
+		os.Exit(1)
+	}
+
+	crdMigratorConfig := map[client.Object]crdmigrator.ByObjectConfig{
+		&bootstrapv1.RKE2Config{}:         {UseCache: true, UseStatusForStorageVersionMigration: true},
+		&bootstrapv1.RKE2ConfigTemplate{}: {UseCache: false, UseStatusForStorageVersionMigration: true},
+	}
+
+	crdMigratorSkipPhases := []crdmigrator.Phase{}
+	for _, p := range skipCRDMigrationPhases {
+		crdMigratorSkipPhases = append(crdMigratorSkipPhases, crdmigrator.Phase(p))
+	}
+
+	if err := (&crdmigrator.CRDMigrator{
+		Client:                 mgr.GetClient(),
+		APIReader:              mgr.GetAPIReader(),
+		SkipCRDMigrationPhases: crdMigratorSkipPhases,
+		Config:                 crdMigratorConfig,
+	}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: 1}); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CRDMigrator")
 		os.Exit(1)
 	}
 }
