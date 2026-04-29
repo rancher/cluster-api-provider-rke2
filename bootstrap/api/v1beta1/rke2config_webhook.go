@@ -27,12 +27,10 @@ import (
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -57,22 +55,16 @@ type RKE2ConfigCustomValidator struct{}
 
 // SetupRKE2ConfigWebhookWithManager sets up the Controller Manager for the Webhook for the RKE2ControlPlaneTemplate resource.
 func SetupRKE2ConfigWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&RKE2Config{}).
+	return ctrl.NewWebhookManagedBy(mgr, &RKE2Config{}).
 		WithValidator(&RKE2ConfigCustomValidator{}).
 		WithDefaulter(&RKE2ConfigCustomDefaulter{}, admission.DefaulterRemoveUnknownOrOmitableFields).
 		Complete()
 }
 
-var _ webhook.CustomDefaulter = &RKE2ConfigCustomDefaulter{}
+var _ admission.Defaulter[*RKE2Config] = &RKE2ConfigCustomDefaulter{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type.
-func (r *RKE2ConfigCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
-	rc, ok := obj.(*RKE2Config)
-	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a RKE2Config but got a %T", obj))
-	}
-
+// Default implements admission.Defaulter so a webhook will be registered for the type.
+func (r *RKE2ConfigCustomDefaulter) Default(_ context.Context, rc *RKE2Config) error {
 	rke2ConfigLogger.Info("defaulting", "RKE2Config", klog.KObj(rc))
 
 	DefaultRKE2ConfigSpec(&rc.Spec)
@@ -135,15 +127,10 @@ func CorrectArbitraryData(arbitraryData map[string]string) error {
 	return nil
 }
 
-var _ webhook.CustomValidator = &RKE2ConfigCustomValidator{}
+var _ admission.Validator[*RKE2Config] = &RKE2ConfigCustomValidator{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	rc, ok := obj.(*RKE2Config)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2Config object but got %T", obj)
-	}
-
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ConfigCustomValidator) ValidateCreate(_ context.Context, rc *RKE2Config) (admission.Warnings, error) {
 	rke2ConfigLogger.Info("validate create", "RKE2Config", klog.KObj(rc))
 
 	var allErrs field.ErrorList
@@ -157,13 +144,8 @@ func (r *RKE2ConfigCustomValidator) ValidateCreate(_ context.Context, obj runtim
 	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), rc.Name, allErrs)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigCustomValidator) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
-	newrc, ok := newObj.(*RKE2Config)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2Config object but got %T", newObj)
-	}
-
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ConfigCustomValidator) ValidateUpdate(_ context.Context, _, newrc *RKE2Config) (admission.Warnings, error) {
 	rke2ConfigLogger.Info("validate update", "RKE2Config", klog.KObj(newrc))
 
 	var allErrs field.ErrorList
@@ -177,13 +159,8 @@ func (r *RKE2ConfigCustomValidator) ValidateUpdate(_ context.Context, _, newObj 
 	return nil, apierrors.NewInvalid(GroupVersion.WithKind("RKE2Config").GroupKind(), newrc.Name, allErrs)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *RKE2ConfigCustomValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	rc, ok := obj.(*RKE2Config)
-	if !ok {
-		return nil, fmt.Errorf("expected a RKE2Config object but got %T", obj)
-	}
-
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type.
+func (r *RKE2ConfigCustomValidator) ValidateDelete(_ context.Context, rc *RKE2Config) (admission.Warnings, error) {
 	rke2ConfigLogger.Info("validate delete", "RKE2Config", klog.KObj(rc))
 
 	return nil, nil
