@@ -57,7 +57,7 @@ var _ = Describe("When testing RCP remediation", Label(DefaultTestsLabel), func(
 			BootstrapClusterProxy:  bootstrapClusterProxy,
 			ArtifactFolder:         artifactFolder,
 			SkipCleanup:            skipCleanup,
-			InfrastructureProvider: ptr.To("docker:v1.12.3"),
+			InfrastructureProvider: ptr.To("docker:v1.13.1"),
 			Flavor:                 ptr.To("kcp-remediation"),
 		}
 	})
