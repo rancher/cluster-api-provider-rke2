@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -62,7 +64,6 @@ import (
 const (
 	filePermissions  string = "0640"
 	registrationPort int    = 9345
-	serverURLFormat  string = "https://%v:%v"
 	tokenPrefix      string = "-token"
 )
 
@@ -469,7 +470,7 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 			Cluster:              *scope.Cluster,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
 			Token:                token,
-			ServerURL:            fmt.Sprintf(serverURLFormat, registrationAddress, registrationPort),
+			ServerURL:            "https://" + net.JoinHostPort(registrationAddress, strconv.Itoa(registrationPort)),
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
@@ -713,7 +714,7 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 			Cluster:              *scope.Cluster,
 			Token:                token,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
-			ServerURL:            fmt.Sprintf(serverURLFormat, scope.ControlPlane.Status.AvailableServerIPs[0], registrationPort),
+			ServerURL:            "https://" + net.JoinHostPort(scope.ControlPlane.Status.AvailableServerIPs[0], strconv.Itoa(registrationPort)),
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
@@ -863,7 +864,7 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 
 	configStruct, configFiles, err := rke2.GenerateWorkerConfig(
 		rke2.AgentConfigOpts{
-			ServerURL:              fmt.Sprintf(serverURLFormat, scope.ControlPlane.Status.AvailableServerIPs[0], registrationPort),
+			ServerURL:              "https://" + net.JoinHostPort(scope.ControlPlane.Status.AvailableServerIPs[0], strconv.Itoa(registrationPort)),
 			Token:                  token,
 			AgentConfig:            scope.Config.Spec.AgentConfig,
 			Ctx:                    ctx,
