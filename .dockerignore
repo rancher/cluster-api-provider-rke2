@@ -3,6 +3,7 @@
 .vscode
 bin/
 test/
+!test/extension/
 **/*.yaml
 hack/
 docs/

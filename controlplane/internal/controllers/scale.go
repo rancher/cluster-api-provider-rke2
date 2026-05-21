@@ -474,7 +474,11 @@ func (r *RKE2ControlPlaneReconciler) UpdateExternalObject(
 	// Update annotations
 	updatedObject.SetAnnotations(rcp.Spec.MachineTemplate.ObjectMeta.Annotations)
 
-	if err := ssa.Patch(ctx, r.Client, rke2ManagerName, updatedObject, ssa.WithCachingProxy{Cache: r.ssaCache, Original: obj}); err != nil {
+	// Use the metadata only field manager so we only own the labels/annotations
+	// that were derived from RCP.MachineTemplate metadata. This avoids stripping
+	// other annotations (e.g. UpdateInProgressAnnotation) that triggerInPlaceUpdate
+	// wrote under the main rke2ManagerName.
+	if err := ssa.Patch(ctx, r.Client, rke2MetadataManagerName, updatedObject, ssa.WithCachingProxy{Cache: r.ssaCache, Original: obj}); err != nil {
 		return fmt.Errorf("failed to update %s: %w", obj.GetObjectKind().GroupVersionKind().Kind, err)
 	}
 
