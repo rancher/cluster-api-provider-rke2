@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+        - image: ghcr.io/rancher/cluster-api-provider-rke2-test-extension:dev
+          name: manager

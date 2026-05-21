@@ -1,0 +1,31 @@
+# The test extension only reads CAPI/CAPRKE2 objects passed in via the hook
+# request — it does not mutate any cluster state. The role exists so the
+# controller-runtime manager's cache can list/watch the objects the runtime
+# server's healthz check touches and so RBAC permissions match the CAPI
+# reference extension's shape.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
