@@ -510,37 +510,39 @@ release-notes: $(RELEASE_DIR) $(GH)
 ## Docker
 ## --------------------------------------
 
-.PHONY: docker-build-and-push
-docker-build-and-push: buildx-machine docker-pull-prerequisites
-	$(MAKE) docker-build-and-push-rke2-bootstrap
-	$(MAKE) docker-build-and-push-rke2-controlplane
+# The following targets are called by the publish-image action in the release workflow.
+# See .github/workflows/release.yaml for details.
 
-.PHONY: docker-build-and-push-rke2-bootstrap
-docker-build-and-push-rke2-bootstrap:
-	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
-			--platform $(TARGET_PLATFORMS) \
-			--push \
-			--sbom=true \
-			--attest type=provenance,mode=max \
-			--iidfile=$(IID_FILE) \
-			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
-			--build-arg goproxy=$(GOPROXY) \
-			--build-arg package=./bootstrap \
-			--build-arg ldflags="$(LDFLAGS)" . -t $(BOOTSTRAP_IMG):$(TAG)
+REPO ?= $(REGISTRY)/$(ORG)
+
+.PHONY: push-rke2-bootstrap-image
+push-rke2-bootstrap-image: docker-pull-prerequisites ## Build and push bootstrap image (called by publish-image action)
+	DOCKER_BUILDKIT=1 docker buildx build \
+		$(IID_FILE_FLAG) \
+		$(BUILDX_ARGS) \
+		--platform=$(TARGET_PLATFORMS) \
+		--push \
+		--sbom=true \
+		--attest type=provenance,mode=max \
+		--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+		--build-arg goproxy=$(GOPROXY) \
+		--build-arg package=./bootstrap \
+		--build-arg ldflags="$(LDFLAGS)" . -t $(REPO)/$(BOOTSTRAP_IMAGE_NAME):$(TAG)
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./bootstrap/config/default/manager_pull_policy.yaml"
 
-.PHONY: docker-build-and-push-rke2-controlplane
-docker-build-and-push-rke2-controlplane:
-	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
-			--platform $(TARGET_PLATFORMS) \
-			--push \
-			--sbom=true \
-			--attest type=provenance,mode=max \
-			--iidfile=$(IID_FILE) \
-			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
-			--build-arg goproxy=$(GOPROXY) \
-			--build-arg package=./controlplane \
-			--build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG):$(TAG)
+.PHONY: push-rke2-controlplane-image
+push-rke2-controlplane-image: docker-pull-prerequisites ## Build and push controlplane image (called by publish-image action)
+	DOCKER_BUILDKIT=1 docker buildx build \
+		$(IID_FILE_FLAG) \
+		$(BUILDX_ARGS) \
+		--platform=$(TARGET_PLATFORMS) \
+		--push \
+		--sbom=true \
+		--attest type=provenance,mode=max \
+		--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+		--build-arg goproxy=$(GOPROXY) \
+		--build-arg package=./controlplane \
+		--build-arg ldflags="$(LDFLAGS)" . -t $(REPO)/$(CONTROLPLANE_IMAGE_NAME):$(TAG)
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./controlplane/config/default/manager_pull_policy.yaml"
 
 .PHONY: set-manifest-pull-policy
