@@ -70,8 +70,13 @@ import (
 )
 
 const (
-	// rke2ManagerName is the name of the RKE2 manager deployment.
+	// rke2ManagerName is the SSA field manager used for the main RKE2 control-plane
+	// objects (Machine spec, InfraMachine, RKE2Config).
 	rke2ManagerName = "rke2controlplane"
+
+	// rke2MetadataManagerName is a separate SSA field manager used for the
+	// labels and annotations only patches written every reconcile by syncMachines.
+	rke2MetadataManagerName = "rke2controlplane-metadata"
 
 	// rke2ControlPlaneKind is the kind of the RKE2 control plane.
 	rke2ControlPlaneKind = "RKE2ControlPlane"
@@ -119,6 +124,7 @@ type RKE2ControlPlaneReconciler struct {
 // +kubebuilder:rbac:groups="infrastructure.cluster.x-k8s.io",resources=*,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups="apiextensions.k8s.io",resources=customresourcedefinitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=runtime.cluster.x-k8s.io,resources=extensionconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

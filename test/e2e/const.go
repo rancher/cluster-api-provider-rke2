@@ -45,6 +45,10 @@ var (
 	ClusterClassDocker []byte
 	//go:embed data/infrastructure/cluster-from-clusterclass-template-docker.yaml
 	ClusterFromClusterClassDocker []byte
+	//go:embed data/infrastructure/clusterclass-template-docker-in-place.yaml
+	ClusterClassDockerInPlace []byte
+	//go:embed data/infrastructure/cluster-from-clusterclass-template-docker-in-place.yaml
+	ClusterFromClusterClassDockerInPlace []byte
 	//go:embed data/infrastructure/cluster-template-docker-external-datastore.yaml
 	ClusterTemplateDockerExternalDatastore []byte
 	//go:embed data/infrastructure/postgres.yaml

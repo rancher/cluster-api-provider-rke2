@@ -1,0 +1,31 @@
+# Self-signed Issuer + Certificate used by cert-manager to provision the TLS
+# material the test extension serves its Runtime SDK webhook on.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  # This name is referenced from kustomizeconfig.yaml.
+  name: serving-cert
+  namespace: system
+spec:
+  # SERVICE_NAME and SERVICE_NAMESPACE are substituted by kustomize replacements
+  # defined in config/default/kustomization.yaml.
+  dnsNames:
+    - SERVICE_NAME.SERVICE_NAMESPACE.svc
+    - SERVICE_NAME.SERVICE_NAMESPACE.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: selfsigned-issuer
+  # The secret name is NOT prefixed by kustomize so the manager_webhook_patch
+  # can reference it directly.
+  secretName: rke2-test-extension-webhook-service-cert
+  subject:
+    organizations:
+      - Rancher by SUSE

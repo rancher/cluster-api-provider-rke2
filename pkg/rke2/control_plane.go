@@ -46,6 +46,7 @@ import (
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/capi/hooks"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/capi/inplace"
+	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2/desiredstate"
 )
 
 // UpToDateResult is the result of calling the UpToDate func for a Machine.
@@ -141,7 +142,7 @@ func NewControlPlane(
 	machinesUpToDateResults := map[string]UpToDateResult{}
 
 	for _, m := range ownedMachines {
-		upToDate, result, err := UpToDate(ctx, m, rcp, infraObjects, rke2Configs)
+		upToDate, result, err := UpToDate(ctx, client, cluster, m, rcp, infraObjects, rke2Configs)
 		if err != nil {
 			return nil, err
 		}
@@ -628,8 +629,14 @@ func (c *ControlPlane) UsesEmbeddedEtcd() bool {
 
 // UpToDate checks if a Machine is up to date with the control plane's configuration.
 // If not, messages explaining why are provided with different level of detail for logs and conditions.
-func UpToDate(ctx context.Context, machine *clusterv1.Machine, rcp *controlplanev1.RKE2ControlPlane,
-	infraConfigs map[string]*unstructured.Unstructured, machineConfigs map[string]*bootstrapv1.RKE2Config,
+func UpToDate(
+	ctx context.Context,
+	c client.Client,
+	cluster *clusterv1.Cluster,
+	machine *clusterv1.Machine,
+	rcp *controlplanev1.RKE2ControlPlane,
+	infraConfigs map[string]*unstructured.Unstructured,
+	machineConfigs map[string]*bootstrapv1.RKE2Config,
 ) (bool, *UpToDateResult, error) {
 	res := &UpToDateResult{
 		EligibleForInPlaceUpdate: true,
@@ -655,7 +662,11 @@ func UpToDate(ctx context.Context, machine *clusterv1.Machine, rcp *controlplane
 	}
 
 	// Machines that do not match with rcp config.
-	matches, specLogMessages, specConditionMessages := matchesMachineSpec(ctx, infraConfigs, machineConfigs, rcp, machine)
+	matches, specLogMessages, specConditionMessages, err := matchesMachineSpec(ctx, c, cluster, infraConfigs, machineConfigs, rcp, machine, res)
+	if err != nil {
+		return false, nil, err
+	}
+
 	if !matches {
 		res.LogMessages = append(res.LogMessages, specLogMessages...)
 		res.ConditionMessages = append(res.ConditionMessages, specConditionMessages...)
@@ -681,13 +692,54 @@ func UpToDate(ctx context.Context, machine *clusterv1.Machine, rcp *controlplane
 // - are not relevant for the rollout decision (ex: failureDomain).
 func matchesMachineSpec(
 	ctx context.Context,
+	c client.Client,
+	cluster *clusterv1.Cluster,
 	infraConfigs map[string]*unstructured.Unstructured,
 	machineConfigs map[string]*bootstrapv1.RKE2Config,
 	rcp *controlplanev1.RKE2ControlPlane,
 	machine *clusterv1.Machine,
-) (bool, []string, []string) {
+	res *UpToDateResult,
+) (bool, []string, []string, error) {
 	logMessages := []string{}
 	conditionMessages := []string{}
+
+	if cluster != nil {
+		desiredMachine, err := desiredstate.ComputeDesiredMachine(
+			rcp, cluster,
+			machine.Spec.InfrastructureRef, machine.Spec.Bootstrap.ConfigRef,
+			machine.Spec.FailureDomain, machine,
+		)
+		if err != nil {
+			return false, nil, nil, fmt.Errorf("failed to compute desired Machine for %s: %w", machine.Name, err)
+		}
+
+		// Note: spec.version is not mutated in-place by syncMachines and accordingly
+		// not updated by desiredstate.ComputeDesiredMachine, so we have to update it here.
+		// Note: spec.failureDomain is in general only changed on delete/create, so we don't have to update it here for in-place.
+		desiredMachine.Spec.Version = rcp.Spec.Version
+		res.DesiredMachine = desiredMachine
+		// Note: Intentionally not storing currentMachine as it can change later, e.g. through syncMachines.
+
+		if res.CurrentRKE2Config != nil {
+			desiredRKE2Config, err := desiredstate.ComputeDesiredRKE2Config(rcp, cluster, res.CurrentRKE2Config.Name, res.CurrentRKE2Config)
+			if err != nil {
+				return false, nil, nil, fmt.Errorf("failed to compute desired RKE2Config for %s: %w", machine.Name, err)
+			}
+
+			res.DesiredRKE2Config = desiredRKE2Config
+		}
+
+		if res.CurrentInfraMachine != nil {
+			desiredInfraMachine, err := desiredstate.ComputeDesiredInfraMachine(
+				ctx, c, rcp, cluster, res.CurrentInfraMachine.GetName(), res.CurrentInfraMachine,
+			)
+			if err != nil {
+				return false, nil, nil, fmt.Errorf("failed to compute desired InfraMachine for %s: %w", machine.Name, err)
+			}
+
+			res.DesiredInfraMachine = desiredInfraMachine
+		}
+	}
 
 	if !collections.MatchesKubernetesVersion(rcp.Spec.Version)(machine) {
 		machineVersion := ""
@@ -711,8 +763,8 @@ func matchesMachineSpec(
 	}
 
 	if len(logMessages) > 0 || len(conditionMessages) > 0 {
-		return false, logMessages, conditionMessages
+		return false, logMessages, conditionMessages, nil
 	}
 
-	return true, nil, nil
+	return true, nil, nil, nil
 }
