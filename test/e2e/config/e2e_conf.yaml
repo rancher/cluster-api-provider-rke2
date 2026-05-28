@@ -16,8 +16,8 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: "v1.12.3"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.3/core-components.yaml"
+      - name: "v1.12.8"
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.8/core-components.yaml"
         type: "url"
         contract: v1beta2
         files:
@@ -27,8 +27,8 @@ providers:
             new: "imagePullPolicy: IfNotPresent"
           - old: "--leader-elect"
             new: "--leader-elect=false"
-      - name: "v1.13.1"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.1/core-components.yaml"
+      - name: "v1.13.2"
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.2/core-components.yaml"
         type: "url"
         contract: v1beta2
         files:
@@ -41,8 +41,8 @@ providers:
   - name: docker
     type: InfrastructureProvider
     versions:
-      - name: "v1.12.3"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.3/infrastructure-components-development.yaml"
+      - name: "v1.12.8"
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.8/infrastructure-components-development.yaml"
         type: "url"
         contract: v1beta2
         files:
@@ -57,8 +57,8 @@ providers:
             new: "--leader-elect=false"
           - old: --metrics-addr=127.0.0.1:8080
             new: --metrics-addr=:8080
-      - name: "v1.13.1"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.1/infrastructure-components-development.yaml"
+      - name: "v1.13.2"
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.2/infrastructure-components-development.yaml"
         type: "url"
         contract: v1beta2
         files:
@@ -76,8 +76,8 @@ providers:
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-      - name: "v0.24.1"
-        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.24.1/control-plane-components.yaml"
+      - name: "v0.24.4"
+        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.24.4/control-plane-components.yaml"
         type: "url"
         contract: v1beta1
         files:
@@ -102,8 +102,8 @@ providers:
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-      - name: "v0.24.1"
-        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.24.1/bootstrap-components.yaml"
+      - name: "v0.24.4"
+        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.24.4/bootstrap-components.yaml"
         type: "url"
         contract: v1beta1
         files:
