@@ -32,7 +32,7 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY;
 
     - name: Push bootstrap image to ghcr.io
-      uses: rancher/ecm-distro-tools/actions/publish-image@df88359100d76a6d1d6ba91fae417d9afca7da48
+      uses: rancher/ecm-distro-tools/actions/publish-image@2de55f4810410f9a0a5f11b2ede6886e706d8706
       with:
         image: cluster-api-provider-rke2-bootstrap
         tag: ${{ env.TAG }}
@@ -46,7 +46,7 @@ jobs:
         make-target: push-rke2-bootstrap-image
 
     - name: Push controlplane image to ghcr.io
-      uses: rancher/ecm-distro-tools/actions/publish-image@df88359100d76a6d1d6ba91fae417d9afca7da48
+      uses: rancher/ecm-distro-tools/actions/publish-image@2de55f4810410f9a0a5f11b2ede6886e706d8706
       with:
         image: cluster-api-provider-rke2-controlplane
         tag: ${{ env.TAG }}
@@ -60,7 +60,7 @@ jobs:
         make-target: push-rke2-controlplane-image
 
     - name: Push bootstrap image to prime registry
-      uses: rancher/ecm-distro-tools/actions/publish-image@df88359100d76a6d1d6ba91fae417d9afca7da48
+      uses: rancher/ecm-distro-tools/actions/publish-image@2de55f4810410f9a0a5f11b2ede6886e706d8706
       with:
         image: cluster-api-provider-rke2-bootstrap
         tag: ${{ env.TAG }}
@@ -74,7 +74,7 @@ jobs:
         prime-make-target: push-rke2-bootstrap-image
 
     - name: Push controlplane image to prime registry
-      uses: rancher/ecm-distro-tools/actions/publish-image@df88359100d76a6d1d6ba91fae417d9afca7da48
+      uses: rancher/ecm-distro-tools/actions/publish-image@2de55f4810410f9a0a5f11b2ede6886e706d8706
       with:
         image: cluster-api-provider-rke2-controlplane
         tag: ${{ env.TAG }}
