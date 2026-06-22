@@ -1652,7 +1652,53 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta2
+  - additionalPrinterColumns:
+    - description: Cluster
+      jsonPath: .metadata.labels['cluster\.x-k8s\.io/cluster-name']
+      name: Cluster
+      type: string
+    - description: Cluster pass all availability checks
+      jsonPath: .status.conditions[?(@.type=="Available")].status
+      name: Available
+      type: string
+    - description: The desired number of machines
+      jsonPath: .spec.replicas
+      name: Desired
+      type: integer
+    - description: The number of machines
+      jsonPath: .status.replicas
+      name: Current
+      type: integer
+    - description: The number of machines with Ready condition true
+      jsonPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - description: The number of machines with Available condition true
+      jsonPath: .status.availableReplicas
+      name: Available
+      type: integer
+    - description: The number of machines with UpToDate condition true
+      jsonPath: .status.upToDateReplicas
+      name: Up-to-date
+      type: integer
+    - description: Reconciliation paused
+      jsonPath: .status.conditions[?(@.type=="Paused")].status
+      name: Paused
+      priority: 10
+      type: string
+    - description: This denotes whether or not the control plane can accept requests
+      jsonPath: .status.initialization.controlPlaneInitialized
+      name: Initialized
+      type: boolean
+    - description: Time duration since creation of RKE2ControlPlane
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: Kubernetes version associated with this control plane
+      jsonPath: .spec.version
+      name: Version
+      type: string
+    name: v1beta2
     schema:
       openAPIV3Schema:
         description: RKE2ControlPlane is the Schema for the rke2controlplanes API.
