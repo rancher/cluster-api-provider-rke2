@@ -21,6 +21,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -70,11 +71,13 @@ type Management struct {
 type ClientCertEntry struct {
 	Cluster    ctrlclient.ObjectKey
 	ClientCert *tls.Certificate
+	CACert     []byte
 }
 
 // Key returns the cache key of a ClientCertEntry.
+// It includes a fingerprint of the etcd CA so that a CA change invalidates the entry.
 func (r ClientCertEntry) Key() string {
-	return r.Cluster.String()
+	return fmt.Sprintf("%s:%x", r.Cluster.String(), sha256.Sum256(r.CACert))
 }
 
 // RemoteClusterConnectionError represents a failure to connect to a remote cluster.

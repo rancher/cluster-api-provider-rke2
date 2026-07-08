@@ -122,8 +122,8 @@ func (m *Management) NewWorkload(ctx context.Context, cl ctrlclient.Client, rest
 
 	if !strings.Contains(string(etcdKeyPair.Key), "EC PRIVATE KEY") {
 		// Get client cert from cache if possible, otherwise generate it and add it to the cache.
-		// Note: The caching assumes that the etcd CA is not rotated during the lifetime of a Cluster.
-		if entry, ok := m.ClientCertCache.Has(ClientCertEntry{Cluster: clusterKey}.Key()); ok {
+		// The cache key includes the etcd CA, so a rotated CA invalidates the cache.
+		if entry, ok := m.ClientCertCache.Has(ClientCertEntry{Cluster: clusterKey, CACert: etcdKeyPair.Cert}.Key()); ok {
 			clientCert = *entry.ClientCert
 		} else {
 			// The client cert expires after 10 years, but that's okay as the cache has a TTL of 1 day.
@@ -132,7 +132,7 @@ func (m *Management) NewWorkload(ctx context.Context, cl ctrlclient.Client, rest
 				return nil, err
 			}
 
-			m.ClientCertCache.Add(ClientCertEntry{Cluster: clusterKey, ClientCert: &clientCert})
+			m.ClientCertCache.Add(ClientCertEntry{Cluster: clusterKey, ClientCert: &clientCert, CACert: etcdKeyPair.Cert})
 		}
 	}
 
