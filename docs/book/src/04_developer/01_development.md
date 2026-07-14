@@ -2,46 +2,42 @@
 
 The following instructions are for development purposes.
 
-1. Clone the [Cluster API Repo](https://github.com/kubernetes-sigs/cluster-api) into the **GOPATH**
-
-    > **Why clone into the GOPATH?** There have been historic issues with code generation tools when they are run outside the go path
-
-2. Fork the [Cluster API Provider RKE2](https://github.com/rancher/cluster-api-provider-rke2) repo
-3. Clone your new repo into the **GOPATH** (i.e. `~/go/src/github.com/yourname/cluster-api-provider-rke2`)
-4. Ensure **Tilt** and **kind** are installed
-5. Create a `tilt-settings.json` file in the root of the directory where you cloned the Cluster API repo in step 1.
-6. Add the following contents to the file (replace `/path/to/clone/of/` with appropriate file path and "yourname" with 
+1. Clone the [Cluster API](https://github.com/kubernetes-sigs/cluster-api) repo
+1. Fork the [Cluster API Provider RKE2](https://github.com/rancher/cluster-api-provider-rke2) repo
+1. Ensure **Tilt** and **kind** are installed
+1. Create a `tilt-settings.yaml` file in the root of the directory where you cloned the Cluster API repo in step 1.
+1. Add the following contents to the file (replace `/path/to/clone/of/` with appropriate file path and "yourname" with 
    your github account name):
 
-    ```json
-    {
-        "default_registry": "ghcr.io/yourname",
-        "provider_repos": ["/path/to/clone/of/github.com/yourname/cluster-api-provider-rke2"],
-        "enable_providers": ["docker", "rke2-bootstrap", "rke2-control-plane"],
-        "kustomize_substitutions": {
-            "EXP_MACHINE_POOL": "true",
-            "EXP_CLUSTER_RESOURCE_SET": "true"
-        },
-        "extra_args": {
-            "rke2-bootstrap": ["--v=4"],
-            "rke2-control-plane": ["--v=4"],
-            "core": ["--v=4"]
-        },
-        "debug": {
-            "rke2-bootstrap": {
-                "continue": true,
-                "port": 30001
-            },
-            "rke2-control-plane": {
-                "continue": true,
-                "port": 30002
-            }
-        }
-    }
+    ```yaml
+    default_registry: "ghcr.io/yourname"
+    provider_repos: ["/path/to/clone/of/github.com/yourname/cluster-api-provider-rke2"]
+    enable_providers:
+    - docker
+    - rke2-bootstrap
+    - rke2-control-plane
+    kustomize_substitutions:
+      CLUSTER_TOPOLOGY: "true"
+      EXP_MACHINE_POOL: "true"
+      EXP_CLUSTER_RESOURCE_SET": "true"
+    extra_args:
+      rke2-bootstrap:
+      - --v=4
+      rke2-control-plane:
+      - --v=4
+      core:
+      - --v=4
+    debug:
+      rke2-bootstrap:
+        continue: true
+        port: 30001
+      rke2-control-plane:
+        continue: true
+        port: 30002
     ```
 
-7. Open another terminal (or pane) and go to the `cluster-api` directory.
-8.  Run the following to create a configuration for kind:
+1. Open another terminal (or pane) and go to the `cluster-api` directory.
+1.  Run the following to create a configuration for kind:
 
     ```bash
     cat > kind-cluster-with-extramounts.yaml <<EOF
@@ -59,20 +55,20 @@ The following instructions are for development purposes.
     > NOTE: if you are using Docker Desktop v4.13 or above then you will encounter issues from here. Until 
     > a permanent solution is found its recommended you use v4.12
 
-9. Run the following command to create a local kind cluster:
+1. Run the following command to create a local kind cluster:
 
     ```bash
     kind create cluster --config kind-cluster-with-extramounts.yaml
     ```
    > NOTE: You can also use your existing kind cluster by using the environment variable `CAPI_KIND_CLUSTER_NAME`.
-10. Export `CLUSTER_TOPOLOGY=true` to enable support for managed topologies and ClusterClass.
-11. Now start tilt by running the following command in the directory where you cloned Cluster API repo in step 1:
+1. Export `CLUSTER_TOPOLOGY=true` to enable support for managed topologies and ClusterClass.
+1. Now start tilt by running the following command in the directory where you cloned Cluster API repo in step 1:
 
     ```bash
     tilt up
     ```
 
-11. Press the **space** key to see the Tilt web ui and check that everything goes green.
+1. Press the **space** key to see the Tilt web ui and check that everything goes green.
 
 ## Attaching the debugger
 
