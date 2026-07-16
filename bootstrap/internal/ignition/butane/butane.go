@@ -52,8 +52,8 @@ systemd:
       contents: |
         [Unit]
         Description=rke2-install
-        Wants=network-online.target
-        After=network-online.target network.target
+        Wants=network-online.target dbus.service
+        After=network-online.target network.target dbus.service
         ConditionPathExists=!/etc/cluster-api/bootstrap-success.complete
         [Service]
         User=root
