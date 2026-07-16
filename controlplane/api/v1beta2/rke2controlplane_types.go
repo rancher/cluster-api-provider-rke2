@@ -472,7 +472,7 @@ const (
 	CloudController DisabledKubernetesComponent = "cloudController"
 )
 
-//+kubebuilder:validation:Enum=rke2-coredns;rke2-ingress-nginx;rke2-metrics-server;rke2-snapshot-controller;rke2-snapshot-controller-crd;rke2-snapshot-validation-webhook
+//+kubebuilder:validation:Enum=rke2-coredns;rke2-ingress-nginx;rke2-metrics-server;rke2-snapshot-controller;rke2-snapshot-controller-crd;rke2-snapshot-validation-webhook;rke2-traefik;rke2-traefik-crd
 
 // DisabledPluginComponent selects a plugin Components to be disabled.
 type DisabledPluginComponent string
@@ -490,6 +490,10 @@ const (
 	SnapshotControllerCRD DisabledPluginComponent = "rke2-snapshot-controller-crd"
 	// SnapshotValidationWebhook references the RKE2 Plugin "rke2-snapshot-validation-webhook".
 	SnapshotValidationWebhook DisabledPluginComponent = "rke2-snapshot-validation-webhook"
+	// Traefik references the RKE2 Plugin "rke2-traefik".
+	Traefik DisabledPluginComponent = "rke2-traefik"
+	// TraefikCRD references the RKE2 Plugin "rke2-traefik-crd".
+	TraefikCRD DisabledPluginComponent = "rke2-traefik-crd"
 )
 
 // RemediationStrategy allows to define how control plane machine remediation happens.
