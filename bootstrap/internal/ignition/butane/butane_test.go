@@ -118,7 +118,7 @@ var _ = Describe("Render", func() {
 
 		Expect(ign.Systemd.Units).To(HaveLen(3))
 		Expect(ign.Systemd.Units[0].Name).To(Equal("rke2-install.service"))
-		Expect(ign.Systemd.Units[0].Contents).To(Equal(ptr.To("[Unit]\nDescription=rke2-install\nWants=network-online.target\nAfter=network-online.target network.target\nConditionPathExists=!/etc/cluster-api/bootstrap-success.complete\n[Service]\nUser=root\n# To not restart the unit when it exits, as it is expected.\nType=oneshot\nExecStart=/etc/rke2-install.sh\n[Install]\nWantedBy=multi-user.target\n")))
+		Expect(ign.Systemd.Units[0].Contents).To(Equal(ptr.To("[Unit]\nDescription=rke2-install\nWants=network-online.target dbus.service\nAfter=network-online.target network.target dbus.service\nConditionPathExists=!/etc/cluster-api/bootstrap-success.complete\n[Service]\nUser=root\n# To not restart the unit when it exits, as it is expected.\nType=oneshot\nExecStart=/etc/rke2-install.sh\n[Install]\nWantedBy=multi-user.target\n")))
 		Expect(ign.Systemd.Units[0].Enabled).To(Equal(ptr.To(true)))
 
 		Expect(ign.Systemd.Units[1].Name).To(Equal("chronyd.service"))
