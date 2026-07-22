@@ -24,7 +24,7 @@ import (
 
 	"github.com/coreos/butane/config/common"
 	fcos "github.com/coreos/butane/config/fcos/v1_4"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/validation/field"
