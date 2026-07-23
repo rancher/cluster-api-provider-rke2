@@ -18,6 +18,8 @@ package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1" // nolint:staticcheck
 )
 
 // RKE2ControlPlaneTemplateSpec defines the desired state of RKE2ControlPlaneTemplate.
@@ -27,6 +29,9 @@ type RKE2ControlPlaneTemplateSpec struct {
 
 // RKE2ControlPlaneTemplateResource contains spec for RKE2ControlPlaneTemplate.
 type RKE2ControlPlaneTemplateResource struct {
+	// Standard object's metadata.
+	// +optional
+	ObjectMeta clusterv1beta1.ObjectMeta `json:"metadata,omitempty"`
 	// Spec is the specification of the desired behavior of the control plane.
 	Spec RKE2ControlPlaneSpec `json:"spec"`
 }

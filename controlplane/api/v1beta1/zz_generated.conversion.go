@@ -788,6 +788,9 @@ func Convert_v1beta2_RKE2ControlPlaneTemplateList_To_v1beta1_RKE2ControlPlaneTem
 }
 
 func autoConvert_v1beta1_RKE2ControlPlaneTemplateResource_To_v1beta2_RKE2ControlPlaneTemplateResource(in *RKE2ControlPlaneTemplateResource, out *v1beta2.RKE2ControlPlaneTemplateResource, s conversion.Scope) error {
+	if err := Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1beta1_RKE2ControlPlaneSpec_To_v1beta2_RKE2ControlPlaneTemplateResourceSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
@@ -800,6 +803,9 @@ func Convert_v1beta1_RKE2ControlPlaneTemplateResource_To_v1beta2_RKE2ControlPlan
 }
 
 func autoConvert_v1beta2_RKE2ControlPlaneTemplateResource_To_v1beta1_RKE2ControlPlaneTemplateResource(in *v1beta2.RKE2ControlPlaneTemplateResource, out *RKE2ControlPlaneTemplateResource, s conversion.Scope) error {
+	if err := Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1beta2_RKE2ControlPlaneTemplateResourceSpec_To_v1beta1_RKE2ControlPlaneSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
