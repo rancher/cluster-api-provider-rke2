@@ -15,9 +15,11 @@ package v1beta2
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 func TestRKE2ControlPlaneTemplateValidateCreate(t *testing.T) {
@@ -43,6 +45,44 @@ func TestRKE2ControlPlaneTemplateValidateCreate(t *testing.T) {
 				},
 			},
 			wantErr: true,
+		},
+		{
+			name: "don't allow RKE2ControlPlaneTemplate with invalid metadata",
+			inputTemplate: &RKE2ControlPlaneTemplate{
+				Spec: RKE2ControlPlaneTemplateSpec{
+					Template: RKE2ControlPlaneTemplateResource{
+						ObjectMeta: clusterv1.ObjectMeta{
+							Labels: map[string]string{
+								"foo":            "$invalid-value",
+								"too-long-value": strings.Repeat("a", 64),
+								"/invalid-key":   "foo",
+							},
+							Annotations: map[string]string{
+								"/invalid-key": "foo",
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "allow RKE2ControlPlaneTemplate with valid metadata",
+			inputTemplate: &RKE2ControlPlaneTemplate{
+				Spec: RKE2ControlPlaneTemplateSpec{
+					Template: RKE2ControlPlaneTemplateResource{
+						ObjectMeta: clusterv1.ObjectMeta{
+							Labels: map[string]string{
+								"example.com/foo": "bar",
+							},
+							Annotations: map[string]string{
+								"example.com/foo": "bar",
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
 		},
 	}
 	validator := RKE2ControlPlaneTemplateCustomValidator{}
@@ -91,6 +131,26 @@ func TestRKE2ControlPlaneTemplateValidateUpdate(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "don't allow update to RKE2ControlPlaneTemplate with invalid metadata",
+			newTemplate: &RKE2ControlPlaneTemplate{
+				Spec: RKE2ControlPlaneTemplateSpec{
+					Template: RKE2ControlPlaneTemplateResource{
+						ObjectMeta: clusterv1.ObjectMeta{
+							Labels: map[string]string{
+								"/invalid-key": "foo",
+							},
+						},
+					},
+				},
+			},
+			oldTemplate: &RKE2ControlPlaneTemplate{
+				Spec: RKE2ControlPlaneTemplateSpec{
+					Template: RKE2ControlPlaneTemplateResource{},
+				},
+			},
+			wantErr: true,
 		},
 	}
 	validator := RKE2ControlPlaneTemplateCustomValidator{}
