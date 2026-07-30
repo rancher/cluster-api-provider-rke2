@@ -461,6 +461,11 @@ func (in *RKE2ServerConfig) DeepCopyInto(out *RKE2ServerConfig) {
 		copy(*out, *in)
 	}
 	in.DisableComponents.DeepCopyInto(&out.DisableComponents)
+	if in.IngressController != nil {
+		in, out := &in.IngressController, &out.IngressController
+		*out = make([]IngressController, len(*in))
+		copy(*out, *in)
+	}
 	in.Etcd.DeepCopyInto(&out.Etcd)
 	if in.SecretsEncryptionProvider != nil {
 		in, out := &in.SecretsEncryptionProvider, &out.SecretsEncryptionProvider

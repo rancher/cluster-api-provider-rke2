@@ -208,6 +208,13 @@ type RKE2ServerConfig struct {
 	//+optional
 	CNIMultusEnable bool `json:"cniMultusEnable,omitempty"`
 
+	// IngressController describes the ingress controllers to deploy, one of none, traefik, ingress-nginx.
+	// All selected ingress controllers are deployed, and the first value is set as the default ingress
+	// class. A single value of none disables all packaged ingress controllers.
+	// The RKE2 default is traefik as of v1.36, and ingress-nginx before that.
+	//+optional
+	IngressController []IngressController `json:"ingressController,omitempty"`
+
 	// PauseImage Override image to use for pause.
 	//+optional
 	PauseImage string `json:"pauseImage,omitempty"`
@@ -446,6 +453,20 @@ const (
 	Canal CNI = "canal"
 	// None means that no CNI Plugin will be installed with RKE2, letting the operator install his own CNI afterwards.
 	None CNI = "none"
+)
+
+// IngressController defines the ingress controller options for deploying RKE2.
+// +kubebuilder:validation:Enum=none;traefik;ingress-nginx
+type IngressController string
+
+const (
+	// IngressControllerNone means that no packaged ingress controller will be deployed with RKE2,
+	// letting the operator install their own afterwards.
+	IngressControllerNone IngressController = "none"
+	// IngressControllerTraefik references the RKE2 packaged ingress controller "traefik".
+	IngressControllerTraefik IngressController = "traefik"
+	// IngressControllerNginx references the RKE2 packaged ingress controller "ingress-nginx".
+	IngressControllerNginx IngressController = "ingress-nginx"
 )
 
 // DisableComponents describes components of RKE2 (Kubernetes components and plugin components) that should be disabled.

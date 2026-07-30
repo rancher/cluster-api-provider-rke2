@@ -1256,6 +1256,21 @@ spec:
                         type: string
                     type: object
                     x-kubernetes-map-type: atomic
+                  ingressController:
+                    description: |-
+                      IngressController describes the ingress controllers to deploy, one of none, traefik, ingress-nginx.
+                      All selected ingress controllers are deployed, and the first value is set as the default ingress
+                      class. A single value of none disables all packaged ingress controllers.
+                      The RKE2 default is traefik as of v1.36, and ingress-nginx before that.
+                    items:
+                      description: IngressController defines the ingress controller
+                        options for deploying RKE2.
+                      enum:
+                      - none
+                      - traefik
+                      - ingress-nginx
+                      type: string
+                    type: array
                   kubeAPIServer:
                     description: KubeAPIServer defines optional custom configuration
                       of the Kube API Server.
@@ -2901,6 +2916,21 @@ spec:
                         type: string
                     type: object
                     x-kubernetes-map-type: atomic
+                  ingressController:
+                    description: |-
+                      IngressController describes the ingress controllers to deploy, one of none, traefik, ingress-nginx.
+                      All selected ingress controllers are deployed, and the first value is set as the default ingress
+                      class. A single value of none disables all packaged ingress controllers.
+                      The RKE2 default is traefik as of v1.36, and ingress-nginx before that.
+                    items:
+                      description: IngressController defines the ingress controller
+                        options for deploying RKE2.
+                      enum:
+                      - none
+                      - traefik
+                      - ingress-nginx
+                      type: string
+                    type: array
                   kubeAPIServer:
                     description: KubeAPIServer defines optional custom configuration
                       of the Kube API Server.
