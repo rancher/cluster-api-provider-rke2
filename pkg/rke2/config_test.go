@@ -96,10 +96,11 @@ var _ = Describe("RKE2ServerConfig", func() {
 					Namespace: "test",
 				},
 
-				BindAddress:   "testbindaddress",
-				CNI:           controlplanev1.Cilium,
-				ClusterDNS:    "testdns",
-				ClusterDomain: "testdomain",
+				BindAddress:       "testbindaddress",
+				CNI:               controlplanev1.Cilium,
+				IngressController: []controlplanev1.IngressController{controlplanev1.IngressControllerTraefik},
+				ClusterDNS:        "testdns",
+				ClusterDomain:     "testdomain",
 				CloudProviderConfigMap: &corev1.ObjectReference{
 					Name:      "test",
 					Namespace: "test",
@@ -189,6 +190,7 @@ var _ = Describe("RKE2ServerConfig", func() {
 		Expect(rke2ServerConfig.AuditPolicyFile).To(Equal("/etc/rancher/rke2/audit-policy.yaml"))
 		Expect(rke2ServerConfig.BindAddress).To(Equal(serverConfig.BindAddress))
 		Expect(rke2ServerConfig.CNI).To(Equal([]string{string(serverConfig.CNI)}))
+		Expect(rke2ServerConfig.IngressController).To(Equal([]string{string(controlplanev1.IngressControllerTraefik)}))
 		Expect(rke2ServerConfig.ClusterCIDR).To(Equal("192.168.0.0/16"))
 		Expect(rke2ServerConfig.ServiceCIDR).To(Equal("192.169.0.0/16"))
 		Expect(rke2ServerConfig.ClusterDNS).To(Equal(serverConfig.ClusterDNS))

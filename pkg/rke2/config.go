@@ -125,6 +125,7 @@ type ServerConfig struct {
 	EtcdSnapshotName                  string   `yaml:"etcd-snapshot-name,omitempty"`
 	EtcdSnapshotRetention             string   `yaml:"etcd-snapshot-retention,omitempty"`
 	EtcdSnapshotScheduleCron          string   `yaml:"etcd-snapshot-schedule-cron,omitempty"`
+	IngressController                 []string `yaml:"ingress-controller,omitempty"`
 	KubeAPIServerArgs                 []string `yaml:"kube-apiserver-arg,omitempty"`
 	KubeAPIserverExtraEnv             []string `yaml:"kube-apiserver-extra-env,omitempty"`
 	KubeAPIserverExtraMounts          []string `yaml:"kube-apiserver-extra-mount,omitempty"`
@@ -219,6 +220,10 @@ func newRKE2ServerConfig(opts ServerConfigOpts) (*ServerConfig, []bootstrapv1.Fi
 		rke2ServerConfig.CNI = append([]string{"multus"}, string(opts.ServerConfig.CNI))
 	} else if opts.ServerConfig.CNI != "" {
 		rke2ServerConfig.CNI = []string{string(opts.ServerConfig.CNI)}
+	}
+
+	for _, ingressController := range opts.ServerConfig.IngressController {
+		rke2ServerConfig.IngressController = append(rke2ServerConfig.IngressController, string(ingressController))
 	}
 
 	rke2ServerConfig.ClusterDNS = opts.ServerConfig.ClusterDNS

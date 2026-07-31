@@ -848,6 +848,7 @@ func autoConvert_v1beta1_RKE2ServerConfig_To_v1beta2_RKE2ServerConfig(in *RKE2Se
 	}
 	out.CNI = v1beta2.CNI(in.CNI)
 	out.CNIMultusEnable = in.CNIMultusEnable
+	out.IngressController = *(*[]v1beta2.IngressController)(unsafe.Pointer(&in.IngressController))
 	out.PauseImage = in.PauseImage
 	if err := Convert_v1beta1_EtcdConfig_To_v1beta2_EtcdConfig(&in.Etcd, &out.Etcd, s); err != nil {
 		return err
@@ -883,6 +884,7 @@ func autoConvert_v1beta2_RKE2ServerConfig_To_v1beta1_RKE2ServerConfig(in *v1beta
 	}
 	out.CNI = CNI(in.CNI)
 	out.CNIMultusEnable = in.CNIMultusEnable
+	out.IngressController = *(*[]IngressController)(unsafe.Pointer(&in.IngressController))
 	out.PauseImage = in.PauseImage
 	if err := Convert_v1beta2_EtcdConfig_To_v1beta1_EtcdConfig(&in.Etcd, &out.Etcd, s); err != nil {
 		return err
