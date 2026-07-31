@@ -20,6 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 )
 
@@ -32,6 +34,9 @@ type RKE2ControlPlaneTemplateSpec struct {
 
 // RKE2ControlPlaneTemplateResource contains spec for RKE2ControlPlaneTemplate.
 type RKE2ControlPlaneTemplateResource struct {
+	// Standard object's metadata.
+	// +optional
+	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty,omitzero"`
 	// Spec is the specification of the desired behavior of the control plane.
 	Spec RKE2ControlPlaneTemplateResourceSpec `json:"spec"`
 }
