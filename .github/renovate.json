@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>rancher/renovate-config#release"
+  ],
+  "baseBranchPatterns": [
+    "main",
+    "release-0.25",
+    "release-0.24"
+  ],
+  "prHourlyLimit": 2,
+  "packageRules": [
+    {
+      "description": "Cluster API and its dependencies are upgraded manually.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "sigs.k8s.io/cluster-api",
+        "sigs.k8s.io/cluster-api/**",
+        "sigs.k8s.io/controller-runtime",
+        "k8s.io/**",
+        "go.etcd.io/**",
+        "google.golang.org/grpc"
+      ],
+      "enabled": false
+    }
+  ]
+}
