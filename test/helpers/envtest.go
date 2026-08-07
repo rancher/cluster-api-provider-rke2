@@ -196,7 +196,7 @@ func getFilePathToCAPICRDs(root string) string {
 
 	gopath := envOr("GOPATH", build.Default.GOPATH)
 
-	return filepath.Join(gopath, "pkg", "mod", "sigs.k8s.io", "cluster-api@v"+clusterAPIVersion, "config", "crd", "bases")
+	return filepath.Join(gopath, "pkg", "mod", "sigs.k8s.io", "cluster-api@v"+clusterAPIVersion, "core", "config", "crd", "bases")
 }
 
 func envOr(envKey, defaultValue string) string {

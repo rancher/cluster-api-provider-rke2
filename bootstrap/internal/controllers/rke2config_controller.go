@@ -186,7 +186,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if scope.HasMachineOwner() {
 		dataSecretCreated := ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false)
 		if scope.Machine.Spec.Bootstrap.DataSecretName != nil && (!dataSecretCreated || scope.Config.Status.DataSecretName == nil) {
-			scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
+			scope.Config.Status.Initialization.DataSecretCreated = new(true)
 			scope.Config.Status.DataSecretName = scope.Machine.Spec.Bootstrap.DataSecretName
 			conditions.Set(scope.Config, metav1.Condition{
 				Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
@@ -206,7 +206,7 @@ func (r *RKE2ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if scope.HasMachinePoolOwner() {
 		if scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName != nil &&
 			(!ptr.Deref(scope.Config.Status.Initialization.DataSecretCreated, false) || scope.Config.Status.DataSecretName == nil) {
-			scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
+			scope.Config.Status.Initialization.DataSecretCreated = new(true)
 			scope.Config.Status.DataSecretName = scope.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName
 			conditions.Set(scope.Config, metav1.Condition{
 				Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,
@@ -992,7 +992,7 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 					Kind:       scope.Cluster.Kind,
 					Name:       scope.Cluster.Name,
 					UID:        scope.Cluster.UID,
-					Controller: ptr.To(true),
+					Controller: new(true),
 				},
 			},
 		},
@@ -1050,7 +1050,7 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 					Kind:       scope.Config.Kind,
 					Name:       scope.Config.Name,
 					UID:        scope.Config.UID,
-					Controller: ptr.To(true),
+					Controller: new(true),
 				},
 			},
 		},
@@ -1065,8 +1065,8 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 		return err
 	}
 
-	scope.Config.Status.DataSecretName = ptr.To(secret.Name)
-	scope.Config.Status.Initialization.DataSecretCreated = ptr.To(true)
+	scope.Config.Status.DataSecretName = new(secret.Name)
+	scope.Config.Status.Initialization.DataSecretCreated = new(true)
 
 	conditions.Set(scope.Config, metav1.Condition{
 		Type:   bootstrapv1.RKE2ConfigDataSecretAvailableCondition,

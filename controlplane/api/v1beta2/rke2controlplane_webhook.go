@@ -74,17 +74,17 @@ func (rd *RKE2ControlPlaneCustomDefaulter) Default(_ context.Context, rcp *RKE2C
 
 	// Set default NodeDrainTimeout if not set
 	if rcp.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds == nil {
-		rcp.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds = ptr.To(int32(defaultNodeDrainTimeoutSeconds))
+		rcp.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds = new(int32(defaultNodeDrainTimeoutSeconds))
 	}
 
 	// Set default NodeVolumeDetachTimeout if not set
 	if rcp.Spec.MachineTemplate.Spec.Deletion.NodeVolumeDetachTimeoutSeconds == nil {
-		rcp.Spec.MachineTemplate.Spec.Deletion.NodeVolumeDetachTimeoutSeconds = ptr.To(int32(defaultNodeVolumeDetachTimeoutSeconds))
+		rcp.Spec.MachineTemplate.Spec.Deletion.NodeVolumeDetachTimeoutSeconds = new(int32(defaultNodeVolumeDetachTimeoutSeconds))
 	}
 
 	// Set default NodeDeletionTimeout if not set
 	if rcp.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds == nil {
-		rcp.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds = ptr.To(int32(defaultNodeDeletionTimeoutSeconds))
+		rcp.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds = new(int32(defaultNodeDeletionTimeoutSeconds))
 	}
 
 	// Set replicas to 1 if not set
