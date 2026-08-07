@@ -331,7 +331,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(
 			Client:              r.Client,
 			SecretCachingClient: r.SecretCachingClient,
 			ClusterCache:        clusterCache,
-			ClientCertCache:     cache.New[rke2.ClientCertEntry](certCacheTtl),
+			ClientCertCache:     cache.New[rke2.ClientCertEntry](ctx, certCacheTtl),
 		}
 	}
 

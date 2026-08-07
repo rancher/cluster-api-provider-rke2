@@ -232,7 +232,7 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 				Client:              testEnv.GetClient(),
 				SecretCachingClient: testEnv.GetClient(),
 				ClusterCache:        clusterCache,
-				ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
+				ClientCertCache:     cache.New[rke2.ClientCertEntry](ctx, 24*time.Hour),
 			},
 			managementClusterUncached: &rke2.Management{Client: testEnv.GetClient()},
 		}
