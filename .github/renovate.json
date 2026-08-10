@@ -11,6 +11,16 @@
   "prHourlyLimit": 2,
   "packageRules": [
     {
+      "description": "Only raise PRs for CVE/vulnerability fixes on release branches.",
+      "matchBaseBranches": [
+        "/^release-.*/"
+      ],
+      "matchJsonata": [
+        "$not($exists(vulnerabilityFixVersion) or $exists(isVulnerabilityAlert))"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Cluster API and its dependencies are upgraded manually.",
       "matchManagers": [
         "gomod"
