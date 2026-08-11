@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:26.04
 RUN apt-get update  && apt-get install -y cloud-init=22.4.2-0ubuntu0~20.04.2 systemd=245.4-4ubuntu3.20 curl=7.68.0-1ubuntu2.16 --no-install-recommends\
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
