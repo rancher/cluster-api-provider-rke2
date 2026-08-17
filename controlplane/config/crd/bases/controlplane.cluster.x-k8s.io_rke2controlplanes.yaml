@@ -261,8 +261,10 @@ spec:
                       if false, kernel tunable can be different from kubelet defaults
                     type: boolean
                   resolvConf:
-                    description: ResolvConf is a reference to a ConfigMap containing
-                      resolv.conf content for the node.
+                    description: |-
+                      ResolvConf is a reference to a ConfigMap containing resolv.conf content for the node.
+                      The content is written to /etc/rancher/rke2/resolv.conf, and RKE2 is pointed at that file.
+                      Mutually exclusive with ResolvConfPath.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -304,6 +306,14 @@ spec:
                         type: string
                     type: object
                     x-kubernetes-map-type: atomic
+                  resolvConfPath:
+                    description: |-
+                      ResolvConfPath is the path of a resolv.conf file that already exists on the node, passed to
+                      RKE2 as the kubelet resolver configuration (for example /run/systemd/resolve/resolv.conf on
+                      systemd-resolved based distributions). Unlike ResolvConf, no file is created on the node.
+                      Mutually exclusive with ResolvConf.
+                    pattern: ^/.*
+                    type: string
                   runtimeImage:
                     description: RuntimeImage override image to use for runtime binaries
                       (containerd, kubectl, crictl, etc).
@@ -317,6 +327,9 @@ spec:
                       for all system images.
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: only one of resolvConf or resolvConfPath may be set
+                  rule: '!has(self.resolvConf) || !has(self.resolvConfPath)'
               files:
                 description: Files specifies extra files to be passed to user_data
                   upon creation.
@@ -1962,8 +1975,10 @@ spec:
                       if false, kernel tunable can be different from kubelet defaults
                     type: boolean
                   resolvConf:
-                    description: ResolvConf is a reference to a ConfigMap containing
-                      resolv.conf content for the node.
+                    description: |-
+                      ResolvConf is a reference to a ConfigMap containing resolv.conf content for the node.
+                      The content is written to /etc/rancher/rke2/resolv.conf, and RKE2 is pointed at that file.
+                      Mutually exclusive with ResolvConfPath.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -2005,6 +2020,14 @@ spec:
                         type: string
                     type: object
                     x-kubernetes-map-type: atomic
+                  resolvConfPath:
+                    description: |-
+                      ResolvConfPath is the path of a resolv.conf file that already exists on the node, passed to
+                      RKE2 as the kubelet resolver configuration (for example /run/systemd/resolve/resolv.conf on
+                      systemd-resolved based distributions). Unlike ResolvConf, no file is created on the node.
+                      Mutually exclusive with ResolvConf.
+                    pattern: ^/.*
+                    type: string
                   runtimeImage:
                     description: RuntimeImage override image to use for runtime binaries
                       (containerd, kubectl, crictl, etc).
@@ -2018,6 +2041,9 @@ spec:
                       for all system images.
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: only one of resolvConf or resolvConfPath may be set
+                  rule: '!has(self.resolvConf) || !has(self.resolvConfPath)'
               files:
                 description: Files specifies extra files to be passed to user_data
                   upon creation.
