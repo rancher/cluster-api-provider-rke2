@@ -61,6 +61,7 @@ type RKE2ConfigSpec struct {
 }
 
 // RKE2AgentConfig describes some attributes that are common to agent and server nodes.
+// +kubebuilder:validation:XValidation:rule="!has(self.resolvConf) || !has(self.resolvConfPath)",message="only one of resolvConf or resolvConfPath may be set"
 type RKE2AgentConfig struct {
 	// DataDir Folder to hold state.
 	//+optional
@@ -114,8 +115,18 @@ type RKE2AgentConfig struct {
 	PodSecurityAdmissionConfigFile string `json:"podSecurityAdmissionConfigFile,omitempty"`
 
 	// ResolvConf is a reference to a ConfigMap containing resolv.conf content for the node.
+	// The content is written to /etc/rancher/rke2/resolv.conf, and RKE2 is pointed at that file.
+	// Mutually exclusive with ResolvConfPath.
 	//+optional
 	ResolvConf *corev1.ObjectReference `json:"resolvConf,omitempty"`
+
+	// ResolvConfPath is the path of a resolv.conf file that already exists on the node, passed to
+	// RKE2 as the kubelet resolver configuration (for example /run/systemd/resolve/resolv.conf on
+	// systemd-resolved based distributions). Unlike ResolvConf, no file is created on the node.
+	// Mutually exclusive with ResolvConf.
+	// +kubebuilder:validation:Pattern=`^/.*`
+	//+optional
+	ResolvConfPath string `json:"resolvConfPath,omitempty"`
 
 	// ProtectKernelDefaults defines Kernel tuning behavior. If true, error if kernel tunables are different than kubelet defaults.
 	// if false, kernel tunable can be different from kubelet defaults

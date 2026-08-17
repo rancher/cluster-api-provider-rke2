@@ -464,6 +464,7 @@ func autoConvert_v1beta1_RKE2AgentConfig_To_v1beta2_RKE2AgentConfig(in *RKE2Agen
 	out.CISProfile = v1beta2.CISProfile(in.CISProfile)
 	out.PodSecurityAdmissionConfigFile = in.PodSecurityAdmissionConfigFile
 	out.ResolvConf = (*corev1.ObjectReference)(unsafe.Pointer(in.ResolvConf))
+	out.ResolvConfPath = in.ResolvConfPath
 	out.ProtectKernelDefaults = in.ProtectKernelDefaults
 	out.SystemDefaultRegistry = in.SystemDefaultRegistry
 	out.EnableContainerdSElinux = in.EnableContainerdSElinux
@@ -494,6 +495,7 @@ func autoConvert_v1beta2_RKE2AgentConfig_To_v1beta1_RKE2AgentConfig(in *v1beta2.
 	out.CISProfile = CISProfile(in.CISProfile)
 	out.PodSecurityAdmissionConfigFile = in.PodSecurityAdmissionConfigFile
 	out.ResolvConf = (*corev1.ObjectReference)(unsafe.Pointer(in.ResolvConf))
+	out.ResolvConfPath = in.ResolvConfPath
 	out.ProtectKernelDefaults = in.ProtectKernelDefaults
 	out.SystemDefaultRegistry = in.SystemDefaultRegistry
 	out.EnableContainerdSElinux = in.EnableContainerdSElinux

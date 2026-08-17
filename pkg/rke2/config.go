@@ -609,6 +609,10 @@ func newRKE2AgentConfig(opts AgentConfigOpts) (*rke2AgentConfig, []bootstrapv1.F
 	rke2AgentConfig.ProtectKernelDefaults = opts.AgentConfig.ProtectKernelDefaults
 	rke2AgentConfig.PodSecurityAdmissionConfigFile = opts.AgentConfig.PodSecurityAdmissionConfigFile
 
+	if opts.AgentConfig.ResolvConfPath != "" {
+		rke2AgentConfig.ResolvConf = opts.AgentConfig.ResolvConfPath
+	}
+
 	if opts.AgentConfig.ResolvConf != nil {
 		resolvConfCM := &corev1.ConfigMap{}
 		if err := opts.Client.Get(opts.Ctx, types.NamespacedName{
