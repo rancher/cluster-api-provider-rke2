@@ -18,17 +18,6 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: "v1.12.8"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.8/core-components.yaml"
-        type: "url"
-        contract: v1beta2
-        files:
-          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
-        replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
       - name: "v1.13.4"
         value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.4/core-components.yaml"
         type: "url"
@@ -54,22 +43,6 @@ providers:
   - name: docker
     type: InfrastructureProvider
     versions:
-      - name: "v1.12.8"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.8/infrastructure-components-development.yaml"
-        type: "url"
-        contract: v1beta2
-        files:
-          - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
-          - sourcePath: "../data/infrastructure/cluster-template-docker-move.yaml"
-          - sourcePath: "../data/infrastructure/cluster-template-kcp-remediation.yaml"
-          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
-        replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
-          - old: --metrics-addr=127.0.0.1:8080
-            new: --metrics-addr=:8080
       - name: "v1.13.4"
         value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.4/infrastructure-components-development.yaml"
         type: "url"
