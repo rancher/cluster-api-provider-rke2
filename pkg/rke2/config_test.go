@@ -440,6 +440,23 @@ var _ = Describe("RKE2 Agent Config", func() {
 		Expect(files[2].Owner).To(Equal(consts.DefaultFileOwner))
 		Expect(files[2].Permissions).To(Equal(consts.DefaultFileMode))
 	})
+
+	It("should use ResolvConfPath verbatim and not write a resolv.conf file", func() {
+		opts.AgentConfig.ResolvConf = nil
+		opts.AgentConfig.ResolvConfPath = "/run/systemd/resolve/resolv.conf"
+
+		agentConfig, files, err := GenerateWorkerConfig(*opts)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(agentConfig.ResolvConf).To(Equal("/run/systemd/resolve/resolv.conf"))
+
+		// Only the CIS script and the image credential provider config are written,
+		// no resolv.conf is materialised on the node.
+		Expect(files).To(HaveLen(2))
+		for _, file := range files {
+			Expect(file.Path).ToNot(Equal("/etc/rancher/rke2/resolv.conf"))
+		}
+	})
 })
 
 var _ = Describe("componentMapToSlice", func() {
