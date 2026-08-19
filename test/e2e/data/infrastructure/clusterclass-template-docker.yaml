@@ -12,12 +12,12 @@ spec:
     machineInfrastructure:
       templateRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-        kind: DockerMachineTemplate
+        kind: DevMachineTemplate
         name: ${CLASS_NAME}-control-plane
   infrastructure:
     templateRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-      kind: DockerClusterTemplate
+      kind: DevClusterTemplate
       name: ${CLASS_NAME}-cluster
   workers:
     machineDeployments:
@@ -30,7 +30,7 @@ spec:
       infrastructure:
         templateRef:
           apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-          kind: DockerMachineTemplate
+          kind: DevMachineTemplate
           name: ${CLASS_NAME}-default-worker-machinetemplate
   variables:
     - name: dockerKindImage
@@ -44,26 +44,26 @@ spec:
       definitions:
       - selector:
           apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-          kind: DockerMachineTemplate
+          kind: DevMachineTemplate
           matchResources:
             controlPlane: true
         jsonPatches:
           - op: add
-            path: /spec/template/spec/customImage
+            path: /spec/template/spec/backend/docker/customImage
             valueFrom:
               variable: dockerKindImage
     - name: workerDockerKindImage
       definitions:
       - selector:
           apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-          kind: DockerMachineTemplate
+          kind: DevMachineTemplate
           matchResources:
             machineDeploymentClass:
               names:
               - default-worker
         jsonPatches:
         - op: add
-          path: "/spec/template/spec/customImage"
+          path: "/spec/template/spec/backend/docker/customImage"
           valueFrom:
             variable: dockerKindImage
 ---
@@ -134,16 +134,18 @@ metadata:
   namespace: "${NAMESPACE}"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: DockerClusterTemplate
+kind: DevClusterTemplate
 metadata:
   name: ${CLASS_NAME}-cluster
   namespace: "${NAMESPACE}"
 spec:
   template:
     spec:
-      loadBalancer:
-        customHAProxyConfigTemplateRef:
-          name: ${CLASS_NAME}-lb-config
+      backend:
+        docker:
+          loadBalancer:
+            customHAProxyConfigTemplateRef:
+              name: ${CLASS_NAME}-lb-config
 ---
 kind: RKE2ControlPlaneTemplate
 apiVersion: controlplane.cluster.x-k8s.io/v1beta2
@@ -167,32 +169,36 @@ spec:
           maxSurge: 1
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: DockerMachineTemplate
+kind: DevMachineTemplate
 metadata:
   name: ${CLASS_NAME}-control-plane
   namespace: "${NAMESPACE}"
 spec:
   template:
     spec:
-      customImage: kindest/node:v1.28.0 # will be replaced by the patch
-      extraMounts:
-      - containerPath: "/var/run/docker.sock"
-        hostPath: "/var/run/docker.sock"
-      bootstrapTimeout: 15m
+      backend:
+        docker:
+          customImage: kindest/node:v1.28.0 # will be replaced by the patch
+          extraMounts:
+          - containerPath: "/var/run/docker.sock"
+            hostPath: "/var/run/docker.sock"
+          bootstrapTimeout: 15m
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: DockerMachineTemplate
+kind: DevMachineTemplate
 metadata:
   name: ${CLASS_NAME}-default-worker-machinetemplate
   namespace: "${NAMESPACE}"
 spec:
   template:
     spec:
-      customImage: kindest/node:v1.28.0 # will be replaced by the patch
-      extraMounts:
-      - containerPath: "/var/run/docker.sock"
-        hostPath: "/var/run/docker.sock"
-      bootstrapTimeout: 15m
+      backend:
+        docker:
+          customImage: kindest/node:v1.28.0 # will be replaced by the patch
+          extraMounts:
+          - containerPath: "/var/run/docker.sock"
+            hostPath: "/var/run/docker.sock"
+          bootstrapTimeout: 15m
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate

@@ -222,7 +222,7 @@ func ApplyCustomClusterTemplateAndWait(ctx context.Context, input ApplyCustomClu
 		input.PostMachinesProvisioned()
 	}
 
-	VerifyDockerMachineTemplateOwner(ctx, VerifyDockerMachineTemplateOwnerInput{
+	VerifyDevMachineTemplateOwner(ctx, VerifyDevMachineTemplateOwnerInput{
 		Lister:      input.ClusterProxy.GetClient(),
 		ClusterName: result.Cluster.Name,
 		Namespace:   result.Cluster.Namespace,
@@ -536,19 +536,19 @@ func WaitForClusterToUpgrade(ctx context.Context, input WaitForClusterToUpgradeI
 	}, intervals...).Should(Succeed())
 }
 
-// VerifyDockerMachineTemplateOwner is the input type for VerifyDockerMachineTemplateOwner.
-type VerifyDockerMachineTemplateOwnerInput struct {
+// VerifyDevMachineTemplateOwner is the input type for VerifyDevMachineTemplateOwner.
+type VerifyDevMachineTemplateOwnerInput struct {
 	Lister      framework.Lister
 	ClusterName string
 	Namespace   string
 }
 
-// VerifyDockerMachineTemplateOwner ensures all DockerMachineTemplates used by the Cluster, are also owned by it.
-// Note that for this test to work we manually label the DockerMachineTemplates with 'cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}'.
-// DockerMachineTemplates cloned from ClusterClasses' templates, are automatically labeled.
-func VerifyDockerMachineTemplateOwner(ctx context.Context, input VerifyDockerMachineTemplateOwnerInput) {
-	By("Verifying DockerMachineTemplates are owned by Cluster " + input.Namespace + "/" + input.ClusterName)
-	infraMachineTemplates := &dockerv1.DockerMachineTemplateList{}
+// VerifyDevMachineTemplateOwner ensures all DevMachineTemplates used by the Cluster, are also owned by it.
+// Note that for this test to work we manually label the DevMachineTemplates with 'cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}'.
+// DevMachineTemplates cloned from ClusterClasses' templates, are automatically labeled.
+func VerifyDevMachineTemplateOwner(ctx context.Context, input VerifyDevMachineTemplateOwnerInput) {
+	By("Verifying DevMachineTemplates are owned by Cluster " + input.Namespace + "/" + input.ClusterName)
+	infraMachineTemplates := &dockerv1.DevMachineTemplateList{}
 	Expect(input.Lister.List(ctx, infraMachineTemplates,
 		client.MatchingLabels{clusterv1.ClusterNameLabel: input.ClusterName},
 		client.InNamespace(input.Namespace),

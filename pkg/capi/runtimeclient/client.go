@@ -55,9 +55,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	runtimecatalog "sigs.k8s.io/cluster-api/api/runtime/catalog"
 	runtimehooksv1 "sigs.k8s.io/cluster-api/api/runtime/hooks/v1alpha1"
 	runtimev1 "sigs.k8s.io/cluster-api/api/runtime/v1beta2"
-	runtimecatalog "sigs.k8s.io/cluster-api/exp/runtime/catalog"
 	runtimeclientapi "sigs.k8s.io/cluster-api/exp/runtime/client"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/cache"
@@ -89,8 +89,8 @@ type Options struct {
 }
 
 // New returns a new runtime Client.
-func New(options Options) (runtimeclientapi.Client, *certwatcher.CertWatcher, error) {
-	httpClientCache := cache.New[httpClientEntry](defaultHTTPClientCacheTTL)
+func New(ctx context.Context, options Options) (runtimeclientapi.Client, *certwatcher.CertWatcher, error) {
+	httpClientCache := cache.New[httpClientEntry](ctx, defaultHTTPClientCacheTTL)
 
 	var certWatcher *certwatcher.CertWatcher
 

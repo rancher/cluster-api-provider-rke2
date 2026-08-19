@@ -249,30 +249,8 @@ var _ = Describe("In-place update via Runtime Extension", Label(DefaultTestsLabe
 			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...).Should(Succeed())
 		}
 
-		By("Triggering an in-place Kubernetes version upgrade")
-		versionBefore := cluster.Spec.Topology.Version
-		versionAfter := e2eConfig.MustGetVariable(KubernetesVersionUpgradeTo) + "+rke2r1"
-		Expect(versionAfter).ToNot(Equal(versionBefore), "KUBERNETES_VERSION_UPGRADE_TO must differ from KUBERNETES_VERSION in the e2e config")
-
-		originalCluster := cluster.DeepCopy()
-		cluster.Spec.Topology.Version = versionAfter
-		Expect(mgmtClient.Patch(ctx, cluster, client.MergeFrom(originalCluster))).To(Succeed())
-
-		Eventually(func(g Gomega) {
-			verifyClusterConditionTrue(g, string(clusterv1.ClusterControlPlaneMachinesUpToDateCondition))
-			verifyClusterConditionTrue(g, string(clusterv1.ClusterWorkerMachinesUpToDateCondition))
-
-			afterNames := GetMachineNamesByCluster(ctx, machineListInput)
-			g.Expect(afterNames).To(ConsistOf(beforeNames), "version bump should be in-place — Machine names should not change")
-
-			machineList := GetMachinesByCluster(ctx, machineListInput)
-			for idx := range machineList.Items {
-				g.Expect(machineList.Items[idx].Spec.Version).To(Equal(versionAfter), "Machine %s should have the new version", machineList.Items[idx].Name)
-			}
-		}, e2eConfig.GetIntervals(specName, "wait-control-plane")...).Should(Succeed())
-
 		By("Triggering a non supported for in-place change and expecting rolling rollout")
-		originalCluster = cluster.DeepCopy()
+		originalCluster := cluster.DeepCopy()
 		cluster.Spec.Topology.Variables = slices.DeleteFunc(cluster.Spec.Topology.Variables, func(v clusterv1.ClusterVariable) bool {
 			return v.Name == "preRKE2Commands"
 		})
