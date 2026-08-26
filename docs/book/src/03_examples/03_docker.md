@@ -13,8 +13,8 @@ Before creating a workload clusters, it is required to set the following environ
 ```bash
 export CONTROL_PLANE_MACHINE_COUNT=3
 export WORKER_MACHINE_COUNT=1
-export RKE2_VERSION=v1.30.2+rke2r1
-export KIND_IMAGE_VERSION=v1.30.0
+export RKE2_VERSION=v1.35.7+rke2r1
+export KIND_IMAGE_VERSION=v1.36.0
 ```
 
 Now, we can generate the YAML files from the templates using `clusterctl generate yaml` command:

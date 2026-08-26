@@ -53,7 +53,7 @@ In order to use this provider, you need to have a management cluster available t
 No additional steps are required and you can install the RKE2 provider with **clusterctl** directly:
 
 ```bash
-clusterctl init --core cluster-api:v1.11.5 --bootstrap rke2:v0.22.0 --control-plane rke2:v0.22.0 --infrastructure docker:v1.11.5
+clusterctl init --core cluster-api:v1.13.5 --bootstrap rke2:v0.25.0 --control-plane rke2:v0.25.0 --infrastructure docker:v1.13.5
 ```
 
 Next, you can proceed to [creating a workload cluster](#create-a-workload-cluster).
@@ -117,8 +117,8 @@ export NAMESPACE=example
 export CLUSTER_NAME=capd-rke2-test
 export CONTROL_PLANE_MACHINE_COUNT=3
 export WORKER_MACHINE_COUNT=2
-export KIND_IMAGE_VERSION=v1.31.4
-export RKE2_VERSION=v1.31.4+rke2r1
+export KIND_IMAGE_VERSION=v1.35.0
+export RKE2_VERSION=v1.35.7+rke2r1
 ```
 
 The next step is to substitute the values in the YAML using the following commands:

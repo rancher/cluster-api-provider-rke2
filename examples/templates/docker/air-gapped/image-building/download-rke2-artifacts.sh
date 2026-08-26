@@ -4,16 +4,16 @@ set -o nounset
 set -o pipefail
 
 # renovate: datasource=github-release-attachments depName=rancher/rke2
-RKE2_VERSION="v1.26.0+rke2r1"
+RKE2_VERSION="v1.35.7+rke2r1"
 
 # Checksums for RKE2 ${RKE2_VERSION} amd64 artifacts.
 # When updating RKE2_VERSION, update these checksums from the upstream
 # sha256sum-amd64.txt for the new release before committing.
-# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.26.0+rke2r1
+# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.35.7+rke2r1
 CHECKSUM_rke2_images_linux_amd64_tar_zst="9c71fc4280beaaebddf742dda51ef6337f3e0222ca9407356848bb8cb6b9acda"
-# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.26.0+rke2r1
+# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.35.7+rke2r1
 CHECKSUM_rke2_linux_amd64_tar_gz="d79933aaadbe3435fa5b1ad4757c23d7055c4e0e6befe93781f21a93407e32fa"
-# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.26.0+rke2r1
+# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.35.7+rke2r1
 CHECKSUM_sha256sum_amd64_txt="937a6a5dd0e926c173156cd8cad8d0e821c0aa651f5ce58dccfb094435432997"
 
 # Map a filename to its expected checksum.
