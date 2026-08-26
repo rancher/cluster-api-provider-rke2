@@ -52,7 +52,7 @@ Note: RKE2_VERSION must not include the v prefix
 ```bash
 export AWS_ACCESS_KEY_ID=<AWS access key>
 export AWS_SECRET_ACCESS_KEY=<AWS secret access key>
-export RKE2_VERSION=1.32.4+rke2r1
+export RKE2_VERSION=1.35.7+rke2r1
 ```
 
 ### Config opensuse-leap-160.json

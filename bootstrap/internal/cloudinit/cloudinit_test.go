@@ -97,7 +97,7 @@ var _ = Describe("WorkerOnlineCloudInitTest", func() {
 	BeforeEach(func() {
 		input = &BaseUserData{
 			AirGapped:   false,
-			RKE2Version: "v1.25.6+rke2r1",
+			RKE2Version: "v1.35.7+rke2r1",
 		}
 	})
 	It("Should use the RKE2 Online installation method", func() {
@@ -116,7 +116,7 @@ write_files:
 
 
 runcmd:
-  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.35.7+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
   - 'systemctl start rke2-agent.service'
@@ -170,7 +170,7 @@ var _ = Describe("WorkerCISTest", func() {
 		input = &BaseUserData{
 			AirGapped:   false,
 			CISEnabled:  true,
-			RKE2Version: "v1.25.6+rke2r1",
+			RKE2Version: "v1.35.7+rke2r1",
 		}
 	})
 	It("Should run the CIS script", func() {
@@ -189,7 +189,7 @@ write_files:
 
 
 runcmd:
-  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.35.7+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
   - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
@@ -271,7 +271,7 @@ runcmd:
 		input = &BaseUserData{
 			AirGapped:               false,
 			CISEnabled:              true,
-			RKE2Version:             "v1.25.6+rke2r1",
+			RKE2Version:             "v1.35.7+rke2r1",
 			AdditionalArbitraryData: arbitraryData,
 		}
 		workerCloudInitData, err := NewJoinWorker(input)
@@ -306,7 +306,7 @@ users:
   sudo: ALL=(ALL) NOPASSWD:ALL
 
 runcmd:
-  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.35.7+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
   - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
@@ -320,7 +320,7 @@ runcmd:
 		input = &BaseUserData{
 			AirGapped:           false,
 			CISEnabled:          true,
-			RKE2Version:         "v1.25.6+rke2r1",
+			RKE2Version:         "v1.35.7+rke2r1",
 			AdditionalCloudInit: cloudInitData,
 		}
 		workerCloudInitData, err := NewJoinWorker(input)
@@ -339,7 +339,7 @@ write_files:
 
 
 runcmd:
-  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.25.6+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
+  - 'curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.35.7+rke2r1 INSTALL_RKE2_TYPE="agent" sh -s -'
   - '/opt/rke2-cis-script.sh'
   - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'

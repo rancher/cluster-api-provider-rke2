@@ -5,7 +5,7 @@
 In the folder [files](files/), you need to add the files `rke2.linux-amd64.tar.gz` and `rke2-images.linux-amd64.tar.zst` from the RKE2 target release. You can use the script [download-rke2-artifacts.sh](download-rke2-artifacts.sh) to download a specific version of RKE2 by setting the environment variable `RKE2_VERSION` to the desired version.
 
 ```bash
-RKE2_VERSION=v1.23.16+rke2r1 ./download-rke2-artifacts.sh
+RKE2_VERSION=v1.35.7+rke2r1 ./download-rke2-artifacts.sh
 ```
 which should, after successful download show:
 
