@@ -734,6 +734,13 @@ func matchesMachineSpec(
 				ctx, c, rcp, cluster, res.CurrentInfraMachine.GetName(), res.CurrentInfraMachine,
 			)
 			if err != nil {
+				// If the RCP is deleting, tolerate a missing infra machine template: it is not needed anymore
+				// because no new Machines will be created, so the Machine should not be considered as unmatching
+				// and, more importantly, the missing template must not block deletion of the control plane.
+				if !rcp.DeletionTimestamp.IsZero() && apierrors.IsNotFound(err) {
+					return true, nil, nil, nil
+				}
+
 				return false, nil, nil, fmt.Errorf("failed to compute desired InfraMachine for %s: %w", machine.Name, err)
 			}
 
