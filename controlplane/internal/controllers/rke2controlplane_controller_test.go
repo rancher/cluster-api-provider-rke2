@@ -127,7 +127,7 @@ var _ = Describe("Rotate kubeconfig cert", func() {
 				Client:              testEnv.GetClient(),
 				SecretCachingClient: testEnv.GetClient(),
 				ClusterCache:        clusterCache,
-				ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
+				ClientCertCache:     cache.New[rke2.ClientCertEntry](ctx, 24*time.Hour),
 			},
 			managementClusterUncached: &rke2.Management{
 				Client: testEnv.GetClient(),
@@ -442,7 +442,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 			Client:              testEnv.GetClient(),
 			SecretCachingClient: testEnv.GetClient(),
 			ClusterCache:        clusterCache,
-			ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
+			ClientCertCache:     cache.New[rke2.ClientCertEntry](ctx, 24*time.Hour),
 		}
 
 		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
@@ -463,7 +463,7 @@ var _ = Describe("Reconcile control plane conditions", func() {
 				Client:              testEnv.GetClient(),
 				SecretCachingClient: testEnv.GetClient(),
 				ClusterCache:        clusterCache,
-				ClientCertCache:     cache.New[rke2.ClientCertEntry](24 * time.Hour),
+				ClientCertCache:     cache.New[rke2.ClientCertEntry](ctx, 24*time.Hour),
 			},
 			managementClusterUncached: &rke2.Management{Client: testEnv.GetClient()},
 		}

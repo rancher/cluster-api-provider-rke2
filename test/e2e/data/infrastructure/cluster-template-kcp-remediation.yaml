@@ -82,17 +82,19 @@ spec:
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
     apiGroup: infrastructure.cluster.x-k8s.io
-    kind: DockerCluster
+    kind: DevCluster
     name: ${CLUSTER_NAME}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: DockerCluster
+kind: DevCluster
 metadata:
   name: ${CLUSTER_NAME}
 spec:
-  loadBalancer:
-    customHAProxyConfigTemplateRef:
-      name: ${CLUSTER_NAME}-lb-config
+  backend:
+    docker:
+      loadBalancer:
+        customHAProxyConfigTemplateRef:
+          name: ${CLUSTER_NAME}-lb-config
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: RKE2ControlPlane
@@ -148,11 +150,11 @@ spec:
     spec:
       infrastructureRef:
         apiGroup: infrastructure.cluster.x-k8s.io
-        kind: DockerMachineTemplate
+        kind: DevMachineTemplate
         name: "${CLUSTER_NAME}-control-plane"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: DockerMachineTemplate
+kind: DevMachineTemplate
 metadata:
   name: "${CLUSTER_NAME}-control-plane"
   labels:
@@ -160,8 +162,10 @@ metadata:
 spec:
   template:
     spec:
-      customImage: kindest/node:${KIND_IMAGE_VERSION}
-      bootstrapTimeout: 15m
+      backend:
+        docker:
+          customImage: kindest/node:${KIND_IMAGE_VERSION}
+          bootstrapTimeout: 15m
 ---
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
@@ -184,11 +188,11 @@ spec:
           name: ${CLUSTER_NAME}-mhc-0
       infrastructureRef:
         apiGroup: infrastructure.cluster.x-k8s.io
-        kind: DockerMachineTemplate
+        kind: DevMachineTemplate
         name: ${CLUSTER_NAME}-mhc-0
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
-kind: DockerMachineTemplate
+kind: DevMachineTemplate
 metadata:
   name: ${CLUSTER_NAME}-mhc-0
   labels:
@@ -196,8 +200,10 @@ metadata:
 spec:
   template:
     spec:
-      customImage: kindest/node:${KIND_IMAGE_VERSION}
-      bootstrapTimeout: 15m
+      backend:
+        docker:
+          customImage: kindest/node:${KIND_IMAGE_VERSION}
+          bootstrapTimeout: 15m
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: RKE2ConfigTemplate
