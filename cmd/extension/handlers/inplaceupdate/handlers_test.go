@@ -18,10 +18,12 @@ package inplaceupdate
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 
 	. "github.com/onsi/gomega"
+	planapi "github.com/rancher/rancher/pkg/plan"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -326,4 +328,169 @@ func machinePlanSecret(namespace, machineName string) *corev1.Secret {
 		},
 		Type: machinePlanSecretType,
 	}
+}
+
+// When the machine-plan Secret exists but has no plan submitted yet, the handler must build and
+// write the upgrade plan (plan-state=pending) and ask CAPI to retry.
+func TestDoUpdateMachine_NoPlanYet_SubmitsPlanAndRetries(t *testing.T) {
+	g := NewWithT(t)
+	m := baseMachine()
+	secret := machinePlanSecret(m.Namespace, m.Name)
+	h := newHandlers(t, secret)
+
+	req := &runtimehooksv1.UpdateMachineRequest{
+		Desired: runtimehooksv1.UpdateMachineRequestObjects{Machine: m},
+	}
+
+	resp := &runtimehooksv1.UpdateMachineResponse{}
+	h.DoUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(resp.RetryAfterSeconds).To(BeNumerically(">", 0))
+
+	got := &corev1.Secret{}
+	g.Expect(h.client.Get(context.Background(), client.ObjectKeyFromObject(secret), got)).To(Succeed())
+	g.Expect(got.Data[planDataKey]).NotTo(BeEmpty())
+	g.Expect(string(got.Data[planapi.PlanStateKey])).To(Equal(string(planapi.PlanStatePending)))
+}
+
+// While the submitted plan has not reached a terminal state, the handler must keep retrying
+// without resubmitting (the plan content must stay untouched).
+func TestDoUpdateMachine_PlanInProgress_Retries(t *testing.T) {
+	g := NewWithT(t)
+	m := baseMachine()
+
+	desiredPlan, err := buildUpgradePlan(&m, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+	planBytes, err := json.Marshal(desiredPlan)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	secret := machinePlanSecret(m.Namespace, m.Name)
+	secret.Data = map[string][]byte{
+		planDataKey:          planBytes,
+		planapi.PlanStateKey: []byte(planapi.PlanStateInProgress),
+		"probe-statuses":     []byte(`{"foo":"bar"}`),
+	}
+	h := newHandlers(t, secret)
+
+	req := &runtimehooksv1.UpdateMachineRequest{
+		Desired: runtimehooksv1.UpdateMachineRequestObjects{Machine: m},
+	}
+
+	resp := &runtimehooksv1.UpdateMachineResponse{}
+	h.DoUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(resp.RetryAfterSeconds).To(BeNumerically(">", 0))
+
+	got := &corev1.Secret{}
+	g.Expect(h.client.Get(context.Background(), client.ObjectKeyFromObject(secret), got)).To(Succeed())
+	g.Expect(got.Data["probe-statuses"]).To(Equal([]byte(`{"foo":"bar"}`)), "unrelated agent-owned keys must not change")
+}
+
+// Once system-agent marks the submitted plan as succeeded, the hook must report a terminal
+// success (no further retries), so CAPI marks the Machine as UpToDate.
+func TestDoUpdateMachine_PlanSucceeded_ReportsUpToDate(t *testing.T) {
+	g := NewWithT(t)
+	m := baseMachine()
+
+	desiredPlan, err := buildUpgradePlan(&m, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+	planBytes, err := json.Marshal(desiredPlan)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	secret := machinePlanSecret(m.Namespace, m.Name)
+	secret.Data = map[string][]byte{
+		planDataKey:          planBytes,
+		planapi.PlanStateKey: []byte(planapi.PlanStateSucceeded),
+	}
+	h := newHandlers(t, secret)
+
+	req := &runtimehooksv1.UpdateMachineRequest{
+		Desired: runtimehooksv1.UpdateMachineRequestObjects{Machine: m},
+	}
+
+	resp := &runtimehooksv1.UpdateMachineResponse{}
+	h.DoUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(resp.RetryAfterSeconds).To(BeZero(), "a terminal success must not ask CAPI to retry")
+}
+
+// When system-agent marks the submitted plan as failed, the hook must report Failure so the
+// caller can decide on remediation.
+func TestDoUpdateMachine_PlanFailed_ReportsFailure(t *testing.T) {
+	g := NewWithT(t)
+	m := baseMachine()
+
+	desiredPlan, err := buildUpgradePlan(&m, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+	planBytes, err := json.Marshal(desiredPlan)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	secret := machinePlanSecret(m.Namespace, m.Name)
+	secret.Data = map[string][]byte{
+		planDataKey:          planBytes,
+		planapi.PlanStateKey: []byte(planapi.PlanStateFailed),
+	}
+	h := newHandlers(t, secret)
+
+	req := &runtimehooksv1.UpdateMachineRequest{
+		Desired: runtimehooksv1.UpdateMachineRequestObjects{Machine: m},
+	}
+
+	resp := &runtimehooksv1.UpdateMachineResponse{}
+	h.DoUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusFailure))
+}
+
+// A machine with no desired version must fail fast rather than silently doing nothing.
+func TestDoUpdateMachine_NoDesiredVersion_ReportsFailure(t *testing.T) {
+	g := NewWithT(t)
+	m := baseMachine()
+	m.Spec.Version = ""
+	secret := machinePlanSecret(m.Namespace, m.Name)
+	h := newHandlers(t, secret)
+
+	req := &runtimehooksv1.UpdateMachineRequest{
+		Desired: runtimehooksv1.UpdateMachineRequestObjects{Machine: m},
+	}
+
+	resp := &runtimehooksv1.UpdateMachineResponse{}
+	h.DoUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusFailure))
+}
+
+// DoCanUpdateMachine claims RKE2ConfigSpec.Files as an in-place-updatable field, so DoUpdateMachine
+// must actually deliver desired file content through the submitted plan, not just the version bump.
+func TestDoUpdateMachine_SubmitsDesiredBootstrapFiles(t *testing.T) {
+	g := NewWithT(t)
+	m := baseMachine()
+	secret := machinePlanSecret(m.Namespace, m.Name)
+	h := newHandlers(t, secret)
+
+	desiredRKE2 := baseRKE2Config(bootstrapv1.File{Path: "/etc/rke2-test", Content: "after", Permissions: "0644"})
+
+	req := &runtimehooksv1.UpdateMachineRequest{
+		Desired: runtimehooksv1.UpdateMachineRequestObjects{
+			Machine:         m,
+			BootstrapConfig: mustRaw(t, desiredRKE2),
+		},
+	}
+
+	resp := &runtimehooksv1.UpdateMachineResponse{}
+	h.DoUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+
+	got := &corev1.Secret{}
+	g.Expect(h.client.Get(context.Background(), client.ObjectKeyFromObject(secret), got)).To(Succeed())
+
+	submittedPlan, err := planapi.Parse(got.Data[planDataKey])
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(submittedPlan.Files).To(HaveLen(1))
+	g.Expect(submittedPlan.Files[0].Path).To(Equal("/etc/rke2-test"))
+	g.Expect(submittedPlan.Files[0].Content).To(Equal(base64.StdEncoding.EncodeToString([]byte("after"))))
 }
