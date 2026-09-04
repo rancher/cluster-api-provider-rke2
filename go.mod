@@ -133,7 +133,7 @@ require (
 	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.10 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.6.14 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
