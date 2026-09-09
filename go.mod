@@ -16,7 +16,7 @@ require (
 	go.etcd.io/etcd/api/v3 v3.6.6
 	go.etcd.io/etcd/client/v3 v3.6.6
 	go.uber.org/zap v1.27.1
-	google.golang.org/grpc v1.83.1
+	google.golang.org/grpc v1.83.2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.34.3
 	k8s.io/apiextensions-apiserver v0.34.3
