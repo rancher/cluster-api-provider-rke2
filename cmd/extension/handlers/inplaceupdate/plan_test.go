@@ -42,7 +42,7 @@ func TestBuildUpgradePlan_ControlPlane(t *testing.T) {
 		Spec: clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
 	}
 
-	p, err := buildUpgradePlan(machine, nil)
+	p, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(p.OneTimeInstructions).To(HaveLen(2))
 
@@ -63,7 +63,7 @@ func TestBuildUpgradePlan_Worker(t *testing.T) {
 		Spec:       clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
 	}
 
-	p, err := buildUpgradePlan(machine, nil)
+	p, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{})
 	g.Expect(err).NotTo(HaveOccurred())
 
 	install := p.OneTimeInstructions[0]
@@ -78,7 +78,32 @@ func TestBuildUpgradePlan_MissingVersion(t *testing.T) {
 
 	machine := &clusterv1.Machine{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "m1"}}
 
-	_, err := buildUpgradePlan(machine, nil)
+	_, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{})
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestBuildUpgradePlan_SystemDefaultRegistryPrefixesImage(t *testing.T) {
+	g := NewWithT(t)
+
+	machine := &clusterv1.Machine{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "m1"},
+		Spec:       clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
+	}
+
+	p, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{SystemDefaultRegistry: "registry.example.com"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(p.OneTimeInstructions[0].Image).To(Equal("registry.example.com/rancher/system-agent-installer-rke2:v1.30.2-rke2r1"))
+}
+
+func TestBuildUpgradePlan_AirGappedRejected(t *testing.T) {
+	g := NewWithT(t)
+
+	machine := &clusterv1.Machine{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "m1"},
+		Spec:       clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
+	}
+
+	_, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{AirGapped: true})
 	g.Expect(err).To(HaveOccurred())
 }
 

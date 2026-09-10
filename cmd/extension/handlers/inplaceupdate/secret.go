@@ -27,7 +27,7 @@ import (
 // planDataKey is the Secret data key holding the plan payload.
 const planDataKey = "plan"
 
-// Legacy Secret data keys written by system-agent versions that predate plan-state support.
+// Secret data keys written by system-agent on plan completion, regardless of plan-state support.
 // Mirrors system-agent's k8splan.AppliedChecksumKey / FailedChecksumKey; not exported from the
 // shared pkg/plan library since they're considered a transitional, agent-internal concept.
 const (
@@ -54,22 +54,25 @@ const (
 // evaluatePlanOutcome compares the Secret's current plan payload against desiredPlanBytes to
 // decide whether the desired plan still needs to be (re)submitted, or whether system-agent has
 // already picked it up and reached a particular state.
+//
+// Completion is read from applied-checksum/failed-checksum rather than plan-state: system-agent
+// writes those two keys on every completion regardless of plan-state support (see
+// buildSecretDataUpdates in system-agent's k8splan package), whereas plan-state itself can get
+// stuck: writePlan unconditionally sets plan-state=pending on submission, and an agent that
+// doesn't understand plan-state will never move it off "pending" — so gating completion on
+// plan-state alone would poll forever against such an agent.
 func evaluatePlanOutcome(secret *corev1.Secret, desiredPlanBytes []byte) planOutcome {
 	currentState := planapi.PlanState(string(secret.Data[planapi.PlanStateKey]))
-	checksumMatches := planapi.Checksum(secret.Data[planDataKey]) == planapi.Checksum(desiredPlanBytes)
+	desiredChecksum := planapi.Checksum(desiredPlanBytes)
+	checksumMatches := planapi.Checksum(secret.Data[planDataKey]) == desiredChecksum
 
 	if checksumMatches {
-		switch currentState {
-		case planapi.PlanStateSucceeded:
+		switch {
+		case string(secret.Data[appliedChecksumKey]) == desiredChecksum:
 			return planOutcomeSucceeded
-		case planapi.PlanStateFailed, planapi.PlanStateCanceled:
+		case string(secret.Data[failedChecksumKey]) == desiredChecksum:
 			return planOutcomeFailed
-		case "":
-			// Legacy agent: it never writes plan-state, so applied-checksum/failed-checksum are
-			// the only completion signals available. Without this fallback the hook would poll
-			// forever, since the plan-state based cases above would never trigger.
-			return evaluateLegacyChecksumOutcome(secret, desiredPlanBytes)
-		default: // pending, in-progress, paused
+		default:
 			return planOutcomeWaiting
 		}
 	}
@@ -82,23 +85,6 @@ func evaluatePlanOutcome(secret *corev1.Secret, desiredPlanBytes []byte) planOut
 	}
 
 	return planOutcomeNotSubmitted
-}
-
-// evaluateLegacyChecksumOutcome reports the desired plan's checksum against the legacy
-// applied-checksum/failed-checksum keys. Note this reports Failure as soon as the agent's current
-// failure-cooldown cycle reports failed-checksum, even though a legacy agent may retry and
-// self-heal after its cooldown period; CAPRKE2 does not mirror that retry/cooldown behavior.
-func evaluateLegacyChecksumOutcome(secret *corev1.Secret, desiredPlanBytes []byte) planOutcome {
-	desiredChecksum := planapi.Checksum(desiredPlanBytes)
-
-	switch {
-	case string(secret.Data[appliedChecksumKey]) == desiredChecksum:
-		return planOutcomeSucceeded
-	case string(secret.Data[failedChecksumKey]) == desiredChecksum:
-		return planOutcomeFailed
-	default:
-		return planOutcomeWaiting
-	}
 }
 
 // writePlan merge-patches the desired plan content and a fresh plan-state=pending into the

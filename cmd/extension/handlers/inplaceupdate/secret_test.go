@@ -43,6 +43,20 @@ func secretWithPlan(planBytes []byte, state planapi.PlanState) *corev1.Secret {
 	return s
 }
 
+func secretWithLegacyChecksum(planBytes []byte, data map[string]string, state planapi.PlanState) *corev1.Secret {
+	s := secretWithPlan(planBytes, state)
+	for k, v := range data {
+		s.Data[k] = []byte(v)
+	}
+	return s
+}
+
+func secretWithPlanAndChecksum(planBytes []byte, state planapi.PlanState, key string) *corev1.Secret {
+	s := secretWithPlan(planBytes, state)
+	s.Data[key] = []byte(planapi.Checksum(planBytes))
+	return s
+}
+
 func TestEvaluatePlanOutcome(t *testing.T) {
 	desired := []byte(`{"instructions":[{"name":"a"}]}`)
 	other := []byte(`{"instructions":[{"name":"b"}]}`)
@@ -53,13 +67,13 @@ func TestEvaluatePlanOutcome(t *testing.T) {
 		want   planOutcome
 	}{
 		{"no plan yet", secretWithPlan(nil, ""), planOutcomeNotSubmitted},
-		{"matches, no state (legacy agent)", secretWithPlan(desired, ""), planOutcomeWaiting},
-		{"matches, pending", secretWithPlan(desired, planapi.PlanStatePending), planOutcomeWaiting},
-		{"matches, in-progress", secretWithPlan(desired, planapi.PlanStateInProgress), planOutcomeWaiting},
-		{"matches, paused", secretWithPlan(desired, planapi.PlanStatePaused), planOutcomeWaiting},
-		{"matches, succeeded", secretWithPlan(desired, planapi.PlanStateSucceeded), planOutcomeSucceeded},
-		{"matches, failed", secretWithPlan(desired, planapi.PlanStateFailed), planOutcomeFailed},
-		{"matches, canceled", secretWithPlan(desired, planapi.PlanStateCanceled), planOutcomeFailed},
+		{"matches, no state, no checksum keys (freshly submitted)", secretWithPlan(desired, ""), planOutcomeWaiting},
+		{"matches, pending, no checksum keys", secretWithPlan(desired, planapi.PlanStatePending), planOutcomeWaiting},
+		{"matches, in-progress, no checksum keys", secretWithPlan(desired, planapi.PlanStateInProgress), planOutcomeWaiting},
+		{"matches, paused, no checksum keys", secretWithPlan(desired, planapi.PlanStatePaused), planOutcomeWaiting},
+		{"matches, succeeded", secretWithPlanAndChecksum(desired, planapi.PlanStateSucceeded, appliedChecksumKey), planOutcomeSucceeded},
+		{"matches, failed", secretWithPlanAndChecksum(desired, planapi.PlanStateFailed, failedChecksumKey), planOutcomeFailed},
+		{"matches, canceled", secretWithPlanAndChecksum(desired, planapi.PlanStateCanceled, failedChecksumKey), planOutcomeFailed},
 		{"differs, terminal (previous plan done)", secretWithPlan(other, planapi.PlanStateSucceeded), planOutcomeNotSubmitted},
 		{"differs, in-progress (foreign plan in flight)", secretWithPlan(other, planapi.PlanStateInProgress), planOutcomeWaiting},
 		{"differs, pending (foreign plan in flight)", secretWithPlan(other, planapi.PlanStatePending), planOutcomeWaiting},
@@ -73,9 +87,10 @@ func TestEvaluatePlanOutcome(t *testing.T) {
 	}
 }
 
-// A legacy agent never writes plan-state, so applied-checksum/failed-checksum are the only
-// signals available; without this fallback the hook would poll forever once the plan is applied.
-func TestEvaluatePlanOutcome_LegacyChecksumFallback(t *testing.T) {
+// Regression test: writePlan always sets plan-state=pending on submission, and an agent that
+// doesn't understand plan-state will never move it off "pending". Completion must still be
+// detected via applied-checksum/failed-checksum in that case, or the hook polls forever.
+func TestEvaluatePlanOutcome_StuckPlanStateStillCompletesViaChecksum(t *testing.T) {
 	desired := []byte(`{"instructions":[{"name":"a"}]}`)
 	desiredChecksum := planapi.Checksum(desired)
 
@@ -85,24 +100,24 @@ func TestEvaluatePlanOutcome_LegacyChecksumFallback(t *testing.T) {
 		want   planOutcome
 	}{
 		{
-			name: "applied-checksum matches desired",
+			name: "stuck at pending, but applied-checksum matches",
 			secret: secretWithLegacyChecksum(desired, map[string]string{
 				appliedChecksumKey: desiredChecksum,
-			}),
+			}, planapi.PlanStatePending),
 			want: planOutcomeSucceeded,
 		},
 		{
-			name: "failed-checksum matches desired",
+			name: "stuck at pending, but failed-checksum matches",
 			secret: secretWithLegacyChecksum(desired, map[string]string{
 				failedChecksumKey: desiredChecksum,
-			}),
+			}, planapi.PlanStatePending),
 			want: planOutcomeFailed,
 		},
 		{
-			name: "neither checksum recorded yet",
+			name: "stuck at pending, no checksum recorded yet",
 			secret: secretWithLegacyChecksum(desired, map[string]string{
 				appliedChecksumKey: "some-other-checksum",
-			}),
+			}, planapi.PlanStatePending),
 			want: planOutcomeWaiting,
 		},
 	}
@@ -113,14 +128,6 @@ func TestEvaluatePlanOutcome_LegacyChecksumFallback(t *testing.T) {
 			g.Expect(evaluatePlanOutcome(tt.secret, desired)).To(Equal(tt.want))
 		})
 	}
-}
-
-func secretWithLegacyChecksum(planBytes []byte, data map[string]string) *corev1.Secret {
-	s := secretWithPlan(planBytes, "")
-	for k, v := range data {
-		s.Data[k] = []byte(v)
-	}
-	return s
 }
 
 func TestWritePlan(t *testing.T) {

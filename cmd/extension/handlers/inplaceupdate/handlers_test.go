@@ -360,7 +360,7 @@ func TestDoUpdateMachine_PlanInProgress_Retries(t *testing.T) {
 	g := NewWithT(t)
 	m := baseMachine()
 
-	desiredPlan, err := buildUpgradePlan(&m, nil)
+	desiredPlan, err := buildUpgradePlan(&m, nil, bootstrapv1.RKE2AgentConfig{})
 	g.Expect(err).NotTo(HaveOccurred())
 	planBytes, err := json.Marshal(desiredPlan)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -394,7 +394,7 @@ func TestDoUpdateMachine_PlanSucceeded_ReportsUpToDate(t *testing.T) {
 	g := NewWithT(t)
 	m := baseMachine()
 
-	desiredPlan, err := buildUpgradePlan(&m, nil)
+	desiredPlan, err := buildUpgradePlan(&m, nil, bootstrapv1.RKE2AgentConfig{})
 	g.Expect(err).NotTo(HaveOccurred())
 	planBytes, err := json.Marshal(desiredPlan)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -403,6 +403,7 @@ func TestDoUpdateMachine_PlanSucceeded_ReportsUpToDate(t *testing.T) {
 	secret.Data = map[string][]byte{
 		planDataKey:          planBytes,
 		planapi.PlanStateKey: []byte(planapi.PlanStateSucceeded),
+		appliedChecksumKey:   []byte(planapi.Checksum(planBytes)),
 	}
 	h := newHandlers(t, secret)
 
@@ -423,7 +424,7 @@ func TestDoUpdateMachine_PlanFailed_ReportsFailure(t *testing.T) {
 	g := NewWithT(t)
 	m := baseMachine()
 
-	desiredPlan, err := buildUpgradePlan(&m, nil)
+	desiredPlan, err := buildUpgradePlan(&m, nil, bootstrapv1.RKE2AgentConfig{})
 	g.Expect(err).NotTo(HaveOccurred())
 	planBytes, err := json.Marshal(desiredPlan)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -432,6 +433,7 @@ func TestDoUpdateMachine_PlanFailed_ReportsFailure(t *testing.T) {
 	secret.Data = map[string][]byte{
 		planDataKey:          planBytes,
 		planapi.PlanStateKey: []byte(planapi.PlanStateFailed),
+		failedChecksumKey:    []byte(planapi.Checksum(planBytes)),
 	}
 	h := newHandlers(t, secret)
 

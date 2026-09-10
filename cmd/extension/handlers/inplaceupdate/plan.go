@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -48,10 +49,19 @@ const (
 // service restart for the given Machine's desired Kubernetes version, and delivers any desired
 // RKE2ConfigSpec.Files mirroring the exact set of fields DoCanUpdateMachine claims it can
 // absorb (Version and RKE2ConfigSpec.Files).
-func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File) (planapi.Plan, error) {
+//
+// Air-gapped machines are not supported yet: the installer image approach used here requires
+// registry access, so an air-gapped machine would only discover the failure deep inside run.sh.
+// Failing here instead gives CAPI a clear, immediate Failure rather than a silent hang/timeout.
+func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File, agentConfig bootstrapv1.RKE2AgentConfig) (planapi.Plan, error) {
 	version := machine.Spec.Version
 	if version == "" {
 		return planapi.Plan{}, errors.Errorf("machine %s/%s has no desired version set", machine.Namespace, machine.Name)
+	}
+
+	if agentConfig.AirGapped {
+		return planapi.Plan{}, errors.Errorf(
+			"machine %s/%s is air-gapped, which in-place update plans do not support yet", machine.Namespace, machine.Name)
 	}
 
 	planFiles, err := convertFiles(files)
@@ -71,7 +81,7 @@ func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File) (pla
 		installEnv = append(installEnv, "INSTALL_RKE2_TYPE=agent")
 	}
 
-	image := fmt.Sprintf("%s:%s", installerImageRepository, strings.ReplaceAll(version, "+", "-"))
+	image := installerImage(agentConfig.SystemDefaultRegistry, version)
 
 	return planapi.Plan{
 		Files: planFiles,
@@ -96,14 +106,25 @@ func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File) (pla
 	}, nil
 }
 
+// installerImage builds the system-agent-installer-rke2 image reference for version, prefixed
+// with systemDefaultRegistry when set (mirrors rancher/pkg/capr/planner.getInstallerImage).
+func installerImage(systemDefaultRegistry, version string) string {
+	image := fmt.Sprintf("%s:%s", installerImageRepository, strings.ReplaceAll(version, "+", "-"))
+	if systemDefaultRegistry == "" {
+		return image
+	}
+
+	return systemDefaultRegistry + "/" + image
+}
+
 // convertFiles translates RKE2ConfigSpec.Files into system-agent Plan.Files. planapi.File.Content
 // is always plain base64 of the final raw bytes (system-agent writes it via a base64 decode only,
 // with no notion of gzip), so each bootstrapv1.File's Encoding is resolved to raw bytes first and
 // then re-encoded as base64.
 //
-// ContentFrom (Secret/ConfigMap-sourced content) is not supported yet: resolving it requires
-// additional API reads this builder does not perform, so such files fail loudly here rather than
-// silently dropping their content.
+// ContentFrom (Secret/ConfigMap-sourced content) must already be resolved into Content by the
+// caller (see ExtensionHandlers.resolveDesiredFiles); a file still carrying ContentFrom here fails
+// loudly rather than silently dropping its content.
 func convertFiles(files []bootstrapv1.File) ([]planapi.File, error) {
 	if len(files) == 0 {
 		return nil, nil
@@ -113,7 +134,7 @@ func convertFiles(files []bootstrapv1.File) ([]planapi.File, error) {
 
 	for _, f := range files {
 		if f.ContentFrom != nil {
-			return nil, errors.Errorf("file %s uses contentFrom, which in-place update plans do not support yet", f.Path)
+			return nil, errors.Errorf("file %s uses contentFrom, which was not resolved before plan construction", f.Path)
 		}
 
 		raw, err := decodeFileContent(f.Content, f.Encoding)
@@ -121,14 +142,44 @@ func convertFiles(files []bootstrapv1.File) ([]planapi.File, error) {
 			return nil, errors.Wrapf(err, "failed to decode content for file %s", f.Path)
 		}
 
+		uid, gid, err := parseOwner(f.Owner)
+		if err != nil {
+			return nil, errors.Wrapf(err, "file %s", f.Path)
+		}
+
 		converted = append(converted, planapi.File{
 			Path:        f.Path,
 			Permissions: f.Permissions,
 			Content:     base64.StdEncoding.EncodeToString(raw),
+			UID:         uid,
+			GID:         gid,
 		})
 	}
 
 	return converted, nil
+}
+
+// parseOwner translates a bootstrapv1.File's Owner ("user:group") into a UID/GID pair.
+// Only the common "root:root" default (or an empty Owner) and explicit numeric "uid:gid" forms
+// can be translated without resolving a user database on the target node, which isn't available
+// at plan-build time; any other symbolic owner is rejected rather than silently defaulting to
+// root, since DoCanUpdateMachine claims the complete Files field including Owner.
+func parseOwner(owner string) (uid, gid int, err error) {
+	if owner == "" || owner == "root:root" {
+		return 0, 0, nil
+	}
+
+	parts := strings.SplitN(owner, ":", 2)
+	if len(parts) == 2 {
+		if u, uErr := strconv.Atoi(parts[0]); uErr == nil {
+			if g, gErr := strconv.Atoi(parts[1]); gErr == nil {
+				return u, g, nil
+			}
+		}
+	}
+
+	return 0, 0, errors.Errorf(
+		"owner %q is not supported: only root:root or a numeric uid:gid can be translated without node-side user resolution", owner)
 }
 
 // decodeFileContent resolves a bootstrapv1.File's Content/Encoding pair into raw bytes.
