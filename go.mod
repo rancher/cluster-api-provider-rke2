@@ -4,7 +4,7 @@ go 1.26.6
 
 require (
 	github.com/coreos/butane v0.29.0
-	github.com/coreos/ignition/v2 v2.26.0
+	github.com/coreos/ignition/v2 v2.27.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46
 	github.com/evanphx/json-patch/v5 v5.9.11
