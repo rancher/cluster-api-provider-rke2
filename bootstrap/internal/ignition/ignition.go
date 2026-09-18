@@ -32,25 +32,34 @@ const (
 	airGappedWorkerCommand       = "INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE=\"agent\" sh /opt/install.sh"
 	workerCommand                = "curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=%[1]s INSTALL_RKE2_TYPE=\"agent\" sh -s -"
 	cisPreparationCommand        = "/opt/rke2-cis-script.sh"
+
+	// SELinux is switched to permissive while the RKE2 unit file is relabeled and enabled, then
+	// switched back. Only a node that was enforcing is touched: a permissive node keeps its mode,
+	// and setenforce is not called when SELinux is disabled or getenforce is unavailable.
+	selinuxSaveModeCommand      = "SELINUX_MODE=$(getenforce 2>/dev/null || echo Disabled)"
+	selinuxSetPermissiveCommand = `if [ "$SELINUX_MODE" = "Enforcing" ]; then setenforce 0; fi`
+	selinuxRestoreModeCommand   = `if [ "$SELINUX_MODE" = "Enforcing" ]; then setenforce 1; fi`
 )
 
 var (
 	serverDeployCommands = []string{
-		"setenforce 0",
+		selinuxSaveModeCommand,
+		selinuxSetPermissiveCommand,
 		"restorecon /etc/systemd/system/rke2-server.service",
 		"systemctl enable --now rke2-server.service",
 		"mkdir -p /run/cluster-api /etc/cluster-api",
 		"echo success | tee /run/cluster-api/bootstrap-success.complete /etc/cluster-api/bootstrap-success.complete > /dev/null",
-		"setenforce 1",
+		selinuxRestoreModeCommand,
 	}
 
 	workerDeployCommands = []string{
-		"setenforce 0",
+		selinuxSaveModeCommand,
+		selinuxSetPermissiveCommand,
 		"restorecon /etc/systemd/system/rke2-agent.service",
 		"systemctl enable --now rke2-agent.service",
 		"mkdir -p /run/cluster-api /etc/cluster-api",
 		"echo success | tee /run/cluster-api/bootstrap-success.complete /etc/cluster-api/bootstrap-success.complete > /dev/null",
-		"setenforce 1",
+		selinuxRestoreModeCommand,
 	}
 )
 

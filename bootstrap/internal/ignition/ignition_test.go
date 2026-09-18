@@ -164,6 +164,37 @@ var _ = Describe("NewJoinWorker", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(scriptContents).ToNot(ContainSubstring("semanage"))
 	})
+	It("should keep the node's SELinux mode instead of forcing enforcing", func() {
+		ignitionJson, err := NewJoinWorker(input)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ignitionJson).ToNot(BeNil())
+
+		ign, reports, err := ignition.Parse(ignitionJson)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(reports.IsFatal()).To(BeFalse())
+
+		scriptContentsEnc := strings.Split(*ign.Storage.Files[3].Contents.Source, ",")[1]
+		scriptContentsGzip, err := base64.StdEncoding.DecodeString(scriptContentsEnc)
+		Expect(err).ToNot(HaveOccurred())
+		reader := bytes.NewReader(scriptContentsGzip)
+		gzreader, err := gzip.NewReader(reader)
+		Expect(err).ToNot(HaveOccurred())
+		scriptContents, err := io.ReadAll(gzreader)
+		Expect(err).ToNot(HaveOccurred())
+
+		script := string(scriptContents)
+		saveIdx := strings.Index(script, selinuxSaveModeCommand)
+		permissiveIdx := strings.Index(script, selinuxSetPermissiveCommand)
+		restoreIdx := strings.Index(script, selinuxRestoreModeCommand)
+		Expect(saveIdx).To(BeNumerically(">=", 0))
+		Expect(permissiveIdx).To(BeNumerically(">", saveIdx))
+		Expect(restoreIdx).To(BeNumerically(">", permissiveIdx))
+
+		// setenforce must never run unconditionally.
+		for _, line := range strings.Split(script, "\n") {
+			Expect(strings.TrimSpace(line)).ToNot(BeElementOf("setenforce 0", "setenforce 1"))
+		}
+	})
 })
 
 var _ = Describe("NewJoinControlPlane", func() {
@@ -237,6 +268,37 @@ var _ = Describe("NewJoinControlPlane", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(scriptContents).ToNot(ContainSubstring("semanage"))
 	})
+	It("should keep the node's SELinux mode instead of forcing enforcing", func() {
+		ignitionJson, err := NewJoinControlPlane(input)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ignitionJson).ToNot(BeNil())
+
+		ign, reports, err := ignition.Parse(ignitionJson)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(reports.IsFatal()).To(BeFalse())
+
+		scriptContentsEnc := strings.Split(*ign.Storage.Files[3].Contents.Source, ",")[1]
+		scriptContentsGzip, err := base64.StdEncoding.DecodeString(scriptContentsEnc)
+		Expect(err).ToNot(HaveOccurred())
+		reader := bytes.NewReader(scriptContentsGzip)
+		gzreader, err := gzip.NewReader(reader)
+		Expect(err).ToNot(HaveOccurred())
+		scriptContents, err := io.ReadAll(gzreader)
+		Expect(err).ToNot(HaveOccurred())
+
+		script := string(scriptContents)
+		saveIdx := strings.Index(script, selinuxSaveModeCommand)
+		permissiveIdx := strings.Index(script, selinuxSetPermissiveCommand)
+		restoreIdx := strings.Index(script, selinuxRestoreModeCommand)
+		Expect(saveIdx).To(BeNumerically(">=", 0))
+		Expect(permissiveIdx).To(BeNumerically(">", saveIdx))
+		Expect(restoreIdx).To(BeNumerically(">", permissiveIdx))
+
+		// setenforce must never run unconditionally.
+		for _, line := range strings.Split(script, "\n") {
+			Expect(strings.TrimSpace(line)).ToNot(BeElementOf("setenforce 0", "setenforce 1"))
+		}
+	})
 })
 
 var _ = Describe("NewInitControlPlane", func() {
@@ -301,7 +363,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 	It("should return slice of control plane commands", func() {
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
+		Expect(commands).To(HaveLen(8))
 		Expect(commands).To(ContainElements(fmt.Sprintf(controlPlaneCommand, baseUserData.RKE2Version), serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
@@ -309,7 +371,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 		baseUserData.AirGapped = true
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
+		Expect(commands).To(HaveLen(8))
 		Expect(commands).To(ContainElements(airGappedControlPlaneCommand, serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
@@ -318,7 +380,7 @@ var _ = Describe("getControlPlaneRKE2Commands", func() {
 		baseUserData.AirGappedChecksum = "abcd"
 		commands, err := getControlPlaneRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(8))
+		Expect(commands).To(HaveLen(9))
 		Expect(commands).To(ContainElements(fmt.Sprintf(airGappedChecksumCommand, "abcd"), airGappedControlPlaneCommand, serverDeployCommands[0], serverDeployCommands[1]))
 	})
 
@@ -350,7 +412,7 @@ var _ = Describe("getWorkerRKE2Commands", func() {
 	It("should return slice of worker commands", func() {
 		commands, err := getWorkerRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
+		Expect(commands).To(HaveLen(8))
 		Expect(commands).To(ContainElements(fmt.Sprintf(workerCommand, baseUserData.RKE2Version), workerDeployCommands[0], workerDeployCommands[1]))
 	})
 
@@ -358,7 +420,7 @@ var _ = Describe("getWorkerRKE2Commands", func() {
 		baseUserData.AirGapped = true
 		commands, err := getWorkerRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(7))
+		Expect(commands).To(HaveLen(8))
 		Expect(commands).To(ContainElements(airGappedWorkerCommand, workerDeployCommands[0], workerDeployCommands[1]))
 	})
 
@@ -367,7 +429,7 @@ var _ = Describe("getWorkerRKE2Commands", func() {
 		baseUserData.AirGappedChecksum = "abcd"
 		commands, err := getWorkerRKE2Commands(baseUserData)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(commands).To(HaveLen(8))
+		Expect(commands).To(HaveLen(9))
 		Expect(commands).To(ContainElements(fmt.Sprintf(airGappedChecksumCommand, "abcd"), workerDeployCommands[0], workerDeployCommands[1]))
 	})
 
