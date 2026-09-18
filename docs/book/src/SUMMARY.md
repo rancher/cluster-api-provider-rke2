@@ -13,6 +13,7 @@
     - [External load balancer exclusion](./02_topics/07_load_balancer_exclusion.md)
     - [External datastore](./02_topics/08_external_datastore.md)
     - [Secrets encryption](./02_topics/09_secrets_encryption.md)
+    - [Manifests ConfigMap and control plane rollout](./02_topics/10_manifests_configmap_rollout.md)
 - [Examples](./03_examples/00.md)
     - [AWS](./03_examples/01_aws.md)
     - [vSphere](./03_examples/02_vsphere.md)
