@@ -1037,6 +1037,8 @@ spec:
                           - rke2-snapshot-validation-webhook
                           - rke2-traefik
                           - rke2-traefik-crd
+                          - rke2-security-responder
+                          - rke2-gateway-api-crd
                           type: string
                         type: array
                     type: object
@@ -2710,6 +2712,8 @@ spec:
                           - rke2-snapshot-validation-webhook
                           - rke2-traefik
                           - rke2-traefik-crd
+                          - rke2-security-responder
+                          - rke2-gateway-api-crd
                           type: string
                         type: array
                     type: object
