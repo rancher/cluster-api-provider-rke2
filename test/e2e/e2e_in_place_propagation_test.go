@@ -29,10 +29,12 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util"
@@ -298,6 +300,7 @@ var _ = Describe("In-place propagation", Label(DefaultTestsLabel), func() {
 			By("Verifying annotations have been propagated to nodes")
 			downstreamProxy := framework.NewClusterProxy("metadata", result.KubeconfigPath, initScheme())
 			Expect(downstreamProxy).ToNot(BeNil(), "Failed to get a metadata cluster proxy")
+			DeferCleanup(downstreamProxy.Dispose, ctx)
 
 			nodeList := &corev1.NodeList{}
 			Expect(downstreamProxy.GetClient().List(ctx, nodeList)).Should(Succeed())
@@ -306,6 +309,101 @@ var _ = Describe("In-place propagation", Label(DefaultTestsLabel), func() {
 				Expect(found).Should(BeTrue(), "'test' annotation must be found on node")
 				Expect(value).Should(Equal("true"), "'test' node annotation should have 'true' value")
 			}
+
+			By("Adding an unrelated taint to each control plane Node")
+			Expect(machineNames).To(HaveLen(3))
+			Expect(nodeList.Items).To(HaveLen(3))
+			nodeUIDs := make(map[string]types.UID)
+			unrelatedTaint := corev1.Taint{
+				Key:    "test.cluster.x-k8s.io/unrelated",
+				Value:  "preserved",
+				Effect: corev1.TaintEffectPreferNoSchedule,
+			}
+			for _, node := range nodeList.Items {
+				nodeUIDs[node.Name] = node.UID
+				Eventually(func(g Gomega) {
+					currentNode := &corev1.Node{}
+					g.Expect(downstreamProxy.GetClient().Get(ctx, client.ObjectKeyFromObject(&node), currentNode)).To(Succeed())
+					g.Expect(currentNode.Annotations).To(HaveKey(clusterv1.TaintsFromMachineAnnotation))
+					originalNode := currentNode.DeepCopy()
+					currentNode.Spec.Taints = append(currentNode.Spec.Taints, unrelatedTaint)
+					g.Expect(downstreamProxy.GetClient().Patch(ctx, currentNode,
+						client.MergeFromWithOptions(originalNode, client.MergeFromWithOptimisticLock{}))).To(Succeed())
+				}, 5*time.Minute, 10*time.Second).Should(Succeed())
+			}
+
+			alwaysTaint := clusterv1.MachineTaint{
+				Key:         "node-role.kubernetes.io/control-plane",
+				Effect:      corev1.TaintEffectNoSchedule,
+				Propagation: clusterv1.MachineTaintPropagationAlways,
+			}
+			onInitializationTaint := clusterv1.MachineTaint{
+				Key:         "test.cluster.x-k8s.io/on-initialization",
+				Value:       "initial",
+				Effect:      corev1.TaintEffectPreferNoSchedule,
+				Propagation: clusterv1.MachineTaintPropagationOnInitialization,
+			}
+
+			setTaints := func(taints []clusterv1.MachineTaint) {
+				Eventually(func(g Gomega) {
+					currentControlPlane := &controlplanev1.RKE2ControlPlane{}
+					g.Expect(bootstrapClusterProxy.GetClient().Get(ctx, client.ObjectKeyFromObject(rke2ControlPlane), currentControlPlane)).To(Succeed())
+					originalControlPlane := currentControlPlane.DeepCopy()
+					currentControlPlane.Spec.MachineTemplate.Spec.Taints = taints
+					g.Expect(bootstrapClusterProxy.GetClient().Patch(ctx, currentControlPlane,
+						client.MergeFromWithOptions(originalControlPlane, client.MergeFromWithOptimisticLock{}))).To(Succeed())
+				}, 5*time.Minute, 10*time.Second).Should(Succeed())
+			}
+
+			waitForTaints := func(machineTaints []clusterv1.MachineTaint, nodeTaints []corev1.Taint) {
+				verifyTaints := func(g Gomega) {
+					machines := &clusterv1.MachineList{}
+					g.Expect(bootstrapClusterProxy.GetClient().List(ctx, machines,
+						client.InNamespace(result.Cluster.Namespace),
+						client.MatchingLabels{clusterv1.ClusterNameLabel: result.Cluster.Name},
+					)).To(Succeed())
+					g.Expect(machines.Items).To(HaveLen(3))
+					currentMachineNames := make([]string, 0, len(machines.Items))
+					for _, machine := range machines.Items {
+						currentMachineNames = append(currentMachineNames, machine.Name)
+						g.Expect(machine.DeletionTimestamp.IsZero()).To(BeTrue(), "Machine %s must not be rolling out", machine.Name)
+						g.Expect(machine.Spec.Taints).To(ConsistOf(machineTaints), "Machine %s taints", machine.Name)
+						g.Expect(machine.Status.NodeRef.IsDefined()).To(BeTrue())
+						node := &corev1.Node{}
+						g.Expect(downstreamProxy.GetClient().Get(ctx, client.ObjectKey{Name: machine.Status.NodeRef.Name}, node)).To(Succeed())
+						g.Expect(node.UID).To(Equal(nodeUIDs[node.Name]), "Node %s must not be replaced", node.Name)
+						g.Expect(node.Spec.Taints).To(ContainElement(unrelatedTaint), "Node %s must retain unrelated taints", node.Name)
+						managedTaints := []corev1.Taint{}
+						for _, taint := range node.Spec.Taints {
+							if taint.Key == alwaysTaint.Key || taint.Key == onInitializationTaint.Key {
+								managedTaints = append(managedTaints, taint)
+							}
+						}
+						g.Expect(managedTaints).To(ConsistOf(nodeTaints), "Node %s managed taints", node.Name)
+					}
+					g.Expect(currentMachineNames).To(ConsistOf(machineNames), "Taint changes must not replace Machines")
+				}
+				Eventually(verifyTaints, 5*time.Minute, 10*time.Second).Should(Succeed())
+				Consistently(verifyTaints, 30*time.Second, 5*time.Second).Should(Succeed())
+			}
+
+			By("Adding taints to the control plane Machine template")
+			machineTaints := []clusterv1.MachineTaint{alwaysTaint, onInitializationTaint}
+			nodeTaints := []corev1.Taint{
+				{Key: alwaysTaint.Key, Value: alwaysTaint.Value, Effect: alwaysTaint.Effect},
+			}
+			setTaints(machineTaints)
+			waitForTaints(machineTaints, nodeTaints)
+
+			By("Updating a taint in the control plane Machine template")
+			machineTaints[0].Value = "updated"
+			nodeTaints[0].Value = "updated"
+			setTaints(machineTaints)
+			waitForTaints(machineTaints, nodeTaints)
+
+			By("Removing taints from the control plane Machine template")
+			setTaints(nil)
+			waitForTaints(nil, nil)
 		})
 	})
 })
