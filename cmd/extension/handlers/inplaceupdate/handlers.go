@@ -18,10 +18,12 @@ package inplaceupdate
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"reflect"
 
 	"github.com/pkg/errors"
+	planapi "github.com/rancher/rancher/pkg/plan"
 	planv1alpha1 "github.com/rancher/rancher/pkg/plan/api/plan.cattle.io/v1alpha1"
 	"gomodules.xyz/jsonpatch/v3"
 	corev1 "k8s.io/api/core/v1"
@@ -38,16 +40,22 @@ import (
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
 )
 
-// machinePlanSecretType matches plan.SecretTypeMachinePlan from github.com/rancher/rancher/pkg/plan.
-// The root plan package imports wrangler, so we use the constant inline rather than pulling in
-// that transitive dependency for a single string.
-const machinePlanSecretType = "rke.cattle.io/machine-plan" //nolint:gosec
+// machinePlanSecretType is the Secret type used by Rancher/system-agent to carry machine plans.
+// (Matches plan.SecretTypeMachinePlan in github.com/rancher/rancher/pkg/plan.)
+const machinePlanSecretType = planapi.SecretTypeMachinePlan
 
 // errMachinePlanSecretNotFound is returned by findMachinePlanSecret when no machine-plan Secret
 // exists yet for the given Machine (Rancher creates it when system-agent first registers).
 var errMachinePlanSecretNotFound = errors.New("machine-plan secret not found")
 
+// errBootstrapConfigUnavailable is returned by decodeDesiredRKE2Config when no BootstrapConfig
+// was provided, or it isn't an RKE2Config.
+var errBootstrapConfigUnavailable = errors.New("no RKE2Config BootstrapConfig available")
+
 // ExtensionHandlers provides a common struct shared across the in-place update hook handlers.
+//
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 type ExtensionHandlers struct {
 	decoder runtime.Decoder
 	client  client.Client
@@ -167,9 +175,14 @@ func (h *ExtensionHandlers) DoCanUpdateMachineSet(
 	resp.Status = runtimehooksv1.ResponseStatusSuccess
 }
 
+// retryAfterUpdateInProgressSeconds is how long CAPI waits before calling UpdateMachine again
+// while an update is still in flight (waiting for system-agent registration or plan completion).
+const retryAfterUpdateInProgressSeconds = 30
+
 // DoUpdateMachine implements the UpdateMachine hook.
 // It locates the machine-plan Secret for the given Machine (created by Rancher when system-agent
-// registers). Writing the upgrade plan is handled by a follow-up implementation.
+// registers), builds the upgrade Plan for the Machine's desired version, submits it to the Secret
+// if not already submitted, and maps the plan's execution state back to a hook response.
 func (h *ExtensionHandlers) DoUpdateMachine(
 	ctx context.Context,
 	req *runtimehooksv1.UpdateMachineRequest,
@@ -191,7 +204,7 @@ func (h *ExtensionHandlers) DoUpdateMachine(
 	if errors.Is(err, errMachinePlanSecretNotFound) {
 		resp.Status = runtimehooksv1.ResponseStatusSuccess
 		resp.Message = "Waiting for system-agent to register"
-		resp.RetryAfterSeconds = 30
+		resp.RetryAfterSeconds = retryAfterUpdateInProgressSeconds
 
 		return
 	}
@@ -205,9 +218,70 @@ func (h *ExtensionHandlers) DoUpdateMachine(
 
 	log.Info("machine-plan Secret found", "secret", klog.KObj(secret))
 
-	resp.Status = runtimehooksv1.ResponseStatusSuccess
-	resp.Message = "Update in progress"
-	resp.RetryAfterSeconds = 30
+	desiredRKE2Config, err := h.decodeDesiredRKE2Config(req.Desired.BootstrapConfig)
+	if err != nil && !errors.Is(err, errBootstrapConfigUnavailable) {
+		resp.Status = runtimehooksv1.ResponseStatusFailure
+		resp.Message = err.Error()
+
+		return
+	}
+
+	var (
+		desiredFiles []bootstrapv1.File
+		agentConfig  bootstrapv1.RKE2AgentConfig
+	)
+
+	if desiredRKE2Config != nil {
+		agentConfig = desiredRKE2Config.Spec.AgentConfig
+
+		desiredFiles, err = h.resolveDesiredFiles(ctx, req.Desired.Machine.Namespace, desiredRKE2Config.Spec.Files)
+		if err != nil {
+			resp.Status = runtimehooksv1.ResponseStatusFailure
+			resp.Message = err.Error()
+
+			return
+		}
+	}
+
+	desiredPlan, err := buildUpgradePlan(&req.Desired.Machine, desiredFiles, agentConfig)
+	if err != nil {
+		resp.Status = runtimehooksv1.ResponseStatusFailure
+		resp.Message = err.Error()
+
+		return
+	}
+
+	planBytes, err := json.Marshal(desiredPlan)
+	if err != nil {
+		resp.Status = runtimehooksv1.ResponseStatusFailure
+		resp.Message = errors.Wrap(err, "failed to marshal upgrade plan").Error()
+
+		return
+	}
+
+	switch evaluatePlanOutcome(secret, planBytes) {
+	case planOutcomeNotSubmitted:
+		if err := writePlan(ctx, h.client, secret, planBytes); err != nil {
+			resp.Status = runtimehooksv1.ResponseStatusFailure
+			resp.Message = errors.Wrap(err, "failed to write upgrade plan to machine-plan Secret").Error()
+
+			return
+		}
+
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+		resp.Message = "Update plan submitted"
+		resp.RetryAfterSeconds = retryAfterUpdateInProgressSeconds
+	case planOutcomeWaiting:
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+		resp.Message = "Update in progress"
+		resp.RetryAfterSeconds = retryAfterUpdateInProgressSeconds
+	case planOutcomeSucceeded:
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+		resp.Message = "Update applied successfully"
+	case planOutcomeFailed:
+		resp.Status = runtimehooksv1.ResponseStatusFailure
+		resp.Message = "system-agent failed to apply the update plan"
+	}
 }
 
 // findMachinePlanSecret returns the machine-plan Secret for the given Machine, or nil if it has
@@ -232,6 +306,103 @@ func (h *ExtensionHandlers) findMachinePlanSecret(ctx context.Context, machine *
 	}
 
 	return nil, errMachinePlanSecretNotFound
+}
+
+// decodeDesiredRKE2Config decodes the optional BootstrapConfig from an UpdateMachineRequest.
+// It returns nil if no BootstrapConfig was provided or it isn't an RKE2Config.
+func (h *ExtensionHandlers) decodeDesiredRKE2Config(bootstrapConfig runtime.RawExtension) (*bootstrapv1.RKE2Config, error) {
+	if len(bootstrapConfig.Raw) == 0 {
+		return nil, errBootstrapConfigUnavailable
+	}
+
+	decoded, _, err := h.decoder.Decode(bootstrapConfig.Raw, nil, bootstrapConfig.Object)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode desired BootstrapConfig")
+	}
+
+	rke2Config, ok := decoded.(*bootstrapv1.RKE2Config)
+	if !ok {
+		return nil, errBootstrapConfigUnavailable
+	}
+
+	return rke2Config, nil
+}
+
+// resolveDesiredFiles returns files with any ContentFrom (Secret/ConfigMap-sourced content)
+// resolved into inline, base64-encoded Content, so convertFiles never has to handle ContentFrom
+// itself. Files without ContentFrom are returned unchanged.
+func (h *ExtensionHandlers) resolveDesiredFiles(ctx context.Context, namespace string, files []bootstrapv1.File) ([]bootstrapv1.File, error) {
+	if len(files) == 0 {
+		return nil, nil
+	}
+
+	resolved := make([]bootstrapv1.File, len(files))
+
+	for i, f := range files {
+		if f.ContentFrom == nil {
+			resolved[i] = f
+
+			continue
+		}
+
+		content, err := h.resolveFileContentFrom(ctx, namespace, f.ContentFrom)
+		if err != nil {
+			return nil, errors.Wrapf(err, "file %s", f.Path)
+		}
+
+		f.Content = base64.StdEncoding.EncodeToString(content)
+		f.Encoding = bootstrapv1.Base64
+		f.ContentFrom = nil
+		resolved[i] = f
+	}
+
+	return resolved, nil
+}
+
+// resolveFileContentFrom reads the referenced Secret or ConfigMap key, defaulting to namespace
+// when the reference doesn't specify one.
+func (h *ExtensionHandlers) resolveFileContentFrom(ctx context.Context, namespace string, ref *bootstrapv1.FileSource) ([]byte, error) {
+	switch {
+	case ref.Secret != nil:
+		ns := ref.Secret.Namespace
+		if ns == "" {
+			ns = namespace
+		}
+
+		secret := &corev1.Secret{}
+		if err := h.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: ref.Secret.Name}, secret); err != nil {
+			return nil, errors.Wrapf(err, "failed to get secret %s/%s", ns, ref.Secret.Name)
+		}
+
+		data, ok := secret.Data[ref.Secret.Key]
+		if !ok {
+			return nil, errors.Errorf("key %q not found in secret %s/%s", ref.Secret.Key, ns, ref.Secret.Name)
+		}
+
+		return data, nil
+	case ref.ConfigMap != nil:
+		ns := ref.ConfigMap.Namespace
+		if ns == "" {
+			ns = namespace
+		}
+
+		cm := &corev1.ConfigMap{}
+		if err := h.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: ref.ConfigMap.Name}, cm); err != nil {
+			return nil, errors.Wrapf(err, "failed to get configmap %s/%s", ns, ref.ConfigMap.Name)
+		}
+
+		if v, ok := cm.Data[ref.ConfigMap.Key]; ok {
+			return []byte(v), nil
+		}
+
+		if v, ok := cm.BinaryData[ref.ConfigMap.Key]; ok {
+			return v, nil
+		}
+
+		return nil, errors.Errorf("key %q not found in configmap %s/%s", ref.ConfigMap.Key, ns, ref.ConfigMap.Name)
+	default:
+		return nil, errors.New("contentFrom has neither secret nor configMap set")
+	}
 }
 
 //nolint:dupl // mirrors getObjectsFromCanUpdateMachineSetRequest by design: same shape, different request type.
