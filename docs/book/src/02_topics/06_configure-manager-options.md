@@ -8,6 +8,7 @@ At present, the following feature gates and flags are supported for configuratio
 |-----------------|-------------------------------------------------------|---------|------------------|
 | MachinePool     | for MachinePool functionality                         | true    | EXP_MACHINE_POOL |
 | ClusterTopology | for ClusterClass and managed topologies functionality | true    | CLUSTER_TOPOLOGY |
+| MachineTaintPropagation | Propagate control-plane Machine taints to Nodes | false | EXP_MACHINE_TAINT_PROPAGATION |
 
 ### Flags
 
@@ -20,7 +21,7 @@ In order to configure the manager options, it is required to patch the respectiv
 `rke2-bootstrap-controller-manager` and `rke2-control-plane-controller-manager` deployments.
 
 - Enable/Disable the feature flags:
-> **Note:** Enabling/Disabling feature gates is supported only for `rke2-bootstrap-controller-manager`.
+> **Note:** `MachineTaintPropagation` must be enabled in both the Cluster API and RKE2 control-plane controller managers. See [Taint propagation](./10_taint_propagation.md).
 ```shell
 $ kubectl -n system edit deployment/rke2-bootstrap-controller-manager 
 

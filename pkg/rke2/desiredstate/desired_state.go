@@ -150,6 +150,7 @@ func ComputeDesiredMachine(
 	maps.Copy(desiredMachine.Annotations, annotations)
 
 	// Set other in-place mutable fields
+	desiredMachine.Spec.Taints = rcp.Spec.MachineTemplate.Spec.Taints
 	desiredMachine.Spec.Deletion = clusterv1.MachineDeletionSpec{
 		NodeDrainTimeoutSeconds:        rcp.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds,
 		NodeDeletionTimeoutSeconds:     rcp.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds,

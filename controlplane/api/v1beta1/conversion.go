@@ -69,6 +69,7 @@ func (src *RKE2ControlPlane) ConvertTo(dstRaw conversion.Hub) error {
 	if ok, err := utilconversion.UnmarshalData(src, restored); err != nil || !ok {
 		return err
 	}
+	dst.Spec.MachineTemplate.Spec.Taints = restored.Spec.MachineTemplate.Spec.Taints
 
 	// Recover intent for bool values converted to *bool.
 	initialization := controlplanev1.RKE2ControlPlaneInitializationStatus{}
@@ -144,6 +145,7 @@ func (src *RKE2ControlPlaneTemplate) ConvertTo(dstRaw conversion.Hub) error {
 	if ok, err := utilconversion.UnmarshalData(src, restored); err != nil || !ok {
 		return err
 	}
+	dst.Spec.Template.Spec.MachineTemplate.Spec.Taints = restored.Spec.Template.Spec.MachineTemplate.Spec.Taints
 
 	return nil
 }

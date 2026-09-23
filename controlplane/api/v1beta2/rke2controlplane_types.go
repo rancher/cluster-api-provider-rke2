@@ -137,6 +137,16 @@ type RKE2ControlPlaneMachineTemplateSpec struct {
 	// deletion contains configuration options for Machine deletion.
 	// +optional
 	Deletion RKE2ControlPlaneMachineTemplateDeletionSpec `json:"deletion,omitempty,omitzero"`
+
+	// taints are the node taints managed by CAPRKE2, propagated without replacing Machines.
+	// Other node taints are preserved. Requires the MachineTaintPropagation feature gate.
+	// +optional
+	// +listType=map
+	// +listMapKey=key
+	// +listMapKey=effect
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=64
+	Taints []clusterv1.MachineTaint `json:"taints,omitempty"`
 }
 
 // RKE2ControlPlaneMachineTemplateDeletionSpec contains configuration options for Machine deletion.

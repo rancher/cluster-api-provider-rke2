@@ -90,6 +90,8 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateCreate(_ context.Conte
 	allErrs = append(allErrs, rcpt.validateCNI()...)
 	allErrs = append(allErrs, rcpt.validateRegistrationMethod()...)
 	allErrs = append(allErrs, rcpt.Spec.Template.ObjectMeta.Validate(field.NewPath("spec", "template", "metadata"))...)
+	allErrs = append(allErrs, validateMachineTaints(rcpt.Spec.Template.Spec.MachineTemplate.Spec.Taints,
+		field.NewPath("spec", "template", "spec", "machineTemplate", "spec", "taints"))...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
@@ -115,6 +117,8 @@ func (r *RKE2ControlPlaneTemplateCustomValidator) ValidateUpdate(
 	allErrs = append(allErrs, bootstrapv1.ValidateRKE2ConfigSpec(newControlplane.Name, &newControlplane.Spec.Template.Spec.RKE2ConfigSpec)...)
 	allErrs = append(allErrs, newControlplane.validateCNI()...)
 	allErrs = append(allErrs, newControlplane.Spec.Template.ObjectMeta.Validate(field.NewPath("spec", "template", "metadata"))...)
+	allErrs = append(allErrs, validateMachineTaints(newControlplane.Spec.Template.Spec.MachineTemplate.Spec.Taints,
+		field.NewPath("spec", "template", "spec", "machineTemplate", "spec", "taints"))...)
 
 	oldSet := oldControlplane.Spec.Template.Spec.RegistrationMethod != ""
 	if oldSet && newControlplane.Spec.Template.Spec.RegistrationMethod != oldControlplane.Spec.Template.Spec.RegistrationMethod {
