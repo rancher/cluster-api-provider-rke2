@@ -48,7 +48,7 @@ func TestBuildUpgradePlan_ControlPlane(t *testing.T) {
 
 	install := p.OneTimeInstructions[0]
 	g.Expect(install.Image).To(Equal("rancher/system-agent-installer-rke2:v1.30.2-rke2r1"))
-	g.Expect(install.Env).NotTo(ContainElement("INSTALL_RKE2_TYPE=agent"))
+	g.Expect(install.Env).To(ConsistOf("INSTALL_RKE2_TYPE=server", "INSTALL_RKE2_EXEC=server"))
 
 	restart := p.OneTimeInstructions[1]
 	g.Expect(restart.Command).To(Equal("systemctl"))
@@ -67,7 +67,7 @@ func TestBuildUpgradePlan_Worker(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	install := p.OneTimeInstructions[0]
-	g.Expect(install.Env).To(ContainElement("INSTALL_RKE2_TYPE=agent"))
+	g.Expect(install.Env).To(ConsistOf("INSTALL_RKE2_TYPE=agent", "INSTALL_RKE2_EXEC=agent"))
 
 	restart := p.OneTimeInstructions[1]
 	g.Expect(restart.Args).To(Equal([]string{systemctlRestartArg, rke2AgentServiceName}))

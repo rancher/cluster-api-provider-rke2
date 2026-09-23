@@ -77,8 +77,12 @@ func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File, agen
 
 	if isControlPlane {
 		serviceName = rke2ServerServiceName
+
+		installEnv = append(installEnv, "INSTALL_RKE2_TYPE=server")
+		installEnv = append(installEnv, "INSTALL_RKE2_EXEC=server")
 	} else {
 		installEnv = append(installEnv, "INSTALL_RKE2_TYPE=agent")
+		installEnv = append(installEnv, "INSTALL_RKE2_EXEC=agent")
 	}
 
 	image := installerImage(agentConfig.SystemDefaultRegistry, version)
