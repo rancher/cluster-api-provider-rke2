@@ -25,7 +25,7 @@ spec:
         - "--diagnostics-address=${CAPRKE2_DIAGNOSTICS_ADDRESS:=:8443}"
         - "--insecure-diagnostics=${CAPRKE2_INSECURE_DIAGNOSTICS:=false}"
         - "--v=${CAPRKE2_DEBUG_LEVEL:=0}"
-        - "--feature-gates=InPlaceUpdates=${EXP_IN_PLACE_UPDATES:=false}"
+        - "--feature-gates=InPlaceUpdates=${EXP_IN_PLACE_UPDATES:=false},MachineTaintPropagation=${EXP_MACHINE_TAINT_PROPAGATION:=false}"
         - "--concurrency=${CONCURRENCY_NUMBER:=10}"
         image: controller:latest
         name: manager

@@ -19,14 +19,19 @@ package v1beta2
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/validate/content"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/feature"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 )
@@ -225,6 +230,9 @@ func (r *RKE2ControlPlane) validateRegistrationMethod() field.ErrorList {
 func (r *RKE2ControlPlane) validateMachineTemplate() field.ErrorList {
 	var allErrs field.ErrorList
 
+	allErrs = append(allErrs, validateMachineTaints(
+		r.Spec.MachineTemplate.Spec.Taints, field.NewPath("spec", "machineTemplate", "spec", "taints"))...)
+
 	// Validate InfrastructureRef is set.
 	if !r.Spec.MachineTemplate.Spec.InfrastructureRef.IsDefined() {
 		allErrs = append(allErrs,
@@ -254,6 +262,36 @@ func (r *RKE2ControlPlane) validateMachineTemplate() field.ErrorList {
 		allErrs = append(allErrs,
 			field.Invalid(field.NewPath("spec", "machineTemplate", "spec", "deletion", "nodeDeletionTimeoutSeconds"),
 				nodeDeletionTimeout, "must be non-negative"))
+	}
+
+	return allErrs
+}
+
+func validateMachineTaints(taints []clusterv1.MachineTaint, taintsPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if len(taints) > 0 && !feature.Gates.Enabled(feature.MachineTaintPropagation) {
+		allErrs = append(allErrs, field.Forbidden(taintsPath, "taints require the MachineTaintPropagation feature gate"))
+	}
+
+	for i, taint := range taints {
+		keyPath := taintsPath.Index(i).Child("key")
+
+		switch {
+		case taint.Key == clusterv1.NodeUninitializedTaint.Key, taint.Key == clusterv1.NodeOutdatedRevisionTaint.Key:
+			allErrs = append(allErrs, field.Invalid(keyPath, taint.Key, "taint key is reserved for Cluster API"))
+		case strings.HasPrefix(taint.Key, "node.kubernetes.io/") && taint.Key != "node.kubernetes.io/out-of-service":
+			allErrs = append(allErrs, field.Invalid(keyPath, taint.Key,
+				"taint key must not have the prefix node.kubernetes.io/, except for node.kubernetes.io/out-of-service"))
+		case strings.HasPrefix(taint.Key, "node.cloudprovider.kubernetes.io/"):
+			allErrs = append(allErrs, field.Invalid(keyPath, taint.Key, "taint key must not have the prefix node.cloudprovider.kubernetes.io/"))
+		case taint.Key == "node-role.kubernetes.io/master":
+			allErrs = append(allErrs, field.Invalid(keyPath, taint.Key, "taint is deprecated since 1.24 and should not be used anymore"))
+		}
+
+		for _, msg := range content.IsLabelKey(taint.Key) {
+			allErrs = append(allErrs, field.Invalid(keyPath, taint.Key, msg))
+		}
 	}
 
 	return allErrs

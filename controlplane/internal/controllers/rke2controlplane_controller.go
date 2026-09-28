@@ -966,6 +966,7 @@ func (r *RKE2ControlPlaneReconciler) syncMachines(ctx context.Context, controlPl
 			}
 
 			// Set all other in-place mutable fields that impact the ability to tear down existing machines.
+			m.Spec.Taints = controlPlane.RCP.Spec.MachineTemplate.Spec.Taints
 			m.Spec.Deletion = clusterv1.MachineDeletionSpec{
 				NodeDrainTimeoutSeconds:        controlPlane.RCP.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds,
 				NodeDeletionTimeoutSeconds:     controlPlane.RCP.Spec.MachineTemplate.Spec.Deletion.NodeDeletionTimeoutSeconds,

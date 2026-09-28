@@ -2,10 +2,12 @@ package rke2
 
 import (
 	"context"
+	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -158,3 +160,81 @@ var _ = Describe("matching Kubernetes Version", func() {
 		machine.Spec.Version = k8sMachineVersion
 	})
 })
+
+func TestMachineTaintsRollout(t *testing.T) {
+	taint := clusterv1.MachineTaint{
+		Key:         "workload.example.com/dedicated",
+		Value:       "control-plane",
+		Effect:      corev1.TaintEffectPreferNoSchedule,
+		Propagation: clusterv1.MachineTaintPropagationAlways,
+	}
+	updatedTaint := taint
+	updatedTaint.Value = "updated"
+	updatedTaint.Propagation = clusterv1.MachineTaintPropagationOnInitialization
+
+	tests := []struct {
+		name                   string
+		currentTaints          []clusterv1.MachineTaint
+		desiredTaints          []clusterv1.MachineTaint
+		currentBootstrapTaints []string
+		desiredBootstrapTaints []string
+		upToDate               bool
+	}{
+		{
+			name:          "adding machine template taints does not trigger rollout",
+			desiredTaints: []clusterv1.MachineTaint{taint},
+			upToDate:      true,
+		},
+		{
+			name:          "updating machine template taints does not trigger rollout",
+			currentTaints: []clusterv1.MachineTaint{taint},
+			desiredTaints: []clusterv1.MachineTaint{updatedTaint},
+			upToDate:      true,
+		},
+		{
+			name:          "removing machine template taints does not trigger rollout",
+			currentTaints: []clusterv1.MachineTaint{taint},
+			upToDate:      true,
+		},
+		{
+			name:                   "adding bootstrap node taints still triggers rollout",
+			desiredBootstrapTaints: []string{"workload.example.com/dedicated=control-plane:PreferNoSchedule"},
+		},
+		{
+			name:                   "updating bootstrap node taints still triggers rollout",
+			currentBootstrapTaints: []string{"workload.example.com/dedicated=control-plane:PreferNoSchedule"},
+			desiredBootstrapTaints: []string{"workload.example.com/dedicated=updated:PreferNoSchedule"},
+		},
+		{
+			name:                   "removing bootstrap node taints still triggers rollout",
+			currentBootstrapTaints: []string{"workload.example.com/dedicated=control-plane:PreferNoSchedule"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			controlPlane := rcp.DeepCopy()
+			controlPlane.Spec.MachineTemplate.Spec.Taints = tt.desiredTaints
+			controlPlane.Spec.RKE2ConfigSpec.AgentConfig.NodeTaints = tt.desiredBootstrapTaints
+			currentMachine := machine.DeepCopy()
+			currentMachine.Spec.Version = controlPlane.Spec.Version
+			currentMachine.Spec.Taints = tt.currentTaints
+			machineConfig := &bootstrapv1.RKE2Config{Spec: *controlPlane.Spec.RKE2ConfigSpec.DeepCopy()}
+			machineConfig.Spec.AgentConfig.NodeTaints = tt.currentBootstrapTaints
+			machineConfigs := map[string]*bootstrapv1.RKE2Config{currentMachine.Name: machineConfig}
+			cluster := &clusterv1.Cluster{ObjectMeta: v1.ObjectMeta{Name: currentMachine.Spec.ClusterName}}
+
+			upToDate, result, err := UpToDate(t.Context(), nil, cluster, currentMachine, controlPlane, nil, machineConfigs)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(upToDate).To(Equal(tt.upToDate))
+			g.Expect(result.DesiredMachine.Spec.Taints).To(Equal(tt.desiredTaints))
+			if tt.upToDate {
+				g.Expect(result.ConditionMessages).To(BeEmpty())
+				g.Expect(result.EligibleForInPlaceUpdate).To(BeFalse())
+			} else {
+				g.Expect(result.ConditionMessages).To(ConsistOf("RKE2Config is not up-to-date"))
+			}
+		})
+	}
+}

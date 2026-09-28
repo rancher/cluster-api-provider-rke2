@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -20,6 +21,7 @@ import (
 	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -31,6 +33,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -38,6 +41,47 @@ import (
 const (
 	RKE2KubernetesVersion = "v1.34.2+rke2r1"
 )
+
+func TestSyncDeletingMachineTaints(t *testing.T) {
+	g := NewWithT(t)
+	scheme := runtime.NewScheme()
+	g.Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
+	taints := []clusterv1.MachineTaint{{
+		Key: "node.kubernetes.io/out-of-service", Effect: corev1.TaintEffectNoExecute,
+		Propagation: clusterv1.MachineTaintPropagationAlways,
+	}}
+	machine := &clusterv1.Machine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "deleting", Namespace: "default",
+			DeletionTimestamp: ptr.To(metav1.Now()), Finalizers: []string{clusterv1.MachineFinalizer},
+		},
+		Spec: clusterv1.MachineSpec{Version: RKE2KubernetesVersion},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(machine).WithStatusSubresource(machine).Build()
+	cp := &rke2.ControlPlane{
+		RCP: &controlplanev1.RKE2ControlPlane{
+			Spec: controlplanev1.RKE2ControlPlaneSpec{
+				Version: "v1.35.0+rke2r1",
+				MachineTemplate: controlplanev1.RKE2ControlPlaneMachineTemplate{
+					Spec: controlplanev1.RKE2ControlPlaneMachineTemplateSpec{Taints: taints},
+				},
+			},
+		},
+		Machines: collections.FromMachines(machine),
+	}
+	r := &RKE2ControlPlaneReconciler{Client: c}
+	g.Expect(r.syncMachines(t.Context(), cp)).To(Succeed())
+	updated := &clusterv1.Machine{}
+	g.Expect(c.Get(t.Context(), client.ObjectKeyFromObject(machine), updated)).To(Succeed())
+	g.Expect(updated.Spec.Taints).To(Equal(taints))
+	g.Expect(updated.Spec.Version).To(Equal(RKE2KubernetesVersion))
+	g.Expect(updated.DeletionTimestamp).NotTo(BeNil())
+
+	cp.RCP.Spec.MachineTemplate.Spec.Taints = nil
+	g.Expect(r.syncMachines(t.Context(), cp)).To(Succeed())
+	g.Expect(c.Get(t.Context(), client.ObjectKeyFromObject(machine), updated)).To(Succeed())
+	g.Expect(updated.Spec.Taints).To(BeEmpty())
+}
 
 var _ = Describe("Rotate kubeconfig cert", func() {
 	var (
