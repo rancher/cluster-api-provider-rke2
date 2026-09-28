@@ -173,13 +173,6 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 				Namespace:   namespace.Name,
 			}, machineNames)
 
-			By("Scaling down control plane to 2")
-			Eventually(func() error {
-				Expect(bootstrapClusterProxy.GetClient().Get(ctx, controlPlaneKey, controlPlane)).Should(Succeed())
-				controlPlane.Spec.Replicas = ptr.To(int32(2))
-				return bootstrapClusterProxy.GetClient().Update(ctx, controlPlane)
-			}).WithPolling(10 * time.Second).WithTimeout(2 * time.Minute).Should(Succeed())
-
 			By("Scaling up workers to 2")
 			machineDeployment := &clusterv1.MachineDeployment{}
 			machineDeployments := &clusterv1.MachineDeploymentList{}

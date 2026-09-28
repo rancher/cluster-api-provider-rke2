@@ -23,6 +23,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validate/content"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
@@ -123,6 +124,7 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateCreate(_ context.Context, rcp
 	allErrs = append(allErrs, rcp.validateRegistrationMethod()...)
 	allErrs = append(allErrs, rcp.validateMachineTemplate()...)
 	allErrs = append(allErrs, rcp.validateSpec()...)
+	allErrs = append(allErrs, rcp.validateScaling()...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
@@ -143,6 +145,16 @@ func (rv *RKE2ControlPlaneCustomValidator) ValidateUpdate(
 	allErrs = append(allErrs, newControlplane.validateCNI()...)
 	allErrs = append(allErrs, newControlplane.validateMachineTemplate()...)
 	allErrs = append(allErrs, newControlplane.validateSpec()...)
+
+	replicasChanged := !ptr.Equal(oldControlplane.Spec.Replicas, newControlplane.Spec.Replicas)
+	maxSurgeChanged := !ptr.Equal(oldControlplane.maxSurge(), newControlplane.maxSurge())
+	datastoreChanged := (oldControlplane.Spec.ServerConfig.ExternalDatastoreSecret == nil) !=
+		(newControlplane.Spec.ServerConfig.ExternalDatastoreSecret == nil)
+
+	// Only check on change so existing RKE2ControlPlanes that break these rules can still be patched.
+	if replicasChanged || maxSurgeChanged || datastoreChanged {
+		allErrs = append(allErrs, newControlplane.validateScaling()...)
+	}
 
 	oldSet := oldControlplane.Spec.RegistrationMethod != ""
 	if oldSet && newControlplane.Spec.RegistrationMethod != oldControlplane.Spec.RegistrationMethod {
@@ -319,4 +331,48 @@ func (r *RKE2ControlPlane) validateSpec() field.ErrorList {
 	}
 
 	return allErrs
+}
+
+func (r *RKE2ControlPlane) validateScaling() field.ErrorList {
+	var allErrs field.ErrorList
+
+	if r.Spec.Replicas == nil {
+		return allErrs
+	}
+
+	if r.Spec.ServerConfig.ExternalDatastoreSecret == nil && *r.Spec.Replicas%2 == 0 {
+		allErrs = append(
+			allErrs,
+			field.Forbidden(
+				field.NewPath("spec", "replicas"),
+				"cannot be an even number when etcd is embedded",
+			),
+		)
+	}
+
+	maxSurge := r.maxSurge()
+	if maxSurge == nil {
+		return allErrs
+	}
+
+	maxSurgePath := field.NewPath("spec", "rolloutStrategy", "rollingUpdate", "maxSurge")
+	maxSurgeValue := maxSurge.IntValue()
+
+	if maxSurgeValue != 0 && maxSurgeValue != 1 {
+		allErrs = append(allErrs, field.Invalid(maxSurgePath, maxSurge.String(), "value must be 1 or 0"))
+	}
+
+	if maxSurgeValue == 0 && *r.Spec.Replicas < 3 {
+		allErrs = append(allErrs, field.Forbidden(maxSurgePath, "cannot be 0 when replicas is less than 3"))
+	}
+
+	return allErrs
+}
+
+func (r *RKE2ControlPlane) maxSurge() *intstr.IntOrString {
+	if r.Spec.RolloutStrategy == nil || r.Spec.RolloutStrategy.RollingUpdate == nil {
+		return nil
+	}
+
+	return r.Spec.RolloutStrategy.RollingUpdate.MaxSurge
 }

@@ -23,7 +23,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -31,6 +33,8 @@ import (
 )
 
 var _ = Describe("RKE2ControlPlane webhook", func() {
+	const maxSurgePath = "spec.rolloutStrategy.rollingUpdate.maxSurge"
+
 	var (
 		oldRcp    *RKE2ControlPlane
 		rcp       *RKE2ControlPlane
@@ -78,6 +82,80 @@ var _ = Describe("RKE2ControlPlane webhook", func() {
 		rcp.Spec.Replicas = ptr.To(int32(1))
 		_, err = validator.ValidateUpdate(context.TODO(), oldRcp, rcp)
 		Expect(err).ShouldNot(HaveOccurred())
+	})
+	It("Should not create RKE2ControlPlane with even replicas and embedded etcd", func() {
+		rcp.Spec.Replicas = ptr.To(int32(2))
+		_, err := validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).Should(MatchError(ContainSubstring("spec.replicas")))
+		rcp.Spec.Replicas = ptr.To(int32(4))
+		_, err = validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).Should(MatchError(ContainSubstring("spec.replicas")))
+		rcp.Spec.Replicas = ptr.To(int32(3))
+		_, err = validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).ShouldNot(HaveOccurred())
+		rcp.Spec.Replicas = ptr.To(int32(2))
+		rcp.Spec.ServerConfig.ExternalDatastoreSecret = &corev1.ObjectReference{Name: "datastore"}
+		_, err = validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).ShouldNot(HaveOccurred())
+	})
+	It("Should not create RKE2ControlPlane with maxSurge 0 and less than 3 replicas", func() {
+		rcp.Spec.RolloutStrategy = &RolloutStrategy{
+			Type:          RollingUpdateStrategyType,
+			RollingUpdate: &RollingUpdate{MaxSurge: ptr.To(intstr.FromInt32(0))},
+		}
+		_, err := validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).Should(MatchError(ContainSubstring(maxSurgePath)))
+		rcp.Spec.Replicas = ptr.To(int32(2))
+		rcp.Spec.ServerConfig.ExternalDatastoreSecret = &corev1.ObjectReference{Name: "datastore"}
+		_, err = validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).Should(MatchError(ContainSubstring(maxSurgePath)))
+		rcp.Spec.Replicas = ptr.To(int32(3))
+		rcp.Spec.ServerConfig.ExternalDatastoreSecret = nil
+		_, err = validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).ShouldNot(HaveOccurred())
+	})
+	It("Should not create RKE2ControlPlane with maxSurge other than 0 or 1", func() {
+		rcp.Spec.RolloutStrategy = &RolloutStrategy{
+			Type:          RollingUpdateStrategyType,
+			RollingUpdate: &RollingUpdate{MaxSurge: ptr.To(intstr.FromInt32(1))},
+		}
+		_, err := validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).ShouldNot(HaveOccurred())
+		rcp.Spec.Replicas = ptr.To(int32(3))
+		rcp.Spec.RolloutStrategy.RollingUpdate.MaxSurge = ptr.To(intstr.FromInt32(2))
+		_, err = validator.ValidateCreate(context.TODO(), rcp)
+		Expect(err).Should(MatchError(ContainSubstring(maxSurgePath)))
+	})
+	It("Should allow updates that keep existing even replicas", func() {
+		oldRcp.Spec.Replicas = ptr.To(int32(2))
+		rcp.Spec.Replicas = ptr.To(int32(2))
+		rcp.Spec.MachineTemplate.Spec.Deletion.NodeDrainTimeoutSeconds = ptr.To(int32(60))
+		_, err := validator.ValidateUpdate(context.TODO(), oldRcp, rcp)
+		Expect(err).ShouldNot(HaveOccurred())
+	})
+	It("Should not update RKE2ControlPlane to even replicas with embedded etcd", func() {
+		oldRcp.Spec.Replicas = ptr.To(int32(2))
+		rcp.Spec.Replicas = ptr.To(int32(4))
+		_, err := validator.ValidateUpdate(context.TODO(), oldRcp, rcp)
+		Expect(err).Should(MatchError(ContainSubstring("spec.replicas")))
+		rcp.Spec.Replicas = ptr.To(int32(3))
+		_, err = validator.ValidateUpdate(context.TODO(), oldRcp, rcp)
+		Expect(err).ShouldNot(HaveOccurred())
+	})
+	It("Should not update RKE2ControlPlane to maxSurge 0 with less than 3 replicas", func() {
+		rcp.Spec.RolloutStrategy = &RolloutStrategy{
+			Type:          RollingUpdateStrategyType,
+			RollingUpdate: &RollingUpdate{MaxSurge: ptr.To(intstr.FromInt32(0))},
+		}
+		_, err := validator.ValidateUpdate(context.TODO(), oldRcp, rcp)
+		Expect(err).Should(MatchError(ContainSubstring(maxSurgePath)))
+	})
+	It("Should not move RKE2ControlPlane with even replicas to embedded etcd", func() {
+		oldRcp.Spec.Replicas = ptr.To(int32(2))
+		oldRcp.Spec.ServerConfig.ExternalDatastoreSecret = &corev1.ObjectReference{Name: "datastore"}
+		rcp.Spec.Replicas = ptr.To(int32(2))
+		_, err := validator.ValidateUpdate(context.TODO(), oldRcp, rcp)
+		Expect(err).Should(MatchError(ContainSubstring("spec.replicas")))
 	})
 })
 
