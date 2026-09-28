@@ -343,6 +343,14 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 ) error {
 	var errs []error
 
+	// Compute the Machine first so InfraMachine and RKE2Config can reuse its name.
+	// Providers such as CAPMOX name VMs after the InfraMachine; without this the
+	// InfraMachine gets generateName from the infrastructure template instead.
+	machine, err := r.computeDesiredMachine(rcp, cluster, clusterv1.ContractVersionedObjectReference{}, clusterv1.ContractVersionedObjectReference{}, failureDomain, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create Machine: failed to compute desired Machine: %w", err)
+	}
+
 	// Since the cloned resource should eventually have a controller ref for the Machine, we create an
 	// OwnerReference here without the Controller field set
 	infraCloneOwner := &metav1.OwnerReference{
@@ -367,6 +375,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 			Namespace:  rcp.Namespace,
 		},
 		Namespace:   rcp.Namespace,
+		Name:        machine.Name,
 		OwnerRef:    infraCloneOwner,
 		ClusterName: cluster.Name,
 		Labels:      rke2.ControlPlaneLabelsForCluster(cluster.Name),
@@ -376,15 +385,18 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 		return fmt.Errorf("failed to clone infrastructure template: %w", err)
 	}
 
+	machine.Spec.InfrastructureRef = infraRef
+
 	// Clone the bootstrap configuration
-	bootstrapConfig, bootstrapRef, err := r.generateRKE2Config(ctx, rcp, cluster, bootstrapSpec)
+	bootstrapConfig, bootstrapRef, err := r.generateRKE2Config(ctx, rcp, cluster, bootstrapSpec, machine.Name)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to generate bootstrap config: %w", err))
 	}
 
 	// Only proceed to generating the Machine if we haven't encountered an error
 	if len(errs) == 0 {
-		if err := r.createMachine(ctx, rcp, cluster, infraRef, bootstrapRef, failureDomain); err != nil {
+		machine.Spec.Bootstrap.ConfigRef = bootstrapRef
+		if err := r.createMachine(ctx, machine); err != nil {
 			errs = append(errs, fmt.Errorf("failed to create Machine: %w", err))
 		}
 	}
@@ -392,7 +404,7 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 	// If we encountered any errors, attempt to clean up any dangling resources
 	if len(errs) > 0 {
 		if err := r.cleanupFromGeneration(ctx, infraMachine, bootstrapConfig); err != nil {
-			errs = append(errs, fmt.Errorf("failed to cleanup generated resources: %w", err))
+			errs = append(errs, fmt.Errorf("failed to cleanup generated resources after error: %w", err))
 		}
 
 		return kerrors.NewAggregate(errs)
@@ -422,6 +434,7 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 	rcp *controlplanev1.RKE2ControlPlane,
 	cluster *clusterv1.Cluster,
 	spec *bootstrapv1.RKE2ConfigSpec,
+	name string,
 ) (*bootstrapv1.RKE2Config, clusterv1.ContractVersionedObjectReference, error) {
 	// Create an owner reference without a controller reference because the owning controller is the machine controller
 	owner := metav1.OwnerReference{
@@ -433,7 +446,7 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 
 	bootstrapConfig := &bootstrapv1.RKE2Config{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            names.SimpleNameGenerator.GenerateName(rcp.Name + "-"),
+			Name:            name,
 			Namespace:       rcp.Namespace,
 			Labels:          rke2.ControlPlaneLabelsForCluster(cluster.Name),
 			OwnerReferences: []metav1.OwnerReference{owner},
@@ -486,18 +499,7 @@ func (r *RKE2ControlPlaneReconciler) UpdateExternalObject(
 }
 
 // createMachine creates a new Machine object for the control plane.
-func (r *RKE2ControlPlaneReconciler) createMachine(
-	ctx context.Context,
-	rcp *controlplanev1.RKE2ControlPlane,
-	cluster *clusterv1.Cluster,
-	infraRef, bootstrapRef clusterv1.ContractVersionedObjectReference,
-	failureDomain string,
-) error {
-	machine, err := r.computeDesiredMachine(rcp, cluster, infraRef, bootstrapRef, failureDomain, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create Machine: failed to compute desired Machine: %w", err)
-	}
-
+func (r *RKE2ControlPlaneReconciler) createMachine(ctx context.Context, machine *clusterv1.Machine) error {
 	patchOptions := []client.PatchOption{
 		client.ForceOwnership,
 		client.FieldOwner(rke2ManagerName),
