@@ -1,0 +1,140 @@
+name: trivy
+
+on:
+  push:
+    branches: [ "main", "release-*" ]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [ "main", "release-*" ]
+  schedule:
+    - cron: '37 1 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+    permissions:
+      contents: read
+      security-events: write
+    name: Scan (${{ matrix.provider }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - provider: bootstrap
+            make-target: docker-build-rke2-bootstrap
+            image: ghcr.io/rancher/cluster-api-provider-rke2-bootstrap
+          - provider: controlplane
+            make-target: docker-build-rke2-control-plane
+            image: ghcr.io/rancher/cluster-api-provider-rke2-controlplane
+    steps:
+      - name: Docker login
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build an image
+        run: |
+          TAG=${{ github.sha }} make buildx-machine docker-pull-prerequisites ${{ matrix.make-target }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
+        with:
+          image-ref: '${{ matrix.image }}:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      - name: Print Trivy scan results
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: true
+          TRIVY_SKIP_JAVA_DB_UPDATE: true
+        with:
+          image-ref: '${{ matrix.image }}:${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          skip-setup-trivy: true
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-${{ matrix.provider }}'
+
+  # scheduled workflows will only run on the default branch (main) so release branches
+  # need an explicit checkout+scan here to get scheduled coverage.
+  scan-scheduled:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      security-events: write
+    name: Scan (${{ matrix.ref }}, ${{ matrix.provider }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [ "main", "release-0.24", "release-0.25" ]
+        provider: [ "bootstrap", "controlplane" ]
+        include:
+          - provider: bootstrap
+            make-target: docker-build-rke2-bootstrap
+            image: ghcr.io/rancher/cluster-api-provider-rke2-bootstrap
+          - provider: controlplane
+            make-target: docker-build-rke2-control-plane
+            image: ghcr.io/rancher/cluster-api-provider-rke2-controlplane
+    steps:
+      - name: Docker login
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.ref }}
+      - name: Resolve commit sha
+        id: rev
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build an image
+        run: |
+          TAG=${{ steps.rev.outputs.sha }} make buildx-machine docker-pull-prerequisites ${{ matrix.make-target }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
+        with:
+          image-ref: '${{ matrix.image }}:${{ steps.rev.outputs.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      - name: Print Trivy scan results
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: true
+          TRIVY_SKIP_JAVA_DB_UPDATE: true
+        with:
+          image-ref: '${{ matrix.image }}:${{ steps.rev.outputs.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          skip-setup-trivy: true
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-${{ matrix.provider }}'
+          ref: 'refs/heads/${{ matrix.ref }}'
+          sha: ${{ steps.rev.outputs.sha }}
