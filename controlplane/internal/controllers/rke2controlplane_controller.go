@@ -90,6 +90,9 @@ const (
 
 	// certCacheTtl is the default TTL for cached certificates.
 	certCacheTtl = 24 * time.Hour
+
+	// genericErrorMessage is a generic error message to be used in conditions when the actual error is logged.
+	genericErrorMessage = "Please check controller logs for errors"
 )
 
 // RKE2ControlPlaneReconciler reconciles a RKE2ControlPlane object.
@@ -189,8 +192,7 @@ func (r *RKE2ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	defer func() {
 		// Always attempt to update status.
 		if err := r.updateStatus(ctx, rcp, cluster); err != nil {
-			var connFailure *rke2.RemoteClusterConnectionError
-			if errors.As(err, &connFailure) {
+			if _, ok := errors.AsType[*rke2.RemoteClusterConnectionError](err); ok {
 				logger.Info("Could not connect to workload cluster to fetch status", "err", err.Error())
 			} else {
 				logger.Error(err, "Failed to update RKE2ControlPlane Status")
@@ -283,7 +285,7 @@ func (r *RKE2ControlPlaneReconciler) SetupWithManager(
 
 	err = c.Watch(
 		source.Kind[client.Object](mgr.GetCache(), &clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc((r.ClusterToRKE2ControlPlane(ctx))),
+			handler.EnqueueRequestsFromMapFunc(r.ClusterToRKE2ControlPlane(ctx)),
 		),
 	)
 	if err != nil {
@@ -406,7 +408,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileNormal(
 			Type:    controlplanev1.RKE2ControlPlaneCertificatesAvailableCondition,
 			Status:  metav1.ConditionUnknown,
 			Reason:  controlplanev1.RKE2ControlPlaneCertificatesInternalErrorReason,
-			Message: "Please check controller logs for errors",
+			Message: genericErrorMessage,
 		})
 
 		return ctrl.Result{}, err
