@@ -255,7 +255,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 					Type:    clusterv1.MachineOwnerRemediatedCondition,
 					Status:  metav1.ConditionFalse,
 					Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationInternalErrorReason,
-					Message: "Please check controller logs for errors",
+					Message: genericErrorMessage,
 				})
 
 				return ctrl.Result{}, err
@@ -312,7 +312,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 					Type:    clusterv1.MachineOwnerRemediatedCondition,
 					Status:  metav1.ConditionFalse,
 					Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationInternalErrorReason,
-					Message: "Please check controller logs for errors",
+					Message: genericErrorMessage,
 				})
 
 				return ctrl.Result{}, err
@@ -326,7 +326,7 @@ func (r *RKE2ControlPlaneReconciler) reconcileUnhealthyMachines(ctx context.Cont
 			Type:    clusterv1.MachineOwnerRemediatedCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  controlplanev1.RKE2ControlPlaneMachineRemediationInternalErrorReason,
-			Message: "Please check controller logs for errors",
+			Message: genericErrorMessage,
 		})
 
 		return ctrl.Result{}, fmt.Errorf("failed to delete unhealthy machine %s: %w", machineToBeRemediated.Name, err)

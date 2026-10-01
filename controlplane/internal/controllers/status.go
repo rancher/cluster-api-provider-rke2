@@ -412,7 +412,7 @@ func setMachinesReadyCondition(ctx context.Context, rcp *controlplanev1.RKE2Cont
 			Type:    controlplanev1.RKE2ControlPlaneMachinesReadyCondition,
 			Status:  metav1.ConditionUnknown,
 			Reason:  controlplanev1.RKE2ControlPlaneMachinesReadyInternalErrorReason,
-			Message: "Please check controller logs for errors",
+			Message: genericErrorMessage,
 		})
 
 		log := ctrl.LoggerFrom(ctx)
@@ -582,7 +582,7 @@ func setMachinesUpToDateCondition(ctx context.Context, rcp *controlplanev1.RKE2C
 			Type:    controlplanev1.RKE2ControlPlaneMachinesUpToDateCondition,
 			Status:  metav1.ConditionUnknown,
 			Reason:  controlplanev1.RKE2ControlPlaneMachinesUpToDateInternalErrorReason,
-			Message: "Please check controller logs for errors",
+			Message: genericErrorMessage,
 		})
 
 		log := ctrl.LoggerFrom(ctx)
@@ -620,7 +620,7 @@ func setRemediatingCondition(ctx context.Context, rcp *controlplanev1.RKE2Contro
 			Type:    controlplanev1.RKE2ControlPlaneRemediatingCondition,
 			Status:  metav1.ConditionUnknown,
 			Reason:  controlplanev1.RKE2ControlPlaneRemediatingInternalErrorReason,
-			Message: "Please check controller logs for errors",
+			Message: genericErrorMessage,
 		})
 
 		log := ctrl.LoggerFrom(ctx)
