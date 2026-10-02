@@ -346,7 +346,11 @@ func (r *RKE2ControlPlaneReconciler) cloneConfigsAndGenerateMachine(
 	// Compute the Machine first so InfraMachine and RKE2Config can reuse its name.
 	// Providers such as CAPMOX name VMs after the InfraMachine; without this the
 	// InfraMachine gets generateName from the infrastructure template instead.
-	machine, err := r.computeDesiredMachine(rcp, cluster, clusterv1.ContractVersionedObjectReference{}, clusterv1.ContractVersionedObjectReference{}, failureDomain, nil)
+	machine, err := r.computeDesiredMachine(
+		rcp, cluster,
+		clusterv1.ContractVersionedObjectReference{}, clusterv1.ContractVersionedObjectReference{},
+		failureDomain, nil,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create Machine: failed to compute desired Machine: %w", err)
 	}
