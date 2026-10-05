@@ -5,6 +5,7 @@
   ],
   "baseBranchPatterns": [
     "main",
+    "release-0.26",
     "release-0.25",
     "release-0.24"
   ],
