@@ -43,6 +43,7 @@ func newHandlers(t *testing.T, objects ...client.Object) *ExtensionHandlers {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = bootstrapv1.AddToScheme(scheme)
+	_ = clusterv1.AddToScheme(scheme)
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 	return NewExtensionHandlers(c)
 }
@@ -85,7 +86,7 @@ func canUpdateRequest(current, desired runtimehooksv1.CanUpdateMachineRequestObj
 
 func TestDoCanUpdateMachine_AbsorbsFilesAndVersion(t *testing.T) {
 	g := NewWithT(t)
-	h := newHandlers(t)
+	h := newHandlers(t, machinePlanSecret("default", "m1"))
 
 	currentMachine := baseMachine()
 	desiredMachine := baseMachine()
@@ -132,7 +133,7 @@ func TestDoCanUpdateMachine_AbsorbsFilesAndVersion(t *testing.T) {
 // rolling rollout.
 func TestDoCanUpdateMachine_DoesNotAbsorbDisallowedFields(t *testing.T) {
 	g := NewWithT(t)
-	h := newHandlers(t)
+	h := newHandlers(t, machinePlanSecret("default", "m1"))
 
 	currentRKE2 := baseRKE2Config()
 	desiredRKE2 := baseRKE2Config()
@@ -257,6 +258,96 @@ func TestDoCanUpdateMachineSet_DoesNotAbsorbDisallowedFields(t *testing.T) {
 	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
 	g.Expect(string(resp.BootstrapConfigTemplatePatch.Patch)).ToNot(ContainSubstring("preRKE2Commands"),
 		"PreRKE2Commands is outside the allowlist and must not appear in the template patch")
+}
+
+// Without a machine-plan Secret (no system-agent, e.g. no Rancher) the handler must not claim any
+// change, so the CP controller falls back to a rolling update.
+func TestDoCanUpdateMachine_NoPlanSecret_DeclaresNothing(t *testing.T) {
+	g := NewWithT(t)
+	h := newHandlers(t)
+
+	desiredMachine := baseMachine()
+	desiredMachine.Spec.Version = "v1.34.3"
+
+	req := canUpdateRequest(
+		runtimehooksv1.CanUpdateMachineRequestObjects{
+			Machine:         baseMachine(),
+			BootstrapConfig: mustRaw(t, baseRKE2Config()),
+		},
+		runtimehooksv1.CanUpdateMachineRequestObjects{
+			Machine:         desiredMachine,
+			BootstrapConfig: mustRaw(t, baseRKE2Config()),
+		},
+	)
+
+	resp := &runtimehooksv1.CanUpdateMachineResponse{}
+	h.DoCanUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(resp.MachinePatch.IsDefined()).To(BeFalse())
+	g.Expect(resp.BootstrapConfigPatch.IsDefined()).To(BeFalse())
+}
+
+func machineInMachineSet(name, machineSetName string) *clusterv1.Machine {
+	return &clusterv1.Machine{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      name,
+			Labels:    map[string]string{clusterv1.MachineSetNameLabel: machineSetName},
+		},
+		Spec: clusterv1.MachineSpec{ClusterName: "test"},
+	}
+}
+
+func versionBumpMachineSetRequest(t *testing.T) *runtimehooksv1.CanUpdateMachineSetRequest {
+	t.Helper()
+
+	desiredMS := baseMachineSet()
+	desiredMS.Spec.Template.Spec.Version = "v1.34.3"
+
+	return &runtimehooksv1.CanUpdateMachineSetRequest{
+		Current: runtimehooksv1.CanUpdateMachineSetRequestObjects{
+			MachineSet:              baseMachineSet(),
+			BootstrapConfigTemplate: mustRaw(t, baseRKE2ConfigTemplate()),
+		},
+		Desired: runtimehooksv1.CanUpdateMachineSetRequestObjects{
+			MachineSet:              desiredMS,
+			BootstrapConfigTemplate: mustRaw(t, baseRKE2ConfigTemplate()),
+		},
+	}
+}
+
+// CAPI moves Machines between MachineSets without calling CanUpdateMachine, so a single Machine
+// without a machine-plan Secret must make the whole MachineSet fall back to a rolling update.
+func TestDoCanUpdateMachineSet_MachineWithoutPlanSecret_DeclaresNothing(t *testing.T) {
+	g := NewWithT(t)
+	h := newHandlers(t,
+		machineInMachineSet("m1", "ms1"), machinePlanSecret("default", "m1"),
+		machineInMachineSet("m2", "ms1"),
+	)
+
+	resp := &runtimehooksv1.CanUpdateMachineSetResponse{}
+	h.DoCanUpdateMachineSet(context.Background(), versionBumpMachineSetRequest(t), resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(resp.MachineSetPatch.IsDefined()).To(BeFalse())
+	g.Expect(resp.BootstrapConfigTemplatePatch.IsDefined()).To(BeFalse())
+}
+
+func TestDoCanUpdateMachineSet_AllMachinesWithPlanSecret_AbsorbsVersion(t *testing.T) {
+	g := NewWithT(t)
+	h := newHandlers(t,
+		machineInMachineSet("m1", "ms1"), machinePlanSecret("default", "m1"),
+		machineInMachineSet("m2", "ms1"), machinePlanSecret("default", "m2"),
+		// Machines of other MachineSets are ignored.
+		machineInMachineSet("m3", "ms2"),
+	)
+
+	resp := &runtimehooksv1.CanUpdateMachineSetResponse{}
+	h.DoCanUpdateMachineSet(context.Background(), versionBumpMachineSetRequest(t), resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(string(resp.MachineSetPatch.Patch)).To(ContainSubstring("v1.34.3"))
 }
 
 // When no machine-plan Secret exists the system-agent has not yet registered; the handler must
