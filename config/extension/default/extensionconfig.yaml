@@ -1,0 +1,19 @@
+apiVersion: runtime.cluster.x-k8s.io/v1beta2
+kind: ExtensionConfig
+metadata:
+  name: provider
+  annotations:
+    # CAPI injects the CA bundle from this Secret into spec.clientConfig.caBundle
+    # so CAPI core can verify the extension's TLS certificate.
+    # Secret is created by cert-manager using the Certificate in certmanager/certificate.yaml.
+    # When installed by Rancher Turtles without cert-manager, Turtles replaces this
+    # annotation with a wrangler managed certificate and injects the caBundle itself.
+    runtime.cluster.x-k8s.io/inject-ca-from-secret: rke2-extension-system/rke2-extension-webhook-service-cert
+spec:
+  # kustomize does not rewrite references inside CRDs, so the prefixed
+  # Service name and namespace are set explicitly.
+  clientConfig:
+    service:
+      name: rke2-extension-webhook-service
+      namespace: rke2-extension-system
+      port: 443

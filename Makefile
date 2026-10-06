@@ -127,9 +127,11 @@ CONTROLLER_IMAGE_NAME := cluster-api-provider-rke2
 BOOTSTRAP_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-bootstrap
 CONTROLPLANE_IMAGE_NAME = $(CONTROLLER_IMAGE_NAME)-controlplane
 TEST_EXTENSION_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-test-extension
+EXTENSION_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-extension
 BOOTSTRAP_IMG ?= $(REGISTRY)/$(ORG)/$(BOOTSTRAP_IMAGE_NAME)
 CONTROLPLANE_IMG ?= $(REGISTRY)/$(ORG)/$(CONTROLPLANE_IMAGE_NAME)
 TEST_EXTENSION_IMG ?= $(REGISTRY)/$(ORG)/$(TEST_EXTENSION_IMAGE_NAME)
+EXTENSION_IMG ?= $(REGISTRY)/$(ORG)/$(EXTENSION_IMAGE_NAME)
 IID_FILE ?= $(shell mktemp)
 LOCAL_IMAGES = $(shell pwd)/out/images
 
@@ -326,7 +328,8 @@ docker-pull-prerequisites:
 .PHONY: docker-build ## Build the docker images for all providers
 docker-build: buildx-machine docker-pull-prerequisites
 	$(MAKE) docker-build-rke2-bootstrap
-	$(MAKE) docker-build-rke2-control-plane 
+	$(MAKE) docker-build-rke2-control-plane
+	$(MAKE) docker-build-rke2-in-place-updates-extension
 
 
 .PHONY: docker-build-rke2-bootstrap
@@ -352,6 +355,18 @@ docker-build-rke2-control-plane:
 			--build-arg ldflags="$(LDFLAGS)" . -t $(CONTROLPLANE_IMG):$(TAG)
 	$(MAKE) set-manifest-image MANIFEST_IMG=$(CONTROLPLANE_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./controlplane/config/default/manager_image_patch.yaml"
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./controlplane/config/default/manager_pull_policy.yaml"
+
+.PHONY: docker-build-rke2-in-place-updates-extension
+docker-build-rke2-in-place-updates-extension: ## Build the in-place updates extension image.
+	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
+			--platform $(ARCH) \
+			--load \
+			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+			--build-arg goproxy=$(GOPROXY) \
+			--build-arg package=./cmd/extension \
+			--build-arg ldflags="$(LDFLAGS)" . -t $(EXTENSION_IMG):$(TAG)
+	$(MAKE) set-manifest-image MANIFEST_IMG=$(EXTENSION_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./config/extension/default/manager_image_patch.yaml"
+	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./config/extension/default/manager_pull_policy.yaml"
 
 .PHONY: docker-build-test-extension
 docker-build-test-extension: buildx-machine docker-pull-prerequisites ## Build the e2e test Runtime Extension image
@@ -498,8 +513,12 @@ manifest-modification: # Set the manifest images to the staging/production bucke
 	$(MAKE) set-manifest-image \
 		MANIFEST_IMG=$(CONTROLPLANE_IMG) MANIFEST_TAG=$(RELEASE_TAG) \
 		TARGET_RESOURCE="./controlplane/config/default/manager_image_patch.yaml"
+	$(MAKE) set-manifest-image \
+		MANIFEST_IMG=$(EXTENSION_IMG) MANIFEST_TAG=$(RELEASE_TAG) \
+		TARGET_RESOURCE="./config/extension/default/manager_image_patch.yaml"
 	$(MAKE) set-manifest-pull-policy PULL_POLICY=IfNotPresent TARGET_RESOURCE="./bootstrap/config/default/manager_pull_policy.yaml"
 	$(MAKE) set-manifest-pull-policy PULL_POLICY=IfNotPresent TARGET_RESOURCE="./controlplane/config/default/manager_pull_policy.yaml"
+	$(MAKE) set-manifest-pull-policy PULL_POLICY=IfNotPresent TARGET_RESOURCE="./config/extension/default/manager_pull_policy.yaml"
 
 .PHONY: release-manifests
 release-manifests: $(RELEASE_DIR) $(KUSTOMIZE) ## Build the manifests to publish with a release
@@ -509,6 +528,9 @@ release-manifests: $(RELEASE_DIR) $(KUSTOMIZE) ## Build the manifests to publish
 	# Build control-plane-components.
 	$(KUSTOMIZE) build controlplane/config/default > $(RELEASE_DIR)/control-plane-components.yaml
 	$(MAKE) set-manifest-image MANIFEST_IMG=$(CONTROLPLANE_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="$(RELEASE_DIR)/control-plane-components.yaml"
+	# Build runtime-extension-components.
+	$(KUSTOMIZE) build config/extension/default > $(RELEASE_DIR)/runtime-extension-components.yaml
+	$(MAKE) set-manifest-image MANIFEST_IMG=$(EXTENSION_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="$(RELEASE_DIR)/runtime-extension-components.yaml"
 
 	# Add metadata to the release artifacts
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
@@ -559,6 +581,21 @@ push-rke2-controlplane-image: docker-pull-prerequisites ## Build and push contro
 		--build-arg package=./controlplane \
 		--build-arg ldflags="$(LDFLAGS)" . -t $(REPO)/$(CONTROLPLANE_IMAGE_NAME):$(TAG)
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./controlplane/config/default/manager_pull_policy.yaml"
+
+.PHONY: push-rke2-in-place-updates-extension-image
+push-rke2-in-place-updates-extension-image: docker-pull-prerequisites ## Build and push in-place updates extension image (called by publish-image action)
+	DOCKER_BUILDKIT=1 docker buildx build \
+		$(IID_FILE_FLAG) \
+		$(BUILDX_ARGS) \
+		--platform=$(TARGET_PLATFORMS) \
+		--push \
+		--sbom=true \
+		--attest type=provenance,mode=max \
+		--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
+		--build-arg goproxy=$(GOPROXY) \
+		--build-arg package=./cmd/extension \
+		--build-arg ldflags="$(LDFLAGS)" . -t $(REPO)/$(EXTENSION_IMAGE_NAME):$(TAG)
+	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./config/extension/default/manager_pull_policy.yaml"
 
 .PHONY: set-manifest-pull-policy
 set-manifest-pull-policy:
