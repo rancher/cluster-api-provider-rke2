@@ -69,6 +69,20 @@ var _ = Describe("ServerConfigMatching", func() {
 		res := matchServerConfig(context.TODO(), &rcp, &machine)
 		Expect(res).To(BeTrue())
 	})
+
+	It("should not match when the machine annotation differs from the RCP serverConfig", func() {
+		mismatch := machine.DeepCopy()
+		mismatch.Annotations[controlplanev1.RKE2ServerConfigurationAnnotation] = `{"cni":"canal"}`
+		res := matchServerConfig(context.TODO(), &rcp, mismatch)
+		Expect(res).To(BeFalse())
+	})
+
+	It("should return true when the machine has no annotation (old machine, no rollout)", func() {
+		noAnnotation := machine.DeepCopy()
+		delete(noAnnotation.Annotations, controlplanev1.RKE2ServerConfigurationAnnotation)
+		res := matchServerConfig(context.TODO(), &rcp, noAnnotation)
+		Expect(res).To(BeTrue())
+	})
 })
 
 var _ = Describe("matchAgentConfig", func() {
