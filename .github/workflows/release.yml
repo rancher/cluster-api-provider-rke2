@@ -33,7 +33,7 @@ jobs:
 
     # The runtime extension is built and pushed first: if it fails, the release workflow stops.
     - name: Push in-place updates extension image to ghcr.io
-      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      uses: rancher/ecm-distro-tools/actions/publish-image@389e196dd42464b84d7866cd82c53b34ad50889c
       with:
         image: cluster-api-provider-rke2-extension
         tag: ${{ env.TAG }}
@@ -47,7 +47,7 @@ jobs:
         make-target: push-rke2-in-place-updates-extension-image
 
     - name: Push in-place updates extension image to prime registry
-      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      uses: rancher/ecm-distro-tools/actions/publish-image@389e196dd42464b84d7866cd82c53b34ad50889c
       with:
         image: cluster-api-provider-rke2-extension
         tag: ${{ env.TAG }}
@@ -61,7 +61,7 @@ jobs:
         prime-make-target: push-rke2-in-place-updates-extension-image
 
     - name: Push bootstrap image to ghcr.io
-      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      uses: rancher/ecm-distro-tools/actions/publish-image@389e196dd42464b84d7866cd82c53b34ad50889c
       with:
         image: cluster-api-provider-rke2-bootstrap
         tag: ${{ env.TAG }}
@@ -75,7 +75,7 @@ jobs:
         make-target: push-rke2-bootstrap-image
 
     - name: Push controlplane image to ghcr.io
-      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      uses: rancher/ecm-distro-tools/actions/publish-image@389e196dd42464b84d7866cd82c53b34ad50889c
       with:
         image: cluster-api-provider-rke2-controlplane
         tag: ${{ env.TAG }}
@@ -89,7 +89,7 @@ jobs:
         make-target: push-rke2-controlplane-image
 
     - name: Push bootstrap image to prime registry
-      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      uses: rancher/ecm-distro-tools/actions/publish-image@389e196dd42464b84d7866cd82c53b34ad50889c
       with:
         image: cluster-api-provider-rke2-bootstrap
         tag: ${{ env.TAG }}
@@ -103,7 +103,7 @@ jobs:
         prime-make-target: push-rke2-bootstrap-image
 
     - name: Push controlplane image to prime registry
-      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      uses: rancher/ecm-distro-tools/actions/publish-image@389e196dd42464b84d7866cd82c53b34ad50889c
       with:
         image: cluster-api-provider-rke2-controlplane
         tag: ${{ env.TAG }}
