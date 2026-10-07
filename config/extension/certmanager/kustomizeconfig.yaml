@@ -1,0 +1,9 @@
+# Teaches kustomize how to update Certificate.spec.issuerRef.name when the
+# Issuer name gets a kustomize prefix.
+nameReference:
+  - kind: Issuer
+    group: cert-manager.io
+    fieldSpecs:
+      - kind: Certificate
+        group: cert-manager.io
+        path: spec/issuerRef/name

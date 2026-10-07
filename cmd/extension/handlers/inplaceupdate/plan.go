@@ -95,7 +95,7 @@ func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File, agen
 					Name:    installInstructionName,
 					Image:   image,
 					Command: "sh",
-					Args:    []string{"-c", "run.sh"},
+					Args:    []string{"run.sh"},
 					Env:     installEnv,
 				},
 			},

@@ -661,6 +661,13 @@ func UpToDate(
 		res.CurrentRKE2Config = rke2Config
 	}
 
+	// The extension upgrades the RKE2 binary but cannot re-render the node's config.yaml, which is
+	// where serverConfig fields end up. A serverConfig change must go through a rolling update so the
+	// new Machine is bootstrapped with the updated config from scratch.
+	if !matchServerConfig(ctx, rcp, machine) {
+		res.EligibleForInPlaceUpdate = false
+	}
+
 	// Machines that do not match with rcp config.
 	matches, specLogMessages, specConditionMessages, err := matchesMachineSpec(ctx, c, cluster, infraConfigs, machineConfigs, rcp, machine, res)
 	if err != nil {

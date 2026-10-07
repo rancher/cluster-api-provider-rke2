@@ -31,6 +31,35 @@ jobs:
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password | PRIME_REGISTRY_PASSWORD;
           secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY;
 
+    # The runtime extension is built and pushed first: if it fails, the release workflow stops.
+    - name: Push in-place updates extension image to ghcr.io
+      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      with:
+        image: cluster-api-provider-rke2-extension
+        tag: ${{ env.TAG }}
+        platforms: linux/amd64,linux/arm64
+        push-to-public: true
+        push-to-prime: false
+        public-registry: ${{ env.GHCR_REGISTRY }}
+        public-repo: rancher
+        public-username: ${{ github.actor }}
+        public-password: ${{ secrets.GITHUB_TOKEN }}
+        make-target: push-rke2-in-place-updates-extension-image
+
+    - name: Push in-place updates extension image to prime registry
+      uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
+      with:
+        image: cluster-api-provider-rke2-extension
+        tag: ${{ env.TAG }}
+        platforms: linux/amd64,linux/arm64
+        push-to-public: false
+        push-to-prime: true
+        prime-repo: rancher
+        prime-registry: ${{ env.PRIME_REGISTRY }}
+        prime-username: ${{ env.PRIME_REGISTRY_USERNAME }}
+        prime-password: ${{ env.PRIME_REGISTRY_PASSWORD }}
+        prime-make-target: push-rke2-in-place-updates-extension-image
+
     - name: Push bootstrap image to ghcr.io
       uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7
       with:
@@ -136,7 +165,7 @@ jobs:
         echo "Files in out directory:"
         ls -la
 
-        FILES_TO_PUSH="metadata.yaml bootstrap-components.yaml control-plane-components.yaml"
+        FILES_TO_PUSH="metadata.yaml bootstrap-components.yaml control-plane-components.yaml runtime-extension-components.yaml"
 
         MISSING_FILES=""
         for file in $FILES_TO_PUSH; do
@@ -170,3 +199,4 @@ jobs:
         gh release upload ${{ env.TAG }} out/metadata.yaml
         gh release upload ${{ env.TAG }} out/bootstrap-components.yaml
         gh release upload ${{ env.TAG }} out/control-plane-components.yaml
+        gh release upload ${{ env.TAG }} out/runtime-extension-components.yaml

@@ -35,6 +35,7 @@ import (
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	runtimehooksv1 "sigs.k8s.io/cluster-api/api/runtime/hooks/v1alpha1"
+	"sigs.k8s.io/cluster-api/util/labels/format"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
@@ -44,18 +45,21 @@ import (
 // (Matches plan.SecretTypeMachinePlan in github.com/rancher/rancher/pkg/plan.)
 const machinePlanSecretType = planapi.SecretTypeMachinePlan
 
-// errMachinePlanSecretNotFound is returned by findMachinePlanSecret when no machine-plan Secret
-// exists yet for the given Machine (Rancher creates it when system-agent first registers).
-var errMachinePlanSecretNotFound = errors.New("machine-plan secret not found")
+var (
+	// errMachinePlanSecretNotFound is returned by findMachinePlanSecret when no machine-plan Secret
+	// exists yet for the given Machine (Rancher creates it when system-agent first registers).
+	errMachinePlanSecretNotFound = errors.New("machine-plan secret not found")
 
-// errBootstrapConfigUnavailable is returned by decodeDesiredRKE2Config when no BootstrapConfig
-// was provided, or it isn't an RKE2Config.
-var errBootstrapConfigUnavailable = errors.New("no RKE2Config BootstrapConfig available")
+	// errBootstrapConfigUnavailable is returned by decodeDesiredRKE2Config when no BootstrapConfig
+	// was provided, or it isn't an RKE2Config.
+	errBootstrapConfigUnavailable = errors.New("no RKE2Config BootstrapConfig available")
+)
 
 // ExtensionHandlers provides a common struct shared across the in-place update hook handlers.
 //
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch
 type ExtensionHandlers struct {
 	decoder runtime.Decoder
 	client  client.Client
@@ -100,6 +104,24 @@ func (h *ExtensionHandlers) DoCanUpdateMachine(
 	log := ctrl.LoggerFrom(ctx).WithValues("Machine", klog.KObj(&req.Desired.Machine))
 	log.Info("CanUpdateMachine is called")
 
+	// Without a machine-plan Secret there is no system-agent to apply the update (e.g. the cluster
+	// is not managed by Rancher). Declare nothing so CAPI falls back to a rolling update.
+	_, err := h.findMachinePlanSecret(ctx, &req.Current.Machine)
+	if errors.Is(err, errMachinePlanSecretNotFound) {
+		log.Info("machine-plan Secret not found, Machine cannot be updated in-place")
+
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+
+		return
+	}
+
+	if err != nil {
+		resp.Status = runtimehooksv1.ResponseStatusFailure
+		resp.Message = err.Error()
+
+		return
+	}
+
 	currentMachine, desiredMachine,
 		currentBootstrapConfig, desiredBootstrapConfig, err := h.getObjectsFromCanUpdateMachineRequest(req)
 	if err != nil {
@@ -141,6 +163,24 @@ func (h *ExtensionHandlers) DoCanUpdateMachineSet(
 ) {
 	log := ctrl.LoggerFrom(ctx).WithValues("MachineSet", klog.KObj(&req.Desired.MachineSet))
 	log.Info("CanUpdateMachineSet is called")
+
+	// CAPI does not call CanUpdateMachine for Machines moved between MachineSets, so every Machine
+	// of the current MachineSet must have a machine-plan Secret, otherwise fall back to a rolling update.
+	allMachinesHavePlanSecret, err := h.allMachinesHavePlanSecret(ctx, &req.Current.MachineSet)
+	if err != nil {
+		resp.Status = runtimehooksv1.ResponseStatusFailure
+		resp.Message = err.Error()
+
+		return
+	}
+
+	if !allMachinesHavePlanSecret {
+		log.Info("machine-plan Secret not found for all Machines, MachineSet cannot be updated in-place")
+
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+
+		return
+	}
 
 	currentMachineSet, desiredMachineSet,
 		currentBootstrapConfigTemplate, desiredBootstrapConfigTemplate, err := h.getObjectsFromCanUpdateMachineSetRequest(req)
@@ -306,6 +346,49 @@ func (h *ExtensionHandlers) findMachinePlanSecret(ctx context.Context, machine *
 	}
 
 	return nil, errMachinePlanSecretNotFound
+}
+
+// allMachinesHavePlanSecret reports whether every Machine of the given MachineSet has a
+// machine-plan Secret.
+func (h *ExtensionHandlers) allMachinesHavePlanSecret(ctx context.Context, machineSet *clusterv1.MachineSet) (bool, error) {
+	machineList := &clusterv1.MachineList{}
+	if err := h.client.List(ctx, machineList,
+		client.InNamespace(machineSet.Namespace),
+		client.MatchingLabels{clusterv1.MachineSetNameLabel: format.MustFormatValue(machineSet.Name)},
+	); err != nil {
+		return false, err
+	}
+
+	if len(machineList.Items) == 0 {
+		return true, nil
+	}
+
+	secretList := &corev1.SecretList{}
+	if err := h.client.List(ctx, secretList,
+		client.InNamespace(machineSet.Namespace),
+		client.MatchingLabels{
+			planv1alpha1.MachineLifecycleGroupLabel: clusterv1.GroupVersion.Group,
+			planv1alpha1.MachineLifecycleKindLabel:  "Machine",
+		},
+	); err != nil {
+		return false, err
+	}
+
+	machinesWithPlanSecret := make(map[string]bool, len(secretList.Items))
+
+	for i := range secretList.Items {
+		if secretList.Items[i].Type == machinePlanSecretType {
+			machinesWithPlanSecret[secretList.Items[i].Labels[planv1alpha1.MachineLifecycleNameLabel]] = true
+		}
+	}
+
+	for i := range machineList.Items {
+		if !machinesWithPlanSecret[machineList.Items[i].Name] {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // decodeDesiredRKE2Config decodes the optional BootstrapConfig from an UpdateMachineRequest.
