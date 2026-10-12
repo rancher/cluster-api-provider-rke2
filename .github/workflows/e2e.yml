@@ -31,6 +31,34 @@ jobs:
           name: e2e-artifacts
           path: _artifacts
           if-no-files-found: ignore
+  e2e-nightly-arm64:
+    # arm64 has no runtime coverage elsewhere. Keep it informational until
+    # it has a stable track record.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: runs-on,runner=4cpu-linux-arm64,run-id=${{ github.run_id }}
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Setup kind
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          install_only: true
+      - name: Run E2E tests
+        run: make test-e2e
+      - name: Archive artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-nightly-arm64-artifacts
+          path: _artifacts
+          if-no-files-found: ignore
   e2e-tests-upgrade:
     runs-on: runs-on,runner=4cpu-linux-x64,run-id=${{ github.run_id }}
     steps:
