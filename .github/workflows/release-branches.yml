@@ -1,0 +1,50 @@
+name: Release branches
+# Returns the newest release-X.Y branches as a JSON array, so scheduled jobs
+# follow new release branches without edits.
+on:
+  workflow_call:
+    inputs:
+      count:
+        description: Number of newest release branches to return
+        type: number
+        default: 4
+      include-main:
+        description: Prepend main to the list
+        type: boolean
+        default: false
+    outputs:
+      branches:
+        description: JSON array of branch names
+        value: ${{ jobs.resolve.outputs.branches }}
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.list.outputs.branches }}
+    steps:
+      - name: List release branches
+        id: list
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          COUNT: ${{ inputs.count }}
+          INCLUDE_MAIN: ${{ inputs.include-main }}
+        run: |
+          set -euo pipefail
+          branches=$(git ls-remote --heads "$REPO_URL" 'refs/heads/release-*' \
+            | awk '{sub("refs/heads/", "", $2); print $2}' \
+            | grep -E '^release-[0-9]+\.[0-9]+$' \
+            | sort -V | tail -n "$COUNT")
+          if [ -z "$branches" ]; then
+            echo "::error::No release-X.Y branches found"
+            exit 1
+          fi
+          if [ "$INCLUDE_MAIN" = "true" ]; then
+            branches=$(printf 'main\n%s' "$branches")
+          fi
+          json=$(printf '%s\n' "$branches" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "Branches: $json"
+          echo "branches=$json" >> "$GITHUB_OUTPUT"
