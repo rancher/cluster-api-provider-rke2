@@ -75,8 +75,14 @@ jobs:
 
   # scheduled workflows will only run on the default branch (main) so release branches
   # need an explicit checkout+scan here to get scheduled coverage.
+  release-branches:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/release-branches.yml
+    with:
+      include-main: true
   scan-scheduled:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: release-branches
     permissions:
       contents: read
       security-events: write
@@ -85,7 +91,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [ "main", "release-0.24", "release-0.25" ]
+        ref: ${{ fromJSON(needs.release-branches.outputs.branches) }}
         provider: [ "bootstrap", "controlplane" ]
         include:
           - provider: bootstrap
