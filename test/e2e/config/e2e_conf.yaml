@@ -18,8 +18,8 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: "v1.13.4"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.4/core-components.yaml"
+      - name: "{capi-previous-minor}" # resolved at run time, see test/e2e/upgrade_versions.go
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{capi-previous-minor}/core-components.yaml"
         type: "url"
         contract: v1beta2
         files:
@@ -43,8 +43,8 @@ providers:
   - name: docker
     type: InfrastructureProvider
     versions:
-      - name: "v1.13.4"
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.13.4/infrastructure-components-development.yaml"
+      - name: "{capi-previous-minor}" # resolved at run time, see test/e2e/upgrade_versions.go
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/{capi-previous-minor}/infrastructure-components-development.yaml"
         type: "url"
         contract: v1beta2
         files:
@@ -78,10 +78,10 @@ providers:
   - name: rke2-control-plane
     type: ControlPlaneProvider
     versions:
-      - name: "v0.25.2"
-        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.25.2/control-plane-components.yaml"
+      - name: "{rke2-previous-minor}" # resolved at run time, see test/e2e/upgrade_versions.go
+        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/{rke2-previous-minor}/control-plane-components.yaml"
         type: "url"
-        contract: v1beta1
+        contract: v1beta2
         files:
           - sourcePath: "../../../metadata.yaml"
             targetName: "metadata.yaml"
@@ -104,10 +104,10 @@ providers:
   - name: rke2-bootstrap
     type: BootstrapProvider
     versions:
-      - name: "v0.25.2"
-        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/v0.25.2/bootstrap-components.yaml"
+      - name: "{rke2-previous-minor}" # resolved at run time, see test/e2e/upgrade_versions.go
+        value: "https://github.com/rancher/cluster-api-provider-rke2/releases/download/{rke2-previous-minor}/bootstrap-components.yaml"
         type: "url"
-        contract: v1beta1
+        contract: v1beta2
         files:
           - sourcePath: "../../../metadata.yaml"
             targetName: "metadata.yaml"
