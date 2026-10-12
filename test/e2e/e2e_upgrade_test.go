@@ -97,8 +97,8 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 	})
 
 	Context("Creating a single control-plane cluster", func() {
-		It("Should create a cluster with v0.25.2 and perform upgrade to latest version", func() {
-			By("Installing v0.25.2 bootstrap/controlplane provider version")
+		It("Should create a cluster with the previous minor release and perform upgrade to latest version", func() {
+			Byf("Installing %s bootstrap/controlplane provider version", upgradeFrom.RKE2)
 			initUpgradableBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
 			clusterTemplate, err := envsubst.Eval(string(ClusterTemplateDocker), func(s string) string {
@@ -149,14 +149,17 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 			})
 			Expect(machineNames).ShouldNot(BeEmpty(), "There must be at least one Machine")
 
-			By("Upgrading to next bootstrap/controlplane provider version")
+			upgradeTo, err := upgradeToVersions(e2eConfig)
+			Expect(err).ToNot(HaveOccurred())
+
+			Byf("Upgrading to bootstrap/controlplane provider version %s and Cluster API %s", upgradeTo.RKE2, upgradeTo.CAPI)
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:            bootstrapClusterProxy,
 				ClusterctlConfigPath:    clusterctlConfigPath,
-				InfrastructureProviders: []string{"docker:v1.14.2"},
-				CoreProvider:            "cluster-api:v1.14.2",
-				BootstrapProviders:      []string{"rke2-bootstrap:v0.27.99"},
-				ControlPlaneProviders:   []string{"rke2-control-plane:v0.27.99"},
+				InfrastructureProviders: []string{providerVersion(dockerProviderName, upgradeTo.CAPI)},
+				CoreProvider:            providerVersion(coreProviderName, upgradeTo.CAPI),
+				BootstrapProviders:      []string{providerVersion(bootstrapProviderName, upgradeTo.RKE2)},
+				ControlPlaneProviders:   []string{providerVersion(cpProviderName, upgradeTo.RKE2)},
 				LogFolder:               clusterctlLogFolder,
 			})
 

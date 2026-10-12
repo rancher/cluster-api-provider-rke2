@@ -69,6 +69,9 @@ var (
 	// e2eConfig to be used for this test, read from configPath.
 	e2eConfig *clusterctl.E2EConfig
 
+	// upgradeFrom holds the provider versions the upgrade test starts from, resolved once per suite.
+	upgradeFrom upgradeVersions
+
 	// clusterctlConfigPath to be used for this test, created by generating a clusterctl local repository
 	// with the providers specified in the configPath.
 	clusterctlConfigPath string
@@ -126,6 +129,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	By(fmt.Sprintf("Loading the e2e test configuration from %q", configPath))
 	e2eConfig = loadE2EConfig(configPath)
 
+	By("Resolving the provider versions the upgrade test starts from")
+	var err error
+	upgradeFrom, err = resolveUpgradeFromVersions(ctx, e2eConfig)
+	Expect(err).ToNot(HaveOccurred(), "Failed to resolve the upgrade starting versions")
+	Byf("Upgrade test starts from CAPRKE2 %s and Cluster API %s", upgradeFrom.RKE2, upgradeFrom.CAPI)
+	Expect(applyUpgradeFromVersions(e2eConfig, upgradeFrom)).To(Succeed())
+
 	By(fmt.Sprintf("Creating a clusterctl local repository into %q", artifactFolder))
 	clusterctlConfigPath = createClusterctlLocalRepository(e2eConfig, filepath.Join(artifactFolder, "repository"))
 
@@ -138,20 +148,24 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 			configPath,
 			clusterctlConfigPath,
 			bootstrapClusterProxy.GetKubeconfigPath(),
+			upgradeFrom.RKE2,
+			upgradeFrom.CAPI,
 		}, ","),
 	)
 }, func(data []byte) {
 	// Before each ParallelNode.
 
 	parts := strings.Split(string(data), ",")
-	Expect(parts).To(HaveLen(4))
+	Expect(parts).To(HaveLen(6))
 
 	artifactFolder = parts[0]
 	configPath = parts[1]
 	clusterctlConfigPath = parts[2]
 	kubeconfigPath := parts[3]
+	upgradeFrom = upgradeVersions{RKE2: parts[4], CAPI: parts[5]}
 
 	e2eConfig = loadE2EConfig(configPath)
+	Expect(applyUpgradeFromVersions(e2eConfig, upgradeFrom)).To(Succeed())
 	bootstrapClusterProxy = framework.NewClusterProxy("bootstrap", kubeconfigPath, initScheme(), framework.WithMachineLogCollector(framework.DockerLogCollector{}))
 })
 
@@ -265,18 +279,19 @@ func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
 }
 
-// initUpgradableBootstrapCluster initializes a bootstrap cluster with the latest minor version and used to perform an upgrade to the next version.
-// Make sure to update the version in the providers list to the latest minor version.
+// initUpgradableBootstrapCluster initializes a bootstrap cluster with the latest release of the previous minor
+// version, used to perform an upgrade to the version under development. The versions are resolved at run time,
+// see resolveUpgradeFromVersions.
 func initUpgradableBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
 	InitManagementCluster(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:              bootstrapClusterProxy,
 		ClusterctlConfigPath:      clusterctlConfig,
-		InfrastructureProviders:   []string{"docker:v1.13.4"},
+		InfrastructureProviders:   []string{providerVersion(dockerProviderName, upgradeFrom.CAPI)},
 		IPAMProviders:             config.IPAMProviders(),
 		RuntimeExtensionProviders: config.RuntimeExtensionProviders(),
-		CoreProvider:              "cluster-api:v1.13.4",
-		BootstrapProviders:        []string{"rke2-bootstrap:v0.25.2"},
-		ControlPlaneProviders:     []string{"rke2-control-plane:v0.25.2"},
+		CoreProvider:              providerVersion(coreProviderName, upgradeFrom.CAPI),
+		BootstrapProviders:        []string{providerVersion(bootstrapProviderName, upgradeFrom.RKE2)},
+		ControlPlaneProviders:     []string{providerVersion(cpProviderName, upgradeFrom.RKE2)},
 		LogFolder:                 filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName()),
 		DisableMetricsCollection:  true,
 	}, config.GetIntervals(bootstrapClusterProxy.GetName(), "wait-controllers")...)
