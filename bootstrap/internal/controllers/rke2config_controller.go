@@ -299,8 +299,7 @@ func (r *RKE2ConfigReconciler) MachineToBootstrapMapFunc(_ context.Context, o cl
 	result := []ctrl.Request{}
 
 	if m.Spec.Bootstrap.ConfigRef.IsDefined() && m.Spec.Bootstrap.ConfigRef.GroupKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config").GroupKind() {
-		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Bootstrap.ConfigRef.Name}
-		result = append(result, ctrl.Request{NamespacedName: name})
+		result = append(result, ctrl.Request{Namespace: m.Namespace, Name: m.Spec.Bootstrap.ConfigRef.Name})
 	}
 
 	return result
@@ -319,8 +318,7 @@ func (r *RKE2ConfigReconciler) MachinePoolToBootstrapMapFunc(_ context.Context, 
 	spec := m.Spec.Template.Spec
 
 	if spec.Bootstrap.ConfigRef.IsDefined() && spec.Bootstrap.ConfigRef.GroupKind() == bootstrapv1.GroupVersion.WithKind("RKE2Config").GroupKind() {
-		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Template.Spec.Bootstrap.ConfigRef.Name}
-		result = append(result, ctrl.Request{NamespacedName: name})
+		result = append(result, ctrl.Request{Namespace: m.Namespace, Name: m.Spec.Template.Spec.Bootstrap.ConfigRef.Name})
 	}
 
 	return result
@@ -351,10 +349,10 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 	for _, machine := range machineList.Items {
 		if machine.Spec.Bootstrap.ConfigRef.IsDefined() {
 			if machine.Spec.Bootstrap.ConfigRef.Kind == "RKE2Config" {
-				result = append(result, ctrl.Request{NamespacedName: types.NamespacedName{
+				result = append(result, ctrl.Request{
 					Namespace: machine.Namespace,
 					Name:      machine.Spec.Bootstrap.ConfigRef.Name,
-				}})
+				})
 			}
 		}
 	}
@@ -368,10 +366,10 @@ func (r *RKE2ConfigReconciler) ClusterToRKE2Configs(ctx context.Context, o clien
 		for _, machinePool := range machinePoolList.Items {
 			if machinePool.Spec.Template.Spec.Bootstrap.ConfigRef.IsDefined() {
 				if machinePool.Spec.Template.Spec.Bootstrap.ConfigRef.Kind == "RKE2Config" {
-					result = append(result, ctrl.Request{NamespacedName: types.NamespacedName{
+					result = append(result, ctrl.Request{
 						Namespace: machinePool.Namespace,
 						Name:      machinePool.Spec.Template.Spec.Bootstrap.ConfigRef.Name,
-					}})
+					})
 				}
 			}
 		}
@@ -531,20 +529,18 @@ func (r *RKE2ConfigReconciler) handleClusterNotInitialized(ctx context.Context, 
 	}
 
 	cpinput := &cloudinit.ControlPlaneInput{
-		BaseUserData: cloudinit.BaseUserData{
-			AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
-			AirGappedChecksum:       scope.Config.Spec.AgentConfig.AirGappedChecksum,
-			CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
-			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
-			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
-			ConfigFile:              initConfigFile,
-			RKE2Version:             version,
-			WriteFiles:              files,
-			NTPServers:              ntpServers,
-			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
-			AdditionalArbitraryData: scope.Config.Spec.AgentConfig.AdditionalUserData.Data,
-		},
-		Certificates: certificates,
+		AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
+		AirGappedChecksum:       scope.Config.Spec.AgentConfig.AirGappedChecksum,
+		CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
+		PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
+		PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
+		ConfigFile:              initConfigFile,
+		RKE2Version:             version,
+		WriteFiles:              files,
+		NTPServers:              ntpServers,
+		AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+		AdditionalArbitraryData: scope.Config.Spec.AgentConfig.AdditionalUserData.Data,
+		Certificates:            certificates,
 	}
 
 	var userData []byte
@@ -778,19 +774,17 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 	}
 
 	cpinput := &cloudinit.ControlPlaneInput{
-		BaseUserData: cloudinit.BaseUserData{
-			AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
-			AirGappedChecksum:       scope.Config.Spec.AgentConfig.AirGappedChecksum,
-			CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
-			PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
-			PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
-			ConfigFile:              initConfigFile,
-			RKE2Version:             version,
-			WriteFiles:              files,
-			NTPServers:              ntpServers,
-			AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
-			AdditionalArbitraryData: scope.Config.Spec.AgentConfig.AdditionalUserData.Data,
-		},
+		AirGapped:               scope.Config.Spec.AgentConfig.AirGapped,
+		AirGappedChecksum:       scope.Config.Spec.AgentConfig.AirGappedChecksum,
+		CISEnabled:              scope.Config.Spec.AgentConfig.CISProfile != "",
+		PreRKE2Commands:         scope.Config.Spec.PreRKE2Commands,
+		PostRKE2Commands:        scope.Config.Spec.PostRKE2Commands,
+		ConfigFile:              initConfigFile,
+		RKE2Version:             version,
+		WriteFiles:              files,
+		NTPServers:              ntpServers,
+		AdditionalCloudInit:     scope.Config.Spec.AgentConfig.AdditionalUserData.Config,
+		AdditionalArbitraryData: scope.Config.Spec.AgentConfig.AdditionalUserData.Data,
 	}
 
 	var userData []byte
@@ -980,20 +974,18 @@ func (r *RKE2ConfigReconciler) generateAndStoreToken(ctx context.Context, scope 
 	scope.Logger = scope.Logger.WithValues("cluster-name", scope.Cluster.Name)
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: scope.Config.Namespace,
-			Labels: map[string]string{
-				clusterv1.ClusterNameLabel: scope.Cluster.Name,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: scope.Cluster.APIVersion,
-					Kind:       scope.Cluster.Kind,
-					Name:       scope.Cluster.Name,
-					UID:        scope.Cluster.UID,
-					Controller: new(true),
-				},
+		Name:      name,
+		Namespace: scope.Config.Namespace,
+		Labels: map[string]string{
+			clusterv1.ClusterNameLabel: scope.Cluster.Name,
+		},
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: scope.Cluster.APIVersion,
+				Kind:       scope.Cluster.Kind,
+				Name:       scope.Cluster.Name,
+				UID:        scope.Cluster.UID,
+				Controller: new(true),
 			},
 		},
 		Data: map[string][]byte{
@@ -1038,20 +1030,18 @@ func (r *RKE2ConfigReconciler) storeBootstrapData(ctx context.Context, scope *Sc
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      scope.Config.Name,
-			Namespace: scope.Config.Namespace,
-			Labels: map[string]string{
-				clusterv1.ClusterNameLabel: scope.Cluster.Name,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: scope.Config.APIVersion,
-					Kind:       scope.Config.Kind,
-					Name:       scope.Config.Name,
-					UID:        scope.Config.UID,
-					Controller: new(true),
-				},
+		Name:      scope.Config.Name,
+		Namespace: scope.Config.Namespace,
+		Labels: map[string]string{
+			clusterv1.ClusterNameLabel: scope.Cluster.Name,
+		},
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: scope.Config.APIVersion,
+				Kind:       scope.Config.Kind,
+				Name:       scope.Config.Name,
+				UID:        scope.Config.UID,
+				Controller: new(true),
 			},
 		},
 		Data: map[string][]byte{

@@ -432,13 +432,11 @@ func (r *RKE2ControlPlaneReconciler) generateRKE2Config(
 	}
 
 	bootstrapConfig := &bootstrapv1.RKE2Config{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            names.SimpleNameGenerator.GenerateName(rcp.Name + "-"),
-			Namespace:       rcp.Namespace,
-			Labels:          rke2.ControlPlaneLabelsForCluster(cluster.Name),
-			OwnerReferences: []metav1.OwnerReference{owner},
-		},
-		Spec: *spec,
+		Name:            names.SimpleNameGenerator.GenerateName(rcp.Name + "-"),
+		Namespace:       rcp.Namespace,
+		Labels:          rke2.ControlPlaneLabelsForCluster(cluster.Name),
+		OwnerReferences: []metav1.OwnerReference{owner},
+		Spec:            *spec,
 	}
 
 	if err := r.Create(ctx, bootstrapConfig); err != nil {
@@ -592,21 +590,17 @@ func (r *RKE2ControlPlaneReconciler) computeDesiredMachine(
 
 	// Construct the basic Machine.
 	desiredMachine := &clusterv1.Machine{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: clusterv1.GroupVersion.String(),
-			Kind:       "Machine",
+		APIVersion: clusterv1.GroupVersion.String(),
+		Kind:       "Machine",
+		UID:        machineUID,
+		Name:       machineName,
+		Namespace:  rcp.Namespace,
+		// Note: by setting the ownerRef on creation we signal to the Machine controller that this is not a stand-alone Machine.
+		OwnerReferences: []metav1.OwnerReference{
+			*metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind(rke2ControlPlaneKind)),
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			UID:       machineUID,
-			Name:      machineName,
-			Namespace: rcp.Namespace,
-			// Note: by setting the ownerRef on creation we signal to the Machine controller that this is not a stand-alone Machine.
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind(rke2ControlPlaneKind)),
-			},
-			Labels:      map[string]string{},
-			Annotations: map[string]string{},
-		},
+		Labels:      map[string]string{},
+		Annotations: map[string]string{},
 		Spec: clusterv1.MachineSpec{
 			ClusterName:       cluster.Name,
 			Version:           version,
