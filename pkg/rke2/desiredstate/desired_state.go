@@ -115,21 +115,17 @@ func ComputeDesiredMachine(
 	}
 
 	desiredMachine := &clusterv1.Machine{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: clusterv1.GroupVersion.String(),
-			Kind:       "Machine",
+		APIVersion: clusterv1.GroupVersion.String(),
+		Kind:       "Machine",
+		UID:        machineUID,
+		Name:       machineName,
+		Namespace:  rcp.Namespace,
+		// Note: by setting the ownerRef on creation we signal to the Machine controller that this is not a stand-alone Machine.
+		OwnerReferences: []metav1.OwnerReference{
+			*metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane")),
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			UID:       machineUID,
-			Name:      machineName,
-			Namespace: rcp.Namespace,
-			// Note: by setting the ownerRef on creation we signal to the Machine controller that this is not a stand-alone Machine.
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(rcp, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane")),
-			},
-			Labels:      ControlPlaneMachineLabels(rcp, cluster.Name),
-			Annotations: map[string]string{},
-		},
+		Labels:      ControlPlaneMachineLabels(rcp, cluster.Name),
+		Annotations: map[string]string{},
 		Spec: clusterv1.MachineSpec{
 			ClusterName:       cluster.Name,
 			Version:           version,
@@ -179,18 +175,14 @@ func ComputeDesiredRKE2Config(
 	}
 
 	rke2Config := &bootstrapv1.RKE2Config{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: bootstrapv1.GroupVersion.String(),
-			Kind:       "RKE2Config",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       rcp.Namespace,
-			Labels:          ControlPlaneMachineLabels(rcp, cluster.Name),
-			Annotations:     ControlPlaneMachineAnnotations(rcp),
-			OwnerReferences: ownerReferences,
-		},
-		Spec: *rcp.Spec.RKE2ConfigSpec.DeepCopy(),
+		APIVersion:      bootstrapv1.GroupVersion.String(),
+		Kind:            "RKE2Config",
+		Name:            name,
+		Namespace:       rcp.Namespace,
+		Labels:          ControlPlaneMachineLabels(rcp, cluster.Name),
+		Annotations:     ControlPlaneMachineAnnotations(rcp),
+		OwnerReferences: ownerReferences,
+		Spec:            *rcp.Spec.RKE2ConfigSpec.DeepCopy(),
 	}
 
 	if existingRKE2Config != nil {

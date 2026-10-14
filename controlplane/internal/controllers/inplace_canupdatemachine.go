@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -214,34 +213,26 @@ func createCanUpdateRequest(
 func cleanupMachine(machine *clusterv1.Machine) *clusterv1.Machine {
 	return &clusterv1.Machine{
 		// Set GVK because object is later marshalled with json.Marshal.
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: clusterv1.GroupVersion.String(),
-			Kind:       "Machine",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        machine.Name,
-			Namespace:   machine.Namespace,
-			Labels:      machine.Labels,
-			Annotations: machine.Annotations,
-		},
-		Spec: *machine.Spec.DeepCopy(),
+		APIVersion:  clusterv1.GroupVersion.String(),
+		Kind:        "Machine",
+		Name:        machine.Name,
+		Namespace:   machine.Namespace,
+		Labels:      machine.Labels,
+		Annotations: machine.Annotations,
+		Spec:        *machine.Spec.DeepCopy(),
 	}
 }
 
 func cleanupRKE2Config(config *bootstrapv1.RKE2Config) *bootstrapv1.RKE2Config {
 	return &bootstrapv1.RKE2Config{
 		// Set GVK because object is later marshalled with json.Marshal.
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: bootstrapv1.GroupVersion.String(),
-			Kind:       "RKE2Config",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        config.Name,
-			Namespace:   config.Namespace,
-			Labels:      config.Labels,
-			Annotations: config.Annotations,
-		},
-		Spec: *config.Spec.DeepCopy(),
+		APIVersion:  bootstrapv1.GroupVersion.String(),
+		Kind:        "RKE2Config",
+		Name:        config.Name,
+		Namespace:   config.Namespace,
+		Labels:      config.Labels,
+		Annotations: config.Annotations,
+		Spec:        *config.Spec.DeepCopy(),
 	}
 }
 
