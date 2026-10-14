@@ -91,20 +91,16 @@ func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File, agen
 		Files: planFiles,
 		OneTimeInstructions: []planapi.OneTimeInstruction{
 			{
-				CommonInstruction: planapi.CommonInstruction{
-					Name:    installInstructionName,
-					Image:   image,
-					Command: "sh",
-					Args:    []string{"run.sh"},
-					Env:     installEnv,
-				},
+				Name:    installInstructionName,
+				Image:   image,
+				Command: "sh",
+				Args:    []string{"run.sh"},
+				Env:     installEnv,
 			},
 			{
-				CommonInstruction: planapi.CommonInstruction{
-					Name:    restartInstructionName,
-					Command: "systemctl",
-					Args:    []string{systemctlRestartArg, serviceName},
-				},
+				Name:    restartInstructionName,
+				Command: "systemctl",
+				Args:    []string{systemctlRestartArg, serviceName},
 			},
 		},
 	}, nil
