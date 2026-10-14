@@ -3,7 +3,7 @@ on:
   pull_request:
   merge_group:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: "0 1 * * *"
   workflow_dispatch:
 
 jobs:
@@ -36,7 +36,6 @@ jobs:
     # it has a stable track record.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: runs-on,runner=4cpu-linux-arm64,run-id=${{ github.run_id }}
-    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
