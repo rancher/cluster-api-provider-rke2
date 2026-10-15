@@ -24,6 +24,9 @@ jobs:
           install_only: true
       - name: Run E2E tests
         run: make test-e2e
+      - name: Summarise results
+        if: always()
+        run: python3 hack/junit-summary.py _artifacts/junit.e2e_suite.1.xml "E2E results (default)" >> "$GITHUB_STEP_SUMMARY"
       - name: Archive artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -78,6 +81,9 @@ jobs:
         env:
           GINKGO_LABEL_FILTER: upgrade
         run: make test-e2e
+      - name: Summarise results
+        if: always()
+        run: python3 hack/junit-summary.py _artifacts/junit.e2e_suite.1.xml "E2E results (upgrade)" >> "$GITHUB_STEP_SUMMARY"
       - name: Archive artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
