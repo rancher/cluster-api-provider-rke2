@@ -359,7 +359,7 @@ func (r *RKE2ControlPlaneReconciler) ClusterToRKE2ControlPlane(ctx context.Conte
 
 		controlPlaneRef := c.Spec.ControlPlaneRef
 		if controlPlaneRef.IsDefined() && controlPlaneRef.Kind == "RKE2ControlPlane" {
-			return []ctrl.Request{{NamespacedName: client.ObjectKey{Namespace: c.Namespace, Name: controlPlaneRef.Name}}}
+			return []ctrl.Request{{Namespace: c.Namespace, Name: controlPlaneRef.Name}}
 		}
 
 		return nil

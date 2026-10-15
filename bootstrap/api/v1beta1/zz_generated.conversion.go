@@ -282,9 +282,7 @@ func RegisterConversions(s *runtime.Scheme) error {
 }
 
 func autoConvert_v1beta1_AdditionalUserData_To_v1beta2_AdditionalUserData(in *AdditionalUserData, out *v1beta2.AdditionalUserData, s conversion.Scope) error {
-	out.Config = in.Config
-	out.Data = *(*map[string]string)(unsafe.Pointer(&in.Data))
-	out.Strict = in.Strict
+	*out = *(*v1beta2.AdditionalUserData)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -294,9 +292,7 @@ func Convert_v1beta1_AdditionalUserData_To_v1beta2_AdditionalUserData(in *Additi
 }
 
 func autoConvert_v1beta2_AdditionalUserData_To_v1beta1_AdditionalUserData(in *v1beta2.AdditionalUserData, out *AdditionalUserData, s conversion.Scope) error {
-	out.Config = in.Config
-	out.Data = *(*map[string]string)(unsafe.Pointer(&in.Data))
-	out.Strict = in.Strict
+	*out = *(*AdditionalUserData)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -306,10 +302,7 @@ func Convert_v1beta2_AdditionalUserData_To_v1beta1_AdditionalUserData(in *v1beta
 }
 
 func autoConvert_v1beta1_ComponentConfig_To_v1beta2_ComponentConfig(in *ComponentConfig, out *v1beta2.ComponentConfig, s conversion.Scope) error {
-	out.ExtraEnv = *(*map[string]string)(unsafe.Pointer(&in.ExtraEnv))
-	out.ExtraArgs = *(*[]string)(unsafe.Pointer(&in.ExtraArgs))
-	out.ExtraMounts = *(*map[string]string)(unsafe.Pointer(&in.ExtraMounts))
-	out.OverrideImage = in.OverrideImage
+	*out = *(*v1beta2.ComponentConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -319,10 +312,7 @@ func Convert_v1beta1_ComponentConfig_To_v1beta2_ComponentConfig(in *ComponentCon
 }
 
 func autoConvert_v1beta2_ComponentConfig_To_v1beta1_ComponentConfig(in *v1beta2.ComponentConfig, out *ComponentConfig, s conversion.Scope) error {
-	out.ExtraEnv = *(*map[string]string)(unsafe.Pointer(&in.ExtraEnv))
-	out.ExtraArgs = *(*[]string)(unsafe.Pointer(&in.ExtraArgs))
-	out.ExtraMounts = *(*map[string]string)(unsafe.Pointer(&in.ExtraMounts))
-	out.OverrideImage = in.OverrideImage
+	*out = *(*ComponentConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -332,12 +322,7 @@ func Convert_v1beta2_ComponentConfig_To_v1beta1_ComponentConfig(in *v1beta2.Comp
 }
 
 func autoConvert_v1beta1_File_To_v1beta2_File(in *File, out *v1beta2.File, s conversion.Scope) error {
-	out.Path = in.Path
-	out.Owner = in.Owner
-	out.Permissions = in.Permissions
-	out.Encoding = v1beta2.Encoding(in.Encoding)
-	out.Content = in.Content
-	out.ContentFrom = (*v1beta2.FileSource)(unsafe.Pointer(in.ContentFrom))
+	*out = *(*v1beta2.File)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -347,12 +332,7 @@ func Convert_v1beta1_File_To_v1beta2_File(in *File, out *v1beta2.File, s convers
 }
 
 func autoConvert_v1beta2_File_To_v1beta1_File(in *v1beta2.File, out *File, s conversion.Scope) error {
-	out.Path = in.Path
-	out.Owner = in.Owner
-	out.Permissions = in.Permissions
-	out.Encoding = Encoding(in.Encoding)
-	out.Content = in.Content
-	out.ContentFrom = (*FileSource)(unsafe.Pointer(in.ContentFrom))
+	*out = *(*File)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -362,8 +342,7 @@ func Convert_v1beta2_File_To_v1beta1_File(in *v1beta2.File, out *File, s convers
 }
 
 func autoConvert_v1beta1_FileSource_To_v1beta2_FileSource(in *FileSource, out *v1beta2.FileSource, s conversion.Scope) error {
-	out.Secret = (*v1beta2.FileSourceRef)(unsafe.Pointer(in.Secret))
-	out.ConfigMap = (*v1beta2.FileSourceRef)(unsafe.Pointer(in.ConfigMap))
+	*out = *(*v1beta2.FileSource)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -373,8 +352,7 @@ func Convert_v1beta1_FileSource_To_v1beta2_FileSource(in *FileSource, out *v1bet
 }
 
 func autoConvert_v1beta2_FileSource_To_v1beta1_FileSource(in *v1beta2.FileSource, out *FileSource, s conversion.Scope) error {
-	out.Secret = (*FileSourceRef)(unsafe.Pointer(in.Secret))
-	out.ConfigMap = (*FileSourceRef)(unsafe.Pointer(in.ConfigMap))
+	*out = *(*FileSource)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -384,9 +362,7 @@ func Convert_v1beta2_FileSource_To_v1beta1_FileSource(in *v1beta2.FileSource, ou
 }
 
 func autoConvert_v1beta1_FileSourceRef_To_v1beta2_FileSourceRef(in *FileSourceRef, out *v1beta2.FileSourceRef, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Namespace = in.Namespace
-	out.Key = in.Key
+	*out = *(*v1beta2.FileSourceRef)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -396,9 +372,7 @@ func Convert_v1beta1_FileSourceRef_To_v1beta2_FileSourceRef(in *FileSourceRef, o
 }
 
 func autoConvert_v1beta2_FileSourceRef_To_v1beta1_FileSourceRef(in *v1beta2.FileSourceRef, out *FileSourceRef, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Namespace = in.Namespace
-	out.Key = in.Key
+	*out = *(*FileSourceRef)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -408,8 +382,7 @@ func Convert_v1beta2_FileSourceRef_To_v1beta1_FileSourceRef(in *v1beta2.FileSour
 }
 
 func autoConvert_v1beta1_Mirror_To_v1beta2_Mirror(in *Mirror, out *v1beta2.Mirror, s conversion.Scope) error {
-	out.Endpoint = *(*[]string)(unsafe.Pointer(&in.Endpoint))
-	out.Rewrite = *(*map[string]string)(unsafe.Pointer(&in.Rewrite))
+	*out = *(*v1beta2.Mirror)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -419,8 +392,7 @@ func Convert_v1beta1_Mirror_To_v1beta2_Mirror(in *Mirror, out *v1beta2.Mirror, s
 }
 
 func autoConvert_v1beta2_Mirror_To_v1beta1_Mirror(in *v1beta2.Mirror, out *Mirror, s conversion.Scope) error {
-	out.Endpoint = *(*[]string)(unsafe.Pointer(&in.Endpoint))
-	out.Rewrite = *(*map[string]string)(unsafe.Pointer(&in.Rewrite))
+	*out = *(*Mirror)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -430,8 +402,7 @@ func Convert_v1beta2_Mirror_To_v1beta1_Mirror(in *v1beta2.Mirror, out *Mirror, s
 }
 
 func autoConvert_v1beta1_NTP_To_v1beta2_NTP(in *NTP, out *v1beta2.NTP, s conversion.Scope) error {
-	out.Servers = *(*[]string)(unsafe.Pointer(&in.Servers))
-	out.Enabled = (*bool)(unsafe.Pointer(in.Enabled))
+	*out = *(*v1beta2.NTP)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -441,8 +412,7 @@ func Convert_v1beta1_NTP_To_v1beta2_NTP(in *NTP, out *v1beta2.NTP, s conversion.
 }
 
 func autoConvert_v1beta2_NTP_To_v1beta1_NTP(in *v1beta2.NTP, out *NTP, s conversion.Scope) error {
-	out.Servers = *(*[]string)(unsafe.Pointer(&in.Servers))
-	out.Enabled = (*bool)(unsafe.Pointer(in.Enabled))
+	*out = *(*NTP)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -546,6 +516,7 @@ func Convert_v1beta2_RKE2Config_To_v1beta1_RKE2Config(in *v1beta2.RKE2Config, ou
 }
 
 func autoConvert_v1beta1_RKE2ConfigCustomDefaulter_To_v1beta2_RKE2ConfigCustomDefaulter(in *RKE2ConfigCustomDefaulter, out *v1beta2.RKE2ConfigCustomDefaulter, s conversion.Scope) error {
+	*out = *(*v1beta2.RKE2ConfigCustomDefaulter)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -555,6 +526,7 @@ func Convert_v1beta1_RKE2ConfigCustomDefaulter_To_v1beta2_RKE2ConfigCustomDefaul
 }
 
 func autoConvert_v1beta2_RKE2ConfigCustomDefaulter_To_v1beta1_RKE2ConfigCustomDefaulter(in *v1beta2.RKE2ConfigCustomDefaulter, out *RKE2ConfigCustomDefaulter, s conversion.Scope) error {
+	*out = *(*RKE2ConfigCustomDefaulter)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -564,6 +536,7 @@ func Convert_v1beta2_RKE2ConfigCustomDefaulter_To_v1beta1_RKE2ConfigCustomDefaul
 }
 
 func autoConvert_v1beta1_RKE2ConfigCustomValidator_To_v1beta2_RKE2ConfigCustomValidator(in *RKE2ConfigCustomValidator, out *v1beta2.RKE2ConfigCustomValidator, s conversion.Scope) error {
+	*out = *(*v1beta2.RKE2ConfigCustomValidator)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -573,6 +546,7 @@ func Convert_v1beta1_RKE2ConfigCustomValidator_To_v1beta2_RKE2ConfigCustomValida
 }
 
 func autoConvert_v1beta2_RKE2ConfigCustomValidator_To_v1beta1_RKE2ConfigCustomValidator(in *v1beta2.RKE2ConfigCustomValidator, out *RKE2ConfigCustomValidator, s conversion.Scope) error {
+	*out = *(*RKE2ConfigCustomValidator)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -717,6 +691,7 @@ func Convert_v1beta2_RKE2ConfigTemplate_To_v1beta1_RKE2ConfigTemplate(in *v1beta
 }
 
 func autoConvert_v1beta1_RKE2ConfigTemplateCustomDefaulter_To_v1beta2_RKE2ConfigTemplateCustomDefaulter(in *RKE2ConfigTemplateCustomDefaulter, out *v1beta2.RKE2ConfigTemplateCustomDefaulter, s conversion.Scope) error {
+	*out = *(*v1beta2.RKE2ConfigTemplateCustomDefaulter)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -726,6 +701,7 @@ func Convert_v1beta1_RKE2ConfigTemplateCustomDefaulter_To_v1beta2_RKE2ConfigTemp
 }
 
 func autoConvert_v1beta2_RKE2ConfigTemplateCustomDefaulter_To_v1beta1_RKE2ConfigTemplateCustomDefaulter(in *v1beta2.RKE2ConfigTemplateCustomDefaulter, out *RKE2ConfigTemplateCustomDefaulter, s conversion.Scope) error {
+	*out = *(*RKE2ConfigTemplateCustomDefaulter)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -735,6 +711,7 @@ func Convert_v1beta2_RKE2ConfigTemplateCustomDefaulter_To_v1beta1_RKE2ConfigTemp
 }
 
 func autoConvert_v1beta1_RKE2ConfigTemplateCustomValidator_To_v1beta2_RKE2ConfigTemplateCustomValidator(in *RKE2ConfigTemplateCustomValidator, out *v1beta2.RKE2ConfigTemplateCustomValidator, s conversion.Scope) error {
+	*out = *(*v1beta2.RKE2ConfigTemplateCustomValidator)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -744,6 +721,7 @@ func Convert_v1beta1_RKE2ConfigTemplateCustomValidator_To_v1beta2_RKE2ConfigTemp
 }
 
 func autoConvert_v1beta2_RKE2ConfigTemplateCustomValidator_To_v1beta1_RKE2ConfigTemplateCustomValidator(in *v1beta2.RKE2ConfigTemplateCustomValidator, out *RKE2ConfigTemplateCustomValidator, s conversion.Scope) error {
+	*out = *(*RKE2ConfigTemplateCustomValidator)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -843,8 +821,7 @@ func Convert_v1beta2_RKE2ConfigTemplateSpec_To_v1beta1_RKE2ConfigTemplateSpec(in
 }
 
 func autoConvert_v1beta1_Registry_To_v1beta2_Registry(in *Registry, out *v1beta2.Registry, s conversion.Scope) error {
-	out.Mirrors = *(*map[string]v1beta2.Mirror)(unsafe.Pointer(&in.Mirrors))
-	out.Configs = *(*map[string]v1beta2.RegistryConfig)(unsafe.Pointer(&in.Configs))
+	*out = *(*v1beta2.Registry)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -854,8 +831,7 @@ func Convert_v1beta1_Registry_To_v1beta2_Registry(in *Registry, out *v1beta2.Reg
 }
 
 func autoConvert_v1beta2_Registry_To_v1beta1_Registry(in *v1beta2.Registry, out *Registry, s conversion.Scope) error {
-	out.Mirrors = *(*map[string]Mirror)(unsafe.Pointer(&in.Mirrors))
-	out.Configs = *(*map[string]RegistryConfig)(unsafe.Pointer(&in.Configs))
+	*out = *(*Registry)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -865,10 +841,7 @@ func Convert_v1beta2_Registry_To_v1beta1_Registry(in *v1beta2.Registry, out *Reg
 }
 
 func autoConvert_v1beta1_RegistryConfig_To_v1beta2_RegistryConfig(in *RegistryConfig, out *v1beta2.RegistryConfig, s conversion.Scope) error {
-	out.AuthSecret = in.AuthSecret
-	if err := Convert_v1beta1_TLSConfig_To_v1beta2_TLSConfig(&in.TLS, &out.TLS, s); err != nil {
-		return err
-	}
+	*out = *(*v1beta2.RegistryConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -878,10 +851,7 @@ func Convert_v1beta1_RegistryConfig_To_v1beta2_RegistryConfig(in *RegistryConfig
 }
 
 func autoConvert_v1beta2_RegistryConfig_To_v1beta1_RegistryConfig(in *v1beta2.RegistryConfig, out *RegistryConfig, s conversion.Scope) error {
-	out.AuthSecret = in.AuthSecret
-	if err := Convert_v1beta2_TLSConfig_To_v1beta1_TLSConfig(&in.TLS, &out.TLS, s); err != nil {
-		return err
-	}
+	*out = *(*RegistryConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -891,8 +861,7 @@ func Convert_v1beta2_RegistryConfig_To_v1beta1_RegistryConfig(in *v1beta2.Regist
 }
 
 func autoConvert_v1beta1_TLSConfig_To_v1beta2_TLSConfig(in *TLSConfig, out *v1beta2.TLSConfig, s conversion.Scope) error {
-	out.TLSConfigSecret = in.TLSConfigSecret
-	out.InsecureSkipVerify = in.InsecureSkipVerify
+	*out = *(*v1beta2.TLSConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -902,8 +871,7 @@ func Convert_v1beta1_TLSConfig_To_v1beta2_TLSConfig(in *TLSConfig, out *v1beta2.
 }
 
 func autoConvert_v1beta2_TLSConfig_To_v1beta1_TLSConfig(in *v1beta2.TLSConfig, out *TLSConfig, s conversion.Scope) error {
-	out.TLSConfigSecret = in.TLSConfigSecret
-	out.InsecureSkipVerify = in.InsecureSkipVerify
+	*out = *(*TLSConfig)(unsafe.Pointer(in))
 	return nil
 }
 

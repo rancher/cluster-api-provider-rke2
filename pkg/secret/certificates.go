@@ -515,12 +515,10 @@ func generateServiceAccountKeys() (*certs.KeyPair, error) {
 
 func asSecret(data map[string][]byte, purpose Purpose, clusterName types.NamespacedName, _ metav1.OwnerReference) *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: clusterName.Namespace,
-			Name:      Name(clusterName.Name, purpose),
-			Labels: map[string]string{
-				clusterv1.ClusterNameLabel: clusterName.Name,
-			},
+		Namespace: clusterName.Namespace,
+		Name:      Name(clusterName.Name, purpose),
+		Labels: map[string]string{
+			clusterv1.ClusterNameLabel: clusterName.Name,
 		},
 		Data: data,
 		Type: clusterv1.ClusterSecretType,

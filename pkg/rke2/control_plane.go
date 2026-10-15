@@ -292,13 +292,11 @@ func (c *ControlPlane) GenerateRKE2Config(spec *bootstrapv1.RKE2ConfigSpec) *boo
 	}
 
 	bootstrapConfig := &bootstrapv1.RKE2Config{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.SimpleNameGenerator.GenerateName(c.RCP.Name + "-"),
-			Namespace: c.RCP.Namespace,
-			Labels:    ControlPlaneLabelsForCluster(c.Cluster.Name),
-			OwnerReferences: []metav1.OwnerReference{
-				owner,
-			},
+		Name:      names.SimpleNameGenerator.GenerateName(c.RCP.Name + "-"),
+		Namespace: c.RCP.Namespace,
+		Labels:    ControlPlaneLabelsForCluster(c.Cluster.Name),
+		OwnerReferences: []metav1.OwnerReference{
+			owner,
 		},
 		Spec: *spec,
 	}
@@ -317,13 +315,11 @@ func ControlPlaneLabelsForCluster(clusterName string) map[string]string {
 // NewMachine returns a machine configured to be a part of the control plane.
 func (c *ControlPlane) NewMachine(infraRef, bootstrapRef clusterv1.ContractVersionedObjectReference, failureDomain string) *clusterv1.Machine {
 	return &clusterv1.Machine{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.SimpleNameGenerator.GenerateName(c.RCP.Name + "-"),
-			Namespace: c.RCP.Namespace,
-			Labels:    ControlPlaneLabelsForCluster(c.Cluster.Name),
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(c.RCP, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane")),
-			},
+		Name:      names.SimpleNameGenerator.GenerateName(c.RCP.Name + "-"),
+		Namespace: c.RCP.Namespace,
+		Labels:    ControlPlaneLabelsForCluster(c.Cluster.Name),
+		OwnerReferences: []metav1.OwnerReference{
+			*metav1.NewControllerRef(c.RCP, controlplanev1.GroupVersion.WithKind("RKE2ControlPlane")),
 		},
 		Spec: clusterv1.MachineSpec{
 			ClusterName:       c.Cluster.Name,
