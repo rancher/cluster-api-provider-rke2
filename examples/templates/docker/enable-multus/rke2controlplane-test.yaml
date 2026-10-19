@@ -13,7 +13,7 @@ spec:
     spec:
       infrastructureRef:
         apiGroup: infrastructure.cluster.x-k8s.io
-        kind: DockerMachineTemplate
+        kind: DevMachineTemplate
         name: controlplane
       deletion:
           nodeDrainTimeoutSeconds: 120
