@@ -57,6 +57,8 @@ type RKE2ControlPlaneTemplateResourceSpec struct {
 
 	// ManifestsConfigMapReference references a ConfigMap which contains Kubernetes manifests to be deployed automatically on the cluster
 	// Each data entry in the ConfigMap will be will be copied to a folder on the control plane nodes that RKE2 scans and uses to deploy manifests.
+	// Changes to the ConfigMap content or reference do not trigger a control plane rollout. New content only reaches control plane
+	// Machines created after the change. Use spec.files instead if content changes must trigger a rollout on existing Machines.
 	//+optional
 	ManifestsConfigMapReference corev1.ObjectReference `json:"manifestsConfigMapReference,omitempty,omitzero"`
 
