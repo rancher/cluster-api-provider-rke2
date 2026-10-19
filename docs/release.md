@@ -63,11 +63,11 @@ This comes down to changing occurrences of the old version to the new version, e
 
 Existing E2E tests that point to a specific version need to be updated to use the new version instead.
 
-1. Add a future release to the list of providers in `test/e2e/config/e2e_conf.yaml` following the format used for previous versions. This will be used as a fake provider version for testing the current state of the repository instead of the actual GitHub release.
-2. Update bootstrap/control plane versions* inside function `initUpgradableBootstrapCluster` in `test/e2e/e2e_suite_test.go`.
-3. Edit upgrade test* in `test/e2e/e2e_upgrade_test.go`.
+1. In `test/e2e/config/e2e_conf.yaml`, rename the future release entries (`vX.Y.99`) of the `rke2-control-plane`, `rke2-bootstrap` and `rke2-test-extension` providers to the next minor (e.g. `v0.27.99` -> `v0.28.99`). These entries are a fake provider version for testing the current state of the repository instead of the actual GitHub release.
 
-*To maintain the upgrade test concise and clean, and avoid a growing list of versions, it is required to maintain N-1 minor as a starting version (e.g. if releasing version v4.x, starting version is v3.x and the upgrade is as follows: v3.x -> v4.x).
+The upgrade test always starts from the N-1 minor (e.g. when developing v4.x, the upgrade is v3.x -> v4.x). You don't need to edit it: at run time, `test/e2e/upgrade_versions.go` resolves the latest release of the previous minor (or its latest pre-release, if there is no GA yet) and the Cluster API version in that release's `go.mod`, then fills the `{rke2-previous-minor}` and `{capi-previous-minor}` placeholders in `e2e_conf.yaml`. To pin the starting point, set `E2E_UPGRADE_FROM_VERSION` and `E2E_UPGRADE_FROM_CAPI_VERSION` (e.g. `v0.26.0` and `v1.14.2`).
+
+If the Cluster API version required by N-1 is newer than any `cluster-api`/`docker` version in `e2e_conf.yaml`, the suite fails and asks you to add that version.
 
 
 #### 2. Add future version to `metadata.yaml`. For example, if `v0.5` was just released, we add `v0.6` to the list of `releaseSeries`:
