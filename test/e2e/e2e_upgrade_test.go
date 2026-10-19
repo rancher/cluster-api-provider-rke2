@@ -153,8 +153,8 @@ var _ = Describe("Provider upgrade", Label(UpgradeTestsLabel), func() {
 			UpgradeManagementCluster(ctx, clusterctl.UpgradeManagementClusterAndWaitInput{
 				ClusterProxy:            bootstrapClusterProxy,
 				ClusterctlConfigPath:    clusterctlConfigPath,
-				InfrastructureProviders: []string{"docker:v1.14.2"},
-				CoreProvider:            "cluster-api:v1.14.2",
+				InfrastructureProviders: []string{"docker:v1.14.3"},
+				CoreProvider:            "cluster-api:v1.14.3",
 				BootstrapProviders:      []string{"rke2-bootstrap:v0.27.99"},
 				ControlPlaneProviders:   []string{"rke2-control-plane:v0.27.99"},
 				LogFolder:               clusterctlLogFolder,
