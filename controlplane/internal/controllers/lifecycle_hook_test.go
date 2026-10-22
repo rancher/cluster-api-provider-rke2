@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
-	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +32,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/cache"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
+	"sigs.k8s.io/cluster-api/util/test/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -132,8 +132,8 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 					DataSecretName: ptr.To("dummy-secret"),
 				},
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-					Kind:     "FakeMachine",
-					APIGroup: infrastructure.GroupVersion.Group,
+					Kind:     builder.GenericInfrastructureMachineKind,
+					APIGroup: builder.InfrastructureGroupVersion.Group,
 					Name:     "fakem1",
 				},
 			},
@@ -153,8 +153,8 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 					DataSecretName: ptr.To("dummy-secret"),
 				},
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-					Kind:     "FakeMachine",
-					APIGroup: infrastructure.GroupVersion.Group,
+					Kind:     builder.GenericInfrastructureMachineKind,
+					APIGroup: builder.InfrastructureGroupVersion.Group,
 					Name:     "fakemspare1",
 				},
 			},
