@@ -28,6 +28,7 @@ import (
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	logf "sigs.k8s.io/cluster-api/cmd/clusterctl/log"
+	"sigs.k8s.io/cluster-api/util/test/builder"
 )
 
 var (
@@ -115,6 +116,9 @@ func NewTestEnvironmentConfiguration(crdDirectoryPaths []string) *TestEnvironmen
 		env: &envtest.Environment{
 			ErrorIfCRDPathMissing: true,
 			CRDDirectoryPaths:     resolvedCrdDirectoryPaths,
+			CRDs: []*apiextensionsv1.CustomResourceDefinition{
+				builder.GenericInfrastructureMachineCRD.DeepCopy(),
+			},
 		},
 	}
 }

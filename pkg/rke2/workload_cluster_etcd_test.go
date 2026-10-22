@@ -25,7 +25,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd"
-	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,6 +40,7 @@ import (
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/patch"
+	"sigs.k8s.io/cluster-api/util/test/builder"
 )
 
 var _ = Describe("ETCD safe member removal", Ordered, func() {
@@ -77,8 +77,8 @@ var _ = Describe("ETCD safe member removal", Ordered, func() {
 					},
 				},
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-					Kind:     infrastructure.FakeMachineKind,
-					APIGroup: infrastructure.GroupVersion.Group,
+					Kind:     builder.GenericInfrastructureMachineKind,
+					APIGroup: builder.InfrastructureGroupVersion.Group,
 					Name:     "mock-machine",
 				},
 			},
