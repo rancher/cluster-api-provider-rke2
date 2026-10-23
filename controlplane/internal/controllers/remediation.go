@@ -436,11 +436,11 @@ func pickMachineToBeRemediatedByConditionState(i, j *clusterv1.Machine, conditio
 	jCondition := conditions.IsTrue(j, conditionType)
 
 	if !iCondition && jCondition {
-		return ptr.To(true)
+		return new(true)
 	}
 
 	if iCondition && !jCondition {
-		return ptr.To(false)
+		return new(false)
 	}
 
 	return nil
