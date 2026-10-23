@@ -106,9 +106,6 @@ linters:
           - revive
         text: var-naming
       - linters:
-          - staticcheck
-        text: ST1003
-      - linters:
           - gosec
         text: G114
       - linters:
