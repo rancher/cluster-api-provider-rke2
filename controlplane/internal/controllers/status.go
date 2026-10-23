@@ -128,7 +128,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 		return errors.New("unable to find a value entry in the kubeconfig secret")
 	}
 
-	rcp.Status.ReadyReplicas = ptr.To(rke2util.SafeInt32(len(readyMachines)))
+	rcp.Status.ReadyReplicas = new(rke2util.SafeInt32(len(readyMachines)))
 
 	workloadCluster, err := controlPlane.GetWorkloadCluster(ctx)
 	if err != nil {
@@ -146,7 +146,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	status := workloadCluster.ClusterStatus(ctx)
 
 	if status.HasRKE2ServingSecret {
-		rcp.Status.Initialization.ControlPlaneInitialized = ptr.To(true)
+		rcp.Status.Initialization.ControlPlaneInitialized = new(true)
 	}
 
 	if len(ownedMachines) == 0 || len(readyMachines) == 0 {
@@ -177,7 +177,7 @@ func (r *RKE2ControlPlaneReconciler) updateStatus(ctx context.Context, rcp *cont
 	}
 
 	if len(readyMachines) == len(ownedMachines) {
-		rcp.Status.Initialization.ControlPlaneInitialized = ptr.To(true)
+		rcp.Status.Initialization.ControlPlaneInitialized = new(true)
 	}
 
 	if ptr.Deref(rcp.Status.Initialization.ControlPlaneInitialized, false) {
@@ -246,10 +246,10 @@ func setReplicas(_ context.Context, rcp *controlplanev1.RKE2ControlPlane, machin
 		}
 	}
 
-	rcp.Status.Replicas = ptr.To(rke2util.SafeInt32(len(machines)))
-	rcp.Status.ReadyReplicas = ptr.To(readyReplicas)
-	rcp.Status.AvailableReplicas = ptr.To(availableReplicas)
-	rcp.Status.UpToDateReplicas = ptr.To(upToDateReplicas)
+	rcp.Status.Replicas = new(rke2util.SafeInt32(len(machines)))
+	rcp.Status.ReadyReplicas = new(readyReplicas)
+	rcp.Status.AvailableReplicas = new(availableReplicas)
+	rcp.Status.UpToDateReplicas = new(upToDateReplicas)
 }
 
 func setInitializedCondition(_ context.Context, rcp *controlplanev1.RKE2ControlPlane) {
