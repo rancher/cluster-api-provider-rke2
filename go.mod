@@ -1,6 +1,6 @@
 module github.com/rancher/cluster-api-provider-rke2
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/coreos/butane v0.29.0
