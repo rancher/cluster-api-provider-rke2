@@ -25,3 +25,9 @@ CAPRKE2 copies these taints to `Machine.spec.taints`. Cluster API propagates the
 Other Node taints are preserved. Taints are identified by their key and effect, and a template can contain up to 64 entries.
 
 The bootstrap field `spec.agentConfig.nodeTaints` keeps its existing behavior. Use `spec.machineTemplate.spec.taints` for taints that need to change in place.
+
+## Uninitialized taint on worker Nodes
+
+CAPRKE2 registers worker Nodes with the `node.cluster.x-k8s.io/uninitialized:NoSchedule` taint. This does not need the `MachineTaintPropagation` feature gate.
+
+Cluster API removes the taint the first time it updates the Node, after it matches the Node to its Machine or MachinePool by `providerID`. For a Machine, that update also syncs the Machine labels and adds any `OnInitialization` taints, so Pods that do not tolerate the uninitialized taint are not scheduled before then. If the taint stays on a Node, check that the Node's `spec.providerID` is set and matches the Machine's `spec.providerID`.
