@@ -8,6 +8,7 @@ linters:
     - containedctx
     - cyclop
     - depguard
+    - embeddedstructfieldcheck
     - err113
     - exhaustive
     - exhaustruct
@@ -16,18 +17,23 @@ linters:
     - gochecknoinits
     - gocognit
     - gocritic
+    - godoclint
     - ireturn
     - maintidx
+    - modernize
     - nestif
+    - noinlineerr
     - nolintlint
     - nonamedreturns
     - paralleltest
+    - prealloc
     - rowserrcheck
     - sqlclosecheck
     - tagliatelle
     - varnamelen
     - wastedassign
     - wrapcheck
+    - wsl_v5
   settings:
     funlen:
       lines: 110
