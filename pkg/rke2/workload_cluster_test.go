@@ -27,12 +27,12 @@ import (
 	. "github.com/onsi/gomega"
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
-	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/test/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -121,8 +121,8 @@ var _ = Describe("Node metadata propagation", func() {
 					},
 				},
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-					Kind:     infrastructure.FakeMachineKind,
-					APIGroup: infrastructure.GroupVersion.Group,
+					Kind:     builder.GenericInfrastructureMachineKind,
+					APIGroup: builder.InfrastructureGroupVersion.Group,
 					Name:     "mock-machine",
 				},
 			},
@@ -143,8 +143,8 @@ var _ = Describe("Node metadata propagation", func() {
 					},
 				},
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-					Kind:     infrastructure.FakeMachineKind,
-					APIGroup: infrastructure.GroupVersion.Group,
+					Kind:     builder.GenericInfrastructureMachineKind,
+					APIGroup: builder.InfrastructureGroupVersion.Group,
 					Name:     "other-mock-machine",
 				},
 			},

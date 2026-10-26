@@ -39,7 +39,6 @@ func setup() {
 	testEnvConfig := helpers.NewTestEnvironmentConfiguration([]string{
 		path.Join("bootstrap", "config", "crd", "bases"),
 		path.Join("controlplane", "config", "crd", "bases"),
-		path.Join("test", "crd"),
 	},
 	)
 	var err error
