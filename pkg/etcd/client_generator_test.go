@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	. "github.com/onsi/gomega"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/etcd/fake"
 
@@ -223,7 +224,11 @@ func TestForLeader(t *testing.T) {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(err.Error()).Should(Equal(tt.expectedErr))
 			} else {
-				g.Expect(*client).Should(BeComparableTo(tt.expectedClient))
+				g.Expect(*client).Should(BeComparableTo(tt.expectedClient, cmpopts.IgnoreUnexported( // skips the unexported state embedded in etcd client response
+					clientv3.AlarmResponse{},
+					clientv3.MemberListResponse{},
+					etcdserverpb.Member{},
+				)))
 			}
 		})
 	}
