@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -856,11 +857,16 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		return ctrl.Result{}, err
 	}
 
+	agentConfig := scope.Config.Spec.AgentConfig.DeepCopy()
+	if !hasTaint(agentConfig.NodeTaints, clusterv1.NodeUninitializedTaint) {
+		agentConfig.NodeTaints = append(agentConfig.NodeTaints, clusterv1.NodeUninitializedTaint.ToString())
+	}
+
 	configStruct, configFiles, err := rke2.GenerateWorkerConfig(
 		rke2.AgentConfigOpts{
 			ServerURL:              "https://" + net.JoinHostPort(scope.ControlPlane.Status.AvailableServerIPs[0], strconv.Itoa(registrationPort)),
 			Token:                  token,
-			AgentConfig:            scope.Config.Spec.AgentConfig,
+			AgentConfig:            *agentConfig,
 			Ctx:                    ctx,
 			Client:                 r.Client,
 			CloudProviderName:      scope.ControlPlane.Spec.ServerConfig.CloudProviderName,
@@ -1153,4 +1159,18 @@ func generateFilesFromManifestConfig(
 	}
 
 	return
+}
+
+func hasTaint(taints []string, target corev1.Taint) bool {
+	for _, taint := range taints {
+		keyValue, effect, _ := strings.Cut(taint, ":")
+		key, _, _ := strings.Cut(keyValue, "=")
+
+		parsed := corev1.Taint{Key: key, Effect: corev1.TaintEffect(effect)}
+		if parsed.MatchTaint(&target) {
+			return true
+		}
+	}
+
+	return false
 }
