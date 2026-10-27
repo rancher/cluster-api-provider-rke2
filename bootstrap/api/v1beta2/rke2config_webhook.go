@@ -19,7 +19,9 @@ package v1beta2
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/coreos/butane/config/common"
@@ -27,6 +29,7 @@ import (
 	"go.yaml.in/yaml/v3"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -186,8 +189,56 @@ func (s *RKE2ConfigSpec) validate(pathPrefix *field.Path) field.ErrorList {
 
 	allErrs = append(allErrs, s.validateIgnition(pathPrefix)...)
 	allErrs = append(allErrs, s.validateRegistries(pathPrefix)...)
+	allErrs = append(allErrs, s.validateNodeTaints(pathPrefix)...)
 
 	return allErrs
+}
+
+// validateNodeTaints checks that every entry of agentConfig.nodeTaints has the
+// key=value:effect form RKE2 passes to the kubelet, so a typo is reported at
+// admission instead of when the node fails to register.
+func (s *RKE2ConfigSpec) validateNodeTaints(pathPrefix *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	taintsPath := pathPrefix.Child("agentConfig", "nodeTaints")
+
+	for i, taint := range s.AgentConfig.NodeTaints {
+		if err := validateTaint(taint); err != nil {
+			allErrs = append(allErrs, field.Invalid(taintsPath.Index(i), taint, err.Error()))
+		}
+	}
+
+	return allErrs
+}
+
+var taintEffects = []string{
+	string(v1.TaintEffectNoSchedule),
+	string(v1.TaintEffectPreferNoSchedule),
+	string(v1.TaintEffectNoExecute),
+}
+
+// validateTaint parses a taint written as key=value:effect or key:effect, the
+// forms kubectl taint and the kubelet accept.
+func validateTaint(taint string) error {
+	keyValue, effect, found := strings.Cut(taint, ":")
+	if !found {
+		return errors.New("must be in the form key=value:effect or key:effect")
+	}
+
+	if !slices.Contains(taintEffects, effect) {
+		return fmt.Errorf("effect %q must be one of %s", effect, strings.Join(taintEffects, ", "))
+	}
+
+	key, value, _ := strings.Cut(keyValue, "=")
+	if errs := validation.IsQualifiedName(key); len(errs) > 0 {
+		return fmt.Errorf("invalid key %q: %s", key, strings.Join(errs, "; "))
+	}
+
+	if errs := validation.IsValidLabelValue(value); len(errs) > 0 {
+		return fmt.Errorf("invalid value %q: %s", value, strings.Join(errs, "; "))
+	}
+
+	return nil
 }
 
 func (s *RKE2ConfigSpec) validateRegistries(pathPrefix *field.Path) field.ErrorList {

@@ -67,6 +67,46 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		{
+			name: "node taints in every accepted form",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{
+					NodeTaints: []string{
+						"dedicated=gpu:NoSchedule",
+						"example.com/my-app=db:PreferNoSchedule",
+						"maintenance:NoExecute",
+					},
+				},
+			},
+		},
+		{
+			name: "node taint without an effect",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"dedicated=gpu"}},
+			},
+			expectErr: true,
+		},
+		{
+			name: "node taint with an unknown effect",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"dedicated=gpu:NoScheduling"}},
+			},
+			expectErr: true,
+		},
+		{
+			name: "node taint with an invalid key",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"wrong taint=gpu:NoSchedule"}},
+			},
+			expectErr: true,
+		},
+		{
+			name: "node taint with an invalid value",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"dedicated=g p u:NoSchedule"}},
+			},
+			expectErr: true,
+		},
 	}
 
 	validator := RKE2ConfigCustomValidator{}
@@ -145,6 +185,38 @@ func Test_correctArbitraryData(t *testing.T) {
 			}
 			if !tt.wantErr {
 				Expect(tt.args.arbitraryData).To(Equal(tt.want))
+			}
+		})
+	}
+}
+
+func Test_validateTaint(t *testing.T) {
+	tests := []struct {
+		taint   string
+		wantErr string
+	}{
+		{taint: "key=value:NoSchedule"},
+		{taint: "key:NoExecute"},
+		{taint: "key=:PreferNoSchedule"},
+		{taint: "example.com/key=value:NoSchedule"},
+		{taint: "key=value", wantErr: "must be in the form"},
+		{taint: "key=value:Evict", wantErr: "effect \"Evict\" must be one of"},
+		{taint: "=value:NoSchedule", wantErr: "invalid key"},
+		{taint: "bad key=value:NoSchedule", wantErr: "invalid key"},
+		{taint: "key=bad value:NoSchedule", wantErr: "invalid value"},
+		{taint: "key=value:extra:NoSchedule", wantErr: "effect \"extra:NoSchedule\" must be one of"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.taint, func(t *testing.T) {
+			RegisterTestingT(t)
+
+			err := validateTaint(tt.taint)
+
+			if tt.wantErr == "" {
+				Expect(err).NotTo(HaveOccurred())
+			} else {
+				Expect(err).To(MatchError(ContainSubstring(tt.wantErr)))
 			}
 		})
 	}
