@@ -90,3 +90,43 @@ jobs:
           name: e2e-upgrade-artifacts
           path: _artifacts
           if-no-files-found: ignore
+  release-branches:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/release-branches.yml
+  e2e-nightly-release-branches:
+    # Scheduled workflows run only on the default branch, so check out each
+    # recent release branch explicitly.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: release-branches
+    name: e2e-nightly (${{ matrix.ref }}, ${{ matrix.label }})
+    runs-on: runs-on,runner=4cpu-linux-x64,run-id=${{ github.run_id }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ${{ fromJSON(needs.release-branches.outputs.branches) }}
+        label: [ "default", "upgrade" ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.ref }}
+          fetch-depth: 0
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Setup kind
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          install_only: true
+      - name: Run E2E tests
+        env:
+          GINKGO_LABEL_FILTER: ${{ matrix.label }}
+        run: make test-e2e
+      - name: Archive artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-nightly-${{ matrix.ref }}-${{ matrix.label }}-artifacts
+          path: _artifacts
+          if-no-files-found: ignore
