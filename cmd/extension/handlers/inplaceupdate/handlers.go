@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -29,13 +30,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	runtimehooksv1 "sigs.k8s.io/cluster-api/api/runtime/hooks/v1alpha1"
-	"sigs.k8s.io/cluster-api/util/labels/format"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
@@ -59,20 +60,23 @@ var (
 //
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch
 type ExtensionHandlers struct {
-	decoder runtime.Decoder
-	client  client.Client
+	decoder  runtime.Decoder
+	client   client.Client
+	recorder record.EventRecorder
 }
 
 // NewExtensionHandlers returns a new ExtensionHandlers for the in-place update hook handlers.
-func NewExtensionHandlers(client client.Client) *ExtensionHandlers {
+func NewExtensionHandlers(client client.Client, recorder record.EventRecorder) *ExtensionHandlers {
 	scheme := runtime.NewScheme()
 	_ = bootstrapv1.AddToScheme(scheme)
 	_ = controlplanev1.AddToScheme(scheme)
 
 	return &ExtensionHandlers{
-		client: client,
+		client:   client,
+		recorder: recorder,
 		decoder: serializer.NewCodecFactory(scheme).UniversalDecoder(
 			bootstrapv1.GroupVersion,
 		),
@@ -103,24 +107,6 @@ func (h *ExtensionHandlers) DoCanUpdateMachine(
 ) {
 	log := ctrl.LoggerFrom(ctx).WithValues("Machine", klog.KObj(&req.Desired.Machine))
 	log.Info("CanUpdateMachine is called")
-
-	// Without a machine-plan Secret there is no system-agent to apply the update (e.g. the cluster
-	// is not managed by Rancher). Declare nothing so CAPI falls back to a rolling update.
-	_, err := h.findMachinePlanSecret(ctx, &req.Current.Machine)
-	if errors.Is(err, errMachinePlanSecretNotFound) {
-		log.Info("machine-plan Secret not found, Machine cannot be updated in-place")
-
-		resp.Status = runtimehooksv1.ResponseStatusSuccess
-
-		return
-	}
-
-	if err != nil {
-		resp.Status = runtimehooksv1.ResponseStatusFailure
-		resp.Message = err.Error()
-
-		return
-	}
 
 	currentMachine, desiredMachine,
 		currentBootstrapConfig, desiredBootstrapConfig, err := h.getObjectsFromCanUpdateMachineRequest(req)
@@ -164,24 +150,6 @@ func (h *ExtensionHandlers) DoCanUpdateMachineSet(
 	log := ctrl.LoggerFrom(ctx).WithValues("MachineSet", klog.KObj(&req.Desired.MachineSet))
 	log.Info("CanUpdateMachineSet is called")
 
-	// CAPI does not call CanUpdateMachine for Machines moved between MachineSets, so every Machine
-	// of the current MachineSet must have a machine-plan Secret, otherwise fall back to a rolling update.
-	allMachinesHavePlanSecret, err := h.allMachinesHavePlanSecret(ctx, &req.Current.MachineSet)
-	if err != nil {
-		resp.Status = runtimehooksv1.ResponseStatusFailure
-		resp.Message = err.Error()
-
-		return
-	}
-
-	if !allMachinesHavePlanSecret {
-		log.Info("machine-plan Secret not found for all Machines, MachineSet cannot be updated in-place")
-
-		resp.Status = runtimehooksv1.ResponseStatusSuccess
-
-		return
-	}
-
 	currentMachineSet, desiredMachineSet,
 		currentBootstrapConfigTemplate, desiredBootstrapConfigTemplate, err := h.getObjectsFromCanUpdateMachineSetRequest(req)
 	if err != nil {
@@ -216,12 +184,12 @@ func (h *ExtensionHandlers) DoCanUpdateMachineSet(
 }
 
 // retryAfterUpdateInProgressSeconds is how long CAPI waits before calling UpdateMachine again
-// while an update is still in flight (waiting for system-agent registration or plan completion).
+// while an update is still in flight (waiting for system-agent to complete the plan).
 const retryAfterUpdateInProgressSeconds = 30
 
 // DoUpdateMachine implements the UpdateMachine hook.
-// It locates the machine-plan Secret for the given Machine (created by Rancher when system-agent
-// registers), builds the upgrade Plan for the Machine's desired version, submits it to the Secret
+// It fails if the Machine has no machine-plan Secret (created by Rancher when system-agent registers).
+// Otherwise it builds the upgrade Plan for the Machine's desired version, submits it to the Secret
 // if not already submitted, and maps the plan's execution state back to a hook response.
 func (h *ExtensionHandlers) DoUpdateMachine(
 	ctx context.Context,
@@ -238,17 +206,15 @@ func (h *ExtensionHandlers) DoUpdateMachine(
 			"message", resp.Message,
 			"retryAfterSeconds", resp.RetryAfterSeconds,
 		)
+
+		if resp.Status == runtimehooksv1.ResponseStatusFailure {
+			h.recordFailure(ctx, req.Desired.Machine.DeepCopy(), resp.Message)
+		}
 	}()
 
+	// Without a machine-plan Secret there is no system-agent to apply the update, so fail: the Machine
+	// waits for human intervention instead of being rolled out.
 	secret, err := h.findMachinePlanSecret(ctx, &req.Desired.Machine)
-	if errors.Is(err, errMachinePlanSecretNotFound) {
-		resp.Status = runtimehooksv1.ResponseStatusSuccess
-		resp.Message = "Waiting for system-agent to register"
-		resp.RetryAfterSeconds = retryAfterUpdateInProgressSeconds
-
-		return
-	}
-
 	if err != nil {
 		resp.Status = runtimehooksv1.ResponseStatusFailure
 		resp.Message = err.Error()
@@ -313,19 +279,31 @@ func (h *ExtensionHandlers) DoUpdateMachine(
 		resp.RetryAfterSeconds = retryAfterUpdateInProgressSeconds
 	case planOutcomeWaiting:
 		resp.Status = runtimehooksv1.ResponseStatusSuccess
-		resp.Message = "Update in progress"
+		resp.Message = "Waiting for system-agent to apply the update plan"
 		resp.RetryAfterSeconds = retryAfterUpdateInProgressSeconds
 	case planOutcomeSucceeded:
 		resp.Status = runtimehooksv1.ResponseStatusSuccess
 		resp.Message = "Update applied successfully"
 	case planOutcomeFailed:
 		resp.Status = runtimehooksv1.ResponseStatusFailure
-		resp.Message = "system-agent failed to apply the update plan"
+		resp.Message = fmt.Sprintf("system-agent failed to apply the update plan, check machine-plan Secret %s", klog.KObj(secret))
 	}
 }
 
-// findMachinePlanSecret returns the machine-plan Secret for the given Machine, or nil if it has
-// not yet been created by Rancher.
+// recordFailure creates a Warning event on the Machine, so users can see why its in-place update stopped.
+func (h *ExtensionHandlers) recordFailure(ctx context.Context, machine *clusterv1.Machine, message string) {
+	// Hook requests do not include the Machine UID, which events need to be shown with the Machine.
+	if err := h.client.Get(ctx, client.ObjectKeyFromObject(machine), machine); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "Failed to record in-place update failure event", "Machine", klog.KObj(machine))
+
+		return
+	}
+
+	h.recorder.Event(machine, corev1.EventTypeWarning, "InPlaceUpdateFailed", message)
+}
+
+// findMachinePlanSecret returns the machine-plan Secret for the given Machine, or an error wrapping
+// errMachinePlanSecretNotFound if it has not yet been created by Rancher.
 func (h *ExtensionHandlers) findMachinePlanSecret(ctx context.Context, machine *clusterv1.Machine) (*corev1.Secret, error) {
 	secretList := &corev1.SecretList{}
 	if err := h.client.List(ctx, secretList,
@@ -345,50 +323,7 @@ func (h *ExtensionHandlers) findMachinePlanSecret(ctx context.Context, machine *
 		}
 	}
 
-	return nil, errMachinePlanSecretNotFound
-}
-
-// allMachinesHavePlanSecret reports whether every Machine of the given MachineSet has a
-// machine-plan Secret.
-func (h *ExtensionHandlers) allMachinesHavePlanSecret(ctx context.Context, machineSet *clusterv1.MachineSet) (bool, error) {
-	machineList := &clusterv1.MachineList{}
-	if err := h.client.List(ctx, machineList,
-		client.InNamespace(machineSet.Namespace),
-		client.MatchingLabels{clusterv1.MachineSetNameLabel: format.MustFormatValue(machineSet.Name)},
-	); err != nil {
-		return false, err
-	}
-
-	if len(machineList.Items) == 0 {
-		return true, nil
-	}
-
-	secretList := &corev1.SecretList{}
-	if err := h.client.List(ctx, secretList,
-		client.InNamespace(machineSet.Namespace),
-		client.MatchingLabels{
-			planv1alpha1.MachineLifecycleGroupLabel: clusterv1.GroupVersion.Group,
-			planv1alpha1.MachineLifecycleKindLabel:  "Machine",
-		},
-	); err != nil {
-		return false, err
-	}
-
-	machinesWithPlanSecret := make(map[string]bool, len(secretList.Items))
-
-	for i := range secretList.Items {
-		if secretList.Items[i].Type == machinePlanSecretType {
-			machinesWithPlanSecret[secretList.Items[i].Labels[planv1alpha1.MachineLifecycleNameLabel]] = true
-		}
-	}
-
-	for i := range machineList.Items {
-		if !machinesWithPlanSecret[machineList.Items[i].Name] {
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return nil, errors.Wrapf(errMachinePlanSecretNotFound, "Machine %s", klog.KObj(machine))
 }
 
 // decodeDesiredRKE2Config decodes the optional BootstrapConfig from an UpdateMachineRequest.
