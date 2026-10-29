@@ -210,7 +210,7 @@ func main() {
 }
 
 func setupInPlaceUpdateHookHandlers(mgr ctrl.Manager, runtimeExtensionWebhookServer *server.Server) {
-	h := inplaceupdate.NewExtensionHandlers(mgr.GetClient())
+	h := inplaceupdate.NewExtensionHandlers(mgr.GetClient(), mgr.GetEventRecorderFor("caprke2-extension"))
 
 	if err := runtimeExtensionWebhookServer.AddExtensionHandler(server.ExtensionHandler{
 		Hook:        runtimehooksv1.CanUpdateMachine,
