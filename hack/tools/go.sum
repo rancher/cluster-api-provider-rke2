@@ -1,4 +1,4 @@
-sigs.k8s.io/cluster-api/hack/tools v0.0.0-20240820112706-3abe3058a6a8 h1:L+YRo/LbSJ+Rc6vMIz007sEkAvY5QW1kptl8StmIxNc=
-sigs.k8s.io/cluster-api/hack/tools v0.0.0-20240820112706-3abe3058a6a8/go.mod h1:xZhAF40RPQKqNbmpLg81sxibOAz/Y17bgmdJxZszN7w=
-sigs.k8s.io/kubebuilder/docs/book/utils v0.0.0-20211028165026-57688c578b5d h1:KLiQzLW3RZJR19+j4pw2h5iioyAyqCkDBEAFdnGa3N8=
-sigs.k8s.io/kubebuilder/docs/book/utils v0.0.0-20211028165026-57688c578b5d/go.mod h1:NRdZafr4zSCseLQggdvIMXa7umxf+Q+PJzrj3wFwiGE=
+sigs.k8s.io/cluster-api/hack/tools v0.0.0-20261006144037-825a79dc92dd h1:2i5Ej8O57uzrXkiR3vWopLVBQWRetBr+7cSmubBSDUo=
+sigs.k8s.io/cluster-api/hack/tools v0.0.0-20261006144037-825a79dc92dd/go.mod h1:nz/KMMAW8vHoC5+M8VY/s6DDFx1/tYhH7AKDvkyZ4RU=
+sigs.k8s.io/kubebuilder/docs/book/utils v0.0.0-20260611053758-c72b289c1ec8 h1:WQFJf05iNLy4/Gp2is7sW4C70lmh+fNSEspeNaeNP4E=
+sigs.k8s.io/kubebuilder/docs/book/utils v0.0.0-20260611053758-c72b289c1ec8/go.mod h1:7VHLn3+d4NLLgk4eaoXQVnhhbV0XA0MB66sVsJbPhMQ=
