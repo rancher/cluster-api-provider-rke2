@@ -36,6 +36,8 @@ import (
 
 const (
 	trueString = "true"
+
+	inMemoryProviderIDPrefix = "in-memory://"
 )
 
 // reconcileLifecycleHooks triggers the reconcile of all implemented lifecycle hooks.
@@ -230,7 +232,8 @@ func (r *RKE2ControlPlaneReconciler) reconcilePreTerminateHook(ctx context.Conte
 				return ctrl.Result{}, fmt.Errorf("determining if etcd member is safely removed for Machine %s: %w", klog.KObj(deletingMachine), err)
 			}
 
-			if !safelyRemoved {
+			// CAPD in-memory machines run no RKE2 to acknowledge removal, and their etcd member is deleted with the machine.
+			if !safelyRemoved && !strings.HasPrefix(deletingMachine.Spec.ProviderID, inMemoryProviderIDPrefix) {
 				log.Info("Waiting for etcd member for Machine to be safely removed", "machine", klog.KObj(deletingMachine))
 
 				return ctrl.Result{RequeueAfter: deleteRequeueAfter}, nil

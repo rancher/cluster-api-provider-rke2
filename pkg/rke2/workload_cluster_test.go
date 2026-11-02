@@ -566,3 +566,42 @@ var _ = Describe("ClusterStatus validation", func() {
 		Expect(status.HasRKE2ServingSecret).To(BeFalse(), "On connection error assume control plane not initialized")
 	})
 })
+
+var _ = Describe("Control plane node lookup", func() {
+	controlPlaneNodeNames := func(nodes ...client.Object) []string {
+		w := &Workload{Client: fake.NewClientBuilder().WithObjects(nodes...).Build()}
+
+		nodeList, err := w.getControlPlaneNodes(ctx)
+		Expect(err).ToNot(HaveOccurred())
+
+		names := make([]string, 0, len(nodeList.Items))
+		for _, node := range nodeList.Items {
+			names = append(names, node.Name)
+		}
+
+		return names
+	}
+
+	It("should find RKE2 server nodes, which set the control plane role label to true", func() {
+		node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+			Name:   "rke2-node",
+			Labels: map[string]string{labelNodeRoleControlPlane: "true"},
+		}}
+		Expect(controlPlaneNodeNames(node)).To(ConsistOf("rke2-node"))
+	})
+	It("should find nodes with an empty control plane role label", func() {
+		node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+			Name:   "in-memory-node",
+			Labels: map[string]string{labelNodeRoleControlPlane: ""},
+		}}
+		Expect(controlPlaneNodeNames(node)).To(ConsistOf("in-memory-node"))
+	})
+	It("should skip nodes without the control plane role label", func() {
+		worker := &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+			Name:   "worker-node",
+			Labels: map[string]string{"node-role.kubernetes.io/worker": "true"},
+		}}
+		unlabeled := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "unlabeled-node"}}
+		Expect(controlPlaneNodeNames(worker, unlabeled)).To(BeEmpty())
+	})
+})

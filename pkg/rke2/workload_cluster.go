@@ -418,11 +418,8 @@ func (w *Workload) ApplyLabelOnNode(ctx context.Context, machine *clusterv1.Mach
 
 func (w *Workload) getControlPlaneNodes(ctx context.Context) (*corev1.NodeList, error) {
 	nodes := &corev1.NodeList{}
-	labels := map[string]string{
-		labelNodeRoleControlPlane: "true",
-	}
 
-	if err := w.List(ctx, nodes, ctrlclient.MatchingLabels(labels)); err != nil {
+	if err := w.List(ctx, nodes, ctrlclient.HasLabels{labelNodeRoleControlPlane}); err != nil {
 		return nil, err
 	}
 
