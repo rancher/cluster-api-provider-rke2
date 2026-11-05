@@ -89,7 +89,7 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					"node-role.kubernetes.io/control-plane": "true",
+					"node-role.kubernetes.io/control-plane": "",
 				},
 				Annotations: map[string]string{
 					clusterv1.MachineAnnotation: "test-node",
@@ -322,6 +322,43 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 		Expect(found).Should(BeFalse(), "pre-drain annotation should have been deleted")
 	})
 
+	It("Should keep the pre-terminate hook until RKE2 confirms the etcd member removal", func() {
+		Expect(testEnv.Delete(ctx, &machine)).Should(Succeed())
+		Eventually(func() bool {
+			Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&machine), &machine)).Should(Succeed())
+			return machine.DeletionTimestamp.IsZero()
+		}).WithTimeout(10*time.Second).Should(BeFalse(), "machine should have a deletion timestamp")
+		machine.Status.Conditions = []metav1.Condition{
+			{
+				Type:               clusterv1.MachineDeletingCondition,
+				Status:             metav1.ConditionTrue,
+				Reason:             clusterv1.MachineDeletingWaitingForPreTerminateHookReason,
+				LastTransitionTime: metav1.Now(),
+			},
+		}
+		machine.Status.NodeRef = clusterv1.MachineNodeReference{Name: node.Name}
+		machine.Spec.ProviderID = "docker:////" + node.Name
+		spareMachine.Status.NodeRef = clusterv1.MachineNodeReference{Name: node.Name}
+
+		ml := clusterv1.MachineList{Items: []clusterv1.Machine{machine, spareMachine}}
+		cp, err = rke2.NewControlPlane(ctx, m, testEnv.GetClient(), cluster, rcp, collections.FromMachineList(&ml))
+		Expect(err).ToNot(HaveOccurred())
+		workloadCluster, err = cp.GetWorkloadCluster(ctx)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(workloadCluster.InitWorkload(ctx, cp)).Should(Succeed())
+
+		result, err := r.reconcileLifecycleHooks(ctx, cp)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(result.IsZero()).Should(BeFalse())
+
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(node), node)).Should(Succeed())
+		Expect(node.Annotations).Should(HaveKeyWithValue(rke2.EtcdNodeRemoveAnnotation, "true"))
+
+		Expect(testEnv.Get(ctx, client.ObjectKeyFromObject(&machine), &machine)).Should(Succeed())
+		_, found := machine.Annotations[controlplanev1.PreTerminateHookCleanupAnnotation]
+		Expect(found).Should(BeTrue(), "pre-terminate annotation should be kept until RKE2 removes the etcd member")
+	})
+
 	It("Should reconcile pre-terminate hooks and remove pre-terminate annotation on deletion", func() {
 		Expect(testEnv.Delete(ctx, &machine)).Should(Succeed())
 		Eventually(func() bool {
@@ -336,6 +373,9 @@ var _ = Describe("Lifecycle Hooks", Ordered, func() {
 				LastTransitionTime: metav1.Now(),
 			},
 		}
+		machine.Status.NodeRef = clusterv1.MachineNodeReference{Name: node.Name}
+		machine.Spec.ProviderID = inMemoryProviderIDPrefix + node.Name
+		spareMachine.Status.NodeRef = clusterv1.MachineNodeReference{Name: node.Name}
 
 		// Actualize the machine list since they were modified externally
 		ml := clusterv1.MachineList{Items: []clusterv1.Machine{machine, spareMachine}}

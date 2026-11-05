@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -218,7 +219,15 @@ func (w *Workload) EtcdMembers(ctx context.Context) ([]string, error) {
 	}
 
 	names := []string{}
+
 	for _, member := range members {
+		// A member already named after its node needs no conversion.
+		if slices.Contains(nodeNames, member.Name) {
+			names = append(names, member.Name)
+
+			continue
+		}
+
 		// Convert etcd member to node name
 		names = append(names, etcdutil.NodeNameFromMember(member))
 	}
