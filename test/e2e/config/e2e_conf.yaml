@@ -67,6 +67,7 @@ providers:
           - sourcePath: "../data/infrastructure/cluster-template-docker.yaml"
           - sourcePath: "../data/infrastructure/cluster-template-docker-move.yaml"
           - sourcePath: "../data/infrastructure/cluster-template-kcp-remediation.yaml"
+          - sourcePath: "../data/infrastructure/cluster-template-in-memory.yaml"
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
         replacements:
           - old: "imagePullPolicy: Always"

@@ -320,6 +320,27 @@ func TestForwardEtcdLeadership(t *testing.T) {
 	})
 }
 
+func TestEtcdMembers(t *testing.T) {
+	g := NewWithT(t)
+	w := &Workload{
+		Client: &fakeClient{list: &corev1.NodeList{Items: []corev1.Node{nodeNamed("rke2-node"), nodeNamed("in-memory-node")}}},
+		etcdClientGenerator: &fakeEtcdClientGenerator{
+			forLeaderClient: &etcd.Client{
+				EtcdClient: &etcdfake.FakeEtcdClient{
+					MemberListResponse: &clientv3.MemberListResponse{
+						Members: []*pb.Member{{Name: "rke2-node-1a2b3c4d", ID: 1}, {Name: "in-memory-node", ID: 2}},
+					},
+					AlarmResponse: &clientv3.AlarmResponse{},
+				},
+			},
+		},
+	}
+
+	names, err := w.EtcdMembers(ctx)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(names).To(ConsistOf("rke2-node", "in-memory-node"))
+}
+
 type fakeEtcdClientGenerator struct {
 	forNodesClient     *etcd.Client
 	forNodesClientFunc func([]string) (*etcd.Client, error)
