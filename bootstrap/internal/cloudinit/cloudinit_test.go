@@ -19,7 +19,23 @@ package cloudinit
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.yaml.in/yaml/v3"
 )
+
+const airGappedChecksumCommand = `[ "$(sha256sum /opt/rke2-artifacts/sha256sum*.txt | awk '{print $1}')" = "abcd" ] || exit 1`
+
+// expectChecksumRunCmd checks that the generated cloud-config is valid YAML and
+// that the checksum command is the first runcmd entry, rendered as a string.
+func expectChecksumRunCmd(data []byte) {
+	var cfg struct {
+		RunCmd []interface{} `yaml:"runcmd"`
+	}
+
+	ExpectWithOffset(1, yaml.Unmarshal(data, &cfg)).To(Succeed())
+	ExpectWithOffset(1, len(cfg.RunCmd)).To(BeNumerically(">", 1))
+	ExpectWithOffset(1, cfg.RunCmd[0]).To(Equal(airGappedChecksumCommand))
+	ExpectWithOffset(1, cfg.RunCmd[1]).To(ContainSubstring("sh /opt/install.sh"))
+}
 
 var _ = Describe("WorkerAirGappedCloudInitTest", func() {
 	var input *BaseUserData
@@ -80,7 +96,7 @@ write_files:
 
 
 runcmd:
-  - [[ $(sha256sum /opt/rke2-artifacts/sha256sum*.txt | awk '{print $1}') == abcd ]] || exit 1
+  - '[ "$(sha256sum /opt/rke2-artifacts/sha256sum*.txt | awk ''{print $1}'')" = "abcd" ] || exit 1'
   - 'INSTALL_RKE2_ARTIFACT_PATH=/opt/rke2-artifacts INSTALL_RKE2_TYPE="agent" sh /opt/install.sh'
   - 'systemctl mask rke2-server.service || true'
   - 'systemctl enable rke2-agent.service'
@@ -88,6 +104,27 @@ runcmd:
   - 'mkdir -p /run/cluster-api'
   - 'echo success > /run/cluster-api/bootstrap-success.complete'
 `))
+		expectChecksumRunCmd(workerCloudInitData)
+	})
+})
+
+var _ = Describe("ControlPlaneAirGappedWithChecksumCloudInitTest", func() {
+	var input *ControlPlaneInput
+
+	BeforeEach(func() {
+		input = &ControlPlaneInput{
+			BaseUserData: BaseUserData{
+				AirGapped:         true,
+				AirGappedChecksum: "abcd",
+			},
+		}
+	})
+	It("Should render valid cloud-config and check the checksum first", func() {
+		controlPlaneCloudInitData, err := NewInitControlPlane(input)
+		Expect(err).ToNot(HaveOccurred())
+		_, err = GinkgoWriter.Write(controlPlaneCloudInitData)
+		Expect(err).NotTo(HaveOccurred())
+		expectChecksumRunCmd(controlPlaneCloudInitData)
 	})
 })
 
