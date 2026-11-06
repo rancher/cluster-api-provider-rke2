@@ -19,7 +19,6 @@ package v1beta2
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -222,7 +221,7 @@ var taintEffects = []string{
 func validateTaint(taint string) error {
 	keyValue, effect, found := strings.Cut(taint, ":")
 	if !found {
-		return errors.New("must be in the form key=value:effect or key:effect")
+		return fmt.Errorf("%q must be in the form key=value:effect or key:effect", taint)
 	}
 
 	if !slices.Contains(taintEffects, effect) {
