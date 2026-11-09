@@ -321,9 +321,9 @@ manager-rke2-control-plane: ## Build the rke2 control plane manager binary into 
 
 .PHONY: docker-pull-prerequisites
 docker-pull-prerequisites:
-	docker pull docker.io/docker/dockerfile:1.4
+	docker pull docker.io/docker/dockerfile:1.28
 	docker pull $(GO_CONTAINER_IMAGE)
-	docker pull gcr.io/distroless/static:nonroot
+	docker pull registry.suse.com/bci/bci-nano:16.0
 
 .PHONY: docker-build ## Build the docker images for all providers
 docker-build: buildx-machine docker-pull-prerequisites
