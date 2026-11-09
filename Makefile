@@ -126,11 +126,9 @@ ORG ?= rancher
 CONTROLLER_IMAGE_NAME := cluster-api-provider-rke2
 BOOTSTRAP_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-bootstrap
 CONTROLPLANE_IMAGE_NAME = $(CONTROLLER_IMAGE_NAME)-controlplane
-TEST_EXTENSION_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-test-extension
 EXTENSION_IMAGE_NAME := $(CONTROLLER_IMAGE_NAME)-extension
 BOOTSTRAP_IMG ?= $(REGISTRY)/$(ORG)/$(BOOTSTRAP_IMAGE_NAME)
 CONTROLPLANE_IMG ?= $(REGISTRY)/$(ORG)/$(CONTROLPLANE_IMAGE_NAME)
-TEST_EXTENSION_IMG ?= $(REGISTRY)/$(ORG)/$(TEST_EXTENSION_IMAGE_NAME)
 EXTENSION_IMG ?= $(REGISTRY)/$(ORG)/$(EXTENSION_IMAGE_NAME)
 IID_FILE ?= $(shell mktemp)
 LOCAL_IMAGES = $(shell pwd)/out/images
@@ -368,18 +366,6 @@ docker-build-rke2-in-place-updates-extension: ## Build the in-place updates exte
 	$(MAKE) set-manifest-image MANIFEST_IMG=$(EXTENSION_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./config/extension/default/manager_image_patch.yaml"
 	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./config/extension/default/manager_pull_policy.yaml"
 
-.PHONY: docker-build-test-extension
-docker-build-test-extension: buildx-machine docker-pull-prerequisites ## Build the e2e test Runtime Extension image
-	DOCKER_BUILDKIT=1 BUILDX_BUILDER=$(MACHINE) docker buildx build \
-			--platform $(ARCH) \
-			--load \
-			--build-arg builder_image=$(GO_CONTAINER_IMAGE) \
-			--build-arg goproxy=$(GOPROXY) \
-			--build-arg package=./test/extension \
-			--build-arg ldflags="$(LDFLAGS)" . -t $(TEST_EXTENSION_IMG):$(TAG)
-	$(MAKE) set-manifest-image MANIFEST_IMG=$(TEST_EXTENSION_IMG) MANIFEST_TAG=$(TAG) TARGET_RESOURCE="./test/extension/config/default/manager_image_patch.yaml"
-	$(MAKE) set-manifest-pull-policy TARGET_RESOURCE="./test/extension/config/default/manager_pull_policy.yaml"
-
 ## --------------------------------------
 ## Testing
 ## --------------------------------------
@@ -466,7 +452,6 @@ inotify-check:
 .PHONY: e2e-image
 e2e-image:
 	TAG=$(TAG) $(MAKE) docker-build
-	TAG=$(TAG) $(MAKE) docker-build-test-extension
 
 .PHONY: compile-e2e
 compile-e2e: ## Test e2e compilation
