@@ -131,7 +131,7 @@ providers:
   - name: rke2-extension
     type: RuntimeExtensionProvider
     versions:
-      - name: v0.28.99
+      - name: v0.27.99
         value: ../data/extension
         contract: v1beta2
         files:
