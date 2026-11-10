@@ -31,10 +31,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o manager ${package}
 
 # Production image
-FROM gcr.io/distroless/static:nonroot
+FROM registry.suse.com/bci/bci-nano:16.0
 LABEL org.opencontainers.image.source=https://github.com/rancher/cluster-api-provider-rke2
 WORKDIR /
 COPY --from=builder /workspace/manager .
-# Use uid of nonroot user (65532) because kubernetes expects numeric user when applying pod security policies
-USER 65532
+# Run as unnamed uid/gid 65532
+USER 65532:65532
 ENTRYPOINT ["/manager"]
