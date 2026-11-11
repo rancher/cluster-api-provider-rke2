@@ -129,16 +129,16 @@ var _ = Describe("RKE2RegistryConfig", func() {
 			}
 			Expect(found).To(BeTrue())
 			Expect(file.Content).To(Equal(tlsMap[fileNameArray[position]]))
-			Expect(file.Path).To(Equal(registryCertsPath + "/" + fileNameArray[position]))
+			Expect(file.Path).To(Equal(registryCertsPath + "/https___test-registry/" + fileNameArray[position]))
 		}
 		Expect(len(registryResult.Mirrors["docker.io"].Endpoint)).To(Equal(1))
 		Expect(registryResult.Mirrors["docker.io"].Endpoint[0]).To(Equal("https://test-registry"))
 		Expect(registryResult.Mirrors["docker.io"].Rewrite["/path-test"]).To(Equal("/new-path-test"))
 		Expect(registryResult.Configs["https://test-registry"].Auth.Username).To(Equal("test-username"))
 		Expect(registryResult.Configs["https://test-registry"].Auth.Password).To(Equal("test-password"))
-		Expect(registryResult.Configs["https://test-registry"].TLS.CAFile).To(Equal(registryCertsPath + "/" + "ca.crt"))
-		Expect(registryResult.Configs["https://test-registry"].TLS.CertFile).To(Equal(registryCertsPath + "/" + "tls.crt"))
-		Expect(registryResult.Configs["https://test-registry"].TLS.KeyFile).To(Equal(registryCertsPath + "/" + "tls.key"))
+		Expect(registryResult.Configs["https://test-registry"].TLS.CAFile).To(Equal(registryCertsPath + "/https___test-registry/ca.crt"))
+		Expect(registryResult.Configs["https://test-registry"].TLS.CertFile).To(Equal(registryCertsPath + "/https___test-registry/tls.crt"))
+		Expect(registryResult.Configs["https://test-registry"].TLS.KeyFile).To(Equal(registryCertsPath + "/https___test-registry/tls.key"))
 		Expect(registryResult.Configs["https://test-registry"].TLS.InsecureSkipVerify).To(BeTrue())
 	})
 },
@@ -183,5 +183,67 @@ var _ = Describe("RKE2RegistryConfig is nil", func() {
 		Expect(len(files)).To(Equal(0))
 		Expect(len(registryResult.Mirrors)).To(Equal(0))
 		Expect(len(registryResult.Configs)).To(Equal(0))
+	})
+})
+
+var _ = Describe("RKE2RegistryConfig with several registries", func() {
+	tlsSecret := func(name, ca string) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "test-ns"},
+			Data:       map[string][]byte{"ca.crt": []byte(ca)},
+		}
+	}
+	authSecret := func(name, user string) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "test-ns"},
+			Data:       map[string][]byte{"username": []byte(user), "password": []byte(user + "-password")},
+		}
+	}
+	registryConfig := func(auth, tls string) bootstrapv1.RegistryConfig {
+		return bootstrapv1.RegistryConfig{
+			AuthSecret: corev1.ObjectReference{Namespace: "test-ns", Name: auth},
+			TLS: bootstrapv1.TLSConfig{
+				TLSConfigSecret: corev1.ObjectReference{Namespace: "test-ns", Name: tls},
+			},
+		}
+	}
+	scope := func(configs map[string]bootstrapv1.RegistryConfig) RegistryScope {
+		return RegistryScope{
+			Registry: bootstrapv1.Registry{Configs: configs},
+			Client: fake.NewClientBuilder().WithObjects(
+				authSecret("reg-a-auth", "user-a"), authSecret("reg-b-auth", "user-b"),
+				tlsSecret("reg-a-ca", "ca-a"), tlsSecret("reg-b-ca", "ca-b"),
+			).Build(),
+			Ctx:    context.Background(),
+			Logger: log.FromContext(context.Background()),
+		}
+	}
+
+	It("keeps the auth and the CA file of every registry", func() {
+		registryResult, files, err := GenerateRegistries(scope(map[string]bootstrapv1.RegistryConfig{
+			"reg-a.example:443": registryConfig("reg-a-auth", "reg-a-ca"),
+			"reg-b.example:443": registryConfig("reg-b-auth", "reg-b-ca"),
+		}))
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(registryResult.Configs).To(HaveLen(2))
+		Expect(registryResult.Configs["reg-a.example:443"].Auth.Username).To(Equal("user-a"))
+		Expect(registryResult.Configs["reg-b.example:443"].Auth.Username).To(Equal("user-b"))
+		Expect(registryResult.Configs["reg-a.example:443"].TLS.CAFile).To(Equal(registryCertsPath + "/reg-a.example_443/ca.crt"))
+		Expect(registryResult.Configs["reg-b.example:443"].TLS.CAFile).To(Equal(registryCertsPath + "/reg-b.example_443/ca.crt"))
+
+		// One file per registry, in a stable order, each with its own CA.
+		Expect(files).To(Equal([]bootstrapv1.File{
+			{Path: registryCertsPath + "/reg-a.example_443/ca.crt", Content: "ca-a"},
+			{Path: registryCertsPath + "/reg-b.example_443/ca.crt", Content: "ca-b"},
+		}))
+	})
+
+	It("rejects registry names that would share a TLS directory", func() {
+		_, _, err := GenerateRegistries(scope(map[string]bootstrapv1.RegistryConfig{
+			"reg-a.example:443": registryConfig("reg-a-auth", "reg-a-ca"),
+			"reg-a.example_443": registryConfig("reg-b-auth", "reg-b-ca"),
+		}))
+		Expect(err).To(MatchError(ContainSubstring("same directory")))
 	})
 })
