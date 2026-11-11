@@ -1,6 +1,6 @@
 module github.com/rancher/cluster-api-provider-rke2/hack/tools
 
-go 1.27.3
+go 1.27.4
 
 require sigs.k8s.io/cluster-api/hack/tools v0.0.0-20261006144037-825a79dc92dd
 
