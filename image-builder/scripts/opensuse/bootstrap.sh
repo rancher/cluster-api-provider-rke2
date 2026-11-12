@@ -13,11 +13,11 @@ AWS_CLI_SUM="c78c02b818b14c5a2f745abc6752e73dcbd0bb5e65f10fb4363a48e9e720e2c0"
 # When updating RKE2_EXPECTED_VERSION, also update the checksums below from the
 # upstream sha256sum-amd64.txt for the new release before committing.
 # renovate: datasource=github-release-attachments depName=rancher/rke2
-RKE2_EXPECTED_VERSION="v1.37.1+rke2r1"
-# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.37.1+rke2r1
-RKE2_SUM_images="949007242db3d2293b3aa07fa6393fca92499408d4a5266b129866b5ff5bebd4"
-# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.37.1+rke2r1
-RKE2_SUM_tarball="909445617c4aedbaa150d36bc3cb0c575dc9e892140d6f3d4b57dbd02d7f411c"
+RKE2_EXPECTED_VERSION="v1.37.2+rke2r1"
+# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.37.2+rke2r1
+RKE2_SUM_images="bc60f1b44e72ec8e92416792434d55abc337282760c4de5f4865c31dee8c9698"
+# renovate: datasource=github-release-attachments depName=rancher/rke2 digestVersion=v1.37.2+rke2r1
+RKE2_SUM_tarball="0568f48d772c7feff7056062225d5ba82fb3f73ea7acaea63862fe601dae6d92"
 
 setup_infrastructure () {
   if [[ "$1" == "aws" ]]; then
