@@ -16,6 +16,10 @@ limitations under the License.
 package rke2
 
 import (
+	"fmt"
+	"regexp"
+	"sort"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,6 +38,16 @@ const (
 	tlscert           string = "tls.crt"
 )
 
+// unsafeRegistryPathChars matches the characters of a registry name that are
+// not kept in the name of the directory holding that registry's TLS files.
+var unsafeRegistryPathChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
+
+// registryCertsDir returns the directory for the TLS files of one registry, so
+// the files of different registries do not overwrite each other.
+func registryCertsDir(configName string) string {
+	return registryCertsPath + "/" + unsafeRegistryPathChars.ReplaceAllString(configName, "_")
+}
+
 // GenerateRegistries generates the registries.yaml file and the corresponding
 // files for the TLS certificates.
 func GenerateRegistries(rke2ConfigRegistry RegistryScope) (*Registry, []bootstrapv1.File, error) {
@@ -48,7 +62,21 @@ func GenerateRegistries(rke2ConfigRegistry RegistryScope) (*Registry, []bootstra
 		}
 	}
 
-	for configName, regConfig := range rke2ConfigRegistry.Registry.Configs {
+	registry.Configs = make(map[string]RegistryConfig)
+
+	// Walk the configs in a fixed order, so the generated files come out in
+	// the same order every time.
+	configNames := make([]string, 0, len(rke2ConfigRegistry.Registry.Configs))
+	for configName := range rke2ConfigRegistry.Registry.Configs {
+		configNames = append(configNames, configName)
+	}
+
+	sort.Strings(configNames)
+
+	certsDirs := make(map[string]string, len(configNames))
+
+	for _, configName := range configNames {
+		regConfig := rke2ConfigRegistry.Registry.Configs[configName]
 		registryConfig := RegistryConfig{}
 
 		if regConfig.TLS != (bootstrapv1.TLSConfig{}) {
@@ -74,20 +102,31 @@ func GenerateRegistries(rke2ConfigRegistry RegistryScope) (*Registry, []bootstra
 
 			registryConfig.TLS = &TLSConfig{}
 
+			certsDir := registryCertsDir(configName)
+			if other, ok := certsDirs[certsDir]; ok {
+				err := fmt.Errorf("registries %q and %q would write their TLS files to the same directory %s", other, configName, certsDir)
+				rke2ConfigRegistry.Logger.Error(err, "Conflicting registry names")
+
+				return &Registry{}, []bootstrapv1.File{}, err
+			}
+
+			certsDirs[certsDir] = configName
+
 			for _, secretEntry := range []string{tlscert, tlskey, cacert} {
 				if tlsSecret.Data[secretEntry] != nil {
+					filePath := certsDir + "/" + secretEntry
 					files = append(files, bootstrapv1.File{
-						Path:    registryCertsPath + "/" + secretEntry,
+						Path:    filePath,
 						Content: string(tlsSecret.Data[secretEntry]),
 					})
 
 					switch secretEntry {
 					case tlscert:
-						registryConfig.TLS.CertFile = registryCertsPath + "/" + tlscert
+						registryConfig.TLS.CertFile = filePath
 					case tlskey:
-						registryConfig.TLS.KeyFile = registryCertsPath + "/" + tlskey
+						registryConfig.TLS.KeyFile = filePath
 					case cacert:
-						registryConfig.TLS.CAFile = registryCertsPath + "/" + cacert
+						registryConfig.TLS.CAFile = filePath
 					}
 				}
 			}
@@ -145,7 +184,6 @@ func GenerateRegistries(rke2ConfigRegistry RegistryScope) (*Registry, []bootstra
 			registryConfig.Auth = authData
 		}
 
-		registry.Configs = make(map[string]RegistryConfig)
 		registry.Configs[configName] = registryConfig
 	}
 
