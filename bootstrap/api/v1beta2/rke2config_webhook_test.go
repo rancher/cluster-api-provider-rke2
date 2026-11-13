@@ -67,6 +67,46 @@ func TestRKE2Config_ValidateCreate(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		{
+			name: "node taints in every accepted form",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{
+					NodeTaints: []string{
+						"dedicated=gpu:NoSchedule",
+						"example.com/my-app=db:PreferNoSchedule",
+						"maintenance:NoExecute",
+					},
+				},
+			},
+		},
+		{
+			name: "node taint without an effect",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"dedicated=gpu"}},
+			},
+			expectErr: true,
+		},
+		{
+			name: "node taint with an unknown effect",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"dedicated=gpu:NoScheduling"}},
+			},
+			expectErr: true,
+		},
+		{
+			name: "node taint with an invalid key",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"wrong taint=gpu:NoSchedule"}},
+			},
+			expectErr: true,
+		},
+		{
+			name: "node taint with an invalid value",
+			spec: &RKE2ConfigSpec{
+				AgentConfig: RKE2AgentConfig{NodeTaints: []string{"dedicated=g p u:NoSchedule"}},
+			},
+			expectErr: true,
+		},
 	}
 
 	validator := RKE2ConfigCustomValidator{}
@@ -145,6 +185,75 @@ func Test_correctArbitraryData(t *testing.T) {
 			}
 			if !tt.wantErr {
 				Expect(tt.args.arbitraryData).To(Equal(tt.want))
+			}
+		})
+	}
+}
+
+func Test_validateTaint(t *testing.T) {
+	tests := []struct {
+		name      string
+		taint     string
+		expectErr bool
+	}{
+		{
+			name:  "key, value and effect",
+			taint: "key=value:NoSchedule",
+		},
+		{
+			name:  "key and effect without a value",
+			taint: "key:NoExecute",
+		},
+		{
+			name:  "empty value",
+			taint: "key=:PreferNoSchedule",
+		},
+		{
+			name:  "prefixed key",
+			taint: "example.com/key=value:NoSchedule",
+		},
+		{
+			name:      "missing effect",
+			taint:     "key=value",
+			expectErr: true,
+		},
+		{
+			name:      "unknown effect",
+			taint:     "key=value:Evict",
+			expectErr: true,
+		},
+		{
+			name:      "empty key",
+			taint:     "=value:NoSchedule",
+			expectErr: true,
+		},
+		{
+			name:      "key with a space",
+			taint:     "bad key=value:NoSchedule",
+			expectErr: true,
+		},
+		{
+			name:      "value with a space",
+			taint:     "key=bad value:NoSchedule",
+			expectErr: true,
+		},
+		{
+			name:      "extra colon",
+			taint:     "key=value:extra:NoSchedule",
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RegisterTestingT(t)
+
+			err := validateTaint(tt.taint)
+
+			if tt.expectErr {
+				Expect(err).To(HaveOccurred())
+			} else {
+				Expect(err).NotTo(HaveOccurred())
 			}
 		})
 	}
