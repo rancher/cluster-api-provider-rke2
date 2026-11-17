@@ -16,7 +16,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.25.0
 	github.com/rancher/rancher/pkg/plan v0.0.0-20260828234415-cde38be6980a
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	go.etcd.io/etcd/api/v3 v3.6.14
 	go.etcd.io/etcd/client/v3 v3.6.14
 	go.uber.org/zap v1.28.0
