@@ -19,6 +19,7 @@ package registration
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/collections"
@@ -60,6 +61,9 @@ func registrationMethodWithFilter(filter addressFilter) GetRegistrationAddresses
 				validIPAddresses = append(validIPAddresses, ip)
 			}
 		}
+
+		// Joins rotate through this list, so keep its order stable across reconciles.
+		slices.Sort(validIPAddresses)
 
 		return validIPAddresses, nil
 	}
