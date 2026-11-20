@@ -5,7 +5,7 @@ images:
     loadBehavior: mustLoad
   - name: ghcr.io/rancher/cluster-api-provider-rke2-controlplane:dev
     loadBehavior: mustLoad
-  - name: ghcr.io/rancher/cluster-api-provider-rke2-test-extension:dev
+  - name: ghcr.io/rancher/cluster-api-provider-rke2-extension:dev
     loadBehavior: mustLoad
   - name: quay.io/jetstack/cert-manager-cainjector:v1.16.3
     loadBehavior: tryLoad
@@ -128,11 +128,11 @@ providers:
             new: "imagePullPolicy: IfNotPresent"
           - old: "--leader-elect"
             new: "--leader-elect=false"
-  - name: rke2-test-extension
+  - name: rke2-extension
     type: RuntimeExtensionProvider
     versions:
       - name: v0.28.99
-        value: ../../extension/config/default
+        value: ../data/extension
         contract: v1beta2
         files:
           - sourcePath: "../../../metadata.yaml"
@@ -148,7 +148,7 @@ variables:
   KUBERNETES_VERSION: "v1.35.5"
   KIND_IMAGE_VERSION: "v1.35.0"
   NODE_DRAIN_TIMEOUT: "60s"
-  WORKER_MACHINE_COUNT: "2"
+  WORKER_MACHINE_COUNT: "1"
   CONTROL_PLANE_MACHINE_COUNT: "1"
   KUBERNETES_VERSION_UPGRADE_TO: "v1.35.6"
   IP_FAMILY: "IPv4"

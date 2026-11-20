@@ -21,34 +21,33 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/drone/envsubst/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	planapi "github.com/rancher/rancher/pkg/plan"
+	planv1alpha1 "github.com/rancher/rancher/pkg/plan/api/plan.cattle.io/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	runtimev1 "sigs.k8s.io/cluster-api/api/runtime/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 )
 
-var _ = Describe("In-place update via Runtime Extension", Label(DefaultTestsLabel), func() {
-	const (
-		specName                  = "in-place-update"
-		extensionConfigName       = "rke2-test-extension"
-		extensionServiceNamespace = "rke2-test-extension-system"
-		extensionServiceName      = "rke2-test-extension-webhook-service"
-	)
+var _ = Describe("In-place update via Runtime Extension", Label(InPlaceUpdatesTestsLabel), func() {
+	const specName = "in-place-update"
 
 	var (
 		namespace           *corev1.Namespace
@@ -82,14 +81,6 @@ var _ = Describe("In-place update via Runtime Extension", Label(DefaultTestsLabe
 		err := CollectArtifacts(ctx, bootstrapClusterProxy.GetKubeconfigPath(), filepath.Join(artifactFolder, bootstrapClusterProxy.GetName(), clusterName+specName))
 		Expect(err).ToNot(HaveOccurred())
 
-		if !skipCleanup {
-			Eventually(func() error {
-				return bootstrapClusterProxy.GetClient().Delete(ctx, &runtimev1.ExtensionConfig{
-					ObjectMeta: metav1.ObjectMeta{Name: extensionConfigName},
-				})
-			}, 10*time.Second, 1*time.Second).Should(Succeed(), "Failed to delete ExtensionConfig")
-		}
-
 		var clusterToCleanup *clusterv1.Cluster
 		var kubeconfigPath string
 		if result != nil {
@@ -111,14 +102,18 @@ var _ = Describe("In-place update via Runtime Extension", Label(DefaultTestsLabe
 		})
 	})
 
-	It("Should propagate topology `files` changes via in-place updates", func() {
-		By("Creating an ExtensionConfig that targets the test-extension Service scoped to the test namespace")
-		Expect(bootstrapClusterProxy.GetClient().Create(ctx, extensionConfig(
-			extensionConfigName,
-			extensionServiceNamespace,
-			extensionServiceName,
-			namespace.Name,
-		))).To(Succeed())
+	// The RKE2 extension relies on Rancher and system-agent, which only interact with it through a
+	// machine-plan Secret per Machine. This behavior is mocked by the test: it creates the Secrets (like
+	// Rancher) and reports the outcome of submitted plans (like system-agent).
+	// The checks on Machines, RKE2Configs and conditions do not depend on system-agent, so they
+	// validate the in-place updates support in CAPRKE2 for any extension.
+	It("Should update Machines in-place, roll them out for unsupported changes, and stop when the update cannot be applied", func() {
+		mgmtClient := bootstrapClusterProxy.GetClient()
+
+		By("Enabling the RKE2 extension for the test namespace")
+		originalNamespace := namespace.DeepCopy()
+		metav1.SetMetaDataLabel(&namespace.ObjectMeta, "e2e.cluster.x-k8s.io/rke2-extension", "true")
+		Expect(mgmtClient.Patch(ctx, namespace, client.MergeFrom(originalNamespace))).To(Succeed())
 
 		By("Applying the in-place ClusterClass")
 		clusterClassConfig, err := envsubst.Eval(string(ClusterClassDockerInPlace), func(s string) string {
@@ -170,7 +165,6 @@ var _ = Describe("In-place update via Runtime Extension", Label(DefaultTestsLabe
 		}, result)
 
 		cluster := result.Cluster
-		mgmtClient := bootstrapClusterProxy.GetClient()
 
 		Byf("Verifying Cluster %s is Available and Machines are Ready before starting in-place updates", cluster.Name)
 		framework.VerifyClusterAvailable(ctx, framework.VerifyClusterAvailableInput{
@@ -190,118 +184,147 @@ var _ = Describe("In-place update via Runtime Extension", Label(DefaultTestsLabe
 			Namespace:   cluster.Namespace,
 		}
 
-		verifyClusterConditionTrue := func(g Gomega, condType string) {
+		verifyMachinesUpToDate := func(g Gomega) {
 			latestCluster := &clusterv1.Cluster{}
-			g.Expect(mgmtClient.Get(ctx, client.ObjectKey{Name: cluster.Name, Namespace: cluster.Namespace}, latestCluster)).To(Succeed())
-			var status metav1.ConditionStatus
-			var msg string
-			for _, c := range latestCluster.Status.Conditions {
-				if c.Type == condType {
-					status = c.Status
-					msg = c.Message
-					break
-				}
-			}
-			g.Expect(status).To(Equal(metav1.ConditionTrue), "Cluster condition %s should be True; message: %s", condType, msg)
+			g.Expect(mgmtClient.Get(ctx, client.ObjectKeyFromObject(cluster), latestCluster)).To(Succeed())
+			g.Expect(conditions.IsTrue(latestCluster, clusterv1.ClusterControlPlaneMachinesUpToDateCondition)).To(BeTrue(), "control plane Machines should be up-to-date")
+			g.Expect(conditions.IsTrue(latestCluster, clusterv1.ClusterWorkerMachinesUpToDateCondition)).To(BeTrue(), "worker Machines should be up-to-date")
 		}
 
-		By("Snapshotting Machine names before the first in-place update")
+		setVariable := func(name, value string) {
+			originalCluster := cluster.DeepCopy()
+			cluster.Spec.Topology.Variables = slices.DeleteFunc(cluster.Spec.Topology.Variables, func(v clusterv1.ClusterVariable) bool {
+				return v.Name == name
+			})
+			cluster.Spec.Topology.Variables = append(cluster.Spec.Topology.Variables, clusterv1.ClusterVariable{
+				Name:  name,
+				Value: apiextensionsv1.JSON{Raw: []byte(value)},
+			})
+			Expect(mgmtClient.Patch(ctx, cluster, client.MergeFrom(originalCluster))).To(Succeed())
+		}
+
+		// waitForInPlaceUpdateToStop acts as system-agent failing to perform the update until
+		// the extension reports the failure, then checks for a while that no Machine is replaced.
+		waitForInPlaceUpdateToStop := func(machineNames []string, failure string) {
+			Eventually(func(g Gomega) {
+				actAsSystemAgent(g, mgmtClient, namespace.Name, planapi.PlanStateFailed)
+
+				events := &corev1.EventList{}
+				g.Expect(mgmtClient.List(ctx, events, client.InNamespace(namespace.Name))).To(Succeed())
+				g.Expect(events.Items).To(ContainElement(And(
+					HaveField("Reason", "InPlaceUpdateFailed"),
+					HaveField("Message", ContainSubstring(failure)),
+				)), "the extension should report %q with an event", failure)
+			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				g.Expect(GetMachineNamesByCluster(ctx, machineListInput)).To(ConsistOf(machineNames), "Machines should not be replaced when the in-place update stops")
+			}, 2*time.Minute, 10*time.Second).Should(Succeed())
+		}
+
+		By("Snapshotting Machine names before the rollout")
 		beforeNames := GetMachineNamesByCluster(ctx, machineListInput)
 		Expect(beforeNames).ToNot(BeEmpty(), "There must be at least one Machine")
 
-		filePath := "/tmp/rke2-in-place-test"
-		for i, fileContent := range []string{
-			"first in-place update",
-			"second in-place update",
-			"third in-place update",
-		} {
-			Byf("[%d] Trigger in-place update by mutating the files topology variable", i+1)
-
-			originalCluster := cluster.DeepCopy()
-
-			cluster.Spec.Topology.Variables = slices.DeleteFunc(cluster.Spec.Topology.Variables, func(v clusterv1.ClusterVariable) bool {
-				return v.Name == "files"
-			})
-			cluster.Spec.Topology.Variables = append(cluster.Spec.Topology.Variables, clusterv1.ClusterVariable{
-				Name:  "files",
-				Value: apiextensionsv1.JSON{Raw: []byte(fmt.Sprintf(`[{"path":%q,"content":%q}]`, filePath, fileContent))},
-			})
-			Expect(mgmtClient.Patch(ctx, cluster, client.MergeFrom(originalCluster))).To(Succeed())
-
-			Eventually(func(g Gomega) {
-				verifyClusterConditionTrue(g, string(clusterv1.ClusterControlPlaneMachinesUpToDateCondition))
-				verifyClusterConditionTrue(g, string(clusterv1.ClusterWorkerMachinesUpToDateCondition))
-
-				afterNames := GetMachineNamesByCluster(ctx, machineListInput)
-				g.Expect(afterNames).To(ConsistOf(beforeNames))
-
-				machineList := GetMachinesByCluster(ctx, machineListInput)
-				for idx := range machineList.Items {
-					m := &machineList.Items[idx]
-					rke2Config := &bootstrapv1.RKE2Config{}
-					g.Expect(mgmtClient.Get(ctx, client.ObjectKey{
-						Namespace: m.Namespace,
-						Name:      m.Spec.Bootstrap.ConfigRef.Name,
-					}, rke2Config)).To(Succeed())
-					g.Expect(rke2Config.Spec.Files).To(ContainElement(HaveField("Path", filePath)))
-					g.Expect(rke2Config.Spec.Files).To(ContainElement(HaveField("Content", fileContent)))
-				}
-			}, e2eConfig.GetIntervals(specName, "wait-control-plane")...).Should(Succeed())
-		}
-
-		By("Triggering a non supported for in-place change and expecting rolling rollout")
-		originalCluster := cluster.DeepCopy()
-		cluster.Spec.Topology.Variables = slices.DeleteFunc(cluster.Spec.Topology.Variables, func(v clusterv1.ClusterVariable) bool {
-			return v.Name == "preRKE2Commands"
-		})
-		cluster.Spec.Topology.Variables = append(cluster.Spec.Topology.Variables, clusterv1.ClusterVariable{
-			Name:  "preRKE2Commands",
-			Value: apiextensionsv1.JSON{Raw: []byte(`["echo in-place-test"]`)},
-		})
-		Expect(mgmtClient.Patch(ctx, cluster, client.MergeFrom(originalCluster))).To(Succeed())
+		By("Triggering a non supported in-place edit and expecting a rollout")
+		setVariable("preRKE2Commands", `["echo in-place-test"]`)
 
 		Eventually(func(g Gomega) {
-			verifyClusterConditionTrue(g, string(clusterv1.ClusterControlPlaneMachinesUpToDateCondition))
-			verifyClusterConditionTrue(g, string(clusterv1.ClusterWorkerMachinesUpToDateCondition))
+			verifyMachinesUpToDate(g)
 
-			afterNames := GetMachineNamesByCluster(ctx, machineListInput)
-
-			// Every original Machine must have been replaced — rolling rollout
-			// completed (extension declined preRKE2Commands so in-place was not
-			// possible).
-			for _, before := range beforeNames {
-				g.Expect(afterNames).ToNot(ContainElement(before),
-					"expected original Machine %s to be replaced by rolling rollout", before)
+			// With maxSurge 0 a Machine is removed before its replacement exists, so also wait for
+			// all replacements to be created and Ready.
+			machines := GetMachinesByCluster(ctx, machineListInput).Items
+			g.Expect(machines).To(HaveLen(len(beforeNames)), "all replacement Machines should exist")
+			for i := range machines {
+				g.Expect(beforeNames).ToNot(ContainElement(machines[i].Name), "Machine %s should have been replaced by a rollout", machines[i].Name)
+				g.Expect(conditions.IsTrue(&machines[i], clusterv1.MachineReadyCondition)).To(BeTrue(), "Machine %s should be Ready", machines[i].Name)
 			}
 		}, e2eConfig.GetIntervals(specName, "wait-control-plane")...).Should(Succeed())
+
+		// The new Machines have no machine-plan Secret yet (system-agent did not register).
+		machineNames := GetMachineNamesByCluster(ctx, machineListInput)
+
+		By("Changing a file while the Machines have no machine-plan Secret, and expecting the update to stop")
+		filePath := "/tmp/rke2-in-place-test"
+		fileContent := "in-place update"
+		setVariable("files", fmt.Sprintf(`[{"path":%q,"content":%q}]`, filePath, fileContent))
+		waitForInPlaceUpdateToStop(machineNames, "machine-plan secret not found")
+
+		By("Acting as Rancher: creating a machine-plan Secret for every Machine, and expecting the update to complete in-place")
+		createMachinePlanSecrets(mgmtClient, namespace.Name, machineNames)
+
+		Eventually(func(g Gomega) {
+			actAsSystemAgent(g, mgmtClient, namespace.Name, planapi.PlanStateSucceeded)
+			verifyMachinesUpToDate(g)
+			g.Expect(GetMachineNamesByCluster(ctx, machineListInput)).To(ConsistOf(machineNames), "Machines should be updated in-place, not replaced")
+
+			machineList := GetMachinesByCluster(ctx, machineListInput)
+			for idx := range machineList.Items {
+				m := &machineList.Items[idx]
+				rke2Config := &bootstrapv1.RKE2Config{}
+				g.Expect(mgmtClient.Get(ctx, client.ObjectKey{
+					Namespace: m.Namespace,
+					Name:      m.Spec.Bootstrap.ConfigRef.Name,
+				}, rke2Config)).To(Succeed())
+				g.Expect(rke2Config.Spec.Files).To(ContainElement(HaveField("Path", filePath)))
+				g.Expect(rke2Config.Spec.Files).To(ContainElement(HaveField("Content", fileContent)))
+
+				// The plan must install the Machine's version and write the file.
+				secret := &corev1.Secret{}
+				g.Expect(mgmtClient.Get(ctx, client.ObjectKey{Namespace: m.Namespace, Name: m.Name + "-machine-plan"}, secret)).To(Succeed())
+				plan := planapi.Plan{}
+				g.Expect(json.Unmarshal(secret.Data["plan"], &plan)).To(Succeed())
+				g.Expect(plan.OneTimeInstructions).To(ContainElement(HaveField("Image",
+					"rancher/system-agent-installer-rke2:"+strings.ReplaceAll(m.Spec.Version, "+", "-"))))
+				g.Expect(plan.Files).To(ContainElement(HaveField("Path", filePath)))
+			}
+		}, e2eConfig.GetIntervals(specName, "wait-control-plane")...).Should(Succeed())
+
+		By("Changing a file again, letting system-agent fail the plans, and expecting the update to stop")
+		setVariable("files", fmt.Sprintf(`[{"path":%q,"content":"failed in-place update"}]`, filePath))
+		waitForInPlaceUpdateToStop(machineNames, "system-agent failed to apply the update plan")
 	})
 })
 
-func extensionConfig(name, serviceNamespace, serviceName string, namespaces ...string) *runtimev1.ExtensionConfig {
-	cfg := &runtimev1.ExtensionConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Annotations: map[string]string{
-				runtimev1.InjectCAFromSecretAnnotation: fmt.Sprintf("%s/%s-cert", serviceNamespace, serviceName),
+// createMachinePlanSecrets creates a machine-plan Secret for every given Machine, the same way
+// Rancher does once system-agent registers.
+func createMachinePlanSecrets(c client.Client, namespace string, machineNames []string) {
+	for _, name := range machineNames {
+		Expect(c.Create(ctx, &corev1.Secret{
+			Name:      name + "-machine-plan",
+			Namespace: namespace,
+			Labels: map[string]string{
+				planv1alpha1.MachineLifecycleGroupLabel: clusterv1.GroupVersion.Group,
+				planv1alpha1.MachineLifecycleKindLabel:  "Machine",
+				planv1alpha1.MachineLifecycleNameLabel:  name,
 			},
-		},
-		Spec: runtimev1.ExtensionConfigSpec{
-			ClientConfig: runtimev1.ClientConfig{
-				Service: runtimev1.ServiceReference{
-					Namespace: serviceNamespace,
-					Name:      serviceName,
-				},
-			},
-		},
+			Type: planapi.SecretTypeMachinePlan,
+		})).To(Succeed())
 	}
-	if len(namespaces) > 0 {
-		cfg.Spec.NamespaceSelector = &metav1.LabelSelector{
-			MatchExpressions: []metav1.LabelSelectorRequirement{{
-				Key:      "kubernetes.io/metadata.name",
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   namespaces,
-			}},
+}
+
+// actAsSystemAgent reports the result for every plan submitted to the machine-plan Secrets
+// in the namespace, the same way system-agent does after running a plan.
+func actAsSystemAgent(g Gomega, c client.Client, namespace string, outcome planapi.PlanState) {
+	checksumKey := "applied-checksum"
+	if outcome == planapi.PlanStateFailed {
+		checksumKey = "failed-checksum"
+	}
+
+	secrets := &corev1.SecretList{}
+	g.Expect(c.List(ctx, secrets, client.InNamespace(namespace), client.HasLabels{planv1alpha1.MachineLifecycleNameLabel})).To(Succeed())
+
+	for i := range secrets.Items {
+		secret := &secrets.Items[i]
+		plan := secret.Data["plan"]
+		if len(plan) == 0 || string(secret.Data[checksumKey]) == planapi.Checksum(plan) {
+			continue
 		}
+
+		original := secret.DeepCopy()
+		secret.Data[checksumKey] = []byte(planapi.Checksum(plan))
+		secret.Data[planapi.PlanStateKey] = []byte(outcome)
+		g.Expect(c.Patch(ctx, secret, client.MergeFrom(original))).To(Succeed())
 	}
-	return cfg
 }

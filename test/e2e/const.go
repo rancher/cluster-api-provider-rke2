@@ -38,6 +38,8 @@ const (
 	// UpgradeTestsLabel is used to run upgrade tests standalone.
 	// These tests may need to install a different version of CAPI, requiring management cluster isolation.
 	UpgradeTestsLabel = "upgrade"
+	// InPlaceUpdatesTestsLabel is used to run in-place updates tests standalone, as they take long.
+	InPlaceUpdatesTestsLabel = "in-place-updates"
 )
 
 var (
