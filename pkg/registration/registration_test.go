@@ -236,6 +236,46 @@ func TestExternalOnlyMethod(t *testing.T) {
 	}
 }
 
+func TestIPMethodsSortAddresses(t *testing.T) {
+	machines := []*clusterv1.Machine{
+		createMachine("machine1", []string{"10.0.0.5"}, []string{"201.55.56.5"}),
+		createMachine("machine2", []string{"10.0.0.3"}, []string{"201.55.56.3"}),
+		createMachine("machine3", []string{"10.0.0.9"}, []string{"201.55.56.9"}),
+		createMachine("machine4", []string{"10.0.0.1"}, []string{"201.55.56.1"}),
+	}
+
+	testCases := []struct {
+		method            controlplanev1.RegistrationMethod
+		expectedAddresses []string
+	}{
+		{
+			method:            controlplanev1.RegistrationMethodFavourInternalIPs,
+			expectedAddresses: []string{"10.0.0.1", "10.0.0.3", "10.0.0.5", "10.0.0.9"},
+		},
+		{
+			method:            controlplanev1.RegistrationMethodInternalIPs,
+			expectedAddresses: []string{"10.0.0.1", "10.0.0.3", "10.0.0.5", "10.0.0.9"},
+		},
+		{
+			method:            controlplanev1.RegistrationMethodExternalIPs,
+			expectedAddresses: []string{"201.55.56.1", "201.55.56.3", "201.55.56.5", "201.55.56.9"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(string(tc.method), func(t *testing.T) {
+			g := NewWithT(t)
+
+			regMethod, err := registration.NewRegistrationMethod(string(tc.method))
+			g.Expect(err).NotTo(HaveOccurred())
+
+			actualAddresses, err := regMethod(nil, createControlPlane(string(tc.method), ""), collections.FromMachines(machines...))
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(actualAddresses).To(Equal(tc.expectedAddresses))
+		})
+	}
+}
+
 func TestAddressMethod(t *testing.T) {
 	testCases := []struct {
 		name     string
