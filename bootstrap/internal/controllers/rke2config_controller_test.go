@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -103,4 +104,118 @@ func TestJoinWorkerNodeUninitializedTaint(t *testing.T) {
 			g.Expect(config.NodeTaints).To(Equal(tt.want))
 		})
 	}
+}
+
+func TestJoinWorkerRotatesRegistrationAddress(t *testing.T) {
+	g := NewWithT(t)
+
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-token", Namespace: "default"},
+		Data:       map[string][]byte{"value": []byte("test-token")},
+	}
+	r := &RKE2ConfigReconciler{Client: fake.NewClientBuilder().WithObjects(tokenSecret).Build()}
+	controlPlane := &controlplanev1.RKE2ControlPlane{
+		Status: controlplanev1.RKE2ControlPlaneStatus{AvailableServerIPs: []string{"10.0.0.1", "10.0.0.2"}},
+	}
+
+	var servers []string
+
+	for _, name := range []string{"worker-0", "worker-1", "worker-2"} {
+		scope := &Scope{
+			Logger:       logr.Discard(),
+			Config:       &bootstrapv1.RKE2Config{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"}},
+			Machine:      &clusterv1.Machine{Spec: clusterv1.MachineSpec{Version: "v1.34.2+rke2r1"}},
+			Cluster:      &clusterv1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "test-cluster", Namespace: "default"}},
+			ControlPlane: controlPlane,
+		}
+
+		_, err := r.joinWorker(t.Context(), scope)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		bootstrapSecret := &corev1.Secret{}
+		g.Expect(r.Get(t.Context(), client.ObjectKeyFromObject(scope.Config), bootstrapSecret)).To(Succeed())
+
+		var userData struct {
+			WriteFiles []bootstrapv1.File `json:"write_files"`
+		}
+		g.Expect(kubeyaml.Unmarshal(bootstrapSecret.Data["value"], &userData)).To(Succeed())
+
+		var config struct {
+			Server string `json:"server"`
+		}
+		for _, file := range userData.WriteFiles {
+			if file.Path == rke2.DefaultRKE2ConfigLocation {
+				g.Expect(kubeyaml.Unmarshal([]byte(file.Content), &config)).To(Succeed())
+			}
+		}
+
+		servers = append(servers, config.Server)
+	}
+
+	g.Expect(servers).To(Equal([]string{"https://10.0.0.1:9345", "https://10.0.0.2:9345", "https://10.0.0.1:9345"}))
+}
+
+func TestRoundRobinPick(t *testing.T) {
+	servers := []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"}
+	clusterA := client.ObjectKey{Namespace: "default", Name: "cluster-a"}
+	clusterB := client.ObjectKey{Namespace: "default", Name: "cluster-b"}
+
+	t.Run("rotates through the servers", func(t *testing.T) {
+		g := NewWithT(t)
+
+		var rr roundRobin
+
+		picked := make([]string, 0, 4)
+		for range 4 {
+			picked = append(picked, rr.pick(clusterA, servers))
+		}
+
+		g.Expect(picked).To(Equal([]string{"10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.1"}))
+	})
+
+	t.Run("keeps a separate position per cluster", func(t *testing.T) {
+		g := NewWithT(t)
+
+		var rr roundRobin
+
+		g.Expect(rr.pick(clusterA, servers)).To(Equal("10.0.0.1"))
+		g.Expect(rr.pick(clusterB, servers)).To(Equal("10.0.0.1"))
+		g.Expect(rr.pick(clusterA, servers)).To(Equal("10.0.0.2"))
+	})
+
+	t.Run("wraps when the server list shrinks", func(t *testing.T) {
+		g := NewWithT(t)
+
+		var rr roundRobin
+
+		rr.pick(clusterA, servers)
+		rr.pick(clusterA, servers)
+
+		g.Expect(rr.pick(clusterA, servers[:2])).To(Equal("10.0.0.1"))
+	})
+
+	t.Run("spreads concurrent picks evenly", func(t *testing.T) {
+		g := NewWithT(t)
+
+		var (
+			rr     roundRobin
+			mu     sync.Mutex
+			wg     sync.WaitGroup
+			counts = map[string]int{}
+		)
+
+		for range 30 {
+			wg.Go(func() {
+				server := rr.pick(clusterA, servers)
+
+				mu.Lock()
+				counts[server]++
+				mu.Unlock()
+			})
+		}
+
+		wg.Wait()
+
+		g.Expect(counts).To(Equal(map[string]int{"10.0.0.1": 10, "10.0.0.2": 10, "10.0.0.3": 10}))
+	})
 }

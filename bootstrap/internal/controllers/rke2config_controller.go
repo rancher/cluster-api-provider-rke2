@@ -25,6 +25,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -74,6 +75,8 @@ type RKE2ConfigReconciler struct {
 
 	RKE2InitLock RKE2InitLock
 	Scheme       *runtime.Scheme
+
+	joinServers roundRobin
 }
 
 const (
@@ -706,12 +709,14 @@ func (r *RKE2ConfigReconciler) joinControlplane(ctx context.Context, scope *Scop
 		return ctrl.Result{}, err
 	}
 
+	registrationAddress := r.joinServers.pick(client.ObjectKeyFromObject(scope.Cluster), scope.ControlPlane.Status.AvailableServerIPs)
+
 	configStruct, configFiles, err := rke2.GenerateJoinControlPlaneConfig(
 		rke2.ServerConfigOpts{
 			Cluster:              *scope.Cluster,
 			Token:                token,
 			ControlPlaneEndpoint: scope.Cluster.Spec.ControlPlaneEndpoint.Host,
-			ServerURL:            "https://" + net.JoinHostPort(scope.ControlPlane.Status.AvailableServerIPs[0], strconv.Itoa(registrationPort)),
+			ServerURL:            "https://" + net.JoinHostPort(registrationAddress, strconv.Itoa(registrationPort)),
 			ServerConfig:         scope.ControlPlane.Spec.ServerConfig,
 			AgentConfig:          scope.Config.Spec.AgentConfig,
 			Ctx:                  ctx,
@@ -862,9 +867,11 @@ func (r *RKE2ConfigReconciler) joinWorker(ctx context.Context, scope *Scope) (re
 		agentConfig.NodeTaints = append(agentConfig.NodeTaints, clusterv1.NodeUninitializedTaint.ToString())
 	}
 
+	registrationAddress := r.joinServers.pick(client.ObjectKeyFromObject(scope.Cluster), scope.ControlPlane.Status.AvailableServerIPs)
+
 	configStruct, configFiles, err := rke2.GenerateWorkerConfig(
 		rke2.AgentConfigOpts{
-			ServerURL:              "https://" + net.JoinHostPort(scope.ControlPlane.Status.AvailableServerIPs[0], strconv.Itoa(registrationPort)),
+			ServerURL:              "https://" + net.JoinHostPort(registrationAddress, strconv.Itoa(registrationPort)),
 			Token:                  token,
 			AgentConfig:            *agentConfig,
 			Ctx:                    ctx,
@@ -1173,4 +1180,23 @@ func hasTaint(taints []string, target corev1.Taint) bool {
 	}
 
 	return false
+}
+
+type roundRobin struct {
+	mu   sync.Mutex
+	next map[client.ObjectKey]int
+}
+
+func (rr *roundRobin) pick(cluster client.ObjectKey, addresses []string) string {
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
+	if rr.next == nil {
+		rr.next = map[client.ObjectKey]int{}
+	}
+
+	i := rr.next[cluster] % len(addresses)
+	rr.next[cluster] = i + 1
+
+	return addresses[i]
 }

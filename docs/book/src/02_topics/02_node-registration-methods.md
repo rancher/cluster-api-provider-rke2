@@ -44,19 +44,25 @@ The CAPI (Infra)Cluster's `controlPlaneEndpoint` value will be used for node reg
 
 For each CAPI `Machine` that is used for the control plane,  we take the **internal** ip address from `Machine.status.addresses` if it exists. If there is no **internal** ip for a machine then we will use an **external** address instead. For the ip address found for a machine then we add it to  `RKEControlPlane.status.availableServerIPs`.
 
-The first IP address listed in `RKEControlPlane.status.availableServerIPs` is then used for the join.
+Joining nodes take the IP addresses listed in `RKEControlPlane.status.availableServerIPs` in turn, so joins are spread across the control plane machines.
+
+All instances of a `MachinePool` share one bootstrap secret, so the whole pool joins through the same IP, chosen once when that secret is created. If that control plane machine is replaced later, new instances of the pool still try its old IP, so `control-plane-endpoint` or `address` suits `MachinePools` better.
 
 ### internal-only-ips
 
 For each CAPI `Machine` that is used for the control plane,  we take the **internal** ip address from `Machine.status.addresses` if it exists and then we add it to  `RKEControlPlane.status.availableServerIPs`.
 
-The first IP address listed in `RKEControlPlane.status.availableServerIPs` is then used for the join.
+Joining nodes take the IP addresses listed in `RKEControlPlane.status.availableServerIPs` in turn, so joins are spread across the control plane machines.
+
+All instances of a `MachinePool` share one bootstrap secret, so the whole pool joins through the same IP, chosen once when that secret is created. If that control plane machine is replaced later, new instances of the pool still try its old IP, so `control-plane-endpoint` or `address` suits `MachinePools` better.
 
 ### external-only-ips
 
 For each CAPI `Machine` that is used for the control plane,  we take the **external** ip address from `Machine.status.addresses` if it exists and then we add it to  `RKEControlPlane.status.availableServerIPs`.
 
-The first IP address listed in `RKEControlPlane.status.availableServerIPs` is then used for the join.
+Joining nodes take the IP addresses listed in `RKEControlPlane.status.availableServerIPs` in turn, so joins are spread across the control plane machines.
+
+All instances of a `MachinePool` share one bootstrap secret, so the whole pool joins through the same IP, chosen once when that secret is created. If that control plane machine is replaced later, new instances of the pool still try its old IP, so `control-plane-endpoint` or `address` suits `MachinePools` better.
 
 ### address
 
