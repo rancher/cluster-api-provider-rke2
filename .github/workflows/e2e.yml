@@ -3,7 +3,7 @@ on:
   pull_request:
   merge_group:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: "0 1 * * *"
   workflow_dispatch:
 
 jobs:
@@ -77,9 +77,6 @@ jobs:
         env:
           GINKGO_LABEL_FILTER: in-place-updates
         run: make test-e2e
-      - name: Summarise results
-        if: always()
-        run: python3 hack/junit-summary.py _artifacts/junit.e2e_suite.1.xml "E2E results (in-place updates)" >> "$GITHUB_STEP_SUMMARY"
       - name: Archive artifacts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
