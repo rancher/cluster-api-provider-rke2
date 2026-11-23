@@ -3,19 +3,19 @@
 ## Release Cadence
 
 - CAPRKE2 minor versions (v0.**2**.0 versus v0.**1**.0) are released every 1-2 months.
-- CAPRKE2 patch versions (v0.2.**2** versus v0.2.**1**) are released as often as weekly or bi-weekly. 
+- CAPRKE2 patch versions (v0.2.**2** versus v0.2.**1**) are released as often as weekly or bi-weekly.
 
 ## Release Process
 
-1. Clone the repository locally: 
+1. Clone the repository locally:
 
 ```bash
 git clone git@github.com:rancher/cluster-api-provider-rke2.git
 ```
 
-2. Depending on whether you are cutting a minor or patch release, the process varies.
+1. Depending on whether you are cutting a minor or patch release, the process varies.
 
-    * If you are cutting a new minor release:
+    - If you are cutting a new minor release:
 
         Create a new release branch (i.e release-X) and push it to the upstream repository.
 
@@ -26,7 +26,8 @@ git clone git@github.com:rancher/cluster-api-provider-rke2.git
             # Export the tag of the minor release to be cut, e.g.:
             export RELEASE_TAG=v0.2.0
         ```
-    * If you are cutting a patch release from an existing release branch:
+
+    - If you are cutting a patch release from an existing release branch:
 
         Use existing release branch.
 
@@ -35,7 +36,7 @@ git clone git@github.com:rancher/cluster-api-provider-rke2.git
             # Export the tag of the patch release to be cut, e.g.:
             export RELEASE_TAG=v0.2.1
         ```
-3. Create a signed/annotated tag and push it:
+2. Create a signed/annotated tag and push it:
 
 ```bash
 # Create tags locally
@@ -47,11 +48,11 @@ git push upstream ${RELEASE_TAG}
 
 This will trigger a [release GitHub action](https://github.com/rancher/cluster-api-provider-rke2/actions/workflows/release.yml) that creates a release with RKE2 provider components.
 
-4. Mark release as ready.
+1. Mark release as ready.
 
 Published releases are initially marked as `draft`. If the published version is supposed to be `latest`, mark it so on the release [page](https://github.com/rancher/cluster-api-provider-rke2/releases/), while editing the release. Please note that we are using [semantic versioning](#versioning) while choosing `latest` version.
 
-5. Perform mandatory [post-release activities](#prepare-main-branch-for-development-of-the-new-release), which will ensure contract `metadata.yaml` file is [up-to-date](#2-add-future-version-to-metadatayaml-for-example-if-v05-was-just-released-we-add-v06-to-the-list-of-releaseseries) in case of a future `minor/major` version change.
+1. Perform mandatory [post-release activities](#prepare-main-branch-for-development-of-the-new-release), which will ensure contract `metadata.yaml` file is [up-to-date](#2-add-future-version-to-metadatayaml-for-example-if-v05-was-just-released-we-add-v06-to-the-list-of-releaseseries) in case of a future `minor/major` version change.
 
 ### Prepare main branch for development of the new release
 
@@ -69,8 +70,8 @@ Existing E2E tests that point to a specific version need to be updated to use th
 
 *To maintain the upgrade test concise and clean, and avoid a growing list of versions, it is required to maintain N-1 minor as a starting version (e.g. if releasing version v4.x, starting version is v3.x and the upgrade is as follows: v3.x -> v4.x).
 
+#### 2. Add future version to `metadata.yaml`. For example, if `v0.5` was just released, we add `v0.6` to the list of `releaseSeries`
 
-#### 2. Add future version to `metadata.yaml`. For example, if `v0.5` was just released, we add `v0.6` to the list of `releaseSeries`:
 ```
 apiVersion: clusterctl.cluster.x-k8s.io/v1alpha3
 kind: Metadata
@@ -89,11 +90,20 @@ releaseSeries:
     contract: x
 ```
 
+#### 3. Add the new release branch to renovate
+
+If you published a new major/minor version, that means you have created a new release branch.
+
+Add the new branch to `baseBranchPatterns` in `renovate.json` so it its covered by Renovate automated dependency bumps.
+
+To simplify maintainability, delete branches that are no longer maintained (no patch releases are expected to be released).
+
 ## Versioning
 
 Cluster API Provider RKE2 follows [semantic versioning](https://semver.org/) specification.
 
 Example versions:
+
 - Pre-release: `v0.2.0-alpha.1`
 - Minor release: `v0.2.0`
 - Patch release: `v0.2.1`
