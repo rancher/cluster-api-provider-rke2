@@ -16,7 +16,6 @@ import (
 	. "github.com/onsi/gomega"
 	bootstrapv1 "github.com/rancher/cluster-api-provider-rke2/bootstrap/api/v1beta2"
 	controlplanev1 "github.com/rancher/cluster-api-provider-rke2/controlplane/api/v1beta2"
-	"github.com/rancher/cluster-api-provider-rke2/pkg/infrastructure"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/rke2"
 	"github.com/rancher/cluster-api-provider-rke2/pkg/secret"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +31,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/collections"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
+	"sigs.k8s.io/cluster-api/util/test/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -306,8 +306,8 @@ var _ = Describe("Reconcile control plane conditions", func() {
 					},
 				},
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-					Kind:     "FakeMachine",
-					APIGroup: infrastructure.GroupVersion.Group,
+					Kind:     builder.GenericInfrastructureMachineKind,
+					APIGroup: builder.InfrastructureGroupVersion.Group,
 					Name:     "fakemref1",
 				},
 			},
@@ -378,8 +378,8 @@ var _ = Describe("Reconcile control plane conditions", func() {
 					},
 				},
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
-					Kind:     "FakeMachine",
-					APIGroup: infrastructure.GroupVersion.Group,
+					Kind:     builder.GenericInfrastructureMachineKind,
+					APIGroup: builder.InfrastructureGroupVersion.Group,
 					Name:     "fakem1",
 				},
 			},

@@ -1,0 +1,15 @@
+# Installs the RKE2 in-place updates extension for e2e tests.
+# The extension only serves namespaces with the label below, so it does not
+# interfere with other tests.
+resources:
+  - ../../../../config/extension/default
+
+patches:
+  - target:
+      kind: ExtensionConfig
+    patch: |-
+      - op: add
+        path: /spec/namespaceSelector
+        value:
+          matchLabels:
+            e2e.cluster.x-k8s.io/rke2-extension: "true"
