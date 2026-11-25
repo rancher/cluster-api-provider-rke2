@@ -39,7 +39,7 @@ func TestBuildUpgradePlan_ControlPlane(t *testing.T) {
 			Name:      "cp-1",
 			Labels:    map[string]string{clusterv1.MachineControlPlaneLabel: ""},
 		},
-		Spec: clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
+		Spec: clusterv1.MachineSpec{Version: "v1.36.1+rke2r1"},
 	}
 
 	p, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{})
@@ -47,7 +47,7 @@ func TestBuildUpgradePlan_ControlPlane(t *testing.T) {
 	g.Expect(p.OneTimeInstructions).To(HaveLen(2))
 
 	install := p.OneTimeInstructions[0]
-	g.Expect(install.Image).To(Equal("rancher/system-agent-installer-rke2:v1.30.2-rke2r1"))
+	g.Expect(install.Image).To(Equal("rancher/system-agent-installer-rke2:v1.36.1-rke2r1"))
 	g.Expect(install.Env).To(ConsistOf("INSTALL_RKE2_TYPE=server", "INSTALL_RKE2_EXEC=server"))
 
 	restart := p.OneTimeInstructions[1]
@@ -60,7 +60,7 @@ func TestBuildUpgradePlan_Worker(t *testing.T) {
 
 	machine := &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "worker-1"},
-		Spec:       clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
+		Spec:       clusterv1.MachineSpec{Version: "v1.36.1+rke2r1"},
 	}
 
 	p, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{})
@@ -87,24 +87,29 @@ func TestBuildUpgradePlan_SystemDefaultRegistryPrefixesImage(t *testing.T) {
 
 	machine := &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "m1"},
-		Spec:       clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
+		Spec:       clusterv1.MachineSpec{Version: "v1.36.1+rke2r1"},
 	}
 
 	p, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{SystemDefaultRegistry: "registry.example.com"})
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(p.OneTimeInstructions[0].Image).To(Equal("registry.example.com/rancher/system-agent-installer-rke2:v1.30.2-rke2r1"))
+	g.Expect(p.OneTimeInstructions[0].Image).To(Equal("registry.example.com/rancher/system-agent-installer-rke2:v1.36.1-rke2r1"))
 }
 
-func TestBuildUpgradePlan_AirGappedRejected(t *testing.T) {
+func TestBuildUpgradePlan_AirGappedPullsFromSystemDefaultRegistry(t *testing.T) {
 	g := NewWithT(t)
 
 	machine := &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "m1"},
-		Spec:       clusterv1.MachineSpec{Version: "v1.30.2+rke2r1"},
+		Spec:       clusterv1.MachineSpec{Version: "v1.36.1+rke2r1"},
 	}
 
-	_, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{AirGapped: true})
-	g.Expect(err).To(HaveOccurred())
+	p, err := buildUpgradePlan(machine, nil, bootstrapv1.RKE2AgentConfig{
+		AirGapped:             true,
+		SystemDefaultRegistry: "registry.example.com",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(p.OneTimeInstructions).To(ContainElement(HaveField("Image",
+		"registry.example.com/rancher/system-agent-installer-rke2:v1.36.1-rke2r1")))
 }
 
 func TestConvertFiles(t *testing.T) {

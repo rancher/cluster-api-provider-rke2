@@ -50,18 +50,13 @@ const (
 // RKE2ConfigSpec.Files mirroring the exact set of fields DoCanUpdateMachine claims it can
 // absorb (Version and RKE2ConfigSpec.Files).
 //
-// Air-gapped machines are not supported yet: the installer image approach used here requires
-// registry access, so an air-gapped machine would only discover the failure deep inside run.sh.
-// Failing here instead gives CAPI a clear, immediate Failure rather than a silent hang/timeout.
+// Air-gapped Machines are supported when the corresponding RKE2AgentConfig has a systemDefaultRegistry, and the upgrade image
+// is available: see `rancher/rancher/pkg/image/origins.go`.
+// Air-gapped Machines without a registry never get here: CanUpdateMachine sends them to a rollout.
 func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File, agentConfig bootstrapv1.RKE2AgentConfig) (planapi.Plan, error) {
 	version := machine.Spec.Version
 	if version == "" {
 		return planapi.Plan{}, errors.Errorf("machine %s/%s has no desired version set", machine.Namespace, machine.Name)
-	}
-
-	if agentConfig.AirGapped {
-		return planapi.Plan{}, errors.Errorf(
-			"machine %s/%s is air-gapped, which in-place update plans do not support yet", machine.Namespace, machine.Name)
 	}
 
 	planFiles, err := convertFiles(files)

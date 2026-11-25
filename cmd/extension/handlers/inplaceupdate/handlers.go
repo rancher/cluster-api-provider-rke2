@@ -99,6 +99,13 @@ func canUpdateRKE2ConfigSpec(current, desired *bootstrapv1.RKE2ConfigSpec) {
 	}
 }
 
+// canDownloadUpgradeImage returns true if a Machine can download the RKE2 upgrade image.
+// Air-gapped Machines have no internet access, so they can only download it from their
+// private registry (systemDefaultRegistry). Without one, they must be replaced instead.
+func canDownloadUpgradeImage(agentConfig bootstrapv1.RKE2AgentConfig) bool {
+	return !agentConfig.AirGapped || agentConfig.SystemDefaultRegistry != ""
+}
+
 // DoCanUpdateMachine implements the CanUpdateMachine hook.
 func (h *ExtensionHandlers) DoCanUpdateMachine(
 	ctx context.Context,
@@ -117,18 +124,34 @@ func (h *ExtensionHandlers) DoCanUpdateMachine(
 		return
 	}
 
+	currentRKE2Config, isCurrentRKE2Config := currentBootstrapConfig.(*bootstrapv1.RKE2Config)
+	desiredRKE2Config, isDesiredRKE2Config := desiredBootstrapConfig.(*bootstrapv1.RKE2Config)
+
+	if !isCurrentRKE2Config || !isDesiredRKE2Config {
+		log.Info("BootstrapConfig is not an RKE2Config, no in-place updates are possible")
+
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+
+		return
+	}
+
+	// Machines that cannot download the upgrade image are replaced instead of updated in-place,
+	// so we declare no changes for them.
+	if !canDownloadUpgradeImage(desiredRKE2Config.Spec.AgentConfig) {
+		log.Info("Machine is air-gapped without a systemDefaultRegistry, it will be replaced instead of updated in-place")
+
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+
+		return
+	}
+
 	// Declare changes that this Runtime Extension can update in-place.
 
 	// Machine
 	canUpdateMachineSpec(&currentMachine.Spec, &desiredMachine.Spec)
 
 	// BootstrapConfig (we can only update RKE2Configs)
-	currentRKE2Config, isCurrentRKE2Config := currentBootstrapConfig.(*bootstrapv1.RKE2Config)
-
-	desiredRKE2Config, isDesiredRKE2Config := desiredBootstrapConfig.(*bootstrapv1.RKE2Config)
-	if isCurrentRKE2Config && isDesiredRKE2Config {
-		canUpdateRKE2ConfigSpec(&currentRKE2Config.Spec, &desiredRKE2Config.Spec)
-	}
+	canUpdateRKE2ConfigSpec(&currentRKE2Config.Spec, &desiredRKE2Config.Spec)
 
 	err = h.computeCanUpdateMachineResponse(req, resp, currentMachine, currentBootstrapConfig)
 	if err != nil {
@@ -159,18 +182,34 @@ func (h *ExtensionHandlers) DoCanUpdateMachineSet(
 		return
 	}
 
+	currentRKE2ConfigTemplate, isCurrentRKE2ConfigTemplate := currentBootstrapConfigTemplate.(*bootstrapv1.RKE2ConfigTemplate)
+	desiredRKE2ConfigTemplate, isDesiredRKE2ConfigTemplate := desiredBootstrapConfigTemplate.(*bootstrapv1.RKE2ConfigTemplate)
+
+	if !isCurrentRKE2ConfigTemplate || !isDesiredRKE2ConfigTemplate {
+		log.Info("BootstrapConfigTemplate is not an RKE2ConfigTemplate, no in-place updates are possible")
+
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+
+		return
+	}
+
+	// Machines that cannot download the upgrade image are replaced instead of updated in-place,
+	// so we declare no changes for them.
+	if !canDownloadUpgradeImage(desiredRKE2ConfigTemplate.Spec.Template.Spec.AgentConfig) {
+		log.Info("Machines are air-gapped without a systemDefaultRegistry, they will be replaced instead of updated in-place")
+
+		resp.Status = runtimehooksv1.ResponseStatusSuccess
+
+		return
+	}
+
 	// Declare changes that this Runtime Extension can update in-place.
 
 	// MachineSet
 	canUpdateMachineSpec(&currentMachineSet.Spec.Template.Spec, &desiredMachineSet.Spec.Template.Spec)
 
 	// BootstrapConfig (we can only update RKE2ConfigTemplates)
-	currentRKE2ConfigTemplate, isCurrentRKE2ConfigTemplate := currentBootstrapConfigTemplate.(*bootstrapv1.RKE2ConfigTemplate)
-
-	desiredRKE2ConfigTemplate, isDesiredRKE2ConfigTemplate := desiredBootstrapConfigTemplate.(*bootstrapv1.RKE2ConfigTemplate)
-	if isCurrentRKE2ConfigTemplate && isDesiredRKE2ConfigTemplate {
-		canUpdateRKE2ConfigSpec(&currentRKE2ConfigTemplate.Spec.Template.Spec, &desiredRKE2ConfigTemplate.Spec.Template.Spec)
-	}
+	canUpdateRKE2ConfigSpec(&currentRKE2ConfigTemplate.Spec.Template.Spec, &desiredRKE2ConfigTemplate.Spec.Template.Spec)
 
 	err = h.computeCanUpdateMachineSetResponse(req, resp, currentMachineSet, currentBootstrapConfigTemplate)
 	if err != nil {
