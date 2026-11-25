@@ -50,18 +50,20 @@ const (
 // RKE2ConfigSpec.Files mirroring the exact set of fields DoCanUpdateMachine claims it can
 // absorb (Version and RKE2ConfigSpec.Files).
 //
-// Air-gapped machines are not supported yet: the installer image approach used here requires
-// registry access, so an air-gapped machine would only discover the failure deep inside run.sh.
-// Failing here instead gives CAPI a clear, immediate Failure rather than a silent hang/timeout.
+// Air-gapped Machines are supported when the corresponding RKE2AgentConfig has a systemDefaultRegistry, and the upgrade image
+// is available: see `rancher/rancher/pkg/image/origins.go`.
+// CanUpdateMachine already sends air-gapped Machines without a registry to a rollout. The check below avoids submitting a plan
+// that would fail to download its image.
 func buildUpgradePlan(machine *clusterv1.Machine, files []bootstrapv1.File, agentConfig bootstrapv1.RKE2AgentConfig) (planapi.Plan, error) {
 	version := machine.Spec.Version
 	if version == "" {
 		return planapi.Plan{}, errors.Errorf("machine %s/%s has no desired version set", machine.Namespace, machine.Name)
 	}
 
-	if agentConfig.AirGapped {
+	if !canDownloadUpgradeImage(agentConfig) {
 		return planapi.Plan{}, errors.Errorf(
-			"machine %s/%s is air-gapped, which in-place update plans do not support yet", machine.Namespace, machine.Name)
+			"machine %s/%s is air-gapped without a systemDefaultRegistry, so it cannot download the upgrade image",
+			machine.Namespace, machine.Name)
 	}
 
 	planFiles, err := convertFiles(files)
@@ -115,6 +117,13 @@ func installerImage(systemDefaultRegistry, version string) string {
 	}
 
 	return systemDefaultRegistry + "/" + image
+}
+
+// canDownloadUpgradeImage returns true if a Machine can download the RKE2 upgrade image.
+// Air-gapped Machines have no internet access, so they can only download it from their
+// private registry (systemDefaultRegistry). Without one, they must be replaced instead.
+func canDownloadUpgradeImage(agentConfig bootstrapv1.RKE2AgentConfig) bool {
+	return !agentConfig.AirGapped || agentConfig.SystemDefaultRegistry != ""
 }
 
 // convertFiles translates RKE2ConfigSpec.Files into system-agent Plan.Files. planapi.File.Content
