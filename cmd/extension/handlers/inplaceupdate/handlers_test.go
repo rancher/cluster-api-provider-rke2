@@ -511,3 +511,135 @@ func TestDoUpdateMachine_SubmitsDesiredBootstrapFiles(t *testing.T) {
 	g.Expect(submittedPlan.Files[0].Path).To(Equal("/etc/rke2-test"))
 	g.Expect(submittedPlan.Files[0].Content).To(Equal(base64.StdEncoding.EncodeToString([]byte("after"))))
 }
+
+// In air-gapped, the installer image is pulled from RKE2Config's systemDefaultRegistry.
+func TestDoUpdateMachine_AirGappedSubmitsPlanWithSystemDefaultRegistry(t *testing.T) {
+	g := NewWithT(t)
+	m := baseMachine()
+	secret := machinePlanSecret(m.Namespace, m.Name)
+	h := newHandlers(t, secret)
+
+	desiredRKE2 := baseRKE2Config()
+	desiredRKE2.Spec.AgentConfig.AirGapped = true
+	desiredRKE2.Spec.AgentConfig.SystemDefaultRegistry = "registry.example.com"
+
+	req := &runtimehooksv1.UpdateMachineRequest{
+		Desired: runtimehooksv1.UpdateMachineRequestObjects{
+			Machine:         m,
+			BootstrapConfig: mustRaw(t, desiredRKE2),
+		},
+	}
+
+	resp := &runtimehooksv1.UpdateMachineResponse{}
+	h.DoUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+
+	got := &corev1.Secret{}
+	g.Expect(h.client.Get(context.Background(), client.ObjectKeyFromObject(secret), got)).To(Succeed())
+
+	submittedPlan, err := planapi.Parse(got.Data[planDataKey])
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(submittedPlan.OneTimeInstructions).To(ContainElement(HaveField("Image",
+		"registry.example.com/rancher/system-agent-installer-rke2:v1.34.2")))
+}
+
+// An air-gapped Machine with a systemDefaultRegistry downloads the upgrade image from it,
+// so it can still be updated in-place.
+func TestDoCanUpdateMachine_AirGappedWithRegistryIsUpdatedInPlace(t *testing.T) {
+	g := NewWithT(t)
+	h := newHandlers(t)
+
+	desiredMachine := baseMachine()
+	desiredMachine.Spec.Version = "v1.34.3"
+
+	currentRKE2 := baseRKE2Config()
+	currentRKE2.Spec.AgentConfig.AirGapped = true
+	currentRKE2.Spec.AgentConfig.SystemDefaultRegistry = "registry.example.com"
+	desiredRKE2 := baseRKE2Config()
+	desiredRKE2.Spec.AgentConfig.AirGapped = true
+	desiredRKE2.Spec.AgentConfig.SystemDefaultRegistry = "registry.example.com"
+
+	req := canUpdateRequest(
+		runtimehooksv1.CanUpdateMachineRequestObjects{
+			Machine:         baseMachine(),
+			BootstrapConfig: mustRaw(t, currentRKE2),
+		},
+		runtimehooksv1.CanUpdateMachineRequestObjects{
+			Machine:         desiredMachine,
+			BootstrapConfig: mustRaw(t, desiredRKE2),
+		},
+	)
+
+	resp := &runtimehooksv1.CanUpdateMachineResponse{}
+	h.DoCanUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(string(resp.MachinePatch.Patch)).To(ContainSubstring("v1.34.3"))
+}
+
+// An air-gapped Machine without a systemDefaultRegistry cannot download the upgrade image.
+// The extension must declare no changes, so CAPI replaces the Machine instead.
+func TestDoCanUpdateMachine_AirGappedWithoutRegistryIsReplaced(t *testing.T) {
+	g := NewWithT(t)
+	h := newHandlers(t)
+
+	desiredMachine := baseMachine()
+	desiredMachine.Spec.Version = "v1.34.3"
+
+	currentRKE2 := baseRKE2Config()
+	currentRKE2.Spec.AgentConfig.AirGapped = true
+	desiredRKE2 := baseRKE2Config()
+	desiredRKE2.Spec.AgentConfig.AirGapped = true
+
+	req := canUpdateRequest(
+		runtimehooksv1.CanUpdateMachineRequestObjects{
+			Machine:         baseMachine(),
+			BootstrapConfig: mustRaw(t, currentRKE2),
+		},
+		runtimehooksv1.CanUpdateMachineRequestObjects{
+			Machine:         desiredMachine,
+			BootstrapConfig: mustRaw(t, desiredRKE2),
+		},
+	)
+
+	resp := &runtimehooksv1.CanUpdateMachineResponse{}
+	h.DoCanUpdateMachine(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(resp.MachinePatch.IsDefined()).To(BeFalse())
+	g.Expect(resp.BootstrapConfigPatch.IsDefined()).To(BeFalse())
+}
+
+// An air-gapped MachineSet without a systemDefaultRegistry cannot download the upgrade image.
+// The extension must declare no changes, so CAPI replaces the Machine instead.
+func TestDoCanUpdateMachineSet_AirGappedWithoutRegistryIsReplaced(t *testing.T) {
+	g := NewWithT(t)
+	h := newHandlers(t)
+
+	desiredMS := baseMachineSet()
+	desiredMS.Spec.Template.Spec.Version = "v1.34.3"
+
+	currentRKE2Template := baseRKE2ConfigTemplate()
+	currentRKE2Template.Spec.Template.Spec.AgentConfig.AirGapped = true
+	desiredRKE2Template := baseRKE2ConfigTemplate()
+	desiredRKE2Template.Spec.Template.Spec.AgentConfig.AirGapped = true
+
+	req := &runtimehooksv1.CanUpdateMachineSetRequest{
+		Current: runtimehooksv1.CanUpdateMachineSetRequestObjects{
+			MachineSet:              baseMachineSet(),
+			BootstrapConfigTemplate: mustRaw(t, currentRKE2Template),
+		},
+		Desired: runtimehooksv1.CanUpdateMachineSetRequestObjects{
+			MachineSet:              desiredMS,
+			BootstrapConfigTemplate: mustRaw(t, desiredRKE2Template),
+		},
+	}
+
+	resp := &runtimehooksv1.CanUpdateMachineSetResponse{}
+	h.DoCanUpdateMachineSet(context.Background(), req, resp)
+
+	g.Expect(resp.Status).To(Equal(runtimehooksv1.ResponseStatusSuccess))
+	g.Expect(resp.MachineSetPatch.IsDefined()).To(BeFalse())
+	g.Expect(resp.BootstrapConfigTemplatePatch.IsDefined()).To(BeFalse())
+}
